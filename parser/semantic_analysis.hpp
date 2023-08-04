@@ -1,8 +1,8 @@
 #pragma once
 #include "parser.hpp"
 
-namespace occultlang {
-	class semantic_analysis {
+// going to do semantic analysis later on 
 
-	};
+namespace occultlang {
+
 } // occultlang

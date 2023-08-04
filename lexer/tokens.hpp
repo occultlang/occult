@@ -3,6 +3,8 @@
 #include <unordered_set>
 #include <string>
 
+#define USE_ALL_KEYWORDS false
+
 namespace occultlang {
 	enum token_type {
 		tk_identifier,
@@ -18,24 +20,32 @@ namespace occultlang {
 		tk_eof
 	};
 
-	static std::unordered_set<std::string> operator_set = {
+	static std::unordered_set<std::string> operator_set = { // add ternary? 
 		"==", "=", "*=", "*", "+=", "++", "+",
 		"/=", "/", "-=", "--", "-", "%=", "%",
 		"!=", "!", ">", ">=", "<", "<=", "&&", "||",
 		"&=", "&", "|=", "|", "^=", "^", "<<=", "<<",
-		">>=", ">>", "~", ":", "?", "->", "$", "..."
+		">>=", ">>", "~", ":", "?", "->", "$", "...", "_"
 	};
 
 	static std::unordered_set<std::string> delimiter_set = {
 		"(", ")", "{", "}", "[", "]", ";", ",", "."
 	};
 
+#if USE_ALL_KEYWORDS
 	static std::unordered_set<std::string> keyword_set = {
 		"fn", "match", "if", "else", "for", "do", "while",
 		"return", "break", "import", "struct", "enum",
 		"ref", "as", "i8", "i16", "i32", "i64", "u8",
 		"u16", "u32", "u64", "f32", "f64", "bool", "char", "string", "void"
 	};
+#else
+	static std::unordered_set<std::string> keyword_set = {
+		"fn", "if", "else", "for", "do", "while",
+		"return", "break", "as", "i8", "i16", "i32", "i64", "u8",
+		"u16", "u32", "u64", "f32", "f64", "bool", "string", "void"
+	};
+#endif
 
 	class token {
 		token_type type;

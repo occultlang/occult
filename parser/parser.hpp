@@ -5,47 +5,51 @@
 #include <variant>
 #include <expected>
 #include <functional>
+#include <optional>
+#include <stack>
 
-constexpr std::int8_t max_i8 = std::numeric_limits<std::int8_t>::max();
-constexpr std::int8_t min_i8 = std::numeric_limits<std::int8_t>::min();
-
-constexpr std::int16_t max_i16 = std::numeric_limits<std::int16_t>::max();
-constexpr std::int16_t min_i16 = std::numeric_limits<std::int16_t>::min();
-
-constexpr std::int32_t max_i32 = std::numeric_limits<std::int32_t>::max();
-constexpr std::int32_t min_i32 = std::numeric_limits<std::int32_t>::min();
-
-constexpr std::int64_t max_i64 = std::numeric_limits<std::int64_t>::max();
-constexpr std::int64_t min_i64 = std::numeric_limits<std::int64_t>::min();
-
-constexpr std::uint8_t max_u8 = std::numeric_limits<std::uint8_t>::max();
-
-constexpr std::uint16_t max_u16 = std::numeric_limits<std::uint16_t>::max();
-
-constexpr std::uint32_t max_u32 = std::numeric_limits<std::uint32_t>::max();
-
-constexpr std::uint64_t max_u64 = std::numeric_limits<std::uint64_t>::max();
-
-enum class parse_error {
-	INT_OUT_OF_BOUNDS,
-	EXPECTED_INTEGER,
-	EXPECTED_CLOSE,
-	TYPE_DOESNT_EXIST,
-	EXPECTED_OPEN,
-};
-
-const std::unordered_set<std::string> data_type_set = {
-	"i8", "i16", "i32", "i64",
-	"u8", "u16", "u32", "u64",
-	"f32", "f64", "bool", "char", "string", "void"
-};
+constexpr int GLOBAL_SCOPE = 0;
+constexpr int FUNCTION_SCOPE = 1;
 
 namespace occultlang {
 	class parser {
 		lexer _lexer;
 		std::vector<token> tokens;
 		int position;
-		std::unordered_set<std::string> user_data_type_set;
+
+		enum error_code {
+			NO_DECLARED_TYPE,
+			NOT_AN_IDENTIFIER,
+			EXPECTED_PARENTACES,
+			EXPECTED_COMMA,
+			NONREAL_TYPE,
+			EXPECTED_ARROW,
+			EXPECTED_BRACKET,
+			NOT_IN_SCOPE,
+		};
+
+		std::unordered_map<error_code, const char*> parse_exceptions {
+			{ NO_DECLARED_TYPE, "No declared type" },
+			{ NOT_AN_IDENTIFIER, "Token is not an identifier" },
+			{ EXPECTED_PARENTACES, "Expected parentaces" },
+			{ EXPECTED_COMMA, "Expected comma" },
+			{ NONREAL_TYPE, "Nonreal type" },
+			{ EXPECTED_ARROW, "Expected arrow" },
+			{ EXPECTED_BRACKET, "Expected bracket" },
+			{ NOT_IN_SCOPE, "Variable not in scope" },
+		};
+
+		std::unordered_set<std::string> data_type_set = {
+			"i8", "i16", "i32", "i64",
+			"u8", "u16", "u32", "u64",
+			"f32", "f64", "bool", "char", "string", "void"
+		};
+
+		std::stack<std::unordered_map<std::string, variable>> symbol_stack;
+
+		void add_variable_to_symbol_table(const variable& var) {
+			symbol_stack.top()[var.name] = var;
+		}
 	public:
 		parser(const std::string& source) : _lexer(source) { tokens = _lexer.lex(); }
 
@@ -65,6 +69,12 @@ namespace occultlang {
 			return tokens[position];
 		}
 
+		token consume() {
+			if (position < tokens.size()) {
+				return tokens[position++];
+			}
+		}
+
 		bool match(token_type tt, std::string match) { 
 			return (tokens[position].get_type() == tt && tokens[position].get_lexeme() == match) ? true : false;
 		}
@@ -73,23 +83,19 @@ namespace occultlang {
 			return (tokens[position].get_type() == tt) ? true : false;
 		}
 
+		bool match_next(token_type tt, std::string match) {
+			return (tokens[position + 1].get_type() == tt && tokens[position + 1].get_lexeme() == match) ? true : false;
+		}
+
 		std::vector<token>& get_tokens() { return tokens; }
 
-		std::expected<std::shared_ptr<ast>, parse_error> parse_statement();
-		std::expected<std::shared_ptr<ast>, parse_error> parse_struct_body();
-		std::expected<std::shared_ptr<ast>, parse_error> parse_function_argument(const std::string& keyword);
-		std::expected<std::vector<std::shared_ptr<ast>>, parse_error> parse_function_arguments();
-		std::expected<std::shared_ptr<ast>, parse_error> parse_factor();
-
-		template<typename AstType>
-		std::expected<std::shared_ptr<ast>, parse_error> parse_term(const std::string& operation, std::function<std::expected<std::shared_ptr<ast>, parse_error>()> parse_next);
-
-		std::expected<std::shared_ptr<ast>, parse_error> parse_multiplication();
-		std::expected<std::shared_ptr<ast>, parse_error> parse_division();
-		std::expected<std::shared_ptr<ast>, parse_error> parse_modulo();
-		std::expected<std::shared_ptr<ast>, parse_error> parse_addition();
-		std::expected<std::shared_ptr<ast>, parse_error> parse_subtraction();
-
+		void parse_comma();
+		std::string parse_identifier();
+		std::vector<variable> parse_function_arguments();
+		std::shared_ptr<ast> parse_function(bool& nested, int& scope);
+		std::shared_ptr<ast> parse_expression(int& scope);
+		std::shared_ptr<ast> parse_condition();
+		std::shared_ptr<ast> parse_keywords(bool nested = false, int scope = 1); // flag is here to make sure there isn't nested functions
 		std::shared_ptr<ast> parse();
 	};
 } // occultlang

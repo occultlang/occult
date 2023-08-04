@@ -1,305 +1,176 @@
 #include "parser.hpp"
 #include "../lexer/lexer.hpp"
 
-// recursive descent parser
-
 namespace occultlang {
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_statement() {
-		if (match(tk_keyword, "i8")) {
-			consume(tk_keyword); // consume "i8"
-
-			auto i8_decl = std::make_shared<ast_data_type>("i8");
-
-			auto var_decl = std::make_shared<ast_variable_declaration>();
-
-			var_decl->add_child(i8_decl);
-
-			auto identifier_tok = consume(tk_identifier); // consume identifier
-
-			auto identifier = std::make_shared<ast_identifier>(identifier_tok.get_lexeme());
-
-			var_decl->add_child(identifier);
-
-			if (match(tk_operator, "=")) { // assignment
-				consume(tk_operator); // consume "="
-
-				auto assignment = std::make_shared<ast_assignment>();
-
-				identifier->add_child(assignment);
-
-				auto expression = parse_subtraction();
-
-				assignment->add_child(*expression);
-			}
-
-			consume(tk_delimiter); // consume ";"
-
-			return var_decl;
-		}
-		else if (match(tk_keyword, "fn")) {
-			consume(tk_keyword); // consume "fn"
-
-			auto function_decl = std::make_shared<ast_function_declaration>();
-
-			auto identifier_tok = consume(tk_identifier); // consume identifier
-
-			auto identifier = std::make_shared<ast_identifier>(identifier_tok.get_lexeme());
-
-			function_decl->add_child(identifier);
-
-			if (match(tk_delimiter, "(")) {
-				consume(tk_delimiter);
-
-				auto args = parse_function_arguments();
-
-				for (auto& arg : *args) {
-					function_decl->add_child(arg);
-				}
-			}
-
-			consume(tk_delimiter); // consume ")"
-
-			consume(tk_operator); // consume "->"
-
-			auto type = consume(tk_keyword, tk_identifier);
-
-			if (data_type_set.count(type.get_lexeme())) {
-				function_decl->add_child(std::make_shared<ast_data_type>(type.get_lexeme()));
-			}
-			else if (user_data_type_set.count(type.get_lexeme())) {
-				function_decl->add_child(std::make_shared<ast_data_type>(type.get_lexeme()));
-			}
-			else {
-				return std::unexpected<parse_error>(parse_error::TYPE_DOESNT_EXIST);
-			}
-
-			consume(tk_delimiter); // consume "{"
-
-			function_decl->add_child(*parse_statement()); // function body LOL
-
-			consume(tk_delimiter); // consume "}"
-
-			return function_decl;
-		}
-		else if (match(tk_keyword, "struct")) { // custom data types :D
-			consume(tk_keyword);
-
-			auto struct_decl = std::make_shared<ast_struct_declaration>();
-
-			auto identifier_tok = consume(tk_identifier); // consume identifier
-
-			auto identifier = std::make_shared<ast_identifier>(identifier_tok.get_lexeme());
-
-			struct_decl->add_child(identifier);
-
-			user_data_type_set.insert(identifier_tok.get_lexeme());
-
-			consume(tk_delimiter); // consume "{"
-			
-			while (!match(tk_delimiter, "}")) {
-				auto type = consume(tk_keyword, tk_identifier);
-
-				std::shared_ptr<ast_data_type> struct_data = nullptr;
-
-				if (data_type_set.count(type.get_lexeme())) { // check data types
-					struct_data = std::make_shared<ast_data_type>(type.get_lexeme());
-				}
-				else if (user_data_type_set.count(type.get_lexeme())) {
-					struct_data = std::make_shared<ast_data_type>(type.get_lexeme());
-				}
-				else {
-					return std::unexpected<parse_error>(parse_error::TYPE_DOESNT_EXIST);
-				}
-
-				struct_decl->add_child(struct_data);
-
-				auto type_identifier_tok = consume(tk_identifier); // consume identifier
-
-				auto type_identifier = std::make_shared<ast_identifier>(type_identifier_tok.get_lexeme());
-
-				struct_data->add_child(type_identifier); // name of the data type in the struct
-
-				if (match(tk_delimiter, ",")) {
-					consume(tk_delimiter); // consume ","
-				}
-			}
-
-			consume(tk_delimiter); // consume "}"
-
-			return struct_decl;
-		}
-		else if (match(tk_keyword, "enum")) {
-			consume(tk_keyword);
-
-			auto enum_decl = std::make_shared<ast_enum_declaration>();
-
-			auto identifier_tok = consume(tk_identifier); // consume identifier
-
-			auto identifier = std::make_shared<ast_identifier>(identifier_tok.get_lexeme());
-
-			enum_decl->add_child(identifier);
-
-			if (!match(tk_delimiter, "{")) {
-				return std::unexpected<parse_error>(parse_error::EXPECTED_OPEN);
-			}
-
+	void parser::parse_comma() {
+		if (match(tk_delimiter, ",")) {
 			consume(tk_delimiter);
-
-			while (!match(tk_delimiter, "}")) {
-				auto value_name = consume(tk_identifier).get_lexeme();
-
-				enum_decl->add_child(std::make_shared<ast_enum_value>(value_name));
-
-				if (match(tk_delimiter, ",")) {
-					consume(tk_delimiter); // consume ","
-				}
-			}
-
-			consume(tk_delimiter); // consume "}"
-
-			return enum_decl;
 		}
 		else {
-
+			throw std::exception(parse_exceptions[EXPECTED_COMMA]);
 		}
 	}
 
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_struct_body() {
-		
-	}
-
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_function_argument(const std::string& keyword) { 
-		consume(tk_keyword); // consume keyword
-
-		auto function_arg = std::make_shared<ast_function_argument_declaration>();
-
-		function_arg->add_child(std::make_shared<ast_data_type>(keyword)); // add data type to the declaration
-
-		auto identifier_tok = consume(tk_identifier); // consume identifier
-
-		auto identifier = std::make_shared<ast_identifier>(identifier_tok.get_lexeme());
-
-		function_arg->add_child(identifier);
-
-		if (match(tk_delimiter, ",")) {
-			consume(tk_delimiter); // consume ","
+	std::string parser::parse_identifier() {
+		if (match(tk_identifier)) {
+			return consume(tk_identifier).get_lexeme(); // consume, get, and return identifier
 		}
-
-		return function_arg;
-	}
-
-	std::expected<std::vector<std::shared_ptr<ast>>, parse_error> parser::parse_function_arguments() {
-		std::vector<std::shared_ptr<ast>> args;
-
-		while (peek().get_type() == tk_keyword || peek().get_type() == tk_identifier) {
-			auto data_type = peek().get_lexeme();
-
-			if (data_type_set.count(data_type)) {
-				args.push_back(*parse_function_argument(data_type));
-			}
-			else if (user_data_type_set.count(data_type)) {
-				args.push_back(*parse_function_argument(data_type));
-			}
-			else {
-				return std::unexpected<parse_error>(parse_error::TYPE_DOESNT_EXIST);
-			}
+		else {
+			throw std::exception(parse_exceptions[NOT_AN_IDENTIFIER]);
 		}
-
-		return args;
 	}
 
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_factor() {
+	std::vector<variable> parser::parse_function_arguments() {
+		std::vector<variable> variables;
+
 		if (match(tk_delimiter, "(")) {
 			consume(tk_delimiter);
 
-			auto expression = parse_subtraction();
+			while (!match(tk_delimiter, ")")) {
+				if (match(tk_keyword)) {
+					variable var;
 
-			if (!expression) {
-				return expression;
+					auto type = consume(tk_keyword);
+
+					if (data_type_set.count(type.get_lexeme())) {
+						auto name = parse_identifier();
+
+						parse_comma();
+
+						var.type = type.get_lexeme();
+						var.name = name;
+						var.scope = FUNCTION_SCOPE;
+					}
+					else {
+						throw std::exception(parse_exceptions[NONREAL_TYPE]);
+					}
+				}
 			}
 
-			if (!match(tk_delimiter, ")")) {
-				return std::unexpected<parse_error>(parse_error::EXPECTED_CLOSE);
-			}
-
-			consume(tk_delimiter);
-
-			return expression;
+			return variables;
 		}
-		else if (match(tk_number_literal)) {
-			auto number = consume(tk_number_literal);
+		else {
+			throw std::exception(parse_exceptions[EXPECTED_PARENTACES]);
+		}
+	}
 
-			auto value = std::stoll(number.get_lexeme());
+	std::shared_ptr<ast> parser::parse_function(bool& nested, int& scope) {
+		consume(tk_keyword); // consume "fn" keyword
 
-			if (value >= min_i8 && value <= max_i8) {
-				return std::make_shared<ast_8int_literal>(value);
+		auto name = parse_identifier();
+
+		auto function_decl = std::make_shared<ast_function_declaration>(name);
+
+		auto arguments = parse_function_arguments();
+
+		consume(tk_delimiter); // consume ")"
+
+		function_decl->variables = arguments;
+
+		if (match(tk_operator, "->")) {
+			consume(tk_operator);
+
+			if (match(tk_keyword)) {
+				variable var;
+
+				auto type = consume(tk_keyword);
+
+				if (data_type_set.count(type.get_lexeme())) {
+					function_decl->type = type.get_lexeme();
+				}
+				else {
+					throw std::exception(parse_exceptions[NONREAL_TYPE]);
+				}
 			}
 			else {
-				return std::unexpected<parse_error>(parse_error::INT_OUT_OF_BOUNDS);
+				throw std::exception(parse_exceptions[NO_DECLARED_TYPE]);
 			}
 		}
-
-		// handle other types and literals
-
-		return std::unexpected<parse_error>(parse_error::EXPECTED_INTEGER);
-	}
-
-	template<typename AstType>
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_term(const std::string& operation, std::function<std::expected<std::shared_ptr<ast>, parse_error>()> parse_next) {
-		auto left = parse_next();
-
-		if (!left) {
-			return left;
+		else {
+			throw std::exception(parse_exceptions[EXPECTED_ARROW]);
 		}
 
-		while (match(tk_operator, operation)) {
-			auto operation = consume(tk_operator);
+		if (match(tk_delimiter, "{")) {
+			consume(tk_delimiter);
 
-			auto right = parse_next();
+			auto body = parse_keywords(true, ++scope);
 
-			if (!right) {
-				return right;
+			function_decl->add_child(body);
+		}
+		else {
+			throw std::exception(parse_exceptions[EXPECTED_BRACKET]);
+		}
+
+		if (match(tk_delimiter, "}")) {
+			consume(tk_delimiter);
+		}
+		else {
+			throw std::exception(parse_exceptions[EXPECTED_BRACKET]);
+		}
+
+		return function_decl;
+	}
+
+	std::shared_ptr<ast> parser::parse_expression(int& scope) {
+		if (match(tk_delimiter, "(")) {
+
+		}
+	}
+
+	std::shared_ptr<ast> parser::parse_condition() {
+		return {};
+	}
+
+	std::shared_ptr<ast> parser::parse_keywords(bool nested, int scope) {
+		if (match(tk_keyword, "fn") && !nested) {
+			return parse_function(nested, scope);
+		}
+		else if (match(tk_keyword, "i8")) {
+
+		}
+		else if (match(tk_keyword, "if")) {
+			consume(tk_keyword);
+
+			if (match(tk_keyword, "else")) {
+				consume(tk_keyword);
 			}
+			else {
 
-			auto node = std::make_shared<AstType>();
-
-			node->add_child(*left);
-			node->add_child(*right);
-
-			left = node;
+			}
 		}
+		else if (match(tk_keyword, "else")) {
+			consume(tk_keyword);
 
-		return left;
-	}
+			if (match(tk_delimiter, "{")) {
 
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_multiplication() {
-		return parse_term<ast_multiplication>("*", [this]() { return this->parse_factor(); });
-	}
-
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_division() {
-		return parse_term<ast_division>("/", [this]() { return this->parse_multiplication(); });
-	}
-
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_modulo() {
-		return parse_term<ast_modulo>("%", [this]() { return this->parse_division(); });
-	}
-
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_addition() {
-		return parse_term<ast_addition>("+", [this]() { return this->parse_modulo(); });
-	}
-
-	std::expected<std::shared_ptr<ast>, parse_error> parser::parse_subtraction() {
-		return parse_term<ast_subtraction>("-", [this]() { return this->parse_addition(); });
+			}
+			else {
+				throw std::exception(parse_exceptions[EXPECTED_BRACKET]);
+			}
+		}
+		else {
+			return std::make_shared<ast_empty_body>();
+		}
 	}
 
 	std::shared_ptr<ast> parser::parse() {
+
 		std::shared_ptr<ast> root = std::make_shared<ast>();
 
 		while (position < tokens.size() && tokens[position].get_type() != tk_eof) {
-			auto statement = parse_statement();
+			auto statement = std::shared_ptr<ast>();
+
+			try {
+				statement = parse_keywords();
+			}
+			catch (std::exception& e) {
+				std::cout << e.what() << std::endl;
+
+				return 0;
+			}
 
 			if (statement) {
-				root->add_child(*statement);
+				root->add_child(statement);
 			}
 		}
 
