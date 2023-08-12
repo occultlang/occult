@@ -44,12 +44,6 @@ namespace occultlang {
 			"u8", "u16", "u32", "u64",
 			"f32", "f64", "bool", "char", "string", "void"
 		};
-
-		std::stack<std::unordered_map<std::string, variable>> symbol_stack;
-
-		void add_variable_to_symbol_table(const variable& var) {
-			symbol_stack.top()[var.name] = var;
-		}
 	public:
 		parser(const std::string& source) : _lexer(source) { tokens = _lexer.lex(); }
 
@@ -67,6 +61,11 @@ namespace occultlang {
 
 		token peek() {
 			return tokens[position];
+		}
+
+
+		token peek_next() {
+			return tokens[position + 1];
 		}
 
 		token consume() {
@@ -87,15 +86,20 @@ namespace occultlang {
 			return (tokens[position + 1].get_type() == tt && tokens[position + 1].get_lexeme() == match) ? true : false;
 		}
 
+		bool match_next(token_type tt) {
+			return (tokens[position + 1].get_type() == tt) ? true : false;
+		}
+
 		std::vector<token>& get_tokens() { return tokens; }
 
 		void parse_comma();
 		std::string parse_identifier();
-		std::vector<variable> parse_function_arguments();
-		std::shared_ptr<ast> parse_function(bool& nested, int& scope);
-		std::shared_ptr<ast> parse_expression(int& scope);
+		std::vector<std::shared_ptr<ast>> parse_function_arguments();
+		std::shared_ptr<ast> parse_function();
+		std::shared_ptr<ast> parse_term(std::optional<std::string> data_type);
+		std::shared_ptr<ast> parse_expression(std::optional<std::string> data_type);
 		std::shared_ptr<ast> parse_condition();
-		std::shared_ptr<ast> parse_keywords(bool nested = false, int scope = 1); // flag is here to make sure there isn't nested functions
+		std::shared_ptr<ast> parse_keywords(bool nested = false); // flag is here to make sure there isn't nested functions
 		std::shared_ptr<ast> parse();
 	};
 } // occultlang

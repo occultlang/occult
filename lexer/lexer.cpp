@@ -69,8 +69,15 @@ namespace occultlang {
 		while (position < source.size() && std::ispunct(source[position])) {
 			s += source[position];
 			if (operator_set.count(s) > 0) {
-				position++;
-				column++;
+				if (s == "--" || s == "++") {
+					position += s.length(); // increment by the length of the operator
+					column += s.length();
+					return token{ tk_operator, s, line, column };
+				}
+				else {
+					position++;
+					column++;
+				}
 			}
 			else if (delimiter_set.count(s) > 0) {
 				position++;
@@ -231,7 +238,7 @@ namespace occultlang {
 			return handle_number();
 		}
 
-		if (source[position] = '"') { // string literals
+		if (source[position] == '"') { // string literals
 			return handle_string();
 		}
 
@@ -247,6 +254,8 @@ namespace occultlang {
 			tokens.push_back(current_token);
 
 			current_token = get_next();
+
+			std::cout << current_token.get_lexeme() << std::endl;
 
 			if (current_token.get_type() == tk_error || current_token.get_type() == tk_eof) break;
 		}

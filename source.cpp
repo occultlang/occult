@@ -6,12 +6,12 @@
 
 int main(int argc, char* argv[]) {
 	occultlang::parser parser{ R"( 
-		fn main() -> i32 { }
+		i8 x = 10 * 3 / 5;
  )"};
 
 	auto ast = parser.parse();
 
-	//occultlang::lexer::visualize(parser.get_tokens());
+	occultlang::lexer::visualize(parser.get_tokens());
 
 	occultlang::ast::visualize(ast);
 
