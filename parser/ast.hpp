@@ -32,8 +32,6 @@ namespace occultlang {
 	struct ast_function_declaration : public ast {
 		std::string name;
 		std::string type;
-		std::shared_ptr<ast_body> body;
-		std::shared_ptr<ast_arguments> arguments;
 
 		ast_function_declaration() = default;
 		ast_function_declaration(const std::string& name, const std::string& type) : name(name), type(type) {}
@@ -78,44 +76,99 @@ namespace occultlang {
 		std::string to_string() override { return "number literal: " + value; }
 	};
 
-	/*struct ast_binary : public ast {
-		std::shared_ptr<ast> left_operand;
-		std::shared_ptr<ast> right_operand;
+	struct ast_float_literal : public ast {
+		std::string value;
 
-		ast_binary(std::shared_ptr<ast> left, std::shared_ptr<ast> right)
-			: left_operand(left), right_operand(right) {
-		}
-		
-		ast_binary() = default;
-	};*/
+		ast_float_literal() = default;
+		ast_float_literal(const std::string& value) : value(value) {}
 
-	struct ast_addition : public ast {//public ast_binary {
-		//ast_addition(std::shared_ptr<ast> left, std::shared_ptr<ast> right) : ast_binary(left, right) {}
-
-		std::string to_string() override { return "addition"; }
+		std::string to_string() override { return "float literal: " + value; }
 	};
 
-	struct ast_subtraction : public ast {//public ast_binary {
-		//ast_subtraction(std::shared_ptr<ast> left, std::shared_ptr<ast> right) : ast_binary(left, right) {}
+	struct ast_string_literal : public ast {
+		std::string value;
 
-		std::string to_string() override { return "subtraction"; }
+		ast_string_literal() = default;
+		ast_string_literal(const std::string& value) : value(value) {}
+
+		std::string to_string() override { return "string literal: " + value; }
 	};
 
-	struct ast_multiplication : public ast {//public ast_binary {
-		//ast_multiplication(std::shared_ptr<ast> left, std::shared_ptr<ast> right) : ast_binary(left, right) {}
-
-		std::string to_string() override { return "multiplication"; }
+	struct ast_return_statement : public ast {
+		std::string to_string() override { return "return statement"; }
 	};
 
-	struct ast_division : public ast {//public ast_binary {
-		//ast_division(std::shared_ptr<ast> left, std::shared_ptr<ast> right) : ast_binary(left, right) {}
+	struct ast_function_call : public ast {
+		std::string name;
 
-		std::string to_string() override { return "division"; }
+		ast_function_call() = default;
+		ast_function_call(const std::string& name) : name(name) {}
+
+		std::string to_string() override { return "function call: " + name; }
+	};
+
+	struct ast_bool_literal : public ast {
+		std::string value;
+
+		ast_bool_literal() = default;
+		ast_bool_literal(const std::string& value) : value(value) {}
+
+		std::string to_string() override { return "boolean literal: " + value; }
+	};
+
+	struct ast_for_declaration : public ast {
+		std::string to_string() override { return "for loop declaration"; }
+	};
+
+	struct ast_identifier : public ast {
+		std::string name;
+
+		ast_identifier(std::string name) : name(name) {}
+
+		std::string to_string() override { return "identifier: " + name; }
 	};
 	
-	struct ast_modulus : public ast {// public ast_binary {
-		//ast_modulus(std::shared_ptr<ast> left, std::shared_ptr<ast> right) : ast_binary(left, right) {}
+	struct ast_break_statement : public ast {
+		std::string to_string() override { return "break statement"; }
+	};
 
-		std::string to_string() override { return "modulus"; }
+	struct ast_operator : public ast {
+		std::string op;
+
+		ast_operator(std::string op) : op(op) {}
+
+		std::string to_string() override { return "operator: " + op; }
+	};
+
+	struct ast_delimiter : public ast {
+		std::string delim;
+
+		ast_delimiter(std::string delim) : delim(delim) {}
+
+		std::string to_string() override { return "delimiter: " + delim; }
+	};
+
+	struct ast_expression : public ast {
+		std::string to_string() override { return "expression"; }
+	};
+
+	struct ast_if_declaration : public ast {
+		std::string to_string() override { return "if declaration"; }
+	};
+
+	struct ast_else_declaration : public ast {
+		std::string to_string() override { return "else declaration"; }
+	};
+
+	struct ast_else_if_declaration : public ast {
+		std::string to_string() override { return "else if declaration"; }
+	};
+
+	struct ast_while_declaration : public ast {
+		std::string to_string() override { return "while declaration"; }
+	};
+
+	struct ast_do_while_declaration : public ast {
+		std::string to_string() override { return "do while declaration"; }
 	};
 } // occultlang

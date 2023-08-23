@@ -42,7 +42,7 @@ namespace occultlang {
 		std::unordered_set<std::string> data_type_set = {
 			"i8", "i16", "i32", "i64",
 			"u8", "u16", "u32", "u64",
-			"f32", "f64", "bool", "char", "string", "void"
+			"f32", "f64", "bool", "string", "void"
 		};
 	public:
 		parser(const std::string& source) : _lexer(source) { tokens = _lexer.lex(); }
@@ -96,9 +96,8 @@ namespace occultlang {
 		std::string parse_identifier();
 		std::vector<std::shared_ptr<ast>> parse_function_arguments();
 		std::shared_ptr<ast> parse_function();
-		std::shared_ptr<ast> parse_term(std::optional<std::string> data_type);
+		std::vector<std::shared_ptr<ast>> parse_term();
 		std::shared_ptr<ast> parse_expression(std::optional<std::string> data_type);
-		std::shared_ptr<ast> parse_condition();
 		std::shared_ptr<ast> parse_keywords(bool nested = false); // flag is here to make sure there isn't nested functions
 		std::shared_ptr<ast> parse();
 	};

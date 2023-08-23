@@ -32,20 +32,19 @@ namespace occultlang {
 		"(", ")", "{", "}", "[", "]", ";", ",", "."
 	};
 
-#if USE_ALL_KEYWORDS
 	static std::unordered_set<std::string> keyword_set = {
-		"fn", "match", "if", "else", "for", "do", "while",
-		"return", "break", "import", "struct", "enum",
-		"ref", "as", "i8", "i16", "i32", "i64", "u8",
-		"u16", "u32", "u64", "f32", "f64", "bool", "char", "string", "void"
+		"fn", "if", "else", "do", "while",
+		"return", "break", "i8", "i16", "i32", "i64", "u8"
+		"u16", "u32", "u64", "f32", "f64", "bool", "string", "void", "true", "false"
 	};
-#else
-	static std::unordered_set<std::string> keyword_set = {
-		"fn", "if", "else", "for", "do", "while",
-		"return", "break", "as", "i8", "i16", "i32", "i64", "u8",
-		"u16", "u32", "u64", "f32", "f64", "bool", "string", "void"
-	};
-#endif
+
+	/*
+	
+	future keywords
+
+	for, as, import, match, delete (maybe)
+
+	*/
 
 	class token {
 		token_type type;

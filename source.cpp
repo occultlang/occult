@@ -5,9 +5,11 @@
 #include "parser/parser.hpp"
 
 int main(int argc, char* argv[]) {
-	occultlang::parser parser{ R"( 
-		i8 x = 10 * 3 / 5;
- )"};
+	occultlang::parser parser{ R"(
+		fn main() i32 {
+			f32 x = 0.123 + 0.4;
+		}
+	)"};
 
 	auto ast = parser.parse();
 
