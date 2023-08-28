@@ -1,6 +1,8 @@
 #include "parser.hpp"
 #include "../lexer/lexer.hpp"
 
+// maybe add assignment ast node
+
 namespace occultlang {
 	void parser::parse_comma() {
 		if (match(tk_delimiter, ",")) {
@@ -153,14 +155,44 @@ namespace occultlang {
 				return std::make_shared<ast_postfix_decrement>(var);
 			}
 		}
-		else if (match(tk_identifier) && match_next(tk_operator, "=") && data_type.has_value()) {
+		else if (match(tk_identifier) && match_next(tk_delimiter, "[")) {
+			auto identifier = parse_identifier();
+
+			consume(tk_delimiter); // [
+
+			auto index = consume(tk_number_literal).get_lexeme();
+
+			consume(tk_delimiter); // ]
+
+			if (match(tk_operator, "=")) {
+				consume(tk_operator); // consume "="
+
+				auto assigned_value = parse_expression(data_type); // parse right side
+
+				auto assignment_ast = std::make_shared<ast_index>(identifier, index);
+
+				assignment_ast->add_child(assigned_value);
+
+				return assignment_ast;
+			}
+
+			return std::make_shared<ast_index>(identifier, index);
+		}
+		else if (match(tk_identifier) && match_next(tk_operator, "=")) {
 			auto variable_name = parse_identifier();
 
-			consume(tk_operator);
+			consume(tk_operator); // consume "="
 
 			auto assigned_value = parse_expression(data_type); // parse right side
 
-			auto assignment_ast = std::make_shared<ast_variable_declaration>(variable_name, data_type.value());
+			auto assignment_ast = std::make_shared<ast_variable_declaration>();
+
+			if (data_type.has_value()) {
+				assignment_ast = std::make_shared<ast_variable_declaration>(variable_name, data_type.value());
+			}
+			else {
+				assignment_ast = std::make_shared<ast_variable_declaration>(variable_name);
+			}
 
 			assignment_ast->add_child(assigned_value);
 
@@ -218,6 +250,33 @@ namespace occultlang {
 
 			return std::make_shared<ast_identifier>(identifier);
 		}
+		else if (match(tk_keyword, "new")) {
+			consume(tk_keyword);
+
+			consume(tk_delimiter); // [
+
+			auto size = consume(tk_number_literal).get_lexeme();
+
+			consume(tk_delimiter); // ]
+
+			return std::make_shared<ast_new>(size);
+		}
+		else if (match(tk_keyword, "ref")) {
+			consume (tk_keyword);
+
+			std::cout << peek().get_lexeme() << std::endl;
+
+			auto identifier = parse_identifier();
+
+			return std::make_shared<ast_reference>(identifier);
+		}
+		else if (match(tk_keyword, "deref")) {
+			consume(tk_keyword);
+
+			auto identifier = parse_identifier();
+
+			return std::make_shared<ast_dereference>(identifier);
+		}
 
 		return nullptr;
 	}
@@ -226,10 +285,82 @@ namespace occultlang {
 		if (match(tk_keyword, "fn") && !nested) {
 			return parse_function();
 		}
+		else if (match(tk_keyword, "deref")) {
+			consume(tk_keyword);
+			
+			auto var = parse_expression("dereference");
+
+			auto deref_ast = std::make_shared<ast_dereference>();
+
+			deref_ast->add_child(var);
+
+			consume(tk_delimiter);
+
+			return deref_ast;
+		}
+		else if (match(tk_keyword, "ref")) {
+			consume(tk_keyword);
+
+			auto var = parse_expression("reference");
+
+			auto ref_ast = std::make_shared<ast_reference>();
+
+			ref_ast->add_child(var);
+
+			consume(tk_delimiter);
+
+			return ref_ast;
+		}
+		else if (match(tk_keyword, "delete")) {
+			consume(tk_keyword);
+
+			std::vector<std::string> pointer_target;
+
+			while (!match(tk_delimiter, ";")) {
+				pointer_target.push_back(parse_identifier());
+
+				parse_comma();
+			}
+
+			consume(tk_delimiter);
+
+			auto delete_ast = std::make_shared<ast_delete>();
+
+			for (auto& target : pointer_target) {
+				delete_ast->add_child(std::make_shared<ast_identifier>(target));
+			}
+
+			return delete_ast;
+		}
 		else if (match(tk_keyword, "i8")) {
 			consume(tk_keyword);
 
-			auto var = parse_expression("i8");
+			std::shared_ptr<ast> var;
+
+			if (match(tk_operator, "*")) { // pointers, a system for safety for now is just a static analyzer later on to garauntee safety
+				consume(tk_operator);
+
+				var = parse_expression("i8_pointer");
+			}
+			else {
+				var = parse_expression("i8");
+			}
+
+			if (match(tk_keyword, "as")) {
+				consume(tk_keyword);
+
+				auto type = consume(tk_keyword).get_lexeme();
+
+				if (match(tk_operator, "*")) { // should work					
+					consume(tk_operator);
+
+					type += "_pointer";
+				}
+
+				auto cast_ast = std::make_shared<ast_type_cast>(type);
+
+				var->add_child(cast_ast);
+			}
 
 			consume(tk_delimiter);
 
@@ -329,6 +460,47 @@ namespace occultlang {
 
 			return return_stmt;
 		}
+		/*else if (match(tk_keyword, "for")) {
+			consume(tk_keyword);
+			
+			auto for_decl = std::make_shared<ast_for_declaration>();
+
+			auto var_decl = parse_keywords(true); // variable declaration
+
+			if (match(tk_delimiter, ";")) {
+				consume(tk_delimiter);
+			}
+
+			for_decl->add_child(var_decl);
+
+			auto condition = parse_keywords(true); // condition
+
+			if (match(tk_delimiter, ";")) {
+				consume(tk_delimiter);
+			}
+
+			for_decl->add_child(condition);
+
+			auto incr = parse_keywords(true); // increment or assignment
+
+			for_decl->add_child(incr);
+
+			auto body = std::make_shared<ast_body>();
+
+			consume(tk_delimiter); // {
+
+			while (!match(tk_delimiter, "}")) {
+				auto body_stmt = parse_keywords(true);
+
+				body->add_child(body_stmt);
+			}
+
+			consume(tk_delimiter); // }
+
+			for_decl->add_child(body);
+
+			return for_decl;
+		}*/
 		else if (match(tk_keyword, "do")) {
 			consume(tk_keyword);
 

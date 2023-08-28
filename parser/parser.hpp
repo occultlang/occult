@@ -8,9 +8,6 @@
 #include <optional>
 #include <stack>
 
-constexpr int GLOBAL_SCOPE = 0;
-constexpr int FUNCTION_SCOPE = 1;
-
 namespace occultlang {
 	class parser {
 		lexer _lexer;
@@ -62,7 +59,6 @@ namespace occultlang {
 		token peek() {
 			return tokens[position];
 		}
-
 
 		token peek_next() {
 			return tokens[position + 1];

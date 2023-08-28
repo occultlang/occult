@@ -10,6 +10,7 @@ namespace occultlang {
         std::weak_ptr<tree<T>> parent;
     public:
         tree(const T& value) : value(value), parent(), children({}) {}
+        virtual ~tree() {}
 
         void add_child(std::shared_ptr<tree<T>> child) {
             child->parent = this->shared_from_this();

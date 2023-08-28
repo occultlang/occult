@@ -255,8 +255,6 @@ namespace occultlang {
 
 			current_token = get_next();
 
-			std::cout << current_token.get_lexeme() << std::endl;
-
 			if (current_token.get_type() == tk_error || current_token.get_type() == tk_eof) break;
 		}
 
