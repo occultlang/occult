@@ -6,9 +6,9 @@
 #include "translator/code_generator.hpp"
 
 int main(int argc, char* argv[]) {
-	std::string source_original = R"(fn main() i32 { })";
+	std::string source_original = R"(fn main() i32 { print(3); return 0; })";
 	
-	std::cout << "original source\n" << source_original << "\n\n";
+	//std::cout << source_original << "\n\n";
 
 	occultlang::parser parser{ source_original };
 	
@@ -18,13 +18,13 @@ int main(int argc, char* argv[]) {
 
 	//occultlang::ast::visualize(ast);
 
-	//std::cout << std::endl;
+	std::cout << std::endl;
 
 	occultlang::code_generator generator{ ast };
 
 	auto source = generator.generate();
 
-	std::cout << "generated source\n" << source << "\n\n";
+	//std::cout << source << "\n\n";
 
 	return 0;
 }

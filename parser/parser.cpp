@@ -378,7 +378,32 @@ namespace occultlang {
 		else if (match(tk_keyword, "i32")) {
 			consume(tk_keyword);
 
-			auto var = parse_expression("i32");
+			std::shared_ptr<ast> var;
+
+			if (match(tk_operator, "*")) { // pointers, a system for safety for now is just a static analyzer later on to garauntee safety
+				consume(tk_operator);
+
+				var = parse_expression("i32_pointer");
+			}
+			else {
+				var = parse_expression("i32");
+			}
+
+			if (match(tk_keyword, "as")) {
+				consume(tk_keyword);
+
+				auto type = consume(tk_keyword).get_lexeme();
+
+				if (match(tk_operator, "*")) { // should work					
+					consume(tk_operator);
+
+					type += "_pointer";
+				}
+
+				auto cast_ast = std::make_shared<ast_type_cast>(type);
+
+				var->add_child(cast_ast);
+			}
 
 			consume(tk_delimiter);
 
@@ -460,47 +485,6 @@ namespace occultlang {
 
 			return return_stmt;
 		}
-		/*else if (match(tk_keyword, "for")) {
-			consume(tk_keyword);
-			
-			auto for_decl = std::make_shared<ast_for_declaration>();
-
-			auto var_decl = parse_keywords(true); // variable declaration
-
-			if (match(tk_delimiter, ";")) {
-				consume(tk_delimiter);
-			}
-
-			for_decl->add_child(var_decl);
-
-			auto condition = parse_keywords(true); // condition
-
-			if (match(tk_delimiter, ";")) {
-				consume(tk_delimiter);
-			}
-
-			for_decl->add_child(condition);
-
-			auto incr = parse_keywords(true); // increment or assignment
-
-			for_decl->add_child(incr);
-
-			auto body = std::make_shared<ast_body>();
-
-			consume(tk_delimiter); // {
-
-			while (!match(tk_delimiter, "}")) {
-				auto body_stmt = parse_keywords(true);
-
-				body->add_child(body_stmt);
-			}
-
-			consume(tk_delimiter); // }
-
-			for_decl->add_child(body);
-
-			return for_decl;
-		}*/
 		else if (match(tk_keyword, "do")) {
 			consume(tk_keyword);
 
@@ -678,8 +662,6 @@ namespace occultlang {
 			return if_decl;
 		}
 		else if (match(tk_identifier) && match_next(tk_delimiter, "(")) {
-			std::cout << "function call" << std::endl;
-
 			auto function_name = parse_identifier();
 
 			consume(tk_delimiter); // Consume '('

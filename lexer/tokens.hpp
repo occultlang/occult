@@ -3,8 +3,6 @@
 #include <unordered_set>
 #include <string>
 
-#define USE_ALL_KEYWORDS false
-
 namespace occultlang {
 	enum token_type {
 		tk_identifier,
@@ -20,7 +18,7 @@ namespace occultlang {
 		tk_eof
 	};
 
-	static std::unordered_set<std::string> operator_set = { // add ternary? 
+	static std::unordered_set<std::string> operator_set = {
 		"==", "=", "*=", "*", "+=", "++", "+",
 		"/=", "/", "-=", "--", "-", "%=", "%",
 		"!=", "!", ">", ">=", "<", "<=", "&&", "||",
@@ -34,7 +32,7 @@ namespace occultlang {
 
 	static std::unordered_set<std::string> keyword_set = {
 		"fn", "if", "else", "do", "while", "new", "null", "new", "delete", "ref", "deref", // "for",
-		"return", "break", "i8", "i16", "i32", "i64", "u8", "as", "import"
+		"return", "break", "i8", "i16", "i32", "i64", "u8", "as",// "import",
 		"u16", "u32", "u64", "f32", "f64", "bool", "string", "void", "true", "false"
 	};
 

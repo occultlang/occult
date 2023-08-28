@@ -8,6 +8,7 @@ namespace occultlang {
 	public:
 		code_generator(std::shared_ptr<ast> root) : root{ root } {}
 
+		std::string generate(std::shared_ptr<ast> node);
 		std::string generate();
 	};
 } // occultlang
