@@ -1,2 +1,2 @@
 # occult
-occult language
+The occult programming lanugage.
