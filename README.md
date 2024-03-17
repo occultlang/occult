@@ -15,7 +15,7 @@ Occult has test cases and you can just run `run_test_cases.sh` to run the test c
 # Cleaning
 To clean the build directory just run `clean.sh`
 
-# How
+# How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
 
 Without the advances in generative AI, I would have never been able to write a compiler it has helped me so much with learning new concepts and some coding mistakes :)
