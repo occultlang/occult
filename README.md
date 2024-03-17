@@ -14,3 +14,5 @@ Occult has test cases and you can just run `run_test_cases.sh` to run the test c
 
 # Cleaning
 To clean the build directory just run `clean.sh`
+
+# License
