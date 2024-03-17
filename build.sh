@@ -10,10 +10,6 @@ EXECUTABLE="occultc"
 
 mkdir -p $BUILD_DIR
 
-for HEADER in $HEADERS; do
-   g++ -c -w -g $HEADER -o $BUILD_DIR/$(basename ${HEADER%.*}.o)
-done
-
 for SOURCE in $SOURCES; do
      g++ -c -w -g $SOURCE -o $BUILD_DIR/$(basename ${SOURCE%.*}.o)
 done
