@@ -2,7 +2,6 @@
 
 
 SOURCES=$(find $SRC_DIR -name "*.cpp")
-HEADERS=$(find $SRC_DIR -name "*.hpp")
 
 SOURCE_DIR="."
 BUILD_DIR="output"
