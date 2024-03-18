@@ -5,6 +5,7 @@ The Occult programming lanugage
 To build occult there's a few steps. you need to run these in order to build it successfully
 ```bash
 $ git clone https://github.com/finalxvd/occult.git
+$ chmod +x ./build.sh
 $ ./build.sh
 ```
 
