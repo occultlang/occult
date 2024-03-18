@@ -9,8 +9,18 @@ $ ./get_libraries_tcc.sh
 $ ./build.sh
 ```
 
+# Using Occult
+To use occult, you can just build it using the steps above and run this:
+```bash
+$ ./occultc <path/to/source.occ> 
+```
+To debug:
+```bash
+$ ./occultc <path/to/source.occ> -dbg
+```
+
 # Testing
-Occult has test cases and you can just run `run_test_cases.sh` to run the test cases in Occult.
+Tests are in the test_cases directory.
 
 # Cleaning
 To clean the build directory just run `clean.sh`
