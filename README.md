@@ -19,7 +19,7 @@ $ ./occultc <path/to/source.occ> -dbg
 ```
 
 # Speed & Tests
-Occult is about the same as C for running a **non*** recursion fibonacci sequence
+Occult is about the same as C for running a **non** recursion fibonacci sequence
 Test cases are in the `test_cases` directory
 
 # Cleaning
