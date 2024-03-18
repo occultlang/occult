@@ -9,7 +9,7 @@ fn fibonacci(num: n) -> num {
 }
 
 fn main() -> num {
-    printf("%i\n", fibonacci(10));
+    printf("%i\n", fibonacci(50));
 
     return 0;
 }

@@ -3,7 +3,7 @@ git clone https://github.com/TinyCC/tinycc.git
 cd tinycc
 
 ./configure --with-selinux
-make
+make CFLAGS='-Ofast' -j4
 
 mv libtcc.a ../
 mv libtcc1.a ../

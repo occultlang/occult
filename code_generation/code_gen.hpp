@@ -272,13 +272,25 @@ namespace occultlang
                 {
                     if (debug)
                         std::cout << "identifier: " << id.first << std::endl;
+
                     if (auto a1 = check_type<occ_ast::identifier>(node); a1.first)
                     {
                         generated_source += a1.second->content;
+
+                        if (a1.second->has_child())
+                        {
+                            if (auto child = check_type<occ_ast::assignment>(a1.second->get_child()); child.first)
+                            {
+                                if(debug)
+                                    std::cout << "assignment" << std::endl;
+                                
+                                generated_source += "=";
+                                generated_source += compile<occ_ast::assignment>(a1.second->get_child());
+                                generated_source += ";";
+                            }
+                        }
                     }
                 }
-
-
 
                 auto string_literal = check_type<occ_ast::string_literal>(node);
                 if (string_literal.first)
@@ -331,35 +343,34 @@ namespace occultlang
                     // Assuming the condition is the first child
                     generated_source += compile<occ_ast::if_declaration>(if_decl.second);
                     generated_source += ")\n";
-
+                    generated_source += "{\n";
                     for (int idx = 0; idx < if_decl.second->get_children().size(); idx++)
                     {
                         if (check_type<occ_ast::body_start>(if_decl.second->get_child(idx)).first)
                         {
-                            generated_source += "{\n";
                             generated_source += compile<occ_ast::body_start>(if_decl.second->get_child(idx));
-                            generated_source += "}\n";
                         }
                     }
+                    generated_source += "}\n";
                 }
 
                 auto elseif_decl = check_type<occ_ast::elseif_declaration>(node); 
                 if (elseif_decl.first) 
                 {
                     generated_source += "else if (";
-                    // Assuming the condition is the first child
                     generated_source += compile<occ_ast::elseif_declaration>(elseif_decl.second);
                     generated_source += ")\n";
+                    generated_source += "{\n";
 
                     for (int idx = 0; idx < elseif_decl.second->get_children().size(); idx++)
                     {
                         if (check_type<occ_ast::body_start>(elseif_decl.second->get_child(idx)).first)
                         {
-                            generated_source += "{\n";
                             generated_source += compile<occ_ast::body_start>(elseif_decl.second->get_child(idx));
-                            generated_source += "}\n";
                         }
                     }
+
+                    generated_source += "}\n";
                 }
 
                 auto else_decl = check_type<occ_ast::else_declaration>(node);
@@ -378,6 +389,28 @@ namespace occultlang
 
                         generated_source += "}\n";
                     }
+                }
+
+                auto while_decl = check_type<occ_ast::while_declaration>(node);
+                if (while_decl.first)
+                {
+                    if (debug)
+                        std::cout << "while_declaration: " << while_decl.first << std::endl;
+                    
+                    generated_source += "while (";
+                    generated_source += compile<occ_ast::while_declaration>(while_decl.second);
+                    generated_source += ")\n";
+                    generated_source += "{\n";
+
+                    for (int idx = 0; idx < while_decl.second->get_children().size(); idx++)
+                    {
+                        if (check_type<occ_ast::body_start>(while_decl.second->get_child(idx)).first)
+                        {
+                            generated_source += compile<occ_ast::body_start>(while_decl.second->get_child(idx));
+                        }
+                    }
+
+                    generated_source += "}\n";
                 }
 
                 auto loop_decl = check_type<occ_ast::loop_declaration>(node);
@@ -422,7 +455,7 @@ namespace occultlang
                     generated_source += "return ";
 
                     generated_source += compile<occ_ast::return_declaration>(return_decl.second);
-
+                    
                     generated_source += ";\n";
                 }
 

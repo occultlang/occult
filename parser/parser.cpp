@@ -373,7 +373,7 @@ namespace occultlang
 		{
 			consume(tk_keyword);
 
-			std::shared_ptr<ast> continue_stmt = std::make_shared<occ_ast::continue_declaration>();
+			auto continue_stmt = std::make_shared<occ_ast::continue_declaration>();
 
 			return continue_stmt;
 		}
@@ -414,6 +414,10 @@ namespace occultlang
 
 			return return_statement;
 		}
+	}
+
+	std::shared_ptr<ast> parser::parse_match() {
+		throw occ_runtime_error(parse_exceptions[NOT_IMPLEMENTED], peek());
 	}
 
 	std::shared_ptr<ast> parser::parse_break()
@@ -462,13 +466,13 @@ namespace occultlang
 		{
 			return parse_for();
 		}
-		else if (match(tk_keyword, "break"))
-		{
-			return parse_break();
-		}
 		else if (match(tk_keyword, "continue"))
 		{
 			return parse_continue();
+		}
+		else if (match(tk_keyword, "break"))
+		{
+			return parse_break();
 		}
 		else if (match(tk_keyword, "rnum"))
 		{

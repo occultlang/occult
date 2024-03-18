@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
 
     occultlang::code_gen code_gen;
 
-    auto generated = code_gen.compile<occultlang::ast>(ast, debug, occultlang::debug_level::none);
+    auto generated = code_gen.compile<occultlang::ast>(ast, debug, occultlang::debug_level::all);
 
     if (debug)
         std::cout << std::endl << generated << std::endl << std::endl;
