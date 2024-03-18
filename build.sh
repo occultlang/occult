@@ -18,3 +18,5 @@ OBJECTS=$(find $BUILD_DIR -name "*.o")
 g++ -o $BUILD_DIR/$EXECUTABLE $OBJECTS ./libtcc.a ./libtcc1.a
 
 chmod +x $BUILD_DIR/$EXECUTABLE
+
+cp $BUILD_DIR/$EXECUTABLE ./

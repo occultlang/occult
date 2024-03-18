@@ -2,18 +2,21 @@
 #include "tokens.hpp"
 #include <string>
 #include <cstdlib>
-#include <cctype> 
+#include <cctype>
 #include <iostream>
 #include <vector>
 
-namespace occultlang {
-	class lexer {
+namespace occultlang
+{
+	class lexer
+	{
 		std::string source;
 		int position;
 		int line;
 		int column;
+
 	public:
-		lexer(const std::string& source) : source(source), position(0), line(1), column(1) {}
+		lexer(const std::string &source) : source(source), position(0), line(1), column(1) {}
 
 		token handle_whitespaces();
 		token handle_comment();
@@ -28,6 +31,6 @@ namespace occultlang {
 		token get_next();
 		std::vector<token> lex();
 		static std::string get_typename(token_type tt);
-		static void visualize(std::vector<token>& tokens);
+		static void visualize(std::vector<token> &tokens);
 	};
 } // occultlang

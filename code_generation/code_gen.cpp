@@ -1,6 +1,7 @@
 #include "code_gen.hpp"
 #include "../parser/error.hpp"
 
-namespace occultlang {
+namespace occultlang
+{
 
 } // occultlang

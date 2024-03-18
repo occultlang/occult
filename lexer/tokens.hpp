@@ -3,8 +3,10 @@
 #include <unordered_set>
 #include <string>
 
-namespace occultlang {
-	enum token_type {
+namespace occultlang
+{
+	enum token_type
+	{
 		tk_identifier,
 		tk_keyword,
 		tk_comment,
@@ -23,27 +25,26 @@ namespace occultlang {
 		"/=", "/", "-=", "--", "-", "%=", "%",
 		"!=", "!", ">", ">=", "<", "<=", "&&", "||",
 		"&=", "&", "|=", "|", "^=", "^", "<<=", "<<",
-		">>=", ">>", "~", "?",  "$", "...", "_"
-	};
+		">>=", ">>", "~", "?", "$", "...", "_"};
 
 	static std::unordered_set<std::string> delimiter_set = {
-		"(", ")", "{", "}", "[", "]", ";", ",", ".", ":", "->"
-	};
+		"(", ")", "{", "}", "[", "]", ";", ",", ".", ":", "->"};
 
-	static std::unordered_set<std::string> keyword_set = { 
-		"fn", "if", "else", "loop", 
+	static std::unordered_set<std::string> keyword_set = {
+		"fn", "if", "else", "loop",
 		"return", "break", "num", "bool", "rnum", // rnum is real number
-		"str", "true", "false", "void", "while", "for"
-	};
+		"str", "true", "false", "void", "while", "for"};
 
-	class token {
+	class token
+	{
 		token_type type;
 		std::string lexeme;
 		int line;
 		int column;
+
 	public:
 		token() = default;
-		token(token_type type, const std::string& lexeme, int line, int column) : type(type), lexeme(lexeme), line(line), column(column) {}
+		token(token_type type, const std::string &lexeme, int line, int column) : type(type), lexeme(lexeme), line(line), column(column) {}
 
 		token_type get_type();
 		std::string get_lexeme();

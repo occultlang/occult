@@ -1,5 +1,6 @@
 #include "tree.hpp"
 
-namespace occultlang {
+namespace occultlang
+{
 
 } // occultlang
