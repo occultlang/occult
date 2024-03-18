@@ -10,7 +10,7 @@ $ ./build.sh
 ```
 
 # Using Occult
-To use occult, you can just build it using the steps above and run this:
+To use Occult, you can just build it using the steps above and run this:
 ```bash
 $ ./occultc <path/to/source.occ> 
 ```
