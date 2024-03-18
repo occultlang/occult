@@ -1,8 +1,8 @@
 # Occult
-The Occult programming lanugage.
+The Occult programming lanugage
 
 # Building
-To build occult there's a few steps. you need to run these in order to build it successfully.
+To build occult there's a few steps. you need to run these in order to build it successfully
 ```bash
 $ git clone https://github.com/finalxvd/occult.git
 $ ./get_libraries_tcc.sh
@@ -20,7 +20,7 @@ $ ./occultc <path/to/source.occ> -dbg
 ```
 
 # Testing
-Tests are in the test_cases directory.
+Tests are in the test_cases directory
 
 # Cleaning
 To clean the build directory just run `clean.sh`
