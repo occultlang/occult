@@ -1,4 +1,4 @@
-# Occult
+# occultlang
 The Occult programming lanugage
 
 # Building
