@@ -18,8 +18,9 @@ To debug:
 $ ./occultc <path/to/source.occ> -dbg
 ```
 
-# Testing
-Tests are in the test_cases directory
+# Speed & Tests
+Occult is about the same as C for running a **non*** recursion fibonacci sequence
+Test cases are in the `test_cases` directory
 
 # Cleaning
 To clean the build directory just run `clean.sh`
