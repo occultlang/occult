@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    tcc_run(tcc, 0, 0);
+    tcc_run(tcc, 0, 0);     
 
     tcc_delete(tcc);
 

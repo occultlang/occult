@@ -1,7 +1,4 @@
-rm -rf output
+rm -rf obj
+rm -rf build
 rm libtcc.a 
-rm libtcc1.a 
 rm libtcc.h
-rm runmain.o
-rm bt-log.o 
-rm occultc
