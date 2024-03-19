@@ -2,18 +2,18 @@
 The Occult programming lanugage
 
 # Building
-To build occult just copy and paste this:
+To build Occult just copy and paste this:
 ```
 $ git clone https://github.com/occultlang/occult && chmod +x ./build.sh && ./build.sh
 ```
 
 # Using Occult
 To use Occult, you can just build it using the steps above and run this:
-```bash
+```
 $ ./occultc <path/to/source.occ> 
 ```
 To debug:
-```bash
+```
 $ ./occultc <path/to/source.occ> -dbg
 ```
 
