@@ -3,7 +3,7 @@ The Occult programming lanugage
 
 # Building
 To build occult just copy and paste this:
-```sh
+```
 $ git clone https://github.com/occultlang/occult && chmod +x ./build.sh && ./build.sh
 ```
 
