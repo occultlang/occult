@@ -35,7 +35,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Fix floating points not working fully when generating code + parsing
 - [ ] Add tuples
 - [ ] Add incrementing with i++ and i-- etc. to codegen
-- [ ] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
+- [x] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
 
 Not sure what else?!
 
