@@ -580,7 +580,7 @@ namespace occultlang
 					}
 
 					assignment->add_child(function_call);
-				}
+				} 
 				else
 				{
 					auto expression = parse_expression();
@@ -954,17 +954,20 @@ namespace occultlang
 		}
 	}
 
+	void parser::clean_comments()
+	{
+		tokens.erase(std::remove_if(tokens.begin(), tokens.end(),
+									[](const token& tk) { return tk.get_type() == tk_comment; }),
+					 tokens.end());
+	}
 	std::shared_ptr<ast> parser::parse()
 	{
+		clean_comments();
+
 		std::shared_ptr<ast> root = std::make_shared<ast>();
 
 		while (position < tokens.size() && tokens[position].get_type() != tk_eof)
 		{
-			if (match(tk_comment))
-			{
-				consume(tk_comment);
-			}
-
 			auto statement = std::shared_ptr<ast>();
 
 			if (match(tk_keyword, "fn"))

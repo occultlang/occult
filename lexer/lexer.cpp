@@ -246,14 +246,14 @@ namespace occultlang
 			return token{tk_eof, "", line, column};
 		}
 
-		if (std::isspace(source[position]))
-		{ // whitespaces
-			return handle_whitespaces();
-		}
-
 		if (source[position] == '/' && source[position + 1] == '/')
 		{ // comment
 			return handle_comment();
+		}
+
+		if (std::isspace(source[position]))
+		{ // whitespaces
+			return handle_whitespaces();
 		}
 
 		if (std::isalpha(source[position]))
@@ -298,7 +298,6 @@ namespace occultlang
 
 		return token{tk_error, "unexpected character", line, column};
 	}
-
 	std::vector<token> lexer::lex()
 	{
 		std::vector<token> tokens;

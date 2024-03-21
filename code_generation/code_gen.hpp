@@ -8,8 +8,9 @@
 // TODO FIX COMMENTS + REALNUMBERS
 // TODO CASTING
 
-// TESTING ALL CASES 
+// TESTING ALL CASES
 // DECIDE MAYBE TUPLES
+// TODO make arrays automatically delete (for now i dont really want to worry about this) (it makes it seem as i dont use a c backend for arrays)
 
 namespace occultlang
 {
@@ -24,6 +25,7 @@ namespace occultlang
     {
     private:
         std::vector<std::string> symbols;
+        int array_var_count = 0;
 
     public:
         ~code_gen() = default;
@@ -46,7 +48,7 @@ namespace occultlang
         template <typename AstType, typename NodeType = std::shared_ptr<AstType>>
         std::string compile(NodeType root, bool debug = false, int level = 2)
         {
-            std::string generated_source; 
+            std::string generated_source;
 
             for (int i = 0; i < root->get_children().size(); i++)
             {
@@ -272,6 +274,11 @@ namespace occultlang
                             auto x = check_type<occ_ast::comma>(func_call.second->get_child(idx)).second;
                             generated_source += ", ";
                         }
+                        else if (check_type<occ_ast::float_literal>(func_call.second->get_child(idx)).first)
+                        {
+                            auto x = check_type<occ_ast::float_literal>(func_call.second->get_child(idx)).second;
+                            generated_source += x->content;
+                        }
                     }
 
                     generated_source += ";\n";
@@ -291,9 +298,9 @@ namespace occultlang
                         {
                             if (auto child = check_type<occ_ast::assignment>(a1.second->get_child()); child.first)
                             {
-                                if(debug)
+                                if (debug)
                                     std::cout << "assignment" << std::endl;
-                                
+
                                 generated_source += "=";
                                 generated_source += compile<occ_ast::assignment>(a1.second->get_child());
                                 generated_source += ";";
@@ -303,7 +310,7 @@ namespace occultlang
                 }
 
                 auto arr_decl = check_type<occ_ast::array_declaration>(node); // TODO IS STORE TYPE AND USE LATER FOR DYNAMIC TYPES
-                if (arr_decl.first) 
+                if (arr_decl.first)
                 {
                     if (auto n = check_type<occ_ast::num_declaration>(arr_decl.second->get_child()); n.first)
                     {
@@ -383,8 +390,8 @@ namespace occultlang
                     }
                 }
 
-                auto if_decl = check_type<occ_ast::if_declaration>(node); 
-                if (if_decl.first) 
+                auto if_decl = check_type<occ_ast::if_declaration>(node);
+                if (if_decl.first)
                 {
                     generated_source += "if (";
                     // Assuming the condition is the first child
@@ -401,8 +408,8 @@ namespace occultlang
                     generated_source += "}\n";
                 }
 
-                auto elseif_decl = check_type<occ_ast::elseif_declaration>(node); 
-                if (elseif_decl.first) 
+                auto elseif_decl = check_type<occ_ast::elseif_declaration>(node);
+                if (elseif_decl.first)
                 {
                     generated_source += "else if (";
                     generated_source += compile<occ_ast::elseif_declaration>(elseif_decl.second);
@@ -443,7 +450,7 @@ namespace occultlang
                 {
                     if (debug)
                         std::cout << "while_declaration: " << while_decl.first << std::endl;
-                    
+
                     generated_source += "while (";
                     generated_source += compile<occ_ast::while_declaration>(while_decl.second);
                     generated_source += ")\n";
@@ -502,7 +509,7 @@ namespace occultlang
                     generated_source += "return ";
 
                     generated_source += compile<occ_ast::return_declaration>(return_decl.second);
-                    
+
                     generated_source += ";\n";
                 }
 
@@ -693,7 +700,7 @@ namespace occultlang
                             generated_source += " = ";
 
                             for (int j = 0; j < assignment.second->get_children().size(); j++)
-                            { 
+                            {
                                 auto child_assignment = assignment.second->get_child(j);
 
                                 if (auto a1 = check_type<occ_ast::boolean_literal>(child_assignment); a1.first)
@@ -748,7 +755,7 @@ namespace occultlang
                         generated_source += num_name_content;
 
                         if (auto assignment = check_type<occ_ast::assignment>(string_decl.second->get_child(1)); assignment.first)
-                        { 
+                        {
                             if (debug)
                             {
                                 std::cout << "assignment: " << assignment.first << std::endl;
@@ -757,7 +764,7 @@ namespace occultlang
                             generated_source += " = ";
 
                             for (int j = 0; j < assignment.second->get_children().size(); j++)
-                            { 
+                            {
                                 auto child_assignment = assignment.second->get_child(j);
 
                                 if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
@@ -781,5 +788,193 @@ namespace occultlang
 
             return generated_source;
         }
+
+            std::string lib = R"(
+enum {
+    dyn_long,
+    dyn_float,
+    dyn_str
+} dyn_type;
+
+typedef struct dyn_array {
+    union { // data types
+        long* num;
+        double* rnum;
+        const char** str;
+    };
+    
+    int size;
+    int type;
+} dyn_array;
+
+dyn_array* create_array_long(int size) {
+    dyn_array* array = (dyn_array*)malloc(sizeof(dyn_array));
+    array->type = dyn_long;
+
+    if (array == (void*)0) {
+        exit(1);
+    }
+
+    array->size = size;
+    array->num = (long*)malloc(size * sizeof(long));
+
+    if (array->num == (void*)0) {
+        free(array);
+        exit(1);
+    }
+
+    return array;
+}
+
+dyn_array* create_array_double(int size) {
+    dyn_array* array = (dyn_array*)malloc(sizeof(dyn_array));
+    array->type = dyn_float;
+
+    if (array == (void*)0) {
+        exit(1);
+    }
+
+    array->size = size;
+    array->rnum = (double*)malloc(size * sizeof(double));
+
+    if (array->rnum == (void*)0) {
+        free(array);
+        exit(1);
+    }
+
+    return array;
+}
+
+dyn_array* create_array_string(int size) {
+    dyn_array* array = (dyn_array*)malloc(sizeof(dyn_array));
+    array->type = dyn_str;
+
+    if (array == (void*)0) {
+        exit(1);
+    }
+
+    array->size = size;
+    array->str = (const char**)malloc(size * sizeof(const char*));
+
+    if (array->str == (void*)0) {
+        free(array);
+        exit(1);
+    }
+
+    return array;
+}
+
+int get_array_size(dyn_array* array) {
+    return array->size;
+}
+
+long get_num(dyn_array* array, int index) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+
+    return array->num[index];
+}
+
+void add_num(dyn_array* array, long data) {
+    if (array->num == (void*)0) {
+        exit(1);
+    }
+
+    array->size++;
+    array->num = (long*)realloc(array->num, array->size * sizeof(long));
+
+    if (array->num == (void*)0) {
+        exit(1);
+    }
+
+    array->num[array->size - 1] = data;
+}
+
+void set_num(dyn_array* array, int index, long data) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+
+    array->num[index] = data;
+}
+
+double get_rnum(dyn_array* array, int index) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+
+    return array->rnum[index];
+}
+
+void add_rnum(dyn_array* array, double data) {
+    if (array->rnum == (void*)0) {
+        exit(1);
+    }
+
+    array->size++;
+    array->rnum = (double*)realloc(array->rnum, array->size * sizeof(double));
+
+    if (array->rnum == (void*)0) {
+        exit(1);
+    }
+
+    array->rnum[array->size - 1] = data;
+}
+
+void set_rnum(dyn_array* array, int index, double data) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+
+    array->rnum[index] = data;
+}
+
+const char* get_str(dyn_array* array, int index) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+
+    return array->str[index];
+}
+
+void add_str(dyn_array* array, const char* data) {
+    if (array->str == (void*)0) {
+        exit(1);
+    }
+
+    array->size++;
+    array->str = (const char**)realloc(array->str, array->size * sizeof(const char*));
+
+    if (array->str == (void*)0) {
+        exit(1);
+    }
+
+    array->str[array->size - 1] = data;
+}
+
+void set_str(dyn_array* array, int index, const char* data) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+
+    array->str[index] = data;
+}
+
+void delete(dyn_array* array) {
+    switch (array->type) {
+        case dyn_long:
+            free(array->num);
+            break;
+        case dyn_float:
+            free(array->rnum);
+            break;
+        case dyn_str:
+            free(array->str);
+            break;
+    }
+    free(array);
+}
+    )";
     };
 } // occultlang
