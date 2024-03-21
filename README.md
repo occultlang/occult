@@ -1,5 +1,5 @@
 # Occult
-The Occult programming lanugage
+The Occult programming lanugage is a programming language...
 
 # Building
 To build Occult just copy and paste this:
