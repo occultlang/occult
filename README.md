@@ -37,6 +37,8 @@ To clean the build directory just run `clean.sh`
 - [ ] Add incrementing with i++ and i-- etc. to codegen
 - [ ] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
 
+Not sure what else?!
+
 # How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
 
