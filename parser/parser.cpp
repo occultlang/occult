@@ -416,7 +416,8 @@ namespace occultlang
 		}
 	}
 
-	std::shared_ptr<ast> parser::parse_match() {
+	std::shared_ptr<ast> parser::parse_match() 
+	{
 		throw occ_runtime_error(parse_exceptions[NOT_IMPLEMENTED], peek());
 	}
 
@@ -473,6 +474,10 @@ namespace occultlang
 		else if (match(tk_keyword, "break"))
 		{
 			return parse_break();
+		}
+		else if (match(tk_keyword, "array"))
+		{
+			return parse_declaration();
 		}
 		else if (match(tk_keyword, "rnum"))
 		{
@@ -645,6 +650,61 @@ namespace occultlang
 			consume(tk_keyword);
 
 			return _parse_delaration(std::make_shared<occ_ast::string_declaration>());
+		}
+		else if (match(tk_keyword, "array")) 
+		{
+			consume(tk_keyword);
+
+			auto arr_decl = std::make_shared<occ_ast::array_declaration>();
+
+			if (match(tk_operator, "<")) 
+			{
+				consume(tk_operator);
+				
+				if (match(tk_keyword)) 
+				{
+					auto keyword = consume(tk_keyword).get_lexeme();
+
+					if (keyword == "num")
+					{
+						arr_decl->add_child(std::make_shared<occ_ast::num_declaration>());
+					}
+					else if (keyword == "rnum")
+					{
+						arr_decl->add_child(std::make_shared<occ_ast::float_declaration>());
+					}
+					else if (keyword == "str")
+					{
+						arr_decl->add_child(std::make_shared<occ_ast::string_declaration>());
+					}
+					else if (keyword == "bool")
+					{
+						arr_decl->add_child(std::make_shared<occ_ast::bool_declaration>());
+					}
+
+					if (match(tk_operator, ">")) 
+					{
+						consume(tk_operator);
+
+						if (match(tk_identifier))
+						{
+							auto id = parse_keywords();
+
+							arr_decl->get_child()->add_child(id);
+
+							return arr_decl;
+						}
+					}
+				}
+				else
+				{
+					throw occ_runtime_error(parse_exceptions[EXPECTED_TYPE], peek()); 
+				}
+			}
+			else 
+			{
+				throw occ_runtime_error(parse_exceptions[EXPECTED_DELIMITER], peek());
+			}
 		}
 		else if (match(tk_keyword, "void"))
 		{

@@ -1,6 +1,16 @@
 #pragma once
 #include "../parser/parser.hpp"
 
+// TODO ARRAY DECLARATIONS FOR ARGUMENTS (dynamic)
+// TODO match statement
+// TODO i++ i-- etc
+// TODO IMPORTS
+// TODO FIX COMMENTS + REALNUMBERS
+// TODO CASTING
+
+// TESTING ALL CASES 
+// DECIDE MAYBE TUPLES
+
 namespace occultlang
 {
     enum debug_level
@@ -162,7 +172,7 @@ namespace occultlang
                     }
                     else if (next_typename == "num_declaration")
                     {
-                        generated_source += "int ";
+                        generated_source += "long ";
                     }
                     else if (next_typename == "float_declaration")
                     {
@@ -183,7 +193,7 @@ namespace occultlang
                     {
                         if (args[i].first == "num_declaration")
                         {
-                            generated_source += "int ";
+                            generated_source += "long ";
                         }
                         else if (args[i].first == "float_declaration")
                         {
@@ -289,6 +299,17 @@ namespace occultlang
                                 generated_source += ";";
                             }
                         }
+                    }
+                }
+
+                auto arr_decl = check_type<occ_ast::array_declaration>(node); // TODO IS STORE TYPE AND USE LATER FOR DYNAMIC TYPES
+                if (arr_decl.first) 
+                {
+                    if (auto n = check_type<occ_ast::num_declaration>(arr_decl.second->get_child()); n.first)
+                    {
+                        generated_source += "dyn_array* ";
+
+                        generated_source += compile<occ_ast::num_declaration>(n.second);
                     }
                 }
 
@@ -479,7 +500,7 @@ namespace occultlang
                     {
                         std::cout << "num_decl: " << num_decl.first << std::endl;
                     }
-                    generated_source += "int ";
+                    generated_source += "long ";
                     if (debug)
                     {
                         std::cout << "num_decl children: " << num_decl.second->get_children().size() << std::endl;

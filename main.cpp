@@ -51,8 +51,63 @@ int main(int argc, char *argv[]) {
     // std::cout << std::endl;
 
     occultlang::code_gen code_gen;
+    std::string generated = R"(
+typedef struct dyn_array {
+    union { // data types
+        long* num;
+    };
+    
+    int size;
+} dyn_array;
 
-    auto generated = code_gen.compile<occultlang::ast>(ast, debug, occultlang::debug_level::all);
+dyn_array* create_array_long(int size) {
+    dyn_array* array = (dyn_array*)malloc(sizeof(dyn_array));
+
+    if (array == (void*)0) {
+        exit(1);
+    }
+
+    array->size = size;
+    array->num = (long*)malloc(size * sizeof(long));
+
+    if (array->num == (void*)0) {
+        free(array);
+        exit(1);
+    }
+
+    return array;
+}
+
+dyn_array* create_array() {
+    return create_array_long(0);
+}
+
+// add unsigned long
+
+void add_long(dyn_array* array, long data) {
+    if (array->num == (void*)0) {
+        exit(1);
+    }
+
+    array->size++;
+    array->num = (long*)realloc(array->num, array->size * sizeof(long));
+
+    if (array->num == (void*)0) {
+        exit(1);
+    }
+
+    array->num[array->size - 1] = data;
+
+    printf("new size: %i\n", array->size);
+}
+
+void delete_array(dyn_array* array) {
+    free(array->num);
+    free(array);
+}
+    )";
+
+    generated += code_gen.compile<occultlang::ast>(ast, debug, occultlang::debug_level::all);
 
     if (debug)
         std::cout << std::endl << generated << std::endl << std::endl;

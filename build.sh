@@ -46,4 +46,4 @@ mv $BUILD_DIR/$EXECUTABLE ./build
 
 cd build
 
-exec bash 
+exec bash

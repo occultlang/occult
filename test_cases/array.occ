@@ -1,0 +1,7 @@
+fn main() -> num {
+    array<num> arr_num = create_array();
+
+    add_long(arr_num, 5); 
+
+    return 0;
+}

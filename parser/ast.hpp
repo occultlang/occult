@@ -39,7 +39,8 @@ namespace occultlang
 	  body_start,
 	  body_end,
 	  elseif_declaration,
-	  else_declaration
+	  else_declaration,
+	  array_declaration
 	};
 
 	struct ast : public tree<std::shared_ptr<ast>>
@@ -496,6 +497,17 @@ namespace occultlang
 			virtual ast_type get_type() { return ast_type::comma; }
 
 			virtual std::string to_string() { return "comma"; }
+		};
+
+		struct array_declaration : public ast
+		{
+			array_declaration() : ast() {}
+			virtual ~array_declaration() {}
+			array_declaration(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::array_declaration; }
+
+			virtual std::string to_string() { return "array_declaration"; }
 		};
 	}
 } // occultlang
