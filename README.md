@@ -16,7 +16,7 @@ AOT Compilation (outputs file as occult_out):
 ```
 $ ./occultc <path/to/source.occ> -aot
 ```
-To debug (Gives Tokens, AST, and the transpiled C code)
+To debug (Gives Tokens, AST, and the transpiled C code):
 ```
 $ ./occultc <path/to/source.occ> -dbg
 ```
