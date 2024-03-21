@@ -1,5 +1,5 @@
 # Occult
-The Occult programming lanugage is a programming language...
+The Occult programming lanugage is a programming language... really made with mystery.. like an occult? 
 
 # Building
 To build Occult just copy and paste this:
