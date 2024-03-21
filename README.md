@@ -8,11 +8,15 @@ $ git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./bu
 ```
 
 # Using Occult
-To use Occult, you can just build it using the steps above and run this:
+To use Occult, you can just build it using the steps above and run this (Defaults to JIT):
 ```
 $ ./occultc <path/to/source.occ> 
 ```
-To debug:
+AOT Compilation (outputs file as occult_out):
+```
+$ ./occultc <path/to/source.occ> -aot
+```
+To debug (Gives Tokens, AST, and the transpiled C code)
 ```
 $ ./occultc <path/to/source.occ> -dbg
 ```
