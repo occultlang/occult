@@ -1,5 +1,9 @@
 #!/bin/bash
 
+SOURCE_DIR="."
+BUILD_DIR="obj"
+EXECUTABLE="occultc"
+
 git clone https://github.com/TinyCC/tinycc.git
 
 cd tinycc
@@ -16,6 +20,7 @@ mv bt-log.o ../
 cd .. 
 
 mkdir -p build
+mkdir -p $BUILD_DIR
 
 mv runmain.o ./build
 mv bt-log.o ./build
@@ -23,13 +28,6 @@ mv bt-log.o ./build
 rm -rf tinycc
 
 SOURCES=$(find $SRC_DIR -name "*.cpp")
-
-SOURCE_DIR="."
-BUILD_DIR="obj"
-EXECUTABLE="occultc"
-
-mkdir -p $BUILD_DIR
-mkdir -p build
 
 for SOURCE in $SOURCES; do
      g++ -c -w -g -Ofast $SOURCE -o $BUILD_DIR/$(basename ${SOURCE%.*}.o)
@@ -43,7 +41,3 @@ chmod +x $BUILD_DIR/$EXECUTABLE
 
 mv libtcc1.a ./build
 mv $BUILD_DIR/$EXECUTABLE ./build
-
-cd build
-
-exec bash

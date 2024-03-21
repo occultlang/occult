@@ -688,7 +688,7 @@ namespace occultlang
 
 						if (match(tk_identifier))
 						{
-							auto id = parse_keywords();
+							auto id = parse_identifier();
 
 							arr_decl->get_child()->add_child(id);
 

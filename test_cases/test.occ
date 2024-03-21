@@ -1,16 +1,6 @@
 fn main() -> num {
-  num: x = 0;
+  str: s = "Hi World\n";
 
-  while 1 {
-    if x == 5 {
-      x = x + 1;
-      printf("skipped 5\n");
-      continue;
-    }
-
-    printf("%i\n", x);
-    x = x + 1;
-  }
-
+  printf("%s", s);
   return 0;
 }

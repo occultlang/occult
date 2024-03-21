@@ -180,7 +180,7 @@ namespace occultlang
                     }
                     else if (next_typename == "bool_declaration")
                     {
-                        generated_source += "bool ";
+                        generated_source += "long ";
                     }
                     else if (next_typename == "string_declaration")
                     {
@@ -201,7 +201,7 @@ namespace occultlang
                         }
                         else if (args[i].first == "bool_declaration")
                         {
-                            generated_source += "bool ";
+                            generated_source += "long ";
                         }
                         else if (args[i].first == "string_declaration")
                         {
@@ -309,7 +309,33 @@ namespace occultlang
                     {
                         generated_source += "dyn_array* ";
 
-                        generated_source += compile<occ_ast::num_declaration>(n.second);
+                        auto id = check_type<occ_ast::identifier>(n.second->get_child()).second->content;
+
+                        generated_source += id + " = create_array_long(0);\n";
+                    }
+                    else if (auto b = check_type<occ_ast::bool_declaration>(arr_decl.second->get_child()); b.first)
+                    {
+                        generated_source += "dyn_array* ";
+
+                        auto id = check_type<occ_ast::identifier>(b.second->get_child()).second->content;
+
+                        generated_source += id + " = create_array_long(0);\n";
+                    }
+                    else if (auto f = check_type<occ_ast::float_declaration>(arr_decl.second->get_child()); f.first)
+                    {
+                        generated_source += "dyn_array* ";
+
+                        auto id = check_type<occ_ast::identifier>(f.second->get_child()).second->content;
+
+                        generated_source += id + " = create_array_double(0);\n";
+                    }
+                    else if (auto s = check_type<occ_ast::string_declaration>(arr_decl.second->get_child()); s.first)
+                    {
+                        generated_source += "dyn_array* ";
+
+                        auto id = check_type<occ_ast::identifier>(s.second->get_child()).second->content;
+
+                        generated_source += id + " = create_array_string(0);\n";
                     }
                 }
 
@@ -556,6 +582,196 @@ namespace occultlang
                         if (debug)
                         {
                             std::cout << "num_name: " << n1.first << std::endl;
+                        }
+                    }
+
+                    generated_source += ";\n";
+                }
+
+                auto float_decl = check_type<occ_ast::float_declaration>(node);
+                if (float_decl.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "float_decl: " << float_decl.first << std::endl;
+                    }
+                    generated_source += "double ";
+                    if (debug)
+                    {
+                        std::cout << "float_decl children: " << float_decl.second->get_children().size() << std::endl;
+                    }
+
+                    auto num_name = float_decl.second->get_child(0);
+
+                    if (auto n1 = check_type<occ_ast::identifier>(num_name); n1.first)
+                    {
+                        if (debug)
+                        {
+                            std::cout << "float_name: " << n1.first << std::endl;
+                        }
+
+                        auto num_name_content = n1.second->content;
+
+                        generated_source += num_name_content;
+
+                        if (auto assignment = check_type<occ_ast::assignment>(float_decl.second->get_child(1)); assignment.first)
+                        { // maybe add other assignments *= /= etc
+                            if (debug)
+                            {
+                                std::cout << "assignment: " << assignment.first << std::endl;
+                            }
+
+                            generated_source += " = ";
+
+                            for (int j = 0; j < assignment.second->get_children().size(); j++)
+                            { // add other types (operators, delimiters, etc)
+                                auto child_assignment = assignment.second->get_child(j);
+
+                                if (auto a1 = check_type<occ_ast::float_literal>(child_assignment); a1.first)
+                                {
+                                    generated_source += a1.second->content;
+                                }
+                                else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
+                                {
+                                    generated_source += a2.second->content;
+                                }
+                                else if (auto a3 = check_type<occ_ast::operator_declaration>(child_assignment); a3.first)
+                                {
+                                    generated_source += a3.second->content;
+                                }
+                                else if (auto a4 = check_type<occ_ast::delimiter_declaration>(child_assignment); a4.first)
+                                {
+                                    generated_source += a4.second->content;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (debug)
+                        {
+                            std::cout << "float_name: " << n1.first << std::endl;
+                        }
+                    }
+
+                    generated_source += ";\n";
+                }
+
+                auto bool_decl = check_type<occ_ast::bool_declaration>(node);
+                if (bool_decl.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "bool_declaration: " << bool_decl.first << std::endl;
+                    }
+                    generated_source += "long ";
+                    if (debug)
+                    {
+                        std::cout << "bool_declaration children: " << bool_decl.second->get_children().size() << std::endl;
+                    }
+
+                    auto num_name = bool_decl.second->get_child(0);
+
+                    if (auto n1 = check_type<occ_ast::identifier>(num_name); n1.first)
+                    {
+                        if (debug)
+                        {
+                            std::cout << "bool_name: " << n1.first << std::endl;
+                        }
+
+                        auto num_name_content = n1.second->content;
+
+                        generated_source += num_name_content;
+
+                        if (auto assignment = check_type<occ_ast::assignment>(bool_decl.second->get_child(1)); assignment.first)
+                        { // maybe add other assignments *= /= etc
+                            if (debug)
+                            {
+                                std::cout << "assignment: " << assignment.first << std::endl;
+                            }
+
+                            generated_source += " = ";
+
+                            for (int j = 0; j < assignment.second->get_children().size(); j++)
+                            { 
+                                auto child_assignment = assignment.second->get_child(j);
+
+                                if (auto a1 = check_type<occ_ast::boolean_literal>(child_assignment); a1.first)
+                                {
+                                    if (a1.second->content == "true")
+                                    {
+                                        generated_source += "1";
+                                    }
+                                    else if (a1.second->content == "false")
+                                    {
+                                        generated_source += "0";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (debug)
+                        {
+                            std::cout << "bool_name: " << n1.first << std::endl;
+                        }
+                    }
+
+                    generated_source += ";\n";
+                }
+
+                auto string_decl = check_type<occ_ast::string_declaration>(node);
+                if (string_decl.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "string_declaration: " << string_decl.first << std::endl;
+                    }
+                    generated_source += "const char* ";
+                    if (debug)
+                    {
+                        std::cout << "string_declaration children: " << string_decl.second->get_children().size() << std::endl;
+                    }
+
+                    auto num_name = string_decl.second->get_child(0);
+
+                    if (auto n1 = check_type<occ_ast::identifier>(num_name); n1.first)
+                    {
+                        if (debug)
+                        {
+                            std::cout << "string_name: " << n1.first << std::endl;
+                        }
+
+                        auto num_name_content = n1.second->content;
+
+                        generated_source += num_name_content;
+
+                        if (auto assignment = check_type<occ_ast::assignment>(string_decl.second->get_child(1)); assignment.first)
+                        { 
+                            if (debug)
+                            {
+                                std::cout << "assignment: " << assignment.first << std::endl;
+                            }
+
+                            generated_source += " = ";
+
+                            for (int j = 0; j < assignment.second->get_children().size(); j++)
+                            { 
+                                auto child_assignment = assignment.second->get_child(j);
+
+                                if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
+                                {
+                                    generated_source += "\"" + a1.second->content + "\"";
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (debug)
+                        {
+                            std::cout << "string_name: " << n1.first << std::endl;
                         }
                     }
 
