@@ -49,6 +49,3 @@ There's a clear vision for this project in the end to make it bootstrappable so 
 
 # LICENSE
 GNU Lesser General Public License v2.1 (Same as TinyCC)
-
-# Information
-If you feel like supporting me and this project, or want to talk just join my discord! https://discord.gg/5w96hHwxNd
