@@ -10,7 +10,7 @@
 
 // TESTING ALL CASES
 // DECIDE MAYBE TUPLES
-// TODO make arrays automatically delete (for now i dont really want to worry about this) (it makes it seem as i dont use a c backend for arrays)
+// TODO make arrays automatically delete (for now i dont really want to worry about this) 
 
 namespace occultlang
 {
@@ -23,7 +23,6 @@ namespace occultlang
 
     class code_gen
     {
-    private:
         std::vector<std::string> symbols;
         int array_var_count = 0;
 
@@ -46,7 +45,7 @@ namespace occultlang
         }
 
         template <typename AstType, typename NodeType = std::shared_ptr<AstType>>
-        std::string compile(NodeType root, bool debug = false, int level = 2)
+        std::string generate(NodeType root, bool debug = false, int level = 2)
         {
             std::string generated_source;
 
@@ -227,7 +226,7 @@ namespace occultlang
 
                     for (int idx2 = idx; idx2 < func_decl.second->get_children().size(); idx2++)
                     {
-                        generated_source += compile<occ_ast::body_start>(func_decl.second->get_child(idx2));
+                        generated_source += generate<occ_ast::body_start>(func_decl.second->get_child(idx2));
                     }
 
                     generated_source += "}\n";
@@ -302,7 +301,7 @@ namespace occultlang
                                     std::cout << "assignment" << std::endl;
 
                                 generated_source += "=";
-                                generated_source += compile<occ_ast::assignment>(a1.second->get_child());
+                                generated_source += generate<occ_ast::assignment>(a1.second->get_child());
                                 generated_source += ";";
                             }
                         }
@@ -395,14 +394,14 @@ namespace occultlang
                 {
                     generated_source += "if (";
                     // Assuming the condition is the first child
-                    generated_source += compile<occ_ast::if_declaration>(if_decl.second);
+                    generated_source += generate<occ_ast::if_declaration>(if_decl.second);
                     generated_source += ")\n";
                     generated_source += "{\n";
                     for (int idx = 0; idx < if_decl.second->get_children().size(); idx++)
                     {
                         if (check_type<occ_ast::body_start>(if_decl.second->get_child(idx)).first)
                         {
-                            generated_source += compile<occ_ast::body_start>(if_decl.second->get_child(idx));
+                            generated_source += generate<occ_ast::body_start>(if_decl.second->get_child(idx));
                         }
                     }
                     generated_source += "}\n";
@@ -412,7 +411,7 @@ namespace occultlang
                 if (elseif_decl.first)
                 {
                     generated_source += "else if (";
-                    generated_source += compile<occ_ast::elseif_declaration>(elseif_decl.second);
+                    generated_source += generate<occ_ast::elseif_declaration>(elseif_decl.second);
                     generated_source += ")\n";
                     generated_source += "{\n";
 
@@ -420,7 +419,7 @@ namespace occultlang
                     {
                         if (check_type<occ_ast::body_start>(elseif_decl.second->get_child(idx)).first)
                         {
-                            generated_source += compile<occ_ast::body_start>(elseif_decl.second->get_child(idx));
+                            generated_source += generate<occ_ast::body_start>(elseif_decl.second->get_child(idx));
                         }
                     }
 
@@ -438,7 +437,7 @@ namespace occultlang
 
                         for (int idx = 0; idx < else_decl.second->get_children().size(); idx++)
                         {
-                            generated_source += compile<occ_ast::body_start>(else_decl.second->get_child(idx));
+                            generated_source += generate<occ_ast::body_start>(else_decl.second->get_child(idx));
                         }
 
                         generated_source += "}\n";
@@ -452,7 +451,7 @@ namespace occultlang
                         std::cout << "while_declaration: " << while_decl.first << std::endl;
 
                     generated_source += "while (";
-                    generated_source += compile<occ_ast::while_declaration>(while_decl.second);
+                    generated_source += generate<occ_ast::while_declaration>(while_decl.second);
                     generated_source += ")\n";
                     generated_source += "{\n";
 
@@ -460,7 +459,7 @@ namespace occultlang
                     {
                         if (check_type<occ_ast::body_start>(while_decl.second->get_child(idx)).first)
                         {
-                            generated_source += compile<occ_ast::body_start>(while_decl.second->get_child(idx));
+                            generated_source += generate<occ_ast::body_start>(while_decl.second->get_child(idx));
                         }
                     }
 
@@ -478,7 +477,7 @@ namespace occultlang
 
                         for (int idx = 0; idx < loop_decl.second->get_children().size(); idx++)
                         {
-                            generated_source += compile<occ_ast::body_start>(loop_decl.second->get_child(idx));
+                            generated_source += generate<occ_ast::body_start>(loop_decl.second->get_child(idx));
                         }
 
                         generated_source += "}\n";
@@ -508,7 +507,7 @@ namespace occultlang
 
                     generated_source += "return ";
 
-                    generated_source += compile<occ_ast::return_declaration>(return_decl.second);
+                    generated_source += generate<occ_ast::return_declaration>(return_decl.second);
 
                     generated_source += ";\n";
                 }

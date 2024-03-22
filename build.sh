@@ -14,7 +14,7 @@ if [ ! -d "$BUILD_DIR" ] && [ ! -d "build" ]; then
 
      mv libtcc.a ../
      mv libtcc1.a ../
-     mv libtcc.h ../
+     mv libtcc.h ../jit/
      mv runmain.o ../
      mv bt-log.o ../
 

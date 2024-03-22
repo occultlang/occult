@@ -956,10 +956,9 @@ namespace occultlang
 
 	void parser::clean_comments()
 	{
-		tokens.erase(std::remove_if(tokens.begin(), tokens.end(),
-									[](const token& tk) { return tk.get_type() == tk_comment; }),
-					 tokens.end());
+		tokens.erase(std::remove_if(tokens.begin(), tokens.end(), [](const token& tk) { return tk.get_type() == tk_comment; }), tokens.end());
 	}
+
 	std::shared_ptr<ast> parser::parse()
 	{
 		clean_comments();
