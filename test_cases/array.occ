@@ -1,12 +1,5 @@
 fn main() -> num {
-    array<num> arr_num;
-
-    add_num(arr_num, 0); 
-    add_num(arr_num, 2); 
-    add_num(arr_num, 4); 
-    add_num(arr_num, 8); 
-    add_num(arr_num, 16);
-    add_num(arr_num, 32);  
+    array<num> arr_num = [ 0, 2, 4, 8, 16, 32 ];
 
     num: i = 0;
 
@@ -15,7 +8,7 @@ fn main() -> num {
         i = i + 1;
     }
 
-    delete(arr_num);
+    delete(arr_num); // delete automatically added by a translator soon :D
 
     return 0;
 }

@@ -3,12 +3,7 @@
 namespace occultlang
 {
     std::string compiler::compile()
-    {
-        //occultlang::convert_readable convert(source_original);
-
-        //if (debug)
-            //std::cout << convert.convert_to_readable() << std::endl;
-        
+    {       
         occultlang::parser parser{ source_original };
 
         if (debug)

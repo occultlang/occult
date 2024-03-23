@@ -692,7 +692,22 @@ namespace occultlang
 
 							arr_decl->get_child()->add_child(id);
 
+							if (match(tk_operator, "="))
+							{
+								consume(tk_operator);
+
+								auto expression = parse_expression();
+								for (auto &child : expression->get_children())
+								{
+									child->swap_parent(arr_decl->get_child()->get_child());
+								}
+							}
+
 							return arr_decl;
+						}
+						else
+						{
+							throw occ_runtime_error(parse_exceptions[EXPECTED_IDENTIFIER], peek());
 						}
 					}
 				}
@@ -744,6 +759,12 @@ namespace occultlang
 				vec.push_back(node);
 			}
 			else if (match(tk_delimiter, "(") || match(tk_delimiter, ")"))
+			{
+				auto node = std::make_shared<occ_ast::delimiter_declaration>();
+				node->content = consume(tk_delimiter).get_lexeme();
+				vec.push_back(node);
+			}
+			else if (match(tk_delimiter, "[") || match(tk_delimiter, "]"))
 			{
 				auto node = std::make_shared<occ_ast::delimiter_declaration>();
 				node->content = consume(tk_delimiter).get_lexeme();

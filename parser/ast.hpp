@@ -8,9 +8,9 @@
 #include "../data_structures/tree.hpp"
 
 namespace occultlang
-{ // for expressions, operator precedence doesn't matter, we're transpiling, a C++ compiler will take care of it :)
+{ // for expressions, operator precedence doesn't matter, we're transpiling, a C compiler will take care of it :)
 	enum ast_type
-	{ /* there is one type for integers and floats :) */
+	{ 
 	  root,
 	  num_declaration,
 	  bool_declaration,

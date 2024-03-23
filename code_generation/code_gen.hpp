@@ -311,38 +311,80 @@ namespace occultlang
                 auto arr_decl = check_type<occ_ast::array_declaration>(node); // TODO IS STORE TYPE AND USE LATER FOR DYNAMIC TYPES
                 if (arr_decl.first)
                 {
+                    std::cout << "Array declaration found" << std::endl;
+
+                    std::string type;
+                    std::shared_ptr<occ_ast::identifier> id;
+
                     if (auto n = check_type<occ_ast::num_declaration>(arr_decl.second->get_child()); n.first)
                     {
-                        generated_source += "dyn_array* ";
+                        type = "long";
+                        std::cout << "Number declaration found" << std::endl;
 
-                        auto id = check_type<occ_ast::identifier>(n.second->get_child()).second->content;
-
-                        generated_source += id + " = create_array_long(0);\n";
+                        id = check_type<occ_ast::identifier>(n.second->get_child()).second;
                     }
                     else if (auto b = check_type<occ_ast::bool_declaration>(arr_decl.second->get_child()); b.first)
                     {
-                        generated_source += "dyn_array* ";
+                        type = "long";
+                        std::cout << "Boolean declaration found" << std::endl;
 
-                        auto id = check_type<occ_ast::identifier>(b.second->get_child()).second->content;
-
-                        generated_source += id + " = create_array_long(0);\n";
+                        id = check_type<occ_ast::identifier>(b.second->get_child()).second;
                     }
                     else if (auto f = check_type<occ_ast::float_declaration>(arr_decl.second->get_child()); f.first)
                     {
-                        generated_source += "dyn_array* ";
+                        type = "double";
+                        std::cout << "Float declaration found" << std::endl;
 
-                        auto id = check_type<occ_ast::identifier>(f.second->get_child()).second->content;
-
-                        generated_source += id + " = create_array_double(0);\n";
+                        id = check_type<occ_ast::identifier>(f.second->get_child()).second;
                     }
                     else if (auto s = check_type<occ_ast::string_declaration>(arr_decl.second->get_child()); s.first)
                     {
-                        generated_source += "dyn_array* ";
+                        type = "string"; // const char*
+                        std::cout << "String declaration found" << std::endl;
 
-                        auto id = check_type<occ_ast::identifier>(s.second->get_child()).second->content;
-
-                        generated_source += id + " = create_array_string(0);\n";
+                        id = check_type<occ_ast::identifier>(s.second->get_child()).second;
                     }
+
+                    generated_source += "dyn_array* ";
+                    std::cout << "Generating source code" << std::endl;
+
+                    generated_source += id->content + " = create_array_" + type + "(0);"; // issues with other sizes other than 0
+
+                    int size = 0;
+                    std::string array_members = "";
+
+                    int c_idx = 0;
+                    while (c_idx < id->get_children().size())
+                    {
+                        auto c = id->get_child(c_idx);
+                        std::cout << "Processing child " << c_idx << std::endl;
+
+                        if (auto n = check_type<occ_ast::number_literal>(c); n.first)
+                        {
+                            size++;
+                            array_members += "add_num(" + id->content + ", " + n.second->content + ");\n";
+                        }
+                        else if (auto s = check_type<occ_ast::string_literal>(c); s.first)
+                        {
+                            size++;
+                            array_members += "add_str(" + id->content + ", " + s.second->content + ");\n";
+                        }
+                        else if (auto f = check_type<occ_ast::float_literal>(c); f.first)
+                        {
+                            size++;
+                            array_members += "add_rnum(" + id->content + ", " + f.second->content + ");\n";
+                        }
+                        else if (auto b = check_type<occ_ast::boolean_literal>(c); b.first)
+                        {
+                            size++;
+                            array_members += "add_num(" + id->content + ", " + b.second->content + ");\n";
+                        }
+
+                        c_idx++;
+                    }
+
+                    generated_source += array_members;
+                    std::cout << "Finished processing array declaration" << std::endl;
                 }
 
                 auto string_literal = check_type<occ_ast::string_literal>(node);
