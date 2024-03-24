@@ -29,17 +29,17 @@ Test cases are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
-- [ ] Array declarations for arguments
-- [ ] 2d, 3d etc. support for arrays
-- [ ] Wrapper around arrays to make it easier to type 
-- [ ] Add for loops
+- [ ] Array declarations for arguments (Focsing on this more)
+- [ ] 2d, 3d etc. support for arrays (Focsing on this more)
+- [x] Wrapper around arrays to make it easier to type (Focusing on this still but less)
+- [ ] Add for loops 
 - [ ] Add matching
 - [ ] Add imports
 - [ ] Add casting
 - [x] Fix Commenting in lexical stage as well as floating points
 - [x] Fix floating points not working fully when generating code + parsing
 - [ ] Add tuples
-- [ ] Add incrementing with i++ and i-- etc. to codegen
+- [ ] Add incrementing with i++ and i-- etc. to codegen 
 - [x] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
 
 # How?
