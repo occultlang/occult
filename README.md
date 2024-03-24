@@ -30,6 +30,7 @@ To clean the build directory just run `clean.sh`
 
 # To-do
 - [ ] Array declarations for arguments
+- [ ] 2d, 3d etc. support for arrays
 - [ ] Wrapper around arrays to make it easier to type 
 - [ ] Add for loops
 - [ ] Add matching
