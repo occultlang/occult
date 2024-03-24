@@ -1,14 +1,16 @@
+// TODO IS ADD 2D and 3D arrays ETC 
+// ADD ARRAYS AS FULL TYPES
+// THIS IS THE BEST I CAN GET ARRAYS FOR NOW IF I WILL FOCUS ON IMPROVING IT IN THE FUTURE
+
 fn main() -> num {
     array<num> arr_num = [ 0, 2, 4, 8, 16, 32 ];
 
     num: i = 0;
 
-    while i < get_array_size(arr_num) {
-        printf("arr_num[%i]=%li\n", i, get_num(arr_num, i));
+    while i < get_size(arr_num) {
+        print("%li\n", get_num(arr_num, i));
         i = i + 1;
     }
-
-    delete(arr_num); // delete automatically added by a translator soon :D
 
     return 0;
 }

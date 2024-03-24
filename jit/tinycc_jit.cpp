@@ -32,7 +32,7 @@ namespace occultlang
 
         tcc_add_library_path(tcc, "./");
 
-        tcc_set_options(tcc, "-g -w");
+        tcc_set_options(tcc, "-g -w ");
 
         tcc_set_output_type(tcc, TCC_OUTPUT_EXE);
 

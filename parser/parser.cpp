@@ -656,7 +656,7 @@ namespace occultlang
 			consume(tk_keyword);
 
 			auto arr_decl = std::make_shared<occ_ast::array_declaration>();
-
+			
 			if (match(tk_operator, "<")) 
 			{
 				consume(tk_operator);

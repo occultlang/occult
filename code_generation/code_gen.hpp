@@ -24,8 +24,8 @@ namespace occultlang
     class code_gen
     {
         std::vector<std::string> symbols;
-        int array_var_count = 0;
-
+        int arr_count = 0;
+        std::vector<std::pair<std::string, std::string>> array_types_and_symbols;
     public:
         ~code_gen() = default;
 
@@ -45,7 +45,7 @@ namespace occultlang
         }
 
         template <typename AstType, typename NodeType = std::shared_ptr<AstType>>
-        std::string generate(NodeType root, bool debug = false, int level = 2)
+        std::string generate(NodeType root, bool debug = false, int level = 2, std::string curr_func_name = "")
         {
             std::string generated_source;
 
@@ -187,8 +187,11 @@ namespace occultlang
                     {
                         generated_source += "const char* ";
                     }
-
-                    generated_source += func_name + "(";
+                    
+                    if (func_name == "main")
+                        generated_source += func_name + "(int argc, char *argv[]";
+                    else 
+                        generated_source += func_name + "(";
 
                     for (int i = 0; i < args.size(); i++)
                     {
@@ -219,6 +222,11 @@ namespace occultlang
 
                     generated_source += ") {\n";
 
+                    if (func_name == "main")
+                    {
+                        generated_source += "tgc_start(&gc, &argc);\n";
+                    }
+
                     if (debug)
                     {
                         std::cout << "body_start: " << check_type<occ_ast::body_start>(func_decl.second->get_child(idx)).first << std::endl;
@@ -226,7 +234,7 @@ namespace occultlang
 
                     for (int idx2 = idx; idx2 < func_decl.second->get_children().size(); idx2++)
                     {
-                        generated_source += generate<occ_ast::body_start>(func_decl.second->get_child(idx2));
+                        generated_source += generate<occ_ast::body_start>(func_decl.second->get_child(idx2), debug, level, func_name);
                     }
 
                     generated_source += "}\n";
@@ -246,6 +254,7 @@ namespace occultlang
                         if (check_type<occ_ast::identifier>(func_call.second->get_child(idx)).first)
                         {
                             auto x = check_type<occ_ast::identifier>(func_call.second->get_child(idx)).second;
+
                             generated_source += x->content;
                         }
                         else if (check_type<occ_ast::string_literal>(func_call.second->get_child(idx)).first)
@@ -311,7 +320,7 @@ namespace occultlang
                 auto arr_decl = check_type<occ_ast::array_declaration>(node); // TODO IS STORE TYPE AND USE LATER FOR DYNAMIC TYPES
                 if (arr_decl.first)
                 {
-                    std::cout << "Array declaration found" << std::endl;
+                    //std::cout << "Array declaration found" << std::endl;
 
                     std::string type;
                     std::shared_ptr<occ_ast::identifier> id;
@@ -319,36 +328,36 @@ namespace occultlang
                     if (auto n = check_type<occ_ast::num_declaration>(arr_decl.second->get_child()); n.first)
                     {
                         type = "long";
-                        std::cout << "Number declaration found" << std::endl;
+                        //std::cout << "Number declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(n.second->get_child()).second;
                     }
                     else if (auto b = check_type<occ_ast::bool_declaration>(arr_decl.second->get_child()); b.first)
                     {
                         type = "long";
-                        std::cout << "Boolean declaration found" << std::endl;
+                        //std::cout << "Boolean declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(b.second->get_child()).second;
                     }
                     else if (auto f = check_type<occ_ast::float_declaration>(arr_decl.second->get_child()); f.first)
                     {
                         type = "double";
-                        std::cout << "Float declaration found" << std::endl;
+                        //std::cout << "Float declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(f.second->get_child()).second;
                     }
                     else if (auto s = check_type<occ_ast::string_declaration>(arr_decl.second->get_child()); s.first)
                     {
                         type = "string"; // const char*
-                        std::cout << "String declaration found" << std::endl;
+                        //std::cout << "String declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(s.second->get_child()).second;
                     }
 
                     generated_source += "dyn_array* ";
-                    std::cout << "Generating source code" << std::endl;
+                    //std::cout << "Generating source code" << std::endl;
 
-                    generated_source += id->content + " = create_array_" + type + "(0);"; // issues with other sizes other than 0
+                    generated_source += id->content + " = create_array_" + type + "(0);\n"; // issues with other sizes other than 0
 
                     int size = 0;
                     std::string array_members = "";
@@ -357,7 +366,7 @@ namespace occultlang
                     while (c_idx < id->get_children().size())
                     {
                         auto c = id->get_child(c_idx);
-                        std::cout << "Processing child " << c_idx << std::endl;
+                        //std::cout << "Processing child " << c_idx << std::endl;
 
                         if (auto n = check_type<occ_ast::number_literal>(c); n.first)
                         {
@@ -384,7 +393,7 @@ namespace occultlang
                     }
 
                     generated_source += array_members;
-                    std::cout << "Finished processing array declaration" << std::endl;
+                    //std::cout << "Finished processing array declaration" << std::endl;
                 }
 
                 auto string_literal = check_type<occ_ast::string_literal>(node);
@@ -545,6 +554,11 @@ namespace occultlang
                         std::cout << "return_decl: " << return_decl.first << std::endl;
 
                         std::cout << "return_decl children: " << return_decl.second->get_children().size() << std::endl;
+                    }
+
+                    if (curr_func_name == "main")
+                    {
+                        generated_source += "tgc_stop(&gc);\n";
                     }
 
                     generated_source += "return ";
@@ -831,6 +845,519 @@ namespace occultlang
         }
 
             std::string lib = R"(
+#include <setjmp.h>
+
+typedef unsigned int uintptr_t; 
+typedef uintptr_t size_t; 
+
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+
+#define UINTPTR_MAX 0xffffffff
+
+enum {
+  TGC_MARK = 0x01,
+  TGC_ROOT = 0x02,
+  TGC_LEAF = 0x04
+};
+
+typedef struct {
+  void *ptr;
+  int flags;
+  size_t size, hash;
+  void (*dtor)(void*);
+} tgc_ptr_t;
+
+typedef struct {
+  void *bottom;
+  int paused;
+  uintptr_t minptr, maxptr;
+  tgc_ptr_t *items, *frees;
+  double loadfactor, sweepfactor;
+  size_t nitems, nslots, mitems, nfrees;
+} tgc_t;
+
+void tgc_start(tgc_t *gc, void *stk);
+void tgc_stop(tgc_t *gc);
+void tgc_pause(tgc_t *gc);
+void tgc_resume(tgc_t *gc);
+void tgc_run(tgc_t *gc);
+
+void *tgc_alloc(tgc_t *gc, size_t size);
+void *tgc_calloc(tgc_t *gc, size_t num, size_t size);
+void *tgc_realloc(tgc_t *gc, void *ptr, size_t size);
+void tgc_free(tgc_t *gc, void *ptr);
+
+void *tgc_alloc_opt(tgc_t *gc, size_t size, int flags, void(*dtor)(void*));
+void *tgc_calloc_opt(tgc_t *gc, size_t num, size_t size, int flags, void(*dtor)(void*));
+
+void tgc_set_dtor(tgc_t *gc, void *ptr, void(*dtor)(void*));
+void tgc_set_flags(tgc_t *gc, void *ptr, int flags);
+int tgc_get_flags(tgc_t *gc, void *ptr);
+void(*tgc_get_dtor(tgc_t *gc, void *ptr))(void*);
+size_t tgc_get_size(tgc_t *gc, void *ptr);
+
+static size_t tgc_hash(void *ptr) {
+    uintptr_t ad = (uintptr_t) ptr;
+    return (size_t) ((13*ad) ^ (ad >> 15));
+}
+
+static size_t tgc_probe(tgc_t* gc, size_t i, size_t h) {
+  long v = i - (h-1);
+  if (v < 0) { v = gc->nslots + v; }
+  return v;
+}
+
+static tgc_ptr_t *tgc_get_ptr(tgc_t *gc, void *ptr) {
+  size_t i, j, h;
+  i = tgc_hash(ptr) % gc->nslots; j = 0;
+  while (1) {
+    h = gc->items[i].hash;
+    if (h == 0 || j > tgc_probe(gc, i, h)) { return NULL; }
+    if (gc->items[i].ptr == ptr) { return &gc->items[i]; }
+    i = (i+1) % gc->nslots; j++;
+  }
+  return NULL;
+}
+
+static void tgc_add_ptr(
+  tgc_t *gc, void *ptr, size_t size, 
+  int flags, void(*dtor)(void*)) {
+
+  tgc_ptr_t item, tmp;
+  size_t h, p, i, j;
+
+  i = tgc_hash(ptr) % gc->nslots; j = 0;
+  
+  item.ptr = ptr;
+  item.flags = flags;
+  item.size = size;
+  item.hash = i+1;
+  item.dtor = dtor;
+  
+  while (1) {
+    h = gc->items[i].hash;
+    if (h == 0) { gc->items[i] = item; return; }
+    if (gc->items[i].ptr == item.ptr) { return; }
+    p = tgc_probe(gc, i, h);
+    if (j >= p) {
+      tmp = gc->items[i];
+      gc->items[i] = item;
+      item = tmp;
+      j = p;
+    }
+    i = (i+1) % gc->nslots; j++;
+  }
+  
+}
+
+static void tgc_rem_ptr(tgc_t *gc, void *ptr) {
+
+  size_t i, j, h, nj, nh;
+
+  if (gc->nitems == 0) { return; }
+  
+  for (i = 0; i < gc->nfrees; i++) {
+    if (gc->frees[i].ptr == ptr) { gc->frees[i].ptr = NULL; }
+  }
+  
+  i = tgc_hash(ptr) % gc->nslots; j = 0;
+  
+  while (1) {
+    h = gc->items[i].hash;
+    if (h == 0 || j > tgc_probe(gc, i, h)) { return; }
+    if (gc->items[i].ptr == ptr) {
+      memset(&gc->items[i], 0, sizeof(tgc_ptr_t));
+      j = i;
+      while (1) { 
+        nj = (j+1) % gc->nslots;
+        nh = gc->items[nj].hash;
+        if (nh != 0 && tgc_probe(gc, nj, nh) > 0) {
+          memcpy(&gc->items[ j], &gc->items[nj], sizeof(tgc_ptr_t));
+          memset(&gc->items[nj],              0, sizeof(tgc_ptr_t));
+          j = nj;
+        } else {
+          break;
+        }  
+      }
+      gc->nitems--;
+      return;
+    }
+    i = (i+1) % gc->nslots; j++;
+  }
+  
+}
+
+
+enum {
+  TGC_PRIMES_COUNT = 24
+};
+
+static const size_t tgc_primes[TGC_PRIMES_COUNT] = {
+  0,       1,       5,       11,
+  23,      53,      101,     197,
+  389,     683,     1259,    2417,
+  4733,    9371,    18617,   37097,
+  74093,   148073,  296099,  592019,
+  1100009, 2200013, 4400021, 8800019
+};
+
+static size_t tgc_ideal_size(tgc_t* gc, size_t size) {
+  size_t i, last;
+  size = (size_t)((double)(size+1) / gc->loadfactor);
+  for (i = 0; i < TGC_PRIMES_COUNT; i++) {
+    if (tgc_primes[i] >= size) { return tgc_primes[i]; }
+  }
+  last = tgc_primes[TGC_PRIMES_COUNT-1];
+  for (i = 0;; i++) {
+    if (last * i >= size) { return last * i; }
+  }
+  return 0;
+}
+
+static int tgc_rehash(tgc_t* gc, size_t new_size) {
+
+  size_t i;
+  tgc_ptr_t *old_items = gc->items;
+  size_t old_size = gc->nslots;
+  
+  gc->nslots = new_size;
+  gc->items = calloc(gc->nslots, sizeof(tgc_ptr_t));
+  
+  if (gc->items == NULL) {
+    gc->nslots = old_size;
+    gc->items = old_items;
+    return 0;
+  }
+  
+  for (i = 0; i < old_size; i++) {
+    if (old_items[i].hash != 0) {
+      tgc_add_ptr(gc, 
+        old_items[i].ptr,   old_items[i].size, 
+        old_items[i].flags, old_items[i].dtor);
+    }
+  }
+  
+  free(old_items);
+  
+  return 1;
+}
+
+static int tgc_resize_more(tgc_t *gc) {
+  size_t new_size = tgc_ideal_size(gc, gc->nitems);  
+  size_t old_size = gc->nslots;
+  return (new_size > old_size) ? tgc_rehash(gc, new_size) : 1;
+}
+
+static int tgc_resize_less(tgc_t *gc) {
+  size_t new_size = tgc_ideal_size(gc, gc->nitems);  
+  size_t old_size = gc->nslots;
+  return (new_size < old_size) ? tgc_rehash(gc, new_size) : 1;
+}
+
+static void tgc_mark_ptr(tgc_t *gc, void *ptr) {
+
+  size_t i, j, h, k;
+  
+  if ((uintptr_t)ptr < gc->minptr 
+  ||  (uintptr_t)ptr > gc->maxptr) { return; }
+  
+  i = tgc_hash(ptr) % gc->nslots; j = 0;
+  
+  while (1) {
+    h = gc->items[i].hash;
+    if (h == 0 || j > tgc_probe(gc, i, h)) { return; }
+    if (ptr == gc->items[i].ptr) {
+      if (gc->items[i].flags & TGC_MARK) { return; }
+      gc->items[i].flags |= TGC_MARK;
+      if (gc->items[i].flags & TGC_LEAF) { return; }
+      for (k = 0; k < gc->items[i].size/sizeof(void*); k++) {
+        tgc_mark_ptr(gc, ((void**)gc->items[i].ptr)[k]);
+      }
+      return;
+    }
+    i = (i+1) % gc->nslots; j++;
+  }
+  
+}
+
+static void tgc_mark_stack(tgc_t *gc) {
+  
+  void *stk, *bot, *top, *p;
+  bot = gc->bottom; top = &stk;
+  
+  if (bot == top) { return; }
+  
+  if (bot < top) {
+    for (p = top; p >= bot; p = ((char*)p) - sizeof(void*)) {
+      tgc_mark_ptr(gc, *((void**)p));
+    }
+  }
+  
+  if (bot > top) {
+    for (p = top; p <= bot; p = ((char*)p) + sizeof(void*)) {
+      tgc_mark_ptr(gc, *((void**)p));
+    }
+  }
+  
+}
+
+static void tgc_mark(tgc_t *gc) {
+  
+  size_t i, k;
+  jmp_buf env;
+  void (*volatile mark_stack)(tgc_t*) = tgc_mark_stack;
+  
+  if (gc->nitems == 0) { return; }
+  
+  for (i = 0; i < gc->nslots; i++) {
+    if (gc->items[i].hash ==        0) { continue; }
+    if (gc->items[i].flags & TGC_MARK) { continue; }
+    if (gc->items[i].flags & TGC_ROOT) {
+      gc->items[i].flags |= TGC_MARK;
+      if (gc->items[i].flags & TGC_LEAF) { continue; }
+      for (k = 0; k < gc->items[i].size/sizeof(void*); k++) {
+        tgc_mark_ptr(gc, ((void**)gc->items[i].ptr)[k]);
+      }
+      continue;
+    }
+  }
+  
+  memset(&env, 0, sizeof(jmp_buf));
+  setjmp(env);
+  mark_stack(gc);
+
+}
+
+void tgc_sweep(tgc_t *gc) {
+  
+  size_t i, j, k, nj, nh;
+  
+  if (gc->nitems == 0) { return; }
+  
+  gc->nfrees = 0;
+  for (i = 0; i < gc->nslots; i++) {
+    if (gc->items[i].hash ==        0) { continue; }
+    if (gc->items[i].flags & TGC_MARK) { continue; }
+    if (gc->items[i].flags & TGC_ROOT) { continue; }
+    gc->nfrees++;
+  }
+
+  gc->frees = realloc(gc->frees, sizeof(tgc_ptr_t) * gc->nfrees);
+  if (gc->frees == NULL) { return; }
+  
+  i = 0; k = 0;
+  while (i < gc->nslots) {
+    if (gc->items[i].hash ==        0) { i++; continue; }
+    if (gc->items[i].flags & TGC_MARK) { i++; continue; }
+    if (gc->items[i].flags & TGC_ROOT) { i++; continue; }
+    
+    gc->frees[k] = gc->items[i]; k++;
+    memset(&gc->items[i], 0, sizeof(tgc_ptr_t));
+    
+    j = i;
+    while (1) { 
+      nj = (j+1) % gc->nslots;
+      nh = gc->items[nj].hash;
+      if (nh != 0 && tgc_probe(gc, nj, nh) > 0) {
+        memcpy(&gc->items[ j], &gc->items[nj], sizeof(tgc_ptr_t));
+        memset(&gc->items[nj],              0, sizeof(tgc_ptr_t));
+        j = nj;
+      } else {
+        break;
+      }  
+    }
+    gc->nitems--;
+  }
+  
+  for (i = 0; i < gc->nslots; i++) {
+    if (gc->items[i].hash == 0) { continue; }
+    if (gc->items[i].flags & TGC_MARK) {
+      gc->items[i].flags &= ~TGC_MARK;
+    }
+  }
+  
+  tgc_resize_less(gc);
+  
+  gc->mitems = gc->nitems + (size_t)(gc->nitems * gc->sweepfactor) + 1;
+  
+  for (i = 0; i < gc->nfrees; i++) {
+    if (gc->frees[i].ptr) {
+      if (gc->frees[i].dtor) { gc->frees[i].dtor(gc->frees[i].ptr); }
+      free(gc->frees[i].ptr);
+    }
+  }
+  
+  free(gc->frees);
+  gc->frees = NULL;
+  gc->nfrees = 0;
+  
+}
+
+void tgc_start(tgc_t *gc, void *stk) {
+  gc->bottom = stk;
+  gc->paused = 0;
+  gc->nitems = 0;
+  gc->nslots = 0;
+  gc->mitems = 0;
+  gc->nfrees = 0;
+  gc->maxptr = 0;
+  gc->items = NULL;
+  gc->frees = NULL;
+  gc->minptr = UINTPTR_MAX;
+  gc->loadfactor = 0.9;
+  gc->sweepfactor = 0.5;
+}
+
+void tgc_stop(tgc_t *gc) {
+  tgc_sweep(gc);
+  free(gc->items);
+  free(gc->frees);
+}
+
+void tgc_pause(tgc_t *gc) {
+  gc->paused = 1;
+}
+
+void tgc_resume(tgc_t *gc) {
+  gc->paused = 0;
+}
+
+void tgc_run(tgc_t *gc) {
+  tgc_mark(gc);
+  tgc_sweep(gc);
+}
+
+static void *tgc_add(
+  tgc_t *gc, void *ptr, size_t size, 
+  int flags, void(*dtor)(void*)) {
+
+  gc->nitems++;
+  gc->maxptr = ((uintptr_t)ptr) + size > gc->maxptr ? 
+    ((uintptr_t)ptr) + size : gc->maxptr; 
+  gc->minptr = ((uintptr_t)ptr)        < gc->minptr ? 
+    ((uintptr_t)ptr)        : gc->minptr;
+
+  if (tgc_resize_more(gc)) {
+    tgc_add_ptr(gc, ptr, size, flags, dtor);
+    if (!gc->paused && gc->nitems > gc->mitems) {
+      tgc_run(gc);
+    }
+    return ptr;
+  } else {
+    gc->nitems--;
+    free(ptr);
+    return NULL;
+  }
+}
+
+static void tgc_rem(tgc_t *gc, void *ptr) {
+  tgc_rem_ptr(gc, ptr);
+  tgc_resize_less(gc);
+  gc->mitems = gc->nitems + gc->nitems / 2 + 1;
+}
+
+void *tgc_alloc(tgc_t *gc, size_t size) {
+  return tgc_alloc_opt(gc, size, 0, NULL);
+}
+
+void *tgc_calloc(tgc_t *gc, size_t num, size_t size) {
+  return tgc_calloc_opt(gc, num, size, 0, NULL);
+}
+
+void *tgc_realloc(tgc_t *gc, void *ptr, size_t size) {
+  
+  tgc_ptr_t *p;
+  void *qtr = realloc(ptr, size);
+  
+  if (qtr == NULL) {
+    tgc_rem(gc, ptr);
+    return qtr;
+  }
+
+  if (ptr == NULL) {
+    tgc_add(gc, qtr, size, 0, NULL);
+    return qtr;
+  }
+
+  p  = tgc_get_ptr(gc, ptr);
+
+  if (p && qtr == ptr) {
+    p->size = size;
+    return qtr;
+  }
+
+  if (p && qtr != ptr) {
+    int flags = p->flags;
+    void(*dtor)(void*) = p->dtor;
+    tgc_rem(gc, ptr);
+    tgc_add(gc, qtr, size, flags, dtor);
+    return qtr;
+  }
+
+  return NULL;
+}
+
+void tgc_free(tgc_t *gc, void *ptr) {
+  tgc_ptr_t *p  = tgc_get_ptr(gc, ptr);
+  if (p) {
+    if (p->dtor) {
+      p->dtor(ptr);
+    }
+    free(ptr);
+    tgc_rem(gc, ptr);
+  }
+}
+
+void *tgc_alloc_opt(tgc_t *gc, size_t size, int flags, void(*dtor)(void*)) {
+  void *ptr = malloc(size);
+  if (ptr != NULL) {
+    ptr = tgc_add(gc, ptr, size, flags, dtor);
+  }
+  return ptr;
+}
+
+void *tgc_calloc_opt(
+  tgc_t *gc, size_t num, size_t size, 
+  int flags, void(*dtor)(void*)) {
+  void *ptr = calloc(num, size);
+  if (ptr != NULL) {
+    ptr = tgc_add(gc, ptr, num * size, flags, dtor);
+  }
+  return ptr;
+}
+
+void tgc_set_dtor(tgc_t *gc, void *ptr, void(*dtor)(void*)) {
+  tgc_ptr_t *p  = tgc_get_ptr(gc, ptr);
+  if (p) { p->dtor = dtor; }
+}
+
+void tgc_set_flags(tgc_t *gc, void *ptr, int flags) {
+  tgc_ptr_t *p  = tgc_get_ptr(gc, ptr);
+  if (p) { p->flags = flags; }
+}
+
+int tgc_get_flags(tgc_t *gc, void *ptr) {
+  tgc_ptr_t *p  = tgc_get_ptr(gc, ptr);
+  if (p) { return p->flags; }
+  return 0;
+}
+
+void(*tgc_get_dtor(tgc_t *gc, void *ptr))(void*) {
+  tgc_ptr_t *p  = tgc_get_ptr(gc, ptr);
+  if (p) { return p->dtor; }
+  return NULL;
+}
+
+size_t tgc_get_size(tgc_t *gc, void *ptr) {
+  tgc_ptr_t *p  = tgc_get_ptr(gc, ptr);
+  if (p) { return p->size; }
+  return 0;
+}
+
+static tgc_t gc;
+
 enum {
     dyn_long,
     dyn_float,
@@ -849,7 +1376,7 @@ typedef struct dyn_array {
 } dyn_array;
 
 dyn_array* create_array_long(int size) {
-    dyn_array* array = (dyn_array*)malloc(sizeof(dyn_array));
+    dyn_array* array = (dyn_array*)tgc_alloc(&gc, sizeof(dyn_array));
     array->type = dyn_long;
 
     if (array == (void*)0) {
@@ -857,7 +1384,7 @@ dyn_array* create_array_long(int size) {
     }
 
     array->size = size;
-    array->num = (long*)malloc(size * sizeof(long));
+    array->num = (long*)tgc_alloc(&gc, size * sizeof(long));
 
     if (array->num == (void*)0) {
         free(array);
@@ -868,7 +1395,7 @@ dyn_array* create_array_long(int size) {
 }
 
 dyn_array* create_array_double(int size) {
-    dyn_array* array = (dyn_array*)malloc(sizeof(dyn_array));
+    dyn_array* array = (dyn_array*)tgc_alloc(&gc, sizeof(dyn_array));
     array->type = dyn_float;
 
     if (array == (void*)0) {
@@ -876,7 +1403,7 @@ dyn_array* create_array_double(int size) {
     }
 
     array->size = size;
-    array->rnum = (double*)malloc(size * sizeof(double));
+    array->rnum = (double*)tgc_alloc(&gc, size * sizeof(double));
 
     if (array->rnum == (void*)0) {
         free(array);
@@ -887,7 +1414,7 @@ dyn_array* create_array_double(int size) {
 }
 
 dyn_array* create_array_string(int size) {
-    dyn_array* array = (dyn_array*)malloc(sizeof(dyn_array));
+    dyn_array* array = (dyn_array*)tgc_alloc(&gc,sizeof(dyn_array));
     array->type = dyn_str;
 
     if (array == (void*)0) {
@@ -895,7 +1422,7 @@ dyn_array* create_array_string(int size) {
     }
 
     array->size = size;
-    array->str = (const char**)malloc(size * sizeof(const char*));
+    array->str = (const char**)tgc_alloc(&gc,size * sizeof(const char*));
 
     if (array->str == (void*)0) {
         free(array);
@@ -905,7 +1432,7 @@ dyn_array* create_array_string(int size) {
     return array;
 }
 
-int get_array_size(dyn_array* array) {
+int get_size(dyn_array* array) {
     return array->size;
 }
 
@@ -923,7 +1450,7 @@ void add_num(dyn_array* array, long data) {
     }
 
     array->size++;
-    array->num = (long*)realloc(array->num, array->size * sizeof(long));
+    array->num = (long*)tgc_realloc(&gc, array->num, array->size * sizeof(long));
 
     if (array->num == (void*)0) {
         exit(1);
@@ -954,7 +1481,7 @@ void add_rnum(dyn_array* array, double data) {
     }
 
     array->size++;
-    array->rnum = (double*)realloc(array->rnum, array->size * sizeof(double));
+    array->rnum = (double*)tgc_realloc(&gc, array->rnum, array->size * sizeof(double));
 
     if (array->rnum == (void*)0) {
         exit(1);
@@ -985,7 +1512,7 @@ void add_str(dyn_array* array, const char* data) {
     }
 
     array->size++;
-    array->str = (const char**)realloc(array->str, array->size * sizeof(const char*));
+    array->str = (const char**)tgc_realloc(&gc, array->str, array->size * sizeof(const char*));
 
     if (array->str == (void*)0) {
         exit(1);
@@ -1002,20 +1529,7 @@ void set_str(dyn_array* array, int index, const char* data) {
     array->str[index] = data;
 }
 
-void delete(dyn_array* array) {
-    switch (array->type) {
-        case dyn_long:
-            free(array->num);
-            break;
-        case dyn_float:
-            free(array->rnum);
-            break;
-        case dyn_str:
-            free(array->str);
-            break;
-    }
-    free(array);
-}
+#define print printf
     )";
     };
 } // occultlang

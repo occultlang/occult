@@ -33,7 +33,7 @@ namespace occultlang
 	static std::unordered_set<std::string> keyword_set = { // for arrays we use create_array to create an array with the size 0
 		"fn", "if", "else", "loop",
 		"return", "break", "num", "bool", "rnum", "continue", // rnum is real number
-		"str", "true", "false", "void", "while", "for", "match", "array" };
+		"str", "true", "false", "void", "while", "for", "match", "array"};
 
 	class token
 	{
