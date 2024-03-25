@@ -50,3 +50,7 @@ There's a clear vision for this project in the end to make it bootstrappable so 
 
 # LICENSE
 GNU Lesser General Public License v2.1 (Same as TinyCC)
+
+# Credits
+https://github.com/orangeduck/tgc/tree/master
+https://github.com/TinyCC/tinycc
