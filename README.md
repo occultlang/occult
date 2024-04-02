@@ -31,8 +31,8 @@ To clean the build directory just run `clean.sh`
 # To-do
 - [ ] Array declarations for arguments (Focusing on this more)
 - [ ] 2d, 3d etc. support for arrays (Focusing on this more)
-- [x] Wrapper around arrays to make it easier to type (Focusing on this still but less)
-- [ ] Add for loops 
+- [x] Wrapper around arrays to make it easier to type (Focusing on this more)
+- [x] ~~Add for loops~~ (FUTURE VERSION)
 - [ ] Add matching
 - [ ] Add imports
 - [ ] Add casting
