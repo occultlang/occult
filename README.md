@@ -29,10 +29,13 @@ Test cases are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
-- [ ] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult (See [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))
-- [ ] Array declarations for arguments (Doing now) (See [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))
-- [x] 2d, 3d etc. support for arrays (In [occlib](https://github.com/occultlang/occlib) + Doing now) (See [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))
-- [x] Wrapper around arrays to make it easier to type (In [occlib](https://github.com/occultlang/occlib) + Doing now) (See [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))
+- [ ] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult 
+- [ ] Array declarations for arguments (Doing now) 
+- [x] 2d, 3d etc. support for arrays (In [occlib](https://github.com/occultlang/occlib) + Doing now) 
+- [x] Wrapper around arrays to make it easier to type (In [occlib](https://github.com/occultlang/occlib) + Doing now)
+
+**For the above 4, see [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))**
+
 - [ ] Add for loops (LATER)
 - [ ] Add matching (LATER)
 - [ ] Add imports (LATER)
