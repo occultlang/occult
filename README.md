@@ -29,7 +29,7 @@ Test cases are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
-- [ ] Add new array implementatino from [occlib](https://github.com/occultlang/occlib) to Occult
+- [ ] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult
 - [ ] Array declarations for arguments (Doing now)
 - [x] 2d, 3d etc. support for arrays (In [occlib](https://github.com/occultlang/occlib) + Doing now)
 - [x] Wrapper around arrays to make it easier to type (In [occlib](https://github.com/occultlang/occlib) + Doing now)
