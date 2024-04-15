@@ -29,10 +29,10 @@ Test cases are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
-- [ ] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult
-- [ ] Array declarations for arguments (Doing now)
-- [x] 2d, 3d etc. support for arrays (In [occlib](https://github.com/occultlang/occlib) + Doing now)
-- [x] Wrapper around arrays to make it easier to type (In [occlib](https://github.com/occultlang/occlib) + Doing now)
+- [ ] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult (See [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))
+- [ ] Array declarations for arguments (Doing now) (See [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))
+- [x] 2d, 3d etc. support for arrays (In [occlib](https://github.com/occultlang/occlib) + Doing now) (See [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))
+- [x] Wrapper around arrays to make it easier to type (In [occlib](https://github.com/occultlang/occlib) + Doing now) (See [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))
 - [ ] Add for loops (LATER)
 - [ ] Add matching (LATER)
 - [ ] Add imports (LATER)
@@ -42,12 +42,6 @@ To clean the build directory just run `clean.sh`
 - [ ] Add tuples
 - [ ] Add incrementing with i++ and i-- etc. to codegen 
 - [x] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
-
-# Issues 
-With my current array implementation in [occlib](https://github.com/occultlang/occlib) there is a slight complexity while adding multidimensional arrays, while it is supported, it is more complex than I'd like...
- 
-Although I can probably get around it by modifying [`code_gen.hpp`](https://github.com/occultlang/occult/blob/main/code_generation/code_gen.hpp) slightly, I have to work and modify how arrays are made now, which would require A LOT of refactoring.
-In the compiler itself, I can log the types inside the function arguments (see [`std::vector<std::string> symbols`](https://github.com/occultlang/occult/blob/462f078cdb715e102ba011a9663fcff9f3b0ef94/code_generation/code_gen.hpp#L26)) and check it against the actual func itself, as we wont have variadic. This will help figure out what type we need to use for each array... (this is a huge hassle)
 
 # How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
