@@ -34,7 +34,7 @@ To clean the build directory just run `clean.sh`
 - [x] 2d, 3d etc. support for arrays (In [occlib](https://github.com/occultlang/occlib) + Doing now) 
 - [x] Wrapper around arrays to make it easier to type (In [occlib](https://github.com/occultlang/occlib) + Doing now)
 
-**For the above 4, see [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183))**
+**For the above 4, see [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183)**
 
 - [ ] Add for loops (LATER)
 - [ ] Add matching (LATER)
