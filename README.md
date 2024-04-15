@@ -33,10 +33,10 @@ To clean the build directory just run `clean.sh`
 - [ ] Array declarations for arguments (Doing now)
 - [x] 2d, 3d etc. support for arrays (In [occlib](https://github.com/occultlang/occlib) + Doing now)
 - [x] Wrapper around arrays to make it easier to type (In [occlib](https://github.com/occultlang/occlib) + Doing now)
-- [x] ~~Add for loops~~ (FUTURE VERSION)
-- [ ] Add matching
-- [ ] Add imports
-- [ ] Add casting
+- [ ] Add for loops (LATER)
+- [ ] Add matching (LATER)
+- [ ] Add imports (LATER)
+- [ ] Add casting (LATER)
 - [x] Fix Commenting in lexical stage as well as floating points
 - [x] Fix floating points not working fully when generating code + parsing
 - [ ] Add tuples
