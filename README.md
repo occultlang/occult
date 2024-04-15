@@ -42,6 +42,9 @@ To clean the build directory just run `clean.sh`
 - [ ] Add incrementing with i++ and i-- etc. to codegen 
 - [x] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
 
+# Issues 
+With my current array implementation in [occlib](https://github.com/occultlang/occlib) there is a slight complexity while adding multidimensional arrays, while it is supported, it is more complex than I'd like...
+
 # How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
 
