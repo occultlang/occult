@@ -36,7 +36,7 @@ To clean the build directory just run `clean.sh`
 
 **For the above 4, see [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183)**
 
-**Actively working on all of these**
+**Actively working on all of these (top 4)**
 
 - [ ] Add for loops (LATER)
 - [ ] Add matching (LATER)
