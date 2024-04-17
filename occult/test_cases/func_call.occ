@@ -1,0 +1,9 @@
+fn add(num: x, num: y) -> num {
+    return x + y;
+}
+
+fn main() -> num {
+    printf("%i\n", add(3, 2));
+
+    return 0;
+}

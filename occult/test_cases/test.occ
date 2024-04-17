@@ -1,0 +1,6 @@
+fn main() -> num {
+  str: s = "Hi World\n";
+
+  printf("%s", s);
+  return 0;
+}

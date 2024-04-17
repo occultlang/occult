@@ -1,0 +1,5 @@
+fn main() -> num {
+    printf("hi world\n");
+
+    return 0;
+}
