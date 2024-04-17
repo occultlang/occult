@@ -1,5 +1,0 @@
-fn main() {
-    loop {
-        printf("loop forever!\n");
-    }
-}

@@ -1,4 +1,0 @@
-fn main() {
-    rnum: x = 2.31 + 0.4; // floating point number
-    printf("%f", x);
-}
