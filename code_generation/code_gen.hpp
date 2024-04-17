@@ -185,7 +185,11 @@ namespace occultlang
                     }
                     else if (next_typename == "string_declaration")
                     {
-                        generated_source += "const char* ";
+                        generated_source += "char* ";
+                    }
+                    else if (next_typename == "array")
+                    {
+                        generated_source += "dyn_array* ";
                     }
                     
                     if (func_name == "main")
@@ -209,7 +213,11 @@ namespace occultlang
                         }
                         else if (args[i].first == "string_declaration")
                         {
-                            generated_source += "const char* ";
+                            generated_source += "char* ";
+                        }
+                        else if (args[i].first == "array")
+                        {
+                            generated_source += "dyn_array* ";
                         }
 
                         generated_source += args[i].second;
@@ -320,6 +328,11 @@ namespace occultlang
                 auto arr_decl = check_type<occ_ast::array_declaration>(node); // TODO IS STORE TYPE AND USE LATER FOR DYNAMIC TYPES
                 if (arr_decl.first)
                 {
+                    if (check_type<occ_ast::identifier>(arr_decl.second->get_child()).first) 
+                    {
+                        auto x = check_type<occ_ast::identifier>(arr_decl.second->get_child()).second;
+                        generated_source += "dyn_array* " + x->content + generate<occ_ast::identifier>(x) + ";\n";
+                    }
                     //std::cout << "Array declaration found" << std::endl;
 
                     std::string type;
@@ -353,21 +366,30 @@ namespace occultlang
 
                         id = check_type<occ_ast::identifier>(s.second->get_child()).second;
                     }
+                    else if (auto a = check_type<occ_ast::array_declaration>(arr_decl.second->get_child()); a.first)
+                    {
+                        type = "self";
+                        //std::cout << "Array declaration found" << std::endl;
+
+                        id = check_type<occ_ast::identifier>(a.second->get_child()).second;
+                    }
 
                     generated_source += "dyn_array* ";
                     //std::cout << "Generating source code" << std::endl;
 
-                    generated_source += id->content + " = create_array_" + type + "(0);\n"; // issues with other sizes other than 0
+                    generated_source += id->content + " = create_array_" + type + "();\n"; // issues with other sizes other than 0
 
                     int size = 0;
                     std::string array_members = "";
 
                     int c_idx = 0;
+  
+                    c_idx = 0;
+                    bool first = false;
                     while (c_idx < id->get_children().size())
                     {
                         auto c = id->get_child(c_idx);
-                        //std::cout << "Processing child " << c_idx << std::endl;
-
+                        
                         if (auto n = check_type<occ_ast::number_literal>(c); n.first)
                         {
                             size++;
@@ -388,11 +410,23 @@ namespace occultlang
                             size++;
                             array_members += "add_num(" + id->content + ", " + b.second->content + ");\n";
                         }
+                        else if (auto ar = check_type<occ_ast::array_declaration>(c); ar.first)
+                        {
+                            size++;
 
+                            array_members += "add_self(" + id->content + ", " + ar.second->content + ");\n"; // add nested name
+                        }
+                        else if (auto a = check_type<occ_ast::identifier>(c); a.first)
+                        {
+                            size++;
+                            array_members += "DYN_VECTOR_PUSH_BACK(" + id->content + ", " + a.second->content + ");\n";
+                        }
+                        
                         c_idx++;
                     }
 
                     generated_source += array_members;
+
                     //std::cout << "Finished processing array declaration" << std::endl;
                 }
 
@@ -1356,76 +1390,104 @@ size_t tgc_get_size(tgc_t *gc, void *ptr) {
   return 0;
 }
 
-static tgc_t gc;
 
-enum {
-    dyn_long,
-    dyn_float,
-    dyn_str
-} dyn_type;
+static tgc_t gc;
 
 typedef struct dyn_array {
     union { // data types
         long* num;
         double* rnum;
-        const char** str;
+        char** str;
+        struct dyn_array** self;
     };
     
     int size;
-    int type;
 } dyn_array;
 
-dyn_array* create_array_long(int size) {
+dyn_array* create_array_long();
+dyn_array* create_array_double();
+dyn_array* create_array_string();
+dyn_array* create_array_self();
+int get_size(dyn_array* array);
+long get_num(dyn_array* array, int index);
+void add_num(dyn_array* array, long data);
+void set_num(dyn_array* array, int index, long data);
+void set_self(dyn_array* array, int index, dyn_array* data);
+double get_rnum(dyn_array* array, int index);
+dyn_array* get_self(dyn_array* array, int index);
+void add_rnum(dyn_array* array, double data);
+void set_rnum(dyn_array* array, int index, double data);
+char* get_str(dyn_array* array, int index);
+void add_str(dyn_array* array, char* data);
+void set_str(dyn_array* array, int index, char* data);
+void add_self(dyn_array* array, dyn_array* data);
+
+dyn_array* create_array_long() {
     dyn_array* array = (dyn_array*)tgc_alloc(&gc, sizeof(dyn_array));
-    array->type = dyn_long;
 
     if (array == (void*)0) {
         exit(1);
     }
 
-    array->size = size;
-    array->num = (long*)tgc_alloc(&gc, size * sizeof(long));
+    array->size = 0;
+    array->num = (long*)tgc_alloc(&gc, sizeof(long));
 
     if (array->num == (void*)0) {
-        free(array);
+        tgc_free(&gc, array);
         exit(1);
     }
 
     return array;
 }
 
-dyn_array* create_array_double(int size) {
+dyn_array* create_array_double() {
     dyn_array* array = (dyn_array*)tgc_alloc(&gc, sizeof(dyn_array));
-    array->type = dyn_float;
 
     if (array == (void*)0) {
         exit(1);
     }
 
-    array->size = size;
-    array->rnum = (double*)tgc_alloc(&gc, size * sizeof(double));
+    array->size = 0;
+    array->rnum = (double*)tgc_alloc(&gc, sizeof(double));
 
     if (array->rnum == (void*)0) {
-        free(array);
+        tgc_free(&gc, array);
         exit(1);
     }
 
     return array;
 }
 
-dyn_array* create_array_string(int size) {
+dyn_array* create_array_string() {
     dyn_array* array = (dyn_array*)tgc_alloc(&gc,sizeof(dyn_array));
-    array->type = dyn_str;
 
     if (array == (void*)0) {
         exit(1);
     }
 
-    array->size = size;
-    array->str = (const char**)tgc_alloc(&gc,size * sizeof(const char*));
+    array->size = 0;
+    array->str = (char**)tgc_alloc(&gc, sizeof(char*));
 
     if (array->str == (void*)0) {
-        free(array);
+        tgc_free(&gc, array);
+        exit(1);
+    }
+
+    return array;
+}
+
+dyn_array* create_array_self() {
+    dyn_array* array = (dyn_array*)tgc_alloc(&gc,sizeof(dyn_array));
+
+    if (array == (void*)0) {
+        exit(1);
+    }
+
+    array->size = 0;
+    array->self = (dyn_array**)tgc_alloc(&gc, sizeof(dyn_array*));
+
+    if (array->self == (void*)0) {
+        tgc_free(&gc, array);
         exit(1);
     }
 
@@ -1467,12 +1529,28 @@ void set_num(dyn_array* array, int index, long data) {
     array->num[index] = data;
 }
 
+void set_self(dyn_array* array, int index, dyn_array* data) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+
+    array->self[index] = data;
+}
+
 double get_rnum(dyn_array* array, int index) {
     if (index < 0 || index >= array->size) {
         exit(1);
     }
 
     return array->rnum[index];
+}
+
+dyn_array* get_self(dyn_array* array, int index) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+
+    return array->self[index];
 }
 
 void add_rnum(dyn_array* array, double data) {
@@ -1498,7 +1576,7 @@ void set_rnum(dyn_array* array, int index, double data) {
     array->rnum[index] = data;
 }
 
-const char* get_str(dyn_array* array, int index) {
+char* get_str(dyn_array* array, int index) {
     if (index < 0 || index >= array->size) {
         exit(1);
     }
@@ -1506,13 +1584,13 @@ const char* get_str(dyn_array* array, int index) {
     return array->str[index];
 }
 
-void add_str(dyn_array* array, const char* data) {
+void add_str(dyn_array* array, char* data) {
     if (array->str == (void*)0) {
         exit(1);
     }
 
     array->size++;
-    array->str = (const char**)tgc_realloc(&gc, array->str, array->size * sizeof(const char*));
+    array->str = (char**)tgc_realloc(&gc, array->str, array->size * sizeof(char*));
 
     if (array->str == (void*)0) {
         exit(1);
@@ -1521,13 +1599,96 @@ void add_str(dyn_array* array, const char* data) {
     array->str[array->size - 1] = data;
 }
 
-void set_str(dyn_array* array, int index, const char* data) {
+void set_str(dyn_array* array, int index, char* data) {
     if (index < 0 || index >= array->size) {
         exit(1);
     }
 
     array->str[index] = data;
 }
+
+void add_self(dyn_array* array, dyn_array* data) {
+    if (array->self == (void*)0) {
+        exit(1);
+    }
+
+    array->size++;
+    array->self = (dyn_array**)tgc_realloc(&gc, array->self, array->size * sizeof(dyn_array*));
+
+    if (array->self == (void*)0) {
+        exit(1);
+    }
+
+    array->self[array->size - 1] = data;
+}
+
+#define push_back(vec, data) _Generic((data), \
+    int: add_num, \
+    long: add_num, \
+    char*: add_str, \
+    float: add_rnum, \
+    double: add_rnum, \
+    default: add_self \
+)(vec, data)
+
+#define at(vec, index, cast_type) _Generic((cast_type), \
+    int: get_num, \
+    long: get_num, \
+    char*: get_str, \
+    float: get_rnum, \
+    double: get_rnum, \
+    default: get_self \
+)(vec, index)
+
+#define set(vec, index, data) _Generic((data), \
+    int: set_num, \
+    long: set_num, \
+    char*: set_str, \
+    float: set_rnum, \
+    double: set_rnum, \
+    default: set_self \
+)(vec, index, data)
+
+#define num_t 0
+#define rnum_t 0.1
+#define str_t "0ab1a"
+#define self_t (void*)0 // just a ptr
+
+#define size(vec) ((vec)->size)
+
+#define DYN_VECTOR_PUSH_BACK(vec, data) _Generic((data), \
+    int: add_num, \
+    long: add_num, \
+    char*: add_str, \
+    float: add_rnum, \
+    double: add_rnum, \
+    default: add_self \
+)(vec, data)
+
+#define DYN_VECTOR_AT(vec, index, cast_type) _Generic((cast_type), \
+    int: get_num, \
+    long: get_num, \
+    char*: get_str, \
+    float: get_rnum, \
+    double: get_rnum, \
+    default: get_self \
+)(vec, index)
+
+#define DYN_VECTOR_SET(vec, index, data) _Generic((data), \
+    int: set_num, \
+    long: set_num, \
+    char*: set_str, \
+    float: set_rnum, \
+    double: set_rnum, \
+    default: set_self \
+)(vec, index, data)
+
+#define TYPE_NUM 0
+#define TYPE_RNUM 0.1
+#define TYPE_STRING "0ab1a"
+#define TYPE_SELF NULL // just a ptr
+
+#define DYN_VECTOR_SIZE(vec) ((vec)->size)
 
 #define print printf
     )";

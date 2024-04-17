@@ -681,6 +681,10 @@ namespace occultlang
 					{
 						arr_decl->add_child(std::make_shared<occ_ast::bool_declaration>());
 					}
+					else if (keyword == "array")
+					{
+						arr_decl->add_child(std::make_shared<occ_ast::array_declaration>());
+					}
 
 					if (match(tk_operator, ">")) 
 					{
@@ -691,7 +695,7 @@ namespace occultlang
 							auto id = parse_identifier();
 
 							arr_decl->get_child()->add_child(id);
-
+							
 							if (match(tk_operator, "="))
 							{
 								consume(tk_operator);
@@ -702,13 +706,13 @@ namespace occultlang
 									child->swap_parent(arr_decl->get_child()->get_child());
 								}
 							}
+						}
 
-							return arr_decl;
-						}
-						else
-						{
-							throw occ_runtime_error(parse_exceptions[EXPECTED_IDENTIFIER], peek());
-						}
+						return arr_decl;
+					}
+					else 
+					{
+						throw occ_runtime_error(parse_exceptions[EXPECTED_DELIMITER], peek());
 					}
 				}
 				else
@@ -716,7 +720,26 @@ namespace occultlang
 					throw occ_runtime_error(parse_exceptions[EXPECTED_TYPE], peek()); 
 				}
 			}
-			else 
+			else if (match(tk_identifier))
+			{
+				auto id = parse_identifier();
+
+				arr_decl->add_child(id);
+
+				if (match(tk_operator, "="))
+				{
+					consume(tk_operator);
+
+					auto expression = parse_expression();
+					for (auto &child : expression->get_children())
+					{
+						child->swap_parent(arr_decl->get_child());
+					}
+				}
+
+				return arr_decl;
+			}
+			else
 			{
 				throw occ_runtime_error(parse_exceptions[EXPECTED_DELIMITER], peek());
 			}
