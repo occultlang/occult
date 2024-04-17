@@ -1,0 +1,24 @@
+fn main() -> num {
+    array<num> a1 = [ 1, 2 ];
+    array<num> a2 = [ 3, 4 ];
+    array<array> array_2d = [ a1, a2 ]; // 2d arrays are a thing, but its not a great syntax
+
+    num: row = 0;
+
+    while row < size(array_2d) {
+        array row_array = at(row_array, row, self_t);
+        num: col = 0;
+
+        while col < size(row_array) {
+            print("%ld", at(row_array, col, num_t));
+            
+            col = col + 1;
+        }
+
+        print("\n");
+
+        row = row + 1;
+    }
+    
+    return 0;
+}
