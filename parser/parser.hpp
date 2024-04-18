@@ -113,6 +113,7 @@ namespace occultlang
 		std::shared_ptr<ast> parse_for();
 		std::shared_ptr<ast> parse_continue();
 		void clean_comments();
+		std::shared_ptr<ast> parse_unsafe();
 		std::shared_ptr<ast> parse();
 	};
 } // occultlang

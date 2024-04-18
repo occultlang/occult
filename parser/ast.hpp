@@ -40,7 +40,8 @@ namespace occultlang
 	  body_end,
 	  elseif_declaration,
 	  else_declaration,
-	  array_declaration
+	  array_declaration,
+	  unsafe
 	};
 
 	struct ast : public tree<std::shared_ptr<ast>>
@@ -508,6 +509,17 @@ namespace occultlang
 			virtual ast_type get_type() { return ast_type::array_declaration; }
 
 			virtual std::string to_string() { return "array_declaration"; }
+		};
+
+		struct unsafe : public ast
+		{
+			unsafe() : ast() {}
+			virtual ~unsafe() {}
+			unsafe(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::unsafe; }
+
+			virtual std::string to_string() { return "unsafe"; }
 		};
 	}
 } // occultlang

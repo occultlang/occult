@@ -1,0 +1,12 @@
+unsafe {"
+int* garbage;
+
+void alloc() {
+    garbage = (int*)malloc(sizeof(int));
+}
+"}
+
+fn main() {
+    alloc();
+    printf("garbage ptr: %p", garbage);
+}

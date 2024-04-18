@@ -256,6 +256,17 @@ namespace occultlang
                     generated_source += "}\n";
                 }
 
+                auto unsafe_decl = check_type<occ_ast::unsafe>(node);
+                if (unsafe_decl.first)
+                {
+                    if (debug)
+                        std::cout << "unsafe: " << unsafe_decl.first << std::endl;
+                    if (auto a1 = check_type<occ_ast::unsafe>(node); a1.first)
+                    {
+                        generated_source += check_type<occ_ast::string_literal>(unsafe_decl.second->get_child()).second->content;
+                    }
+                }
+
                 auto func_call = check_type<occ_ast::function_call>(node);
                 if (func_call.first)
                 {

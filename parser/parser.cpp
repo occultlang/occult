@@ -720,8 +720,10 @@ namespace occultlang
 			{
 				return _parse_delaration(std::make_shared<occ_ast::array_declaration>());
 			}
-			else if (match(tk_identifier))
+			else if (match(tk_delimiter, ":") && match_next(tk_identifier))
 			{
+				consume(tk_delimiter);
+				
 				auto id = parse_identifier();
 
 				arr_decl->add_child(id);
@@ -1013,6 +1015,44 @@ namespace occultlang
 		}
 	}
 
+	std::shared_ptr<ast> parser::parse_unsafe()
+	{
+		if (match(tk_keyword, "unsafe"))
+		{
+			consume(tk_keyword);
+
+			std::shared_ptr<ast> unsafe_declaration = std::make_shared<occ_ast::unsafe>();
+
+			if (match(tk_delimiter, "{") && match_next(tk_string_literal))
+			{
+				consume(tk_delimiter);
+
+				auto string_literal = parse_string_literal();
+
+				unsafe_declaration->add_child(string_literal);
+
+				if (match(tk_delimiter, "}"))
+				{
+					consume(tk_delimiter);
+				}
+				else
+				{
+					throw occ_runtime_error(parse_exceptions[EXPECTED_RIGHT_BRACE], peek());
+				}
+			}
+			else
+			{
+				throw occ_runtime_error(parse_exceptions[EXPECTED_LEFT_BRACE], peek());
+			}
+
+			return unsafe_declaration;
+		}
+		else
+		{
+			throw occ_runtime_error(parse_exceptions[EXPECTED_KEYWORD], peek());
+		}
+	}
+
 	void parser::clean_comments()
 	{
 		tokens.erase(std::remove_if(tokens.begin(), tokens.end(), [](const token& tk) { return tk.get_type() == tk_comment; }), tokens.end());
@@ -1031,6 +1071,10 @@ namespace occultlang
 			if (match(tk_keyword, "fn"))
 			{
 				statement = parse_function();
+			}
+			else if (match(tk_keyword, "unsafe")) 
+			{
+				statement = parse_unsafe();
 			}
 
 			if (statement)
