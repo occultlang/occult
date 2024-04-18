@@ -426,7 +426,14 @@ namespace occultlang
                         else if (auto b = check_type<occ_ast::boolean_literal>(c); b.first)
                         {
                             size++;
-                            array_members += "add_num(" + id->content + ", " + b.second->content + ");\n";
+                            if (b.second->content == "true")
+                            {
+                                array_members += "add_num(" + id->content + ", 1);\n";
+                            }
+                            else if (b.second->content == "false")
+                            {
+                                array_members += "add_num(" + id->content + ", 0);\n";
+                            }
                         }
                         else if (auto ar = check_type<occ_ast::array_declaration>(c); ar.first)
                         {

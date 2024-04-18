@@ -681,7 +681,7 @@ namespace occultlang
 					{
 						arr_decl->add_child(std::make_shared<occ_ast::bool_declaration>());
 					}
-					else if (keyword == "array")
+					else if (keyword == "array" || keyword == "generic")
 					{
 						arr_decl->add_child(std::make_shared<occ_ast::array_declaration>());
 					}
@@ -714,10 +714,6 @@ namespace occultlang
 					{
 						throw occ_runtime_error(parse_exceptions[EXPECTED_DELIMITER], peek());
 					}
-				}
-				else
-				{
-					throw occ_runtime_error(parse_exceptions[EXPECTED_TYPE], peek()); 
 				}
 			}
 			else if (match(tk_delimiter, "{"))
