@@ -110,6 +110,10 @@ namespace occultlang
                         {
                             next_typename = n4.second->to_string();
                         }
+                        else if (auto n5 = check_type<occ_ast::array_declaration>(next); n5.first)
+                        {
+                            next_typename = n5.second->to_string();
+                        }
 
                         auto args_name = check_type<occ_ast::identifier>(next->get_child()).second->content;
 
@@ -159,6 +163,10 @@ namespace occultlang
                     {
                         next_typename = n4.second->to_string();
                     }
+                    else if (auto n5 = check_type<occ_ast::array_declaration>(next); n5.first)
+                    {
+                        next_typename = n5.second->to_string();
+                    }
 
                     if (debug && (level == 1 || level == 0))
                     {
@@ -187,7 +195,7 @@ namespace occultlang
                     {
                         generated_source += "char* ";
                     }
-                    else if (next_typename == "array")
+                    else // its not working with  if (next_typename == "array_declaration") (IT WAS JUST THE COMPILER LOL im too lazy to change right now)
                     {
                         generated_source += "dyn_array* ";
                     }
@@ -215,7 +223,7 @@ namespace occultlang
                         {
                             generated_source += "char* ";
                         }
-                        else if (args[i].first == "array")
+                        else // its not working with  if (args[i].first == "array_declaration") (IT WAS JUST THE COMPILER LOL im too lazy to change right now)
                         {
                             generated_source += "dyn_array* ";
                         }
@@ -331,7 +339,17 @@ namespace occultlang
                     if (check_type<occ_ast::identifier>(arr_decl.second->get_child()).first) 
                     {
                         auto x = check_type<occ_ast::identifier>(arr_decl.second->get_child()).second;
-                        generated_source += "dyn_array* " + x->content + generate<occ_ast::identifier>(x) + ";\n";
+
+                        if (check_type<occ_ast::function_call>(x->get_child()).first)
+                        {
+                            generated_source += "dyn_array* " + x->content + " = " + generate<occ_ast::function_call>(x);
+                        }
+                        else
+                        {
+                            generated_source += "dyn_array* " + x->content + " = " + generate<occ_ast::identifier>(arr_decl.second);
+                        }
+
+                        continue;
                     }
                     //std::cout << "Array declaration found" << std::endl;
 

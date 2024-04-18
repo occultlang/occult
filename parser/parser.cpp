@@ -654,7 +654,7 @@ namespace occultlang
 		else if (match(tk_keyword, "array")) 
 		{
 			consume(tk_keyword);
-
+			
 			auto arr_decl = std::make_shared<occ_ast::array_declaration>();
 			
 			if (match(tk_operator, "<")) 
@@ -720,6 +720,10 @@ namespace occultlang
 					throw occ_runtime_error(parse_exceptions[EXPECTED_TYPE], peek()); 
 				}
 			}
+			else if (match(tk_delimiter, "{"))
+			{
+				return _parse_delaration(std::make_shared<occ_ast::array_declaration>());
+			}
 			else if (match(tk_identifier))
 			{
 				auto id = parse_identifier();
@@ -730,10 +734,25 @@ namespace occultlang
 				{
 					consume(tk_operator);
 
-					auto expression = parse_expression();
-					for (auto &child : expression->get_children())
+					if (match(tk_identifier) && match_next(tk_delimiter, "("))
 					{
-						child->swap_parent(arr_decl->get_child());
+						auto function_call = std::make_shared<occ_ast::function_call>();
+
+						auto expression = parse_expression();
+						for (auto &child : expression->get_children())
+						{
+							child->swap_parent(function_call);
+						}
+
+						arr_decl->get_child()->add_child(function_call);
+					}
+					else
+					{
+						auto expression = parse_expression();
+						for (auto &child : expression->get_children())
+						{
+							child->swap_parent(arr_decl->get_child()->get_child());
+						}
 					}
 				}
 
