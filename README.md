@@ -30,8 +30,8 @@ To clean the build directory just run `clean.sh`
 
 # To-do
 - [x] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult 
-- [ ] Array declarations for arguments 
-- [ ] 2d, 3d etc. support for arrays 
+- [x] Array declarations for arguments 
+- [x] 2d, 3d etc. support for arrays 
 - [ ] Wrapper around arrays to make it easier to type
 
 **For the above 4, see [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183)**
