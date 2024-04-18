@@ -416,7 +416,7 @@ namespace occultlang
                         else if (auto s = check_type<occ_ast::string_literal>(c); s.first)
                         {
                             size++;
-                            array_members += "add_str(" + id->content + ", " + s.second->content + ");\n";
+                            array_members += "add_str(" + id->content + ", \"" + s.second->content + "\");\n";
                         }
                         else if (auto f = check_type<occ_ast::float_literal>(c); f.first)
                         {
