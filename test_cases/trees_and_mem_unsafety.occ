@@ -1,0 +1,64 @@
+// root
+//    child1
+//       child_of_child
+//    child2
+
+fn build_tree() -> array { // build simple tree
+    array<array> root;
+
+    array<generic> child1;
+    array<generic> child2;
+
+    array<generic> child_of_child;
+
+    push_back(child1, child_of_child);
+
+    push_back(root, child1);
+    push_back(root, child2);
+
+    return root;
+}
+
+fn print_tree(array: tree, num: indent) { // visualization of a tree by printing pointers
+    if tree == NULL {
+        return;
+    }
+
+    num: i = 0;
+    while i < indent {
+        printf(" ");
+        i = i + 1;
+    }
+
+    printf("%p\n", tree);
+
+    i = 0;
+    while i < size(tree) {
+        array: child = at(tree, i, self_t);
+        print_tree(child, indent + 3);
+        i = i + 1;
+    }
+}
+
+fn main() {
+    array: tree = build_tree();
+
+    print_tree(tree, 0);
+
+    // testing memory unsafety, its automatically garbage collected! TODO is add pointers directly to occult? not sure
+    unsafe{" 
+        typedef struct point {
+            int x, y;
+        } point;
+
+        point* p = malloc(sizeof(point));
+
+        p->x = 5;
+        p->y = 5;
+
+        #define access_member(m, a) m->a
+    "}
+
+    print("%i\n", access_member(p, x));
+    print("%i\n", access_member(p, y));
+}

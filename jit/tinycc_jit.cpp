@@ -41,6 +41,6 @@ namespace occultlang
             return;
         }
 
-        tcc_output_file(tcc, "occult_out");
+        tcc_output_file(tcc, "a.out");
     }
 } // occultlang

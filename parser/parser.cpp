@@ -1,5 +1,10 @@
 #include "parser.hpp"
 #include "../lexer/lexer.hpp"
+#include <string>
+#include <iostream>
+#include <exception>
+#include <fstream>
+#include <sstream>
 
 namespace occultlang
 {
@@ -437,6 +442,45 @@ namespace occultlang
 		}
 	}
 
+	std::shared_ptr<ast> parser::parse_imports()
+	{
+		if (match(tk_keyword, "import"))
+		{
+			consume(tk_keyword);
+
+			if (match(tk_string_literal))
+			{
+				auto filepath = parse_string_literal()->content;
+
+				if (match(tk_delimiter, ";"))
+				{
+					consume(tk_delimiter);
+				}
+
+				std::string source_original;
+				std::ifstream file(filepath);
+
+				if (!file.is_open()) {
+					throw std::runtime_error("Can't open file " + filepath);
+				}
+
+				std::stringstream ss;
+				std::string line;
+
+				while (getline(file, line)) {
+					ss << line << "\n";
+				}
+
+				source_original = ss.str();
+				file.close();
+
+				parser p(source_original);
+
+				return p.parse();
+			}
+		}
+	}
+
 	std::shared_ptr<ast> parser::parse_keywords()
 	{
 		if (match(tk_keyword, "if"))
@@ -466,6 +510,10 @@ namespace occultlang
 		else if (match(tk_keyword, "for"))
 		{
 			return parse_for();
+		}
+		else if (match(tk_keyword, "unsafe")) 
+		{
+			return parse_unsafe();
 		}
 		else if (match(tk_keyword, "continue"))
 		{
@@ -503,11 +551,14 @@ namespace occultlang
 		{
 			auto postfix_or_prefix = std::make_shared<occ_ast::postfix_or_prefix>();
 
-			auto expression = parse_expression();
-			for (auto &child : expression->get_children())
-			{
-				child->swap_parent(postfix_or_prefix);
-			}
+			auto id = parse_identifier();
+			auto op = consume(tk_operator).get_lexeme();
+
+			auto op_decl = std::make_shared<occ_ast::operator_declaration>();
+			op_decl->content = op;
+
+			postfix_or_prefix->add_child(id);
+			postfix_or_prefix->add_child(op_decl);
 
 			return postfix_or_prefix;
 		}
@@ -515,11 +566,14 @@ namespace occultlang
 		{
 			auto postfix_or_prefix = std::make_shared<occ_ast::postfix_or_prefix>();
 
-			auto expression = parse_expression();
-			for (auto &child : expression->get_children())
-			{
-				child->swap_parent(postfix_or_prefix);
-			}
+			auto id = parse_identifier();
+			auto op = consume(tk_operator).get_lexeme();
+
+			auto op_decl = std::make_shared<occ_ast::operator_declaration>();
+			op_decl->content = op;
+
+			postfix_or_prefix->add_child(id);
+			postfix_or_prefix->add_child(op_decl);
 
 			return postfix_or_prefix;
 		}
@@ -527,11 +581,14 @@ namespace occultlang
 		{
 			auto postfix_or_prefix = std::make_shared<occ_ast::postfix_or_prefix>();
 
-			auto expression = parse_expression();
-			for (auto &child : expression->get_children())
-			{
-				child->swap_parent(postfix_or_prefix);
-			}
+			auto op = consume(tk_operator).get_lexeme();
+			auto id = parse_identifier();
+
+			auto op_decl = std::make_shared<occ_ast::operator_declaration>();
+			op_decl->content = op;
+
+			postfix_or_prefix->add_child(op_decl);
+			postfix_or_prefix->add_child(id);
 
 			return postfix_or_prefix;
 		}
@@ -539,11 +596,14 @@ namespace occultlang
 		{
 			auto postfix_or_prefix = std::make_shared<occ_ast::postfix_or_prefix>();
 
-			auto expression = parse_expression();
-			for (auto &child : expression->get_children())
-			{
-				child->swap_parent(postfix_or_prefix);
-			}
+			auto op = consume(tk_operator).get_lexeme();
+			auto id = parse_identifier();
+
+			auto op_decl = std::make_shared<occ_ast::operator_declaration>();
+			op_decl->content = op;
+
+			postfix_or_prefix->add_child(op_decl);
+			postfix_or_prefix->add_child(id);
 
 			return postfix_or_prefix;
 		}
@@ -776,8 +836,11 @@ namespace occultlang
 		std::vector<std::shared_ptr<ast>> vec;
 
 		while (true)
-		{
-			if (match(tk_identifier))
+		{	if (match(tk_delimiter, ";") || match(tk_delimiter, "{"))
+			{
+				break;
+			}
+			else if (match(tk_identifier))
 			{
 				auto node = parse_identifier();
 				vec.push_back(node);
@@ -809,10 +872,6 @@ namespace occultlang
 				auto node = std::make_shared<occ_ast::delimiter_declaration>();
 				node->content = consume(tk_delimiter).get_lexeme();
 				vec.push_back(node);
-			}
-			else if (match(tk_delimiter, ";") || match(tk_delimiter, "{"))
-			{
-				break;
 			}
 			else if (match(tk_string_literal))
 			{
@@ -1067,8 +1126,14 @@ namespace occultlang
 		while (position < tokens.size() && tokens[position].get_type() != tk_eof)
 		{
 			auto statement = std::shared_ptr<ast>();
-
-			if (match(tk_keyword, "fn"))
+			bool isimport = false;
+			
+			if (match(tk_keyword, "import"))
+			{
+				statement = parse_imports();
+				isimport = true;
+			}
+			else if (match(tk_keyword, "fn"))
 			{
 				statement = parse_function();
 			}
@@ -1077,7 +1142,14 @@ namespace occultlang
 				statement = parse_unsafe();
 			}
 
-			if (statement)
+			if (isimport) 
+			{
+				for (auto &child : statement->get_children())
+				{
+					child->swap_parent(root);
+				}
+			}
+			else if (statement)
 			{
 				root->add_child(statement);
 			}

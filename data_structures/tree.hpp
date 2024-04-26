@@ -11,7 +11,6 @@ namespace occultlang
         T value;
         std::vector<std::shared_ptr<tree<T>>> children;
         std::weak_ptr<tree<T>> parent;
-
     public:
         tree(const T &value) : value(value), parent(), children({}) {}
         virtual ~tree() {}

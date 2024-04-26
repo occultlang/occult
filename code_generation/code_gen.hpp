@@ -1,16 +1,11 @@
 #pragma once
 #include "../parser/parser.hpp"
 
-// TODO ARRAY DECLARATIONS FOR ARGUMENTS (dynamic)
 // TODO match statement
 // TODO i++ i-- etc
-// TODO IMPORTS
-// TODO FIX COMMENTS + REALNUMBERS
 // TODO CASTING
 
 // TESTING ALL CASES
-// DECIDE MAYBE TUPLES
-// TODO make arrays automatically delete (for now i dont really want to worry about this) 
 
 namespace occultlang
 {
@@ -253,6 +248,11 @@ namespace occultlang
                         generated_source += generate<occ_ast::body_start>(func_decl.second->get_child(idx2), debug, level, func_name);
                     }
 
+                    if (func_name == "main" && next_typename == "void_declaration") 
+                    {
+                        generated_source += "tgc_stop(&gc);\n";
+                    }
+
                     generated_source += "}\n";
                 }
 
@@ -486,6 +486,29 @@ namespace occultlang
                     {
                         generated_source += a1.second->content;
                     }
+                }
+
+                auto postfix_prefix = check_type<occ_ast::postfix_or_prefix>(node);
+                if (postfix_prefix.first)
+                {
+                    if (debug)
+                        std::cout << "postfix or prefix" << std::endl;
+                    
+                    for (int i = 0; i < postfix_prefix.second->get_children().size(); i++) 
+                    {
+                        auto child = postfix_prefix.second->get_child(i);
+
+                        if (auto a1 = check_type<occ_ast::operator_declaration>(child); a1.first)
+                        {
+                            generated_source += a1.second->content;
+                        }
+                        else if (auto a2 = check_type<occ_ast::identifier>(child); a2.first)
+                        {
+                            generated_source += a2.second->content;
+                        }
+                    }
+
+                    generated_source += ";\n";
                 }
 
                 auto operator_decl = check_type<occ_ast::operator_declaration>(node);
@@ -1727,6 +1750,10 @@ void add_self(dyn_array* array, dyn_array* data) {
 #define DYN_VECTOR_SIZE(vec) ((vec)->size)
 
 #define print printf
+#define malloc(x) tgc_alloc(&gc, x)
+#define calloc(n, s) tgc_calloc(&gc, n, s)
+#define realloc(p, s) tgc_realloc(&gc, p, s)
+#define free(p) tgc_free(&gc, p)
     )";
     };
 } // occultlang
