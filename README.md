@@ -12,7 +12,7 @@ To use Occult, you can just build it using the steps above and run this (Default
 ```
 $ ./occultc <path/to/source.occ> 
 ```
-AOT Compilation (outputs file as occult_out):
+AOT Compilation (outputs file as a.out):
 ```
 $ ./occultc <path/to/source.occ> -aot
 ```
@@ -32,16 +32,12 @@ To clean the build directory just run `clean.sh`
 - [x] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult 
 - [x] Array declarations for arguments 
 - [x] 2d, 3d etc. support for arrays 
-- [ ] ~~Wrapper around arrays to make it easier to type~~
-
-**For the above 4, see [#1](https://github.com/occultlang/occult/issues/1#issue-2242752183)**
-
-**Actively working on all of these (top 4)**
-
-- [ ] Add for loops (LATER)
-- [ ] Add matching (LATER)
+- [ ] Add for loops
+- [ ] Add matching
 - [x] Add imports
-- [ ] Add casting (LATER)
+- [ ] Add casting
+- [ ] Better string support
+- [ ] Pointers and manual memory management fully working with garbage collection
 - [x] Fix Commenting in lexical stage as well as floating points
 - [x] Fix floating points not working fully when generating code + parsing
 - [x] Add incrementing with i++ and i-- etc. to codegen 
