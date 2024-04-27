@@ -1,12 +1,6 @@
 #pragma once
 #include "../parser/parser.hpp"
 
-// TODO match statement
-// TODO i++ i-- etc
-// TODO CASTING
-
-// TESTING ALL CASES
-
 namespace occultlang
 {
     enum debug_level

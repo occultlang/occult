@@ -1,6 +1,7 @@
 #include <iostream>
 #include "code_generation/compiler.hpp"
 #include "jit/tinycc_jit.hpp"
+#include "lexer/finder.hpp"
 
 int main(int argc, char *argv[]) {
     bool debug = false;
@@ -37,6 +38,14 @@ int main(int argc, char *argv[]) {
 
     source_original = ss.str();
     file.close();
+
+    occultlang::finder finder;
+    
+    source_original = finder.match_and_replace_all_array(source_original, "array<generic>");
+
+    source_original = finder.match_and_replace_all(source_original, "null", "NULL");
+
+    //std::cout << source_original << std::endl;
 
     occultlang::compiler compiler{source_original, debug};
 

@@ -3,15 +3,15 @@ fn print_array_ptr(array: a) { // array with arguments
 }
 
 fn test_array_func() -> array { // create array and return it
-    array<num> test = [ 3, 4 ];
+    array: test = [ 3, 4 ];
 
     return test;
 }
 
 fn main() -> num {
-    array<num> a1 = [ 1, 2 ];
-    array: a2 = test_array_func(); // we dont know the type, so we dont declare it, just call the function
-    array<array> array_2d = [ a1, a2 ]; // multidimensional arrays are a thing, but its not a great syntax
+    array: a1 = [ 1, 2 ];
+    array: a2 = test_array_func(); // just call the function
+    array: array_2d = [ a1, a2 ]; // multidimensional arrays are a thing, but its not a great syntax
 
     num: row = 0;
 
