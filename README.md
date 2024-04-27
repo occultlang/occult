@@ -29,15 +29,16 @@ Test cases are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
-- [x] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult 
-- [x] Array declarations for arguments 
-- [x] 2d, 3d etc. support for arrays 
+- [ ] Windows support
 - [ ] Add for loops
 - [ ] Add matching
-- [x] Add imports
 - [ ] Add casting
 - [ ] Better string support
 - [ ] Pointers and manual memory management fully working with garbage collection
+- [x] Add imports
+- [x] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult 
+- [x] Array declarations for arguments 
+- [x] 2d, 3d etc. support for arrays 
 - [x] Fix Commenting in lexical stage as well as floating points
 - [x] Fix floating points not working fully when generating code + parsing
 - [x] Add incrementing with i++ and i-- etc. to codegen 
