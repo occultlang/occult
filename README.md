@@ -34,7 +34,6 @@ To clean the build directory just run `clean.sh`
 - [ ] Add matching
 - [ ] Add casting
 - [ ] Better string support
-- [ ] Add enumerations
 - [ ] Pointers and manual memory management fully working with garbage collection
 - [x] Add imports
 - [x] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult 
