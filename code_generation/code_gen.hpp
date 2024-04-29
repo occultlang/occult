@@ -541,7 +541,7 @@ namespace occultlang
                         std::cout << "string_literal: " << string_literal.first << std::endl;
                     if (auto a1 = check_type<occ_ast::string_literal>(node); a1.first)
                     {
-                        generated_source += a1.second->content;
+                        generated_source += "\"" + a1.second->content + "\"";
                     }
                 }
 
@@ -975,7 +975,7 @@ namespace occultlang
                     {
                         std::cout << "string_declaration: " << string_decl.first << std::endl;
                     }
-                    generated_source += "const char* ";
+                    generated_source += "char* ";
                     if (debug)
                     {
                         std::cout << "string_declaration children: " << string_decl.second->get_children().size() << std::endl;
@@ -1195,7 +1195,7 @@ namespace occultlang
                     {
                         std::cout << "str_pointer_declaration: " << string_ptr_decl.first << std::endl;
                     }
-                    generated_source += "const char** ";
+                    generated_source += "char** ";
                     if (debug)
                     {
                         std::cout << "str_pointer_declaration children: " << string_ptr_decl.second->get_children().size() << std::endl;
