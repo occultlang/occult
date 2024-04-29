@@ -32,7 +32,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Windows support
 - [ ] Add for loops
 - [ ] Add matching
-- [x] Add casting (already implemented with c casting by mistake) :O (i havent tested it fully, but it works?)
+- [x] Add casting (already implemented with c casting by mistake) :O (i havent tested it fully, but it works?) (CHANGE C KEYWORD TO OCCULT KEYWORD)
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax
 - [ ] Allow function defs to be at the beginning of everything so they can be called anywhere
