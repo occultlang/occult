@@ -342,6 +342,10 @@ namespace occultlang
 
                             generated_source += x->content;
                         }
+                        else if (check_type<occ_ast::deref_ptr>(func_call.second->get_child(idx)).first) // todo fix this
+                        {
+                            generated_source += "*";
+                        }
                         else if (check_type<occ_ast::string_literal>(func_call.second->get_child(idx)).first)
                         {
                             auto x = check_type<occ_ast::string_literal>(func_call.second->get_child(idx)).second;
@@ -371,17 +375,6 @@ namespace occultlang
                         {
                             auto x = check_type<occ_ast::float_literal>(func_call.second->get_child(idx)).second;
                             generated_source += x->content;
-                        }
-                        else if (check_type<occ_ast::deref_ptr>(func_call.second->get_child(idx)).first) // todo fix this
-                        {
-                            auto x = check_type<occ_ast::deref_ptr>(func_call.second->get_child(idx)).second;
-
-                            if (x->has_child())
-                            {
-                                auto identifier = check_type<occ_ast::identifier>(x).second;
-
-                                generated_source += "*" + identifier->content;
-                            }
                         }
                     }
 
@@ -416,12 +409,7 @@ namespace occultlang
                 auto deref = check_type<occ_ast::deref_ptr>(node); // todo is make them equal
                 if (deref.first)
                 {
-                    auto n = deref.second;
-
-                    if (auto id = check_type<occ_ast::identifier>(n->get_child()); id.first)
-                    {
-                        generated_source += "*" + id.second->content;
-                    }
+                    generated_source += "*";
                 }
 
                 auto arr_decl = check_type<occ_ast::array_declaration>(node); // TODO IS STORE TYPE AND USE LATER FOR DYNAMIC TYPES

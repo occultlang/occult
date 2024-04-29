@@ -1,0 +1,17 @@
+fn test_ptr() -> num ptr {
+    num ptr: p = malloc(8);
+
+    return p;
+}
+
+fn print_ptr_with_value(num ptr: p) {
+    print("%p = %i", p, deref p);
+}
+
+fn main() {
+    num ptr: t_p = test_ptr();
+
+    deref t_p = 5; // dereferencing
+
+    print_ptr_with_value(t_p);
+}

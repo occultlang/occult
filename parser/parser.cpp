@@ -483,17 +483,11 @@ namespace occultlang
 
 	std::shared_ptr<ast> parser::parse_dereference() 
 	{
-		if (match(tk_keyword, "ptr") && match_next(tk_identifier))
+		if (match(tk_keyword, "deref") && match_next(tk_identifier))
 		{
 			consume(tk_keyword);
 
-			auto id = parse_identifier();
-
-			auto deref = std::make_shared<occ_ast::deref_ptr>();
-
-			deref->add_child(id);
-
-			return deref;
+			return std::make_shared<occ_ast::deref_ptr>();
 		}
 	}
 
@@ -543,7 +537,7 @@ namespace occultlang
 		{
 			return parse_declaration();
 		}
-		else if (match(tk_keyword, "ptr") && match_next(tk_identifier))
+		else if (match(tk_keyword, "deref"))
 		{
 			return parse_dereference();
 		}
@@ -896,9 +890,15 @@ namespace occultlang
 		std::vector<std::shared_ptr<ast>> vec;
 
 		while (true)
-		{	if (match(tk_delimiter, ";") || match(tk_delimiter, "{"))
+		{	
+			if (match(tk_delimiter, ";") || match(tk_delimiter, "{"))
 			{
 				break;
+			}
+			else if (match(tk_keyword, "deref")) 
+			{
+				auto node = parse_dereference();
+				vec.push_back(node);
 			}
 			else if (match(tk_identifier))
 			{
