@@ -45,7 +45,9 @@ int main(int argc, char *argv[]) {
 
     source_original = finder.match_and_replace_all(source_original, "null", "NULL");
 
-    //std::cout << source_original << std::endl;
+    source_original = finder.match_and_replace_casts(source_original);
+
+    std::cout << source_original << std::endl;
 
     occultlang::compiler compiler{source_original, debug};
 

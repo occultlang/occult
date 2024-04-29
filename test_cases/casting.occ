@@ -1,11 +1,6 @@
-fn test() -> str {
-    return "hi world\n";
-}
-
 fn main() {
     rnum: x = 3.14;
-    num: i = (long)x; // yes its the c keyword, ill fix this in the future
+    num: i = x as num; 
 
     print("%i\n", i);
-    print(test());
 }

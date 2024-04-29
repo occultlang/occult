@@ -46,7 +46,7 @@ fn main() {
     print_tree(tree, 0);
 
     // testing memory unsafety, its automatically garbage collected! TODO is add pointers directly to occult? not sure
-    unsafe{" 
+    __unsafe(" 
         typedef struct point {
             int x, y;
         } point;
@@ -57,7 +57,7 @@ fn main() {
         p->y = 5;
 
         #define access_member(m, a) m->a
-    "}
+    ")
 
     print("%i\n", access_member(p, x));
     print("%i\n", access_member(p, y));
