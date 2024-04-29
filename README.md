@@ -35,6 +35,7 @@ To clean the build directory just run `clean.sh`
 - [x] Add casting (already implemented with c casting by mistake) :O (i havent tested it fully, but it works?)
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax
+- [ ] Allow function defs to be at the beginning of everything so they can be called anywhere
 - [x] Pointers and manual memory management fully working with garbage collection
 - [x] Add imports
 - [x] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult 
