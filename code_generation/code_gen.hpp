@@ -103,6 +103,22 @@ namespace occultlang
                         {
                             next_typename = n5.second->to_string();
                         }
+                        else if (auto n6 = check_type<occ_ast::num_ptr_declaration>(next); n6.first)
+                        {
+                            next_typename = n6.second->to_string();
+                        }
+                        else if (auto n7 = check_type<occ_ast::rnum_ptr_declaration>(next); n7.first)
+                        {
+                            next_typename = n7.second->to_string();
+                        }
+                        else if (auto n8 = check_type<occ_ast::str_ptr_declaration>(next); n8.first)
+                        {
+                            next_typename = n8.second->to_string();
+                        }
+                        else if (auto n9 = check_type<occ_ast::void_ptr_declaration>(next); n9.first)
+                        {
+                            next_typename = n9.second->to_string();
+                        }
 
                         auto args_name = check_type<occ_ast::identifier>(next->get_child()).second->content;
 
@@ -156,6 +172,22 @@ namespace occultlang
                     {
                         next_typename = n5.second->to_string();
                     }
+                    else if (auto n6 = check_type<occ_ast::num_ptr_declaration>(next); n6.first)
+                    {
+                        next_typename = n6.second->to_string();
+                    }
+                    else if (auto n7 = check_type<occ_ast::rnum_ptr_declaration>(next); n7.first)
+                    {
+                        next_typename = n7.second->to_string();
+                    }
+                    else if (auto n8 = check_type<occ_ast::str_ptr_declaration>(next); n8.first)
+                    {
+                        next_typename = n8.second->to_string();
+                    }
+                    else if (auto n9 = check_type<occ_ast::void_ptr_declaration>(next); n9.first)
+                    {
+                        next_typename = n9.second->to_string();
+                    }
 
                     if (debug && (level == 1 || level == 0))
                     {
@@ -184,11 +216,27 @@ namespace occultlang
                     {
                         generated_source += "char* ";
                     }
-                    else // its not working with  if (next_typename == "array_declaration") (IT WAS JUST THE COMPILER LOL im too lazy to change right now)
+                    else if (next_typename == "array_declaration")
                     {
                         generated_source += "dyn_array* ";
                     }
-                    
+                    else if (next_typename == "num_ptr_declaration")
+                    {
+                        generated_source += "long* ";
+                    }
+                    else if (next_typename == "rnum_ptr_declaration")
+                    {
+                        generated_source += "double* ";
+                    }
+                    else if (next_typename == "str_ptr_declaration")
+                    {
+                        generated_source += "char** ";
+                    }
+                    else if (next_typename == "void_ptr_declaration")
+                    {
+                        generated_source += "void* ";
+                    }
+
                     if (func_name == "main")
                         generated_source += func_name + "(int argc, char *argv[]";
                     else 
@@ -212,9 +260,25 @@ namespace occultlang
                         {
                             generated_source += "char* ";
                         }
-                        else // its not working with  if (args[i].first == "array_declaration") (IT WAS JUST THE COMPILER LOL im too lazy to change right now)
+                        else if (args[i].first == "array_declaration")
                         {
                             generated_source += "dyn_array* ";
+                        }
+                        else if (args[i].first == "num_ptr_declaration")
+                        {
+                            generated_source += "long* ";
+                        }
+                        else if (args[i].first == "rnum_ptr_declaration")
+                        {
+                            generated_source += "double* ";
+                        }
+                        else if (args[i].first == "str_ptr_declaration")
+                        {
+                            generated_source += "char** ";
+                        }
+                        else if (args[i].first == "void_ptr_declaration")
+                        {
+                            generated_source += "void* ";
                         }
 
                         generated_source += args[i].second;
@@ -308,6 +372,17 @@ namespace occultlang
                             auto x = check_type<occ_ast::float_literal>(func_call.second->get_child(idx)).second;
                             generated_source += x->content;
                         }
+                        else if (check_type<occ_ast::deref_ptr>(func_call.second->get_child(idx)).first) // todo fix this
+                        {
+                            auto x = check_type<occ_ast::deref_ptr>(func_call.second->get_child(idx)).second;
+
+                            if (x->has_child())
+                            {
+                                auto identifier = check_type<occ_ast::identifier>(x).second;
+
+                                generated_source += "*" + identifier->content;
+                            }
+                        }
                     }
 
                     generated_source += ";\n";
@@ -335,6 +410,17 @@ namespace occultlang
                                 generated_source += ";";
                             }
                         }
+                    }
+                }
+
+                auto deref = check_type<occ_ast::deref_ptr>(node); // todo is make them equal
+                if (deref.first)
+                {
+                    auto n = deref.second;
+
+                    if (auto id = check_type<occ_ast::identifier>(n->get_child()); id.first)
+                    {
+                        generated_source += "*" + id.second->content;
                     }
                 }
 
@@ -723,6 +809,10 @@ namespace occultlang
                                 {
                                     generated_source += a4.second->content;
                                 }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
                             }
                         }
                     }
@@ -792,6 +882,10 @@ namespace occultlang
                                 {
                                     generated_source += a4.second->content;
                                 }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
                             }
                         }
                     }
@@ -856,6 +950,22 @@ namespace occultlang
                                         generated_source += "0";
                                     }
                                 }
+                                else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
+                                {
+                                    generated_source += a2.second->content;
+                                }
+                                else if (auto a3 = check_type<occ_ast::operator_declaration>(child_assignment); a3.first)
+                                {
+                                    generated_source += a3.second->content;
+                                }
+                                else if (auto a4 = check_type<occ_ast::delimiter_declaration>(child_assignment); a4.first)
+                                {
+                                    generated_source += a4.second->content;
+                                }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
                             }
                         }
                     }
@@ -913,6 +1023,22 @@ namespace occultlang
                                 {
                                     generated_source += "\"" + a1.second->content + "\"";
                                 }
+                                else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
+                                {
+                                    generated_source += a2.second->content;
+                                }
+                                else if (auto a3 = check_type<occ_ast::operator_declaration>(child_assignment); a3.first)
+                                {
+                                    generated_source += a3.second->content;
+                                }
+                                else if (auto a4 = check_type<occ_ast::delimiter_declaration>(child_assignment); a4.first)
+                                {
+                                    generated_source += a4.second->content;
+                                }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
                             }
                         }
                     }
@@ -921,6 +1047,303 @@ namespace occultlang
                         if (debug)
                         {
                             std::cout << "string_name: " << n1.first << std::endl;
+                        }
+                    }
+
+                    generated_source += ";\n";
+                }
+
+                auto num_ptr_decl = check_type<occ_ast::num_ptr_declaration>(node);
+                if (num_ptr_decl.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "num_pointer_declaration: " << num_ptr_decl.first << std::endl;
+                    }
+                    generated_source += "long* ";
+                    if (debug)
+                    {
+                        std::cout << "num_pointer_declaration children: " << num_ptr_decl.second->get_children().size() << std::endl;
+                    }
+
+                    auto num_name = num_ptr_decl.second->get_child(0);
+
+                    if (auto n1 = check_type<occ_ast::identifier>(num_name); n1.first)
+                    {
+                        if (debug)
+                        {
+                            std::cout << "num_ptr_name: " << n1.first << std::endl;
+                        }
+
+                        auto num_name_content = n1.second->content;
+
+                        generated_source += num_name_content;
+
+                        if (auto assignment = check_type<occ_ast::assignment>(num_ptr_decl.second->get_child(1)); assignment.first)
+                        {
+                            if (debug)
+                            {
+                                std::cout << "assignment: " << assignment.first << std::endl;
+                            }
+
+                            generated_source += " = ";
+
+                            for (int j = 0; j < assignment.second->get_children().size(); j++)
+                            {
+                                auto child_assignment = assignment.second->get_child(j);
+
+                                if (auto a1 = check_type<occ_ast::number_literal>(child_assignment); a1.first)
+                                {
+                                    generated_source += a1.second->content;
+                                }
+                                else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
+                                {
+                                    generated_source += a2.second->content;
+                                }
+                                else if (auto a3 = check_type<occ_ast::operator_declaration>(child_assignment); a3.first)
+                                {
+                                    generated_source += a3.second->content;
+                                }
+                                else if (auto a4 = check_type<occ_ast::delimiter_declaration>(child_assignment); a4.first)
+                                {
+                                    generated_source += a4.second->content;
+                                }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (debug)
+                        {
+                            std::cout << "num_ptr_name: " << n1.first << std::endl;
+                        }
+                    }
+
+                    generated_source += ";\n";
+                }
+
+                auto float_ptr_decl = check_type<occ_ast::rnum_ptr_declaration>(node);
+
+                if (float_ptr_decl.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "float_pointer_declaration: " << float_ptr_decl.first << std::endl;
+                    }
+                    generated_source += "double* ";
+                    if (debug)
+                    {
+                        std::cout << "float_pointer_declaration children: " << float_ptr_decl.second->get_children().size() << std::endl;
+                    }
+
+                    auto num_name = float_ptr_decl.second->get_child(0);
+
+                    if (auto n1 = check_type<occ_ast::identifier>(num_name); n1.first)
+                    {
+                        if (debug)
+                        {
+                            std::cout << "float_ptr_name: " << n1.first << std::endl;
+                        }
+
+                        auto num_name_content = n1.second->content;
+
+                        generated_source += num_name_content;
+
+                        if (auto assignment = check_type<occ_ast::assignment>(float_ptr_decl.second->get_child(1)); assignment.first)
+                        {
+                            if (debug)
+                            {
+                                std::cout << "assignment: " << assignment.first << std::endl;
+                            }
+
+                            generated_source += " = ";
+
+                            for (int j = 0; j < assignment.second->get_children().size(); j++)
+                            {
+                                auto child_assignment = assignment.second->get_child(j);
+
+                                if (auto a1 = check_type<occ_ast::float_literal>(child_assignment); a1.first)
+                                {
+                                    generated_source += a1.second->content;
+                                }
+                                else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
+                                {
+                                    generated_source += a2.second->content;
+                                }
+                                else if (auto a3 = check_type<occ_ast::operator_declaration>(child_assignment); a3.first)
+                                {
+                                    generated_source += a3.second->content;
+                                }
+                                else if (auto a4 = check_type<occ_ast::delimiter_declaration>(child_assignment); a4.first)
+                                {
+                                    generated_source += a4.second->content;
+                                }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (debug)
+                        {
+                            std::cout << "float_ptr_name: " << n1.first << std::endl;
+                        }
+                    }
+
+                    generated_source += ";\n";
+                }
+
+                auto string_ptr_decl = check_type<occ_ast::str_ptr_declaration>(node);
+                if (string_ptr_decl.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "str_pointer_declaration: " << string_ptr_decl.first << std::endl;
+                    }
+                    generated_source += "const char** ";
+                    if (debug)
+                    {
+                        std::cout << "str_pointer_declaration children: " << string_ptr_decl.second->get_children().size() << std::endl;
+                    }
+
+                    auto num_name = string_ptr_decl.second->get_child(0);
+
+                    if (auto n1 = check_type<occ_ast::identifier>(num_name); n1.first)
+                    {
+                        if (debug)
+                        {
+                            std::cout << "str_ptr_name: " << n1.first << std::endl;
+                        }
+
+                        auto num_name_content = n1.second->content;
+
+                        generated_source += num_name_content;
+
+                        if (auto assignment = check_type<occ_ast::assignment>(string_ptr_decl.second->get_child(1)); assignment.first)
+                        {
+                            if (debug)
+                            {
+                                std::cout << "assignment: " << assignment.first << std::endl;
+                            }
+
+                            generated_source += " = ";
+
+                            for (int j = 0; j < assignment.second->get_children().size(); j++)
+                            {
+                                auto child_assignment = assignment.second->get_child(j);
+
+                                if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
+                                {
+                                    generated_source += "\"" + a1.second->content + "\"";
+                                }
+                                else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
+                                {
+                                    generated_source += a2.second->content;
+                                }
+                                else if (auto a3 = check_type<occ_ast::operator_declaration>(child_assignment); a3.first)
+                                {
+                                    generated_source += a3.second->content;
+                                }
+                                else if (auto a4 = check_type<occ_ast::delimiter_declaration>(child_assignment); a4.first)
+                                {
+                                    generated_source += a4.second->content;
+                                }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (debug)
+                        {
+                            std::cout << "str_ptr_name: " << n1.first << std::endl;
+                        }
+                    }
+
+                    generated_source += ";\n";
+                }
+
+                auto void_ptr_decl = check_type<occ_ast::void_ptr_declaration>(node);
+                if (void_ptr_decl.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "void_pointer_declaration: " << void_ptr_decl.first << std::endl;
+                    }
+                    generated_source += "void* ";
+                    if (debug)
+                    {
+                        std::cout << "void_pointer_declaration children: " << void_ptr_decl.second->get_children().size() << std::endl;
+                    }
+
+                    auto num_name = void_ptr_decl.second->get_child(0);
+
+                    if (auto n1 = check_type<occ_ast::identifier>(num_name); n1.first)
+                    {
+                        if (debug)
+                        {
+                            std::cout << "void_ptr_name: " << n1.first << std::endl;
+                        }
+
+                        auto num_name_content = n1.second->content;
+
+                        generated_source += num_name_content;
+
+                        if (auto assignment = check_type<occ_ast::assignment>(void_ptr_decl.second->get_child(1)); assignment.first)
+                        {
+                            if (debug)
+                            {
+                                std::cout << "assignment: " << assignment.first << std::endl;
+                            }
+
+                            generated_source += " = ";
+
+                            for (int j = 0; j < assignment.second->get_children().size(); j++)
+                            {
+                                auto child_assignment = assignment.second->get_child(j);
+
+                                if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
+                                {
+                                    generated_source += "\"" + a1.second->content + "\"";
+                                }
+                                else if (auto a6 = check_type<occ_ast::number_literal>(child_assignment); a6.first)
+                                {
+                                    generated_source += a1.second->content;
+                                }
+                                else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
+                                {
+                                    generated_source += a2.second->content;
+                                }
+                                else if (auto a3 = check_type<occ_ast::operator_declaration>(child_assignment); a3.first)
+                                {
+                                    generated_source += a3.second->content;
+                                }
+                                else if (auto a4 = check_type<occ_ast::delimiter_declaration>(child_assignment); a4.first)
+                                {
+                                    generated_source += a4.second->content;
+                                }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (debug)
+                        {
+                            std::cout << "void_ptr_name: " << n1.first << std::endl;
                         }
                     }
 

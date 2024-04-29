@@ -41,7 +41,12 @@ namespace occultlang
 	  elseif_declaration,
 	  else_declaration,
 	  array_declaration,
-	  unsafe
+	  unsafe,
+	  num_ptr_declaration,
+	  rnum_ptr_declaration,
+	  str_ptr_declaration,
+	  void_ptr_declaration,
+	  deref_ptr,
 	};
 
 	struct ast : public tree<std::shared_ptr<ast>>
@@ -88,6 +93,61 @@ namespace occultlang
 			virtual ast_type get_type() { return ast_type::num_declaration; }
 
 			virtual std::string to_string() { return "num_declaration"; }
+		};
+
+		struct deref_ptr : public ast
+		{
+			deref_ptr() : ast() {}
+			virtual ~deref_ptr() {}
+			deref_ptr(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::deref_ptr; }
+
+			virtual std::string to_string() { return "deref_ptr"; }
+		};
+
+		struct num_ptr_declaration : public ast
+		{
+			num_ptr_declaration() : ast() {}
+			virtual ~num_ptr_declaration() {}
+			num_ptr_declaration(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::num_ptr_declaration; }
+
+			virtual std::string to_string() { return "num_ptr_declaration"; }
+		};
+
+		struct rnum_ptr_declaration : public ast
+		{
+			rnum_ptr_declaration() : ast() {}
+			virtual ~rnum_ptr_declaration() {}
+			rnum_ptr_declaration(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::rnum_ptr_declaration; }
+
+			virtual std::string to_string() { return "rnum_ptr_declaration"; }
+		};
+
+		struct str_ptr_declaration : public ast
+		{
+			str_ptr_declaration() : ast() {}
+			virtual ~str_ptr_declaration() {}
+			str_ptr_declaration(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::str_ptr_declaration; }
+
+			virtual std::string to_string() { return "str_ptr_declaration"; }
+		};
+
+		struct void_ptr_declaration : public ast
+		{
+			void_ptr_declaration() : ast() {}
+			virtual ~void_ptr_declaration() {}
+			void_ptr_declaration(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::void_ptr_declaration; }
+
+			virtual std::string to_string() { return "void_ptr_declaration"; }
 		};
 
 		struct float_declaration : public ast

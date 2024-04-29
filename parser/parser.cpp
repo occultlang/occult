@@ -481,6 +481,22 @@ namespace occultlang
 		}
 	}
 
+	std::shared_ptr<ast> parser::parse_dereference() 
+	{
+		if (match(tk_keyword, "ptr") && match_next(tk_identifier))
+		{
+			consume(tk_keyword);
+
+			auto id = parse_identifier();
+
+			auto deref = std::make_shared<occ_ast::deref_ptr>();
+
+			deref->add_child(id);
+
+			return deref;
+		}
+	}
+
 	std::shared_ptr<ast> parser::parse_keywords()
 	{
 		if (match(tk_keyword, "if"))
@@ -511,7 +527,7 @@ namespace occultlang
 		{
 			return parse_for();
 		}
-		else if (match(tk_keyword, "unsafe")) 
+		else if (match(tk_keyword, "__unsafe")) 
 		{
 			return parse_unsafe();
 		}
@@ -524,6 +540,26 @@ namespace occultlang
 			return parse_break();
 		}
 		else if (match(tk_keyword, "array"))
+		{
+			return parse_declaration();
+		}
+		else if (match(tk_keyword, "ptr") && match_next(tk_identifier))
+		{
+			return parse_dereference();
+		}
+		else if (match(tk_keyword, "rnum") && match_next(tk_keyword, "ptr")) // order matters here, ptr has to be first
+		{
+			return parse_declaration();
+		}
+		else if (match(tk_keyword, "num") && match_next(tk_keyword, "ptr"))
+		{
+			return parse_declaration();
+		}
+		else if (match(tk_keyword, "str") && match_next(tk_keyword, "ptr"))
+		{
+			return parse_declaration();
+		}
+		else if (match(tk_keyword, "void") && match_next(tk_keyword, "ptr"))
 		{
 			return parse_declaration();
 		}
@@ -542,10 +578,6 @@ namespace occultlang
 		else if (match(tk_keyword, "str"))
 		{
 			return parse_declaration();
-		}
-		else if (match(tk_keyword, "void"))
-		{
-			throw occ_runtime_error(parse_exceptions[NOT_IMPLEMENTED], peek());
 		}
 		else if (match(tk_identifier) && match_next(tk_operator, "++"))
 		{
@@ -687,7 +719,35 @@ namespace occultlang
 
 	std::shared_ptr<ast> parser::parse_declaration()
 	{
-		if (match(tk_keyword, "rnum"))
+		if (match(tk_keyword, "rnum") && match_next(tk_keyword, "ptr")) // order matters here ptr has to be first
+		{
+			consume(tk_keyword);
+			consume(tk_keyword);
+
+			return _parse_delaration(std::make_shared<occ_ast::rnum_ptr_declaration>());
+		}
+		else if (match(tk_keyword, "num") && match_next(tk_keyword, "ptr"))
+		{
+			consume(tk_keyword);
+			consume(tk_keyword);
+
+			return _parse_delaration(std::make_shared<occ_ast::num_ptr_declaration>());
+		}
+		else if (match(tk_keyword, "str") && match_next(tk_keyword, "ptr"))
+		{
+			consume(tk_keyword);
+			consume(tk_keyword);
+
+			return _parse_delaration(std::make_shared<occ_ast::str_ptr_declaration>());
+		}
+		else if (match(tk_keyword, "void") && match_next(tk_keyword, "ptr"))
+		{
+			consume(tk_keyword);
+			consume(tk_keyword);
+
+			return _parse_delaration(std::make_shared<occ_ast::void_ptr_declaration>());
+		}
+		else if (match(tk_keyword, "rnum"))
 		{
 			consume(tk_keyword);
 
@@ -1076,13 +1136,13 @@ namespace occultlang
 
 	std::shared_ptr<ast> parser::parse_unsafe()
 	{
-		if (match(tk_keyword, "unsafe"))
+		if (match(tk_keyword, "__unsafe"))
 		{
 			consume(tk_keyword);
 
 			std::shared_ptr<ast> unsafe_declaration = std::make_shared<occ_ast::unsafe>();
 
-			if (match(tk_delimiter, "{") && match_next(tk_string_literal))
+			if (match(tk_delimiter, "(") && match_next(tk_string_literal))
 			{
 				consume(tk_delimiter);
 
@@ -1090,7 +1150,7 @@ namespace occultlang
 
 				unsafe_declaration->add_child(string_literal);
 
-				if (match(tk_delimiter, "}"))
+				if (match(tk_delimiter, ")"))
 				{
 					consume(tk_delimiter);
 				}
@@ -1137,7 +1197,7 @@ namespace occultlang
 			{
 				statement = parse_function();
 			}
-			else if (match(tk_keyword, "unsafe")) 
+			else if (match(tk_keyword, "__unsafe")) 
 			{
 				statement = parse_unsafe();
 			}
