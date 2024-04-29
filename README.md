@@ -32,9 +32,9 @@ To clean the build directory just run `clean.sh`
 - [ ] Windows support
 - [ ] Add for loops
 - [ ] Add matching
-- [ ] Add casting
+- [x] Add casting (already implemented with c casting by mistake) :O (i havent tested it fully, but it works?)
 - [ ] Better string support
-- [ ] Pointers and manual memory management fully working with garbage collection
+- [x] Pointers and manual memory management fully working with garbage collection
 - [x] Add imports
 - [x] Add new array implementation from [occlib](https://github.com/occultlang/occlib) to Occult 
 - [x] Array declarations for arguments 
