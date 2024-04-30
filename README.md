@@ -33,7 +33,8 @@ To clean the build directory just run `clean.sh`
 - [ ] Add matching
 - [x] Add casting
 - [ ] Better string support to guarantee safety + syntax
-- [ ] Better multidimensional array syntax 
+- [ ] Better multidimensional array syntax
+- [x] Refine CLI arguments
 - [x] Allow function defs to be at the beginning of everything so they can be called anywhere
 - [x] Pointers and manual memory management fully working with garbage collection
 - [x] Add imports
