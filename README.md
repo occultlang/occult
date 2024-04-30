@@ -28,7 +28,7 @@ All tests are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
-- [ ] Windows support
+- [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
 - [ ] Add for loops
 - [ ] Add matching
 - [x] Add casting
