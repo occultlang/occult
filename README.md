@@ -3,8 +3,8 @@ Inspired by the *enchanting* occultist ideals, just put into a programming langu
 
 # Building
 To build Occult just copy and paste this:
-```
-$ git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./build.sh && ./build.sh
+```sh
+git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./build.sh && ./build.sh
 ```
 
 # Using Occult
