@@ -1,6 +1,8 @@
 #pragma once
 #include "../parser/parser.hpp"
 
+//  TODO - add deref_ptr to variable assignments + re-assignments e.g deref x = 3;
+
 namespace occultlang
 {
     enum debug_level
@@ -325,6 +327,12 @@ namespace occultlang
                     }
                 }
 
+                auto deref = check_type<occ_ast::deref_ptr>(node); // todo is make them equal
+                if (deref.first)
+                {
+                    generated_source += "*";
+                }
+
                 auto func_call = check_type<occ_ast::function_call>(node);
                 if (func_call.first)
                 {
@@ -404,12 +412,6 @@ namespace occultlang
                             }
                         }
                     }
-                }
-
-                auto deref = check_type<occ_ast::deref_ptr>(node); // todo is make them equal
-                if (deref.first)
-                {
-                    generated_source += "*";
                 }
 
                 auto arr_decl = check_type<occ_ast::array_declaration>(node); // TODO IS STORE TYPE AND USE LATER FOR DYNAMIC TYPES
