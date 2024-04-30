@@ -19,8 +19,8 @@ namespace occultlang
         auto generated = code_gen.generate<occultlang::ast>(ast, debug, occultlang::debug_level::all);
 
         if (debug)
-            std::cout << std::endl << generated << std::endl << std::endl;
+            std::cout << std::endl << code_gen.func_defs + generated << std::endl << std::endl;
 
-        return code_gen.lib + generated;
+        return code_gen.lib + code_gen.func_defs + generated;
     }
 } // occultlang

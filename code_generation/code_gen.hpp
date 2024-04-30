@@ -14,7 +14,6 @@ namespace occultlang
     {
         std::vector<std::string> symbols;
         int arr_count = 0;
-        std::vector<std::pair<std::string, std::string>> array_types_and_symbols;
     public:
         ~code_gen() = default;
 
@@ -196,101 +195,179 @@ namespace occultlang
 
                     // generate code
 
-                    if (next_typename == "void_declaration")
+                    if (func_name != "main")
                     {
-                        generated_source += "void ";
+                        if (next_typename == "void_declaration")
+                        {
+                            generated_source += "void ";
+                            func_defs += "void ";
+                        }
+                        else if (next_typename == "num_declaration")
+                        {
+                            generated_source += "long ";
+                            func_defs += "long ";
+                        }
+                        else if (next_typename == "float_declaration")
+                        {
+                            generated_source += "double ";
+                            func_defs += "double ";
+                        }
+                        else if (next_typename == "bool_declaration")
+                        {
+                            generated_source += "long ";
+                            func_defs += "long ";
+                        }
+                        else if (next_typename == "string_declaration")
+                        {
+                            generated_source += "char* ";
+                            func_defs += "char* ";
+                        }
+                        else if (next_typename == "array_declaration")
+                        {
+                            generated_source += "dyn_array* ";
+                            func_defs += "dyn_array* ";
+                        }
+                        else if (next_typename == "num_ptr_declaration")
+                        {
+                            generated_source += "long* ";
+                            func_defs += "long*  ";
+                        }
+                        else if (next_typename == "rnum_ptr_declaration")
+                        {
+                            generated_source += "double* ";
+                            func_defs += "double*  ";
+                        }
+                        else if (next_typename == "str_ptr_declaration")
+                        {
+                            generated_source += "char** ";
+                            func_defs += "char** ";
+                        }
+                        else if (next_typename == "void_ptr_declaration")
+                        {
+                            generated_source += "void* ";
+                            func_defs += "void* ";
+                        }
                     }
-                    else if (next_typename == "num_declaration")
+                    else 
                     {
-                        generated_source += "long ";
-                    }
-                    else if (next_typename == "float_declaration")
-                    {
-                        generated_source += "double ";
-                    }
-                    else if (next_typename == "bool_declaration")
-                    {
-                        generated_source += "long ";
-                    }
-                    else if (next_typename == "string_declaration")
-                    {
-                        generated_source += "char* ";
-                    }
-                    else if (next_typename == "array_declaration")
-                    {
-                        generated_source += "dyn_array* ";
-                    }
-                    else if (next_typename == "num_ptr_declaration")
-                    {
-                        generated_source += "long* ";
-                    }
-                    else if (next_typename == "rnum_ptr_declaration")
-                    {
-                        generated_source += "double* ";
-                    }
-                    else if (next_typename == "str_ptr_declaration")
-                    {
-                        generated_source += "char** ";
-                    }
-                    else if (next_typename == "void_ptr_declaration")
-                    {
-                        generated_source += "void* ";
+                        if (next_typename == "void_declaration")
+                        {
+                            generated_source += "void ";
+                        }
+                        else if (next_typename == "num_declaration")
+                        {
+                            generated_source += "long ";
+                        }
+                        else if (next_typename == "float_declaration")
+                        {
+                            generated_source += "double ";
+                        }
+                        else if (next_typename == "bool_declaration")
+                        {
+                            generated_source += "long ";
+                        }
+                        else if (next_typename == "string_declaration")
+                        {
+                            generated_source += "char* ";
+                        }
+                        else if (next_typename == "array_declaration")
+                        {
+                            generated_source += "dyn_array* ";
+                        }
+                        else if (next_typename == "num_ptr_declaration")
+                        {
+                            generated_source += "long* ";
+                        }
+                        else if (next_typename == "rnum_ptr_declaration")
+                        {
+                            generated_source += "double* ";
+                        }
+                        else if (next_typename == "str_ptr_declaration")
+                        {
+                            generated_source += "char** ";
+                        }
+                        else if (next_typename == "void_ptr_declaration")
+                        {
+                            generated_source += "void* ";
+                        }
                     }
 
                     if (func_name == "main")
                         generated_source += func_name + "(int argc, char *argv[]";
                     else 
+                    {
                         generated_source += func_name + "(";
+                        func_defs += func_name + "(";
+                    }
 
                     for (int i = 0; i < args.size(); i++)
                     {
-                        if (args[i].first == "num_declaration")
+                        if (func_name != "main") 
                         {
-                            generated_source += "long ";
-                        }
-                        else if (args[i].first == "float_declaration")
-                        {
-                            generated_source += "double ";
-                        }
-                        else if (args[i].first == "bool_declaration")
-                        {
-                            generated_source += "long ";
-                        }
-                        else if (args[i].first == "string_declaration")
-                        {
-                            generated_source += "char* ";
-                        }
-                        else if (args[i].first == "array_declaration")
-                        {
-                            generated_source += "dyn_array* ";
-                        }
-                        else if (args[i].first == "num_ptr_declaration")
-                        {
-                            generated_source += "long* ";
-                        }
-                        else if (args[i].first == "rnum_ptr_declaration")
-                        {
-                            generated_source += "double* ";
-                        }
-                        else if (args[i].first == "str_ptr_declaration")
-                        {
-                            generated_source += "char** ";
-                        }
-                        else if (args[i].first == "void_ptr_declaration")
-                        {
-                            generated_source += "void* ";
-                        }
+                            if (args[i].first == "num_declaration")
+                            {
+                                generated_source += "long ";
+                                func_defs += "long ";
+                            }
+                            else if (args[i].first == "float_declaration")
+                            {
+                                generated_source += "double ";
+                                func_defs += "double ";
+                            }
+                            else if (args[i].first == "bool_declaration")
+                            {
+                                generated_source += "long ";
+                                func_defs += "long ";
+                            }
+                            else if (args[i].first == "string_declaration")
+                            {
+                                generated_source += "char* ";
+                                func_defs += "char* ";
+                            }
+                            else if (args[i].first == "array_declaration")
+                            {
+                                generated_source += "dyn_array* ";
+                                func_defs += "dyn_array* ";
+                            }
+                            else if (args[i].first == "num_ptr_declaration")
+                            {
+                                generated_source += "long* ";
+                                func_defs += "long* ";
+                            }
+                            else if (args[i].first == "rnum_ptr_declaration")
+                            {
+                                generated_source += "double* ";
+                                func_defs += "double* ";
+                            }
+                            else if (args[i].first == "str_ptr_declaration")
+                            {
+                                generated_source += "char** ";
+                                func_defs += "char** ";
+                            }
+                            else if (args[i].first == "void_ptr_declaration")
+                            {
+                                generated_source += "void* ";
+                                func_defs += "void* ";
+                            }
 
-                        generated_source += args[i].second;
+                            generated_source += args[i].second;
+                            func_defs += args[i].second;
 
-                        if (i != args.size() - 1)
-                        {
-                            generated_source += ", ";
+                            if (i != args.size() - 1)
+                            {
+                                generated_source += ", ";
+                                func_defs += ", ";
+                            }
                         }
                     }
 
                     generated_source += ") {\n";
 
+                    if (func_name != "main")
+                    {
+                        func_defs += ");\n";
+                    }
+                    
                     if (func_name == "main")
                     {
                         generated_source += "tgc_start(&gc, &argc);\n";
@@ -1403,6 +1480,8 @@ namespace occultlang
 
             return generated_source;
         }
+
+        std::string func_defs;
 
             std::string lib = R"(
 #include <setjmp.h>

@@ -32,7 +32,7 @@ rm -rf tinycc
 SOURCES=$(find $SRC_DIR -name "*.cpp")
 
 for SOURCE in $SOURCES; do
-      g++ -c -w -g  $SOURCE -o $BUILD_DIR/$(basename ${SOURCE%.*}.o)
+      g++ -c -w -g $SOURCE -o $BUILD_DIR/$(basename ${SOURCE%.*}.o)
 done
 
 OBJECTS=$(find $BUILD_DIR -name "*.o")

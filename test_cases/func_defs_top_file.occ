@@ -1,0 +1,7 @@
+fn main() {
+    print("%s", get_str_from_msg("HAAAAAAAAA"));
+}
+
+fn get_str_from_msg(str: msg) -> str {
+    return msg;
+}
