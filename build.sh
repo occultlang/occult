@@ -10,7 +10,7 @@ if [ ! -d "$BUILD_DIR" ] && [ ! -d "build" ]; then
      cd tinycc
 
      ./configure --with-selinux
-     make CFLAGS='-Ofast' -j4
+     make -j8 # CFLAGS='-Ofast'
 
      mv libtcc.a ../
      mv libtcc1.a ../
@@ -32,7 +32,7 @@ rm -rf tinycc
 SOURCES=$(find $SRC_DIR -name "*.cpp")
 
 for SOURCE in $SOURCES; do
-      g++ -c -w -g -Ofast $SOURCE -o $BUILD_DIR/$(basename ${SOURCE%.*}.o)
+      g++ -c -w -g  $SOURCE -o $BUILD_DIR/$(basename ${SOURCE%.*}.o)
 done
 
 OBJECTS=$(find $BUILD_DIR -name "*.o")

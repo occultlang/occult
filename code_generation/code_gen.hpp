@@ -1,8 +1,6 @@
 #pragma once
 #include "../parser/parser.hpp"
 
-//  TODO - add deref_ptr to variable assignments + re-assignments e.g deref x = 3;
-
 namespace occultlang
 {
     enum debug_level
@@ -408,7 +406,7 @@ namespace occultlang
 
                                 generated_source += "=";
                                 generated_source += generate<occ_ast::assignment>(a1.second->get_child());
-                                generated_source += ";";
+                                generated_source += ";\n";
                             }
                         }
                     }
@@ -744,6 +742,32 @@ namespace occultlang
                     }
                 }
 
+                auto rnum_literal = check_type<occ_ast::float_literal>(node);
+                if (rnum_literal.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "rnum literal: " << rnum_literal.first << std::endl;
+                    }
+                    if (auto a1 = check_type<occ_ast::float_literal>(node); a1.first)
+                    {
+                        generated_source += a1.second->content;
+                    }
+                }
+
+                auto str_literal = check_type<occ_ast::string_literal>(node);
+                if (num_literal.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "str literal: " << num_literal.first << std::endl;
+                    }
+                    if (auto a1 = check_type<occ_ast::string_literal>(node); a1.first)
+                    {
+                        generated_source += + "\"" + a1.second->content+ "\"";
+                    }
+                }
+
                 auto num_decl = check_type<occ_ast::num_declaration>(node);
                 if (num_decl.first)
                 {
@@ -802,6 +826,10 @@ namespace occultlang
                                 else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
                                 {
                                     generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
                                 }
                             }
                         }
@@ -875,6 +903,10 @@ namespace occultlang
                                 else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
                                 {
                                     generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
                                 }
                             }
                         }
@@ -956,6 +988,10 @@ namespace occultlang
                                 {
                                     generated_source += generate<occ_ast::function_call>(a5.second);
                                 }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
+                                }
                             }
                         }
                     }
@@ -1029,6 +1065,10 @@ namespace occultlang
                                 {
                                     generated_source += generate<occ_ast::function_call>(a5.second);
                                 }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
+                                }
                             }
                         }
                     }
@@ -1101,6 +1141,10 @@ namespace occultlang
                                 else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
                                 {
                                     generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
                                 }
                             }
                         }
@@ -1176,6 +1220,10 @@ namespace occultlang
                                 {
                                     generated_source += generate<occ_ast::function_call>(a5.second);
                                 }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
+                                }
                             }
                         }
                     }
@@ -1249,6 +1297,10 @@ namespace occultlang
                                 {
                                     generated_source += generate<occ_ast::function_call>(a5.second);
                                 }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
+                                }
                             }
                         }
                     }
@@ -1308,7 +1360,11 @@ namespace occultlang
                                 }
                                 else if (auto a6 = check_type<occ_ast::number_literal>(child_assignment); a6.first)
                                 {
-                                    generated_source += a1.second->content;
+                                    generated_source += a6.second->content;
+                                }
+                                else if (auto a9 = check_type<occ_ast::float_literal>(child_assignment); a9.first)
+                                {
+                                    generated_source += a9.second->content;
                                 }
                                 else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
                                 {
@@ -1325,6 +1381,10 @@ namespace occultlang
                                 else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
                                 {
                                     generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
                                 }
                             }
                         }

@@ -483,11 +483,13 @@ namespace occultlang
 
 	std::shared_ptr<ast> parser::parse_dereference() 
 	{
-		if (match(tk_keyword, "deref") && match_next(tk_identifier))
+		if (match(tk_keyword, "deref"))
 		{
 			consume(tk_keyword);
 
-			return std::make_shared<occ_ast::deref_ptr>();
+			auto n = std::make_shared<occ_ast::deref_ptr>();
+			
+			return n;
 		}
 	}
 

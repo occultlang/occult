@@ -7,25 +7,40 @@ fn test_cast_1() {
 
 fn test_cast_2() {
     rnum ptr: x = malloc(8);
-    deref x = 3.14; // the parser or codegen doesnt handle floats for this?
-    
-    //num: i = deref x as num ptr; 
-    //num: i = deref(long deref)x; 
-
-    print("%i\n", i);
-}
-
-fn test_cast_3() {
-    rnum ptr: x = malloc(8);
-    deref x = 3.14;
+    deref x = 3.1;
     
     num ptr: i = x as num ptr; 
 
     print("%p\n", i);
 }
 
+fn test_cast_3() {
+    num: x = 42;
+    rnum: f = x as rnum;
+
+    print("%f\n", f);
+}
+
+fn test_cast_4() {
+    rnum ptr: x = malloc(8);
+    deref x = 7.5;
+    
+    num: i = deref x; 
+
+    print("%i\n", i);
+}
+
+fn test_cast_5() {
+    str: str_ptr = "12345";
+    num ptr: int_ptr = str_ptr as num ptr;
+
+    print("%p\n", int_ptr);
+}
+
 fn main() {
     test_cast_1(); // 3
-    test_cast_2(); // 3
-    test_cast_3(); // mem address of i
+    test_cast_2(); // mem address of x
+    test_cast_3(); // 42.000000
+    test_cast_4(); // 7
+    test_cast_5(); // mem address of str_ptr
 }
