@@ -31,7 +31,7 @@ To clean the build directory just run `clean.sh`
 # To-do
 - [ ] Windows support
 - [ ] Add for loops
-- [ ] Add matching
+- [ ] Add matching (can wait)
 - [x] Add casting
 - [ ] Better string support to guarantee safety + syntax (can wait)
 - [ ] Better multidimensional array syntax (can wait)
