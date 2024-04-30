@@ -21,9 +21,8 @@ To debug (Gives Tokens, AST, and the transpiled C code):
 $ ./occultc <path/to/source.occ> -dbg
 ```
 
-# Speed & Tests
-Occult is about the same as C 
-Test cases are in the `test_cases` directory
+# Testing
+All tests are in the `test_cases` directory
 
 # Cleaning
 To clean the build directory just run `clean.sh`
