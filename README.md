@@ -15,7 +15,7 @@ To use Occult, you can just build it using the steps above and run this (Default
 AOT Compilation (outputs file as a.out):
 ```sh
 ./occultc <path/to/source.occ> -aot
-```sh
+```
 To debug (Gives Tokens, AST, and the transpiled C code):
 ```sh
 ./occultc <path/to/source.occ> -dbg
