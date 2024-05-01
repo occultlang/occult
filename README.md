@@ -3,6 +3,7 @@
     <a href="https://occultlang.org/" target="_blank"><img width="80" src="occult.jpg"></a>
 </p>
 <h1>The Occult Language</h1>
+</div>
 
 ## Building
 To build Occult just copy and paste this
