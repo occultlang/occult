@@ -33,8 +33,9 @@ To clean the build directory just run `clean.sh`
 - [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
 - [ ] Pointers in arrays
 - [ ] Change __unsafe to unsafe due to lexical errors
+- [ ] Enhance for loops further
 
-# Old to-do
+# Finished
 - [x] Add basic for loops
 - [x] Add casting
 - [x] Refine CLI arguments
