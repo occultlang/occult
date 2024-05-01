@@ -24,6 +24,16 @@ All tests are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
+- [ ] Guarantee memory safety through different tests
+- [ ] Add pointer math
+- [ ] Better error handling, polishing the language
+- [ ] Better string support to guarantee safety + syntax
+- [ ] Better multidimensional array syntax
+- [ ] Add match statements, similar to rust
+- [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
+- [ ] Pointers in arrays
+
+# Old to-do
 - [x] Add basic for loops
 - [x] Add casting
 - [x] Refine CLI arguments
@@ -37,13 +47,6 @@ To clean the build directory just run `clean.sh`
 - [x] Fix floating points not working fully when generating code + parsing
 - [x] Add incrementing with i++ and i-- etc. to codegen 
 - [x] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
-
-# Future versions
-- [ ] Better string support to guarantee safety + syntax
-- [ ] Better multidimensional array syntax
-- [ ] Add match statements, similar to rust
-- [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
-- [ ] Pointers in arrays
 
 # How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
