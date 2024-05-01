@@ -1,5 +1,9 @@
-# Occult
-Inspired by the *enchanting* occultist ideals, just put into a programming language in an *enigmatic* way... 
+<center>
+  <h1>
+    Occult
+  </h1>
+  <img width="220" height="220" src="occult.jpg">
+</center>
 
 # Building
 To build Occult just copy and paste this
