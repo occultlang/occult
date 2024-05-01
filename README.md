@@ -34,6 +34,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Pointers in arrays
 - [ ] Change __unsafe to unsafe due to lexical errors
 - [ ] Enhance for loops further
+- [ ] Remove the unsafe keyword entirely because of memory safety guarantee
 
 # Finished
 - [x] Add basic for loops
