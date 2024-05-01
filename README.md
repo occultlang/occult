@@ -29,6 +29,7 @@ To clean the build directory just run `clean.sh`
 
 # To-do
 - [ ] Add for loops
+- [ ] Pointers in arrays
 - [x] Add casting
 - [x] Refine CLI arguments
 - [x] Allow function defs to be at the beginning of everything so they can be called anywhere
