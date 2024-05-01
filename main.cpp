@@ -7,25 +7,38 @@ int main(int argc, char *argv[]) {
     bool debug = false;
     bool aot = false;
 
-    if (argc < 2 || argc > 4) {
-        std::cerr << "usage: " << argv[0] << " <input_file> [-aot] [-dbg]" << std::endl;
+    if (argc < 2 || argc > 5) {
+        std::cerr << "usage: " << argv[0] << " [-debug] <input_file> [-o <filename>]" << std::endl;
         return 1;
     }
 
-     for (int i = 2; i < argc; ++i) {
+    std::string output_file = "a.out";
+    std::string input_file;
+
+    for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "-aot") {
+        if (arg == "-o") {
             aot = true;
-        } else if (arg == "-dbg") {
+            if (i + 1 < argc) { 
+                output_file = argv[++i]; 
+            }
+        } else if (arg == "-debug") {
             debug = true;
+        } else {
+            input_file = arg;
         }
     }
 
+    if (input_file.empty()) {
+        std::cerr << "No input file provided" << std::endl;
+        return 1;
+    }
+
     std::string source_original;
-    std::ifstream file(argv[1]);
+    std::ifstream file(input_file);
 
     if (!file.is_open()) {
-        std::cerr << "unable to open file: " << argv[1] << std::endl;
+        std::cerr << "unable to open file: " << input_file << std::endl;
         return 1;
     }
 
@@ -40,20 +53,20 @@ int main(int argc, char *argv[]) {
     file.close();
 
     occultlang::finder finder;
-    
+
+    source_original = finder.match_and_replace_casts(source_original);
+
     source_original = finder.match_and_replace_all_array(source_original, "array<generic>");
 
     source_original = finder.match_and_replace_all(source_original, "null", "NULL");
 
-    source_original = finder.match_and_replace_casts(source_original);
-
-    std::cout << source_original << std::endl;
+    //std::cout << source_original << std::endl;
 
     occultlang::compiler compiler{source_original, debug};
 
     std::string compiled = compiler.compile();
 
-    occultlang::tinycc_jit jit{compiled};
+    occultlang::tinycc_jit jit{compiled, output_file};
 
     if (aot) {
         jit.run_aot();

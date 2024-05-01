@@ -22,14 +22,14 @@ namespace occultlang  // thank copilot so much for helping with this regex code
         return source;
     }
     
-    std::string occultlang::finder::match_and_replace_casts(std::string source)
+    std::string finder::match_and_replace_casts(std::string source)
     {
         std::regex cast_pattern("(deref )?(\\w+)( as )(num ptr|rnum ptr|string ptr|void ptr|num|rnum|string)");
         std::string result;
         std::smatch m;
-        std::string::const_iterator searchStart(source.cbegin());
+        std::string::const_iterator search_start(source.cbegin());
 
-        while (std::regex_search(searchStart, source.cend(), m, cast_pattern)) {
+        while (std::regex_search(search_start, source.cend(), m, cast_pattern)) {
             std::string deref = m[1].str();
             std::string type = m[4].str();
             std::string replacement;
@@ -44,12 +44,14 @@ namespace occultlang  // thank copilot so much for helping with this regex code
 
             if (!deref.empty()) replacement = "deref" + replacement; // add dereference operator if 'deref' was present
 
-            result += source.substr(searchStart - source.cbegin(), m.position()) + replacement; // append the text before the match and the replacement to the result
-            searchStart = m.suffix().first;
+            result += source.substr(search_start - source.cbegin(), m.position()) + replacement; // append the text before the match and the replacement to the result
+            search_start = m.suffix().first;
         }
 
-        result += source.substr(searchStart - source.cbegin()); // append the remaining text after the last match
+        result += source.substr(search_start - source.cbegin()); // append the remaining text after the last match
 
         return result;
     }
+
+    /* we need a function that can recursively flatten the jagged arrays into different sub arrays + generate using only flat arrays */
 } // occultlang

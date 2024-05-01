@@ -14,8 +14,9 @@ namespace occultlang
     {
         TCCState* tcc;
         std::string source_original;
+        std::string filename;
     public:
-        tinycc_jit(const std::string& source) : source_original(source)
+        tinycc_jit(const std::string& source, std::string filename) : source_original(source), filename(filename) 
         {
             tcc = tcc_new();
         }

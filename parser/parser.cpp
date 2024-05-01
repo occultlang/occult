@@ -367,9 +367,62 @@ namespace occultlang
 		}
 	}
 
+	/*
+		type == "array" || type == "num" || type == "rnum" || type == "str" || type == "bool" or pointer variants i guess?  wait no pointers dont have arrays yet...
+
+		for type x in array {
+			// code
+		}
+	*/
+
 	std::shared_ptr<ast> parser::parse_for()
 	{
-		throw occ_runtime_error(parse_exceptions[NOT_IMPLEMENTED], peek());
+		if (match(tk_keyword, "for")) {
+			consume(tk_keyword);
+
+			auto for_declaration = std::make_shared<occ_ast::for_declaration>();
+
+			auto decl = parse_declaration();
+
+			for_declaration->add_child(decl);
+
+			if (match(tk_keyword, "in")) {
+				consume(tk_keyword);
+			}
+
+			auto id = parse_identifier(); // for now only identifiers are allowed, later on we'll add step, etc. and ranges
+
+			for_declaration->add_child(id);
+
+			if (match(tk_delimiter, "{")) {
+				consume(tk_delimiter);
+
+				while (!match(tk_delimiter, "}")) {
+					auto statement = std::make_shared<occ_ast::body_start>();
+
+					statement->add_child(parse_keywords()); // body
+
+					if (match(tk_delimiter, ";")) {
+						consume(tk_delimiter);
+					}
+
+					if (statement) {
+						for_declaration->add_child(statement);
+					}
+
+					statement->add_child(std::make_shared<occ_ast::body_end>());
+				}
+
+				if (match(tk_delimiter, "}")) {
+					consume(tk_delimiter);
+				}
+			}
+			else {
+				throw occ_runtime_error(parse_exceptions[EXPECTED_LEFT_BRACE], peek());
+			}
+
+			return for_declaration;
+		}
 	}
 
 	std::shared_ptr<ast> parser::parse_continue()

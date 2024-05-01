@@ -1,0 +1,7 @@
+fn main() {
+    array: arr = [ 1, 2, 3 ];
+
+    for num: n in arr {
+        print("%i\n", n);
+    }
+}

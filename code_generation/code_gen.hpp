@@ -45,6 +45,15 @@ namespace occultlang
                 {
                     node = root;
                 }
+                
+                auto body_end = check_type<occ_ast::force_end>(node);
+                if (body_end.first)
+                {
+                    if (debug)
+                        std::cout << "force_end: " << body_end.first << std::endl;
+                    
+                    break;
+                }
 
                 auto func_decl = check_type<occ_ast::function_declaration>(node);
                 if (func_decl.first)
@@ -609,6 +618,60 @@ namespace occultlang
                     generated_source += array_members;
 
                     //std::cout << "Finished processing array declaration" << std::endl;
+                }
+
+                auto for_decl = check_type<occ_ast::for_declaration>(node); // basic implementation, and VERY strict 
+                if (for_decl.first)
+                {
+                    if (debug)
+                        std::cout << "for_declaration: " << for_decl.first << std::endl;
+
+                    auto array = check_type<occ_ast::identifier>(for_decl.second->get_child(1)).second->content;
+
+                    generated_source += "for (int __for_index__ = 0; __for_index__ < size(" + array + ");" + " __for_index__++) {\n";
+
+                    auto decl = for_decl.second->get_child(0);
+
+                    if (auto n = check_type<occ_ast::num_declaration>(decl); n.first)
+                    {
+                        generated_source += "long " + generate<occ_ast::num_declaration>(n.second) + " = at(" + array + ", __for_index__, num_t);\n";;
+                    }
+                    else if (auto f = check_type<occ_ast::float_declaration>(decl); f.first)
+                    {
+                        generated_source += "double " + generate<occ_ast::float_declaration>(f.second) + " = at(" + array + ", __for_index__, rnum_t);\n";
+                    }
+                    else if (auto b = check_type<occ_ast::bool_declaration>(decl); b.first)
+                    {
+                        generated_source += "long " +  generate<occ_ast::bool_declaration>(b.second) + " = at(" + array + ", __for_index__, num_t);\n";
+                    }
+                    else if (auto s = check_type<occ_ast::string_declaration>(decl); s.first)
+                    {
+                        generated_source += "char* " +  generate<occ_ast::string_declaration>(s.second) + " = at(" + array + ", __for_index__, str_t);\n";
+                    }
+                    else if (auto a = check_type<occ_ast::array_declaration>(decl); a.first)
+                    {
+                        generated_source += "dyn_array* " + generate<occ_ast::array_declaration>(a.second) + " = at(" + array + ", __for_index__, array_t);\n";
+                    } // we dont have pointers yet for arrays
+                    /*else if (auto n = check_type<occ_ast::num_ptr_declaration>(decl); n.first)
+                    {
+                        generated_source += generate<occ_ast::num_ptr_declaration>(n.second);
+                    }
+                    else if (auto r = check_type<occ_ast::rnum_ptr_declaration>(decl); r.first)
+                    {
+                        generated_source += generate<occ_ast::rnum_ptr_declaration>(r.second);
+                    }
+                    else if (auto s = check_type<occ_ast::str_ptr_declaration>(decl); s.first)
+                    {
+                        generated_source += generate<occ_ast::str_ptr_declaration>(s.second);
+                    }
+                    else if (auto v = check_type<occ_ast::void_ptr_declaration>(decl); v.first)
+                    {
+                        generated_source += generate<occ_ast::void_ptr_declaration>(v.second);
+                    }*/
+
+                    generated_source += generate<occ_ast::body_start>(for_decl.second->get_child(2));
+
+                    generated_source += "}\n";
                 }
 
                 auto string_literal = check_type<occ_ast::string_literal>(node);
@@ -2257,7 +2320,8 @@ void add_self(dyn_array* array, dyn_array* data) {
 #define num_t 0
 #define rnum_t 0.1
 #define str_t "0ab1a"
-#define self_t (void*)0 // just a ptr
+#define array_t (void*)0 // just a ptr
+#define self_t (void*)0
 
 #define size(vec) ((vec)->size)
 

@@ -47,6 +47,7 @@ namespace occultlang
 	  str_ptr_declaration,
 	  void_ptr_declaration,
 	  deref_ptr,
+	  force_end,
 	};
 
 	struct ast : public tree<std::shared_ptr<ast>>
@@ -159,6 +160,17 @@ namespace occultlang
 			virtual ast_type get_type() { return ast_type::float_declaration; }
 
 			virtual std::string to_string() { return "float_declaration"; }
+		};
+
+		struct force_end : public ast
+		{
+			force_end() : ast() {}
+			virtual ~force_end() {}
+			force_end(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::force_end; }
+
+			virtual std::string to_string() { return "force_end"; }
 		};
 
 		/*
