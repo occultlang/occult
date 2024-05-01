@@ -32,8 +32,6 @@ To clean the build directory just run `clean.sh`
 - [ ] Add for loops
 - [ ] Add matching
 - [x] Add casting
-- [ ] Better string support to guarantee safety + syntax
-- [ ] Better multidimensional array syntax
 - [x] Refine CLI arguments
 - [x] Allow function defs to be at the beginning of everything so they can be called anywhere
 - [x] Pointers and manual memory management fully working with garbage collection
@@ -45,6 +43,11 @@ To clean the build directory just run `clean.sh`
 - [x] Fix floating points not working fully when generating code + parsing
 - [x] Add incrementing with i++ and i-- etc. to codegen 
 - [x] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
+
+# Future versions
+- [ ] Better string support to guarantee safety + syntax
+- [ ] Better multidimensional array syntax
+- [ ] Add foreach loops to better integrate with arrays
 
 # How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
