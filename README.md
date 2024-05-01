@@ -1,9 +1,8 @@
-<center>
-  <h1>
-    Occult
-  </h1>
-  <img width="220" height="220" src="occult.jpg">
-</center>
+<div align="center" style="display:grid;place-items:center;">
+<p>
+    <a href="https://occultlang.org/" target="_blank"><img width="80" src="occult.jpg"></a>
+</p>
+<h1>The Occult Language</h1>
 
 # Building
 To build Occult just copy and paste this
