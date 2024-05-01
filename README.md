@@ -29,7 +29,6 @@ To clean the build directory just run `clean.sh`
 
 # To-do
 - [ ] Add for loops
-- [ ] Pointers in arrays
 - [x] Add casting
 - [x] Refine CLI arguments
 - [x] Allow function defs to be at the beginning of everything so they can be called anywhere
@@ -48,6 +47,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Better multidimensional array syntax
 - [ ] Add match statements, similar to rust
 - [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
+- [ ] Pointers in arrays
 
 # How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
