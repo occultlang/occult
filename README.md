@@ -45,7 +45,6 @@ To clean the build directory just run `clean.sh`
 # Future versions
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax
-- [ ] Add foreach loops to better integrate with arrays
 - [ ] Add match statements, similar to rust
 - [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
 
