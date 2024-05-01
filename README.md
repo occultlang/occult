@@ -12,6 +12,10 @@ To use Occult, you can just build it using the steps above and run this (Default
 ```sh
 ./occultc [-debug] <source.occ> [-o <filename>]
 ```
+If you don't need debug or AOT just do this
+```sh
+./occultc <source.occ>
+```
 
 # Testing
 All tests are in the `test_cases` directory
