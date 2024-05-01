@@ -29,7 +29,6 @@ To clean the build directory just run `clean.sh`
 
 # To-do
 - [ ] Add for loops
-- [ ] Add matching
 - [x] Add casting
 - [x] Refine CLI arguments
 - [x] Allow function defs to be at the beginning of everything so they can be called anywhere
@@ -47,6 +46,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax
 - [ ] Add foreach loops to better integrate with arrays
+- [ ] Add match statements, similar to rust
 - [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
 
 # How?
