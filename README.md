@@ -2,13 +2,13 @@
 Inspired by the *enchanting* occultist ideals, just put into a programming language in an *enigmatic* way... 
 
 # Building
-To build Occult just copy and paste this:
+To build Occult just copy and paste this
 ```sh
 git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./build.sh && ./build.sh
 ```
 
 # Using Occult
-To use Occult, you can just build it using the steps above and run this (Defaults to JIT):
+To use Occult, you can just build it using the steps above and run this (Defaults to JIT)
 ```sh
 ./occultc [-debug] <source.occ> [-o <filename>]
 ```
