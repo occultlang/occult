@@ -36,7 +36,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Enhance for loops further
 - [ ] Remove the unsafe keyword entirely because of memory safety guarantee
 
-# Finished
+# Finished v1.0.0-alpha
 - [x] Add basic for loops
 - [x] Add casting
 - [x] Refine CLI arguments
