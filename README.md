@@ -4,13 +4,13 @@
 </p>
 <h1>The Occult Language</h1>
 
-# Building
+## Building
 To build Occult just copy and paste this
 ```sh
 git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./build.sh && ./build.sh
 ```
 
-# Using Occult
+## Using Occult
 To use Occult, you can just build it using the steps above and run this (Defaults to JIT)
 ```sh
 ./occultc [-debug] <source.occ> [-o <filename>]
@@ -20,13 +20,13 @@ If you don't need debug or AOT just do this
 ./occultc <source.occ>
 ```
 
-# Testing
+## Testing
 All tests are in the `test_cases` directory
 
-# Cleaning
+## Cleaning
 To clean the build directory just run `clean.sh`
 
-# To-do
+## To-do
 - [ ] Guarantee memory safety through different tests
 - [ ] Add pointer math
 - [ ] Better error handling, polishing the language
@@ -39,7 +39,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Enhance for loops further
 - [ ] Remove the unsafe keyword entirely because of memory safety guarantee
 
-# Finished v1.0.0-alpha
+## Finished v1.0.0-alpha
 - [x] Add basic for loops
 - [x] Add casting
 - [x] Refine CLI arguments
@@ -54,16 +54,16 @@ To clean the build directory just run `clean.sh`
 - [x] Add incrementing with i++ and i-- etc. to codegen 
 - [x] Get TinyC working with Ahead-of-Time compilation (made mode is still JIT)
 
-# How?
+## How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
 
 Without the advances in generative AI, I would have never been able to write a compiler it has helped me so much with learning new concepts and some coding mistakes!
 There's a clear vision for this project in the end to make it bootstrappable so it can compile itself.
 
-# LICENSE
+## LICENSE
 GNU Lesser General Public License v2.1 (Same as TinyCC)
 
-# Credits
+## Credits
 https://github.com/orangeduck/tgc/tree/master
 
 https://github.com/TinyCC/tinycc
