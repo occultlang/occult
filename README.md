@@ -28,7 +28,6 @@ All tests are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
-- [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
 - [ ] Add for loops
 - [ ] Add matching
 - [x] Add casting
@@ -48,6 +47,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax
 - [ ] Add foreach loops to better integrate with arrays
+- [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
 
 # How?
 Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just compiles its own code into C and it runs on the fly.
