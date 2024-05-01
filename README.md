@@ -29,7 +29,7 @@ To clean the build directory just run `clean.sh`
 
 # To-do
 - [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
-- [ ] Add for loops
+- [ ] Add for loops & foreach
 - [ ] Add matching
 - [x] Add casting
 - [ ] Better string support to guarantee safety + syntax
