@@ -3,7 +3,7 @@
     <a href="https://occultlang.org/" target="_blank"><img width="80" src="occult.jpg"></a>
 </p>
 <h1>The Occult Language</h1>
-[occultlang.org](https://occultlang.org)
+<a href="https://occultlang.org/" target="_blank">occultang.org</a>
 </div>
 
 ## Building
