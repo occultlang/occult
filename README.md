@@ -1,6 +1,6 @@
 <div align="center" style="display:grid;place-items:center;">
 <p>
-    <a href="https://occultlang.org/" target="_blank"><img width="80" src="occult.jpg"></a>
+    <a href="https://occultlang.org/" target="_blank"><img width="120" src="occult.jpg"></a>
 </p>
 <h1>The Occult Language</h1>
 <a href="https://occultlang.org/" target="_blank">occultang.org</a>
