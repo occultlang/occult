@@ -28,7 +28,7 @@ All tests are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 # To-do
-- [ ] Add for loops
+- [x] Add basic for loops
 - [x] Add casting
 - [x] Refine CLI arguments
 - [x] Allow function defs to be at the beginning of everything so they can be called anywhere
