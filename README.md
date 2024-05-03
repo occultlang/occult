@@ -40,6 +40,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Pointers in arrays
 - [ ] Enhance for loops further
 - [ ] Remove the unsafe keyword entirely because of memory safety guarantee
+- [ ] Basic static analyzer for Occult
 
 ## Finished v1.0.0-alpha
 - [x] Add basic for loops
