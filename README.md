@@ -29,7 +29,7 @@ All tests are in the `test_cases` directory
 ## Cleaning
 To clean the build directory just run `clean.sh`
 
-## To-do
+## To-do v1.1.0-alpha
 - [ ] Guarantee memory safety through different tests
 - [ ] Add pointer math
 - [ ] Better error handling, polishing the language
