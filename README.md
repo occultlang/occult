@@ -43,6 +43,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Basic static analyzer for Occult
 - [ ] Implement safeclib as a replacement for some functions
 - [ ] Implenent modules, and a basic package manager
+- [ ] More thoroughly test before a final release 
 
 ## Finished v1.0.0-alpha
 - [x] Add basic for loops
