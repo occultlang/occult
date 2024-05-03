@@ -41,6 +41,8 @@ To clean the build directory just run `clean.sh`
 - [ ] Enhance for loops further
 - [ ] Remove the unsafe keyword entirely because of memory safety guarantee
 - [ ] Basic static analyzer for Occult
+- [ ] Implement safeclib as a replacement for some functions
+- [ ] Implenent modules, and a basic package manager
 
 ## Finished v1.0.0-alpha
 - [x] Add basic for loops
