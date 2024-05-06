@@ -29,8 +29,12 @@ All tests are in the `test_cases` directory
 ## Cleaning
 To clean the build directory just run `clean.sh`
 
-## Future
+## Long-term
 - [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
+- [ ] OSX Support
+- [ ] Full *Nix Support
+- [ ] Bootstrapping
+- [ ] Move away from cross-compilation, and implement a custom JIT engine
 
 ## To-do v1.1.0-alpha
 - [ ] Add pointer math
