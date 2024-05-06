@@ -1,3 +1,6 @@
 fn main() {
     array: = [1, 2, 3]; // missing identifier
+    array: = [1, 2, 3]; // missing identifier
+    array: = [1, 2, 3]; // missing identifier
+    array: = [1, 2, 3]; // missing identifier
 }

@@ -377,7 +377,8 @@ namespace occultlang
 
 	std::shared_ptr<ast> parser::parse_for()
 	{
-		if (match(tk_keyword, "for")) {
+		if (match(tk_keyword, "for")) 
+		{
 			consume(tk_keyword);
 
 			auto for_declaration = std::make_shared<occ_ast::for_declaration>();
@@ -386,38 +387,132 @@ namespace occultlang
 
 			for_declaration->add_child(decl);
 
-			if (match(tk_keyword, "in")) {
+			if (match(tk_keyword, "in")) 
+			{
 				consume(tk_keyword);
 			}
 
-			auto id = parse_identifier(); // for now only identifiers are allowed, later on we'll add step, etc. and ranges
+			if (match(tk_identifier))
+			{
+				auto id = parse_identifier();
 
-			for_declaration->add_child(id);
+				for_declaration->add_child(id);
 
-			if (match(tk_delimiter, "{")) {
+				if (match(tk_delimiter, "."))
+				{
+					consume(tk_delimiter);
+
+					if (match(tk_keyword, "step_by")) 
+					{
+						consume(tk_keyword);
+
+						auto step_by = std::make_shared<occ_ast::step_for>();
+					
+						if (match(tk_delimiter, "("))
+						{
+							consume(tk_delimiter);
+
+							if (match(tk_number_literal))
+							{
+								auto start = parse_number_literal();
+								step_by->add_child(start);
+							}
+							else if (match(tk_identifier))
+							{
+								auto start = parse_identifier();
+								step_by->add_child(start);
+							}
+
+							if (match(tk_delimiter, ")"))
+							{
+								consume(tk_delimiter);
+							}
+						}
+
+						id->add_child(step_by);
+					}
+				}
+			}
+			else if (match(tk_keyword, "range")) 
+			{
+				consume(tk_keyword);
+				
+				auto range = std::make_shared<occ_ast::range_for>();
+
+				if (match(tk_delimiter, "("))
+				{
+					consume(tk_delimiter);
+					
+					if (match(tk_number_literal))
+					{
+						auto start = parse_number_literal();
+						range->add_child(start);
+					}
+					else if (match(tk_identifier))
+					{
+						auto start = parse_identifier();
+						range->add_child(start);
+					}
+				
+					if (match(tk_delimiter, ","))
+					{
+						consume(tk_delimiter);
+
+						auto comma = std::make_shared<occ_ast::comma>();
+
+						range->add_child(comma);
+					}
+
+					if (match(tk_number_literal))
+					{
+						auto end = parse_number_literal();
+						range->add_child(end);
+					}
+					else if (match(tk_identifier))
+					{
+						auto end = parse_identifier();
+						range->add_child(end);
+					}
+
+					if (match(tk_delimiter, ")"))
+					{
+						consume(tk_delimiter);
+					}
+				}
+
+				for_declaration->add_child(range);
+			}
+
+			if (match(tk_delimiter, "{")) 
+			{
 				consume(tk_delimiter);
 
-				while (!match(tk_delimiter, "}")) {
+				while (!match(tk_delimiter, "}")) 
+				{
 					auto statement = std::make_shared<occ_ast::body_start>();
 
 					statement->add_child(parse_keywords()); // body
 
-					if (match(tk_delimiter, ";")) {
+					if (match(tk_delimiter, ";")) 
+					{
 						consume(tk_delimiter);
 					}
 
-					if (statement) {
+					if (statement) 
+					{
 						for_declaration->add_child(statement);
 					}
 
 					statement->add_child(std::make_shared<occ_ast::body_end>());
 				}
 
-				if (match(tk_delimiter, "}")) {
+				if (match(tk_delimiter, "}")) 
+				{
 					consume(tk_delimiter);
 				}
 			}
-			else {
+			else 
+			{
 				throw occ_runtime_error(parse_exceptions[EXPECTED_LEFT_BRACE], peek());
 			}
 

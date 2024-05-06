@@ -13,7 +13,7 @@ namespace occultlang
     class code_gen
     {
         std::vector<std::string> symbols;
-        int arr_count = 0;
+        int for_count = -1; // so it starts at 0
     public:
         ~code_gen() = default;
 
@@ -400,17 +400,6 @@ namespace occultlang
                     generated_source += "}\n";
                 }
 
-                auto unsafe_decl = check_type<occ_ast::unsafe>(node);
-                if (unsafe_decl.first)
-                {
-                    if (debug)
-                        std::cout << "unsafe: " << unsafe_decl.first << std::endl;
-                    if (auto a1 = check_type<occ_ast::unsafe>(node); a1.first)
-                    {
-                        generated_source += check_type<occ_ast::string_literal>(unsafe_decl.second->get_child()).second->content;
-                    }
-                }
-
                 auto deref = check_type<occ_ast::deref_ptr>(node); // todo is make them equal
                 if (deref.first)
                 {
@@ -622,52 +611,88 @@ namespace occultlang
 
                 auto for_decl = check_type<occ_ast::for_declaration>(node); // basic implementation, and VERY strict 
                 if (for_decl.first)
-                {
+                {     
+                    for_count++;               
                     if (debug)
                         std::cout << "for_declaration: " << for_decl.first << std::endl;
 
-                    auto array = check_type<occ_ast::identifier>(for_decl.second->get_child(1)).second->content;
+                    auto array_node = check_type<occ_ast::identifier>(for_decl.second->get_child(1));
+                    auto array = std::string();
 
-                    generated_source += "for (int __for_index__ = 0; __for_index__ < size(" + array + ");" + " __for_index__++) {\n";
+                    if (array_node.first)
+                    {
+                        array = array_node.second->content;
+                        
+                        if (array_node.second->has_child())
+                        {
+                            auto child_node_array = check_type<occ_ast::step_for>(array_node.second->get_child());
+                            
+                            if(child_node_array.first)
+                            {
+                                auto step_by_num = check_type<occ_ast::number_literal>(child_node_array.second->get_child()).second->content;
+                                generated_source += "for (int __for_index__" + std::to_string(for_count) + " = 0; __for_index__" + std::to_string(for_count) + " < size(" + array + ");" + " __for_index__" + std::to_string(for_count) + " += " + step_by_num + ") {\n";
+                            }
+                        }
+                        else 
+                        {
+                            generated_source += "for (int __for_index__" + std::to_string(for_count) + " = 0; __for_index__" + std::to_string(for_count) + " < size(" + array + ");" + " __for_index__" + std::to_string(for_count) + "++) {\n";
+                        }
 
-                    auto decl = for_decl.second->get_child(0);
+                        auto decl = for_decl.second->get_child(0);
 
-                    if (auto n = check_type<occ_ast::num_declaration>(decl); n.first)
-                    {
-                        generated_source += "long " + generate<occ_ast::num_declaration>(n.second) + " = at(" + array + ", __for_index__, num_t);\n";;
+                        if (auto n = check_type<occ_ast::num_declaration>(decl); n.first)
+                        {
+                            generated_source += "long " + generate<occ_ast::num_declaration>(n.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", num_t);\n";
+                        }
+                        else if (auto f = check_type<occ_ast::float_declaration>(decl); f.first)
+                        {
+                            generated_source += "double " + generate<occ_ast::float_declaration>(f.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", rnum_t);\n";
+                        }
+                        else if (auto b = check_type<occ_ast::bool_declaration>(decl); b.first)
+                        {
+                            generated_source += "long " +  generate<occ_ast::bool_declaration>(b.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", num_t);\n";
+                        }
+                        else if (auto s = check_type<occ_ast::string_declaration>(decl); s.first)
+                        {
+                            generated_source += "char* " +  generate<occ_ast::string_declaration>(s.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", str_t);\n";
+                        }
+                        else if (auto a = check_type<occ_ast::array_declaration>(decl); a.first)
+                        {
+                            generated_source += "dyn_array* " + generate<occ_ast::array_declaration>(a.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", array_t);\n";
+                        } // we dont have pointers yet for arrays
+                        /*else if (auto n = check_type<occ_ast::num_ptr_declaration>(decl); n.first)
+                        {
+                            generated_source += generate<occ_ast::num_ptr_declaration>(n.second);
+                        }
+                        else if (auto r = check_type<occ_ast::rnum_ptr_declaration>(decl); r.first)
+                        {
+                            generated_source += generate<occ_ast::rnum_ptr_declaration>(r.second);
+                        }
+                        else if (auto s = check_type<occ_ast::str_ptr_declaration>(decl); s.first)
+                        {
+                            generated_source += generate<occ_ast::str_ptr_declaration>(s.second);
+                        }
+                        else if (auto v = check_type<occ_ast::void_ptr_declaration>(decl); v.first)
+                        {
+                            generated_source += generate<occ_ast::void_ptr_declaration>(v.second);
+                        }*/
                     }
-                    else if (auto f = check_type<occ_ast::float_declaration>(decl); f.first)
+                    else if (auto range_node = check_type<occ_ast::range_for>(for_decl.second->get_child(1)); range_node.first)
                     {
-                        generated_source += "double " + generate<occ_ast::float_declaration>(f.second) + " = at(" + array + ", __for_index__, rnum_t);\n";
+                        auto range_1 = check_type<occ_ast::number_literal>(range_node.second->get_child(0)).second->content;
+                        auto range_2 = check_type<occ_ast::number_literal>(range_node.second->get_child(2)).second->content;
+
+                        generated_source += "for (int __for_index__" + std::to_string(for_count) + " = " + range_1 + "; __for_index__" + std::to_string(for_count) + " < " + range_2 + "; +  __for_index__" + std::to_string(for_count) + "++) {\n";
+                        
+                        auto decl = for_decl.second->get_child(0);
+
+                        if (auto n = check_type<occ_ast::num_declaration>(decl); n.first)
+                        {
+                            generated_source += "long " + generate<occ_ast::num_declaration>(n.second) + " = __for_index__" + std::to_string(for_count) + ";\n";
+                        }
+
+                        // floating point for range not sure? 
                     }
-                    else if (auto b = check_type<occ_ast::bool_declaration>(decl); b.first)
-                    {
-                        generated_source += "long " +  generate<occ_ast::bool_declaration>(b.second) + " = at(" + array + ", __for_index__, num_t);\n";
-                    }
-                    else if (auto s = check_type<occ_ast::string_declaration>(decl); s.first)
-                    {
-                        generated_source += "char* " +  generate<occ_ast::string_declaration>(s.second) + " = at(" + array + ", __for_index__, str_t);\n";
-                    }
-                    else if (auto a = check_type<occ_ast::array_declaration>(decl); a.first)
-                    {
-                        generated_source += "dyn_array* " + generate<occ_ast::array_declaration>(a.second) + " = at(" + array + ", __for_index__, array_t);\n";
-                    } // we dont have pointers yet for arrays
-                    /*else if (auto n = check_type<occ_ast::num_ptr_declaration>(decl); n.first)
-                    {
-                        generated_source += generate<occ_ast::num_ptr_declaration>(n.second);
-                    }
-                    else if (auto r = check_type<occ_ast::rnum_ptr_declaration>(decl); r.first)
-                    {
-                        generated_source += generate<occ_ast::rnum_ptr_declaration>(r.second);
-                    }
-                    else if (auto s = check_type<occ_ast::str_ptr_declaration>(decl); s.first)
-                    {
-                        generated_source += generate<occ_ast::str_ptr_declaration>(s.second);
-                    }
-                    else if (auto v = check_type<occ_ast::void_ptr_declaration>(decl); v.first)
-                    {
-                        generated_source += generate<occ_ast::void_ptr_declaration>(v.second);
-                    }*/
 
                     for (int j = 2; j < for_decl.second->get_children().size(); j++) 
                     {

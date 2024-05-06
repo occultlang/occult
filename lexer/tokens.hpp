@@ -33,7 +33,7 @@ namespace occultlang
 	static std::unordered_set<std::string> keyword_set = {
 		"fn", "if", "else", "loop", "import", "ptr", "as", "deref", "in", // null is a keyword
 		"return", "break", "num", "bool", "rnum", "continue", // rnum is real number
-		"str", "true", "false", "void", "while", "for", "match", "array", "generic", "__unsafe"};
+		"str", "true", "false", "void", "while", "for", "match", "array", "generic", "step_by", "range"};
 
 	class token
 	{
