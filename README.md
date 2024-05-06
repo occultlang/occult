@@ -45,7 +45,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Pointers in arrays ***(next)***
 - [ ] Enhance for loops further ***(next)***
 - [x] Remove the unsafe keyword entirely because of memory safety guarantee
-- [ ] Basic static analyzer for Occult (Better error handling + overall safety)
+- [x] Basic static analyzer for Occult (Safety + **IMPROVE MORE**!!!)
 - [ ] Custom safe functions (maybe)
 
 ## Finished v1.0.0-alpha
