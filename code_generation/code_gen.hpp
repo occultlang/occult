@@ -669,7 +669,10 @@ namespace occultlang
                         generated_source += generate<occ_ast::void_ptr_declaration>(v.second);
                     }*/
 
-                    generated_source += generate<occ_ast::body_start>(for_decl.second->get_child(2));
+                    for (int j = 2; j < for_decl.second->get_children().size(); j++) 
+                    {
+                        generated_source += generate<occ_ast::body_start>(for_decl.second->get_child(j));
+                    }
 
                     generated_source += "}\n";
                 }
