@@ -29,21 +29,18 @@ All tests are in the `test_cases` directory
 ## Cleaning
 To clean the build directory just run `clean.sh`
 
+## Future
+- [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
+
 ## To-do v1.1.0-alpha
-- [ ] Guarantee memory safety through different tests
 - [ ] Add pointer math
-- [ ] Better error handling, polishing the language
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax
 - [ ] Add match statements, similar to rust
-- [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
 - [ ] Pointers in arrays
 - [ ] Enhance for loops further
-- [ ] Remove the unsafe keyword entirely because of memory safety guarantee
-- [ ] Basic static analyzer for Occult
-- [ ] Implement safeclib as a replacement for some functions
-- [ ] Implenent modules, and a basic package manager
-- [ ] More thoroughly test before a final release 
+- [x] Remove the unsafe keyword entirely because of memory safety guarantee
+- [ ] Basic static analyzer for Occult (Better error handling + overall safety)
 
 ## Finished v1.0.0-alpha
 - [x] Add basic for loops
