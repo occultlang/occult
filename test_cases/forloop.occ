@@ -1,7 +1,10 @@
 fn main() {
     array: a1 = [1, 2, 3];
     array: a2 = [4, 5, 6];
-    array: arr2d = [a1, a2];
+    array: a3 =  [7,8,9];
+    array: a4 = [10,11,12];
+    array: a5 = [13,14,15];
+    array: arr2d = [a1, a2, a3, a4, a5];
 
     for array: a in arr2d {
         for num: n in a {

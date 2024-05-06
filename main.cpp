@@ -2,6 +2,10 @@
 #include "code_generation/compiler.hpp"
 #include "jit/tinycc_jit.hpp"
 #include "lexer/finder.hpp"
+#include "static_analyzer/static_analyzer.hpp"
+#include <thread>
+
+bool errors = false;
 
 int main(int argc, char *argv[]) {
     bool debug = false;
@@ -52,27 +56,41 @@ int main(int argc, char *argv[]) {
     source_original = ss.str();
     file.close();
 
-    occultlang::finder finder;
+    occultlang::static_analyzer analyzer(source_original);
 
-    source_original = finder.match_and_replace_casts(source_original);
+    analyzer.analyze();
 
-    source_original = finder.match_and_replace_all_array(source_original, "array<generic>");
+    errors = !analyzer.get_error_list().empty();
+    
+    if (!errors) 
+    {
+        occultlang::finder finder;
 
-    source_original = finder.match_and_replace_all(source_original, "null", "NULL");
+        source_original = finder.match_and_replace_casts(source_original);
 
-    //std::cout << source_original << std::endl;
+        source_original = finder.match_and_replace_all_array(source_original, "array<generic>");
 
-    occultlang::compiler compiler{source_original, debug};
+        source_original = finder.match_and_replace_all(source_original, "null", "NULL");
 
-    std::string compiled = compiler.compile();
+        //std::cout << source_original << std::endl;
 
-    occultlang::tinycc_jit jit{compiled, output_file};
+        occultlang::compiler compiler{source_original, debug};
 
-    if (aot) {
-        jit.run_aot();
-    } else {
-        jit.run();
+        std::string compiled = compiler.compile();
+
+        occultlang::tinycc_jit jit{compiled, output_file};
+
+        if (aot) {
+            jit.run_aot();
+        } else {
+            jit.run();
+        }
+
+        return 0;
     }
-
-    return 0;
+    else 
+    {
+        std::cout << analyzer.get_error_list();
+        return 1;
+    }
 }
