@@ -32,6 +32,11 @@ To clean the build directory just run `clean.sh`
 ## Future
 - [ ] Windows support (For now use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install))
 
+# Next
+- [ ] Add match statements, similar to rust
+- [ ] Pointers in arrays
+- [ ] Enhance for loops further
+
 ## To-do v1.1.0-alpha
 - [ ] Add pointer math
 - [ ] Better string support to guarantee safety + syntax
