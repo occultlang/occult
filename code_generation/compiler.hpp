@@ -1,6 +1,7 @@
 #pragma once
 #include "code_gen.hpp"
 #include "../parser/parser.hpp"
+#include "../lexer/finder.hpp"
 
 namespace occultlang
 {

@@ -367,14 +367,6 @@ namespace occultlang
 		}
 	}
 
-	/*
-		type == "array" || type == "num" || type == "rnum" || type == "str" || type == "bool" or pointer variants i guess?  wait no pointers dont have arrays yet...
-
-		for type x in array {
-			// code
-		}
-	*/
-
 	std::shared_ptr<ast> parser::parse_for()
 	{
 		if (match(tk_keyword, "for")) 
@@ -641,6 +633,84 @@ namespace occultlang
 		}
 	}
 
+	std::shared_ptr<ast> parser::parse_ptr_at() 
+	{
+		if (match(tk_identifier))
+		{
+			auto id = parse_identifier();
+
+			if (match(tk_delimiter, ".") && match_next(tk_identifier, "ptr_at"))
+			{
+				consume(tk_delimiter);
+				consume(tk_identifier);
+
+				auto ptr_at = std::make_shared<occ_ast::ptr_at>();
+
+				if (match(tk_delimiter, "("))
+				{
+					consume(tk_delimiter);
+
+					if (match(tk_number_literal))
+					{
+						auto n = parse_number_literal();
+
+						ptr_at->add_child(id);
+						ptr_at->add_child(n);
+
+						if (match(tk_delimiter, ")"))
+							consume(tk_delimiter);
+						else
+							throw occ_runtime_error("no L parenthesis", peek());
+
+						if (match(tk_operator, "="))
+						{
+							ptr_at->add_child(parse_assignment());	
+						}
+					}
+				}
+				else
+					throw occ_runtime_error("no R parenthesis", peek());
+
+
+				return ptr_at;
+			}
+			else
+			{
+				throw occ_runtime_error("ptr_at error", peek());
+			}
+		}
+	}
+
+	std::shared_ptr<ast> parser::parse_ptr_diff() // no assignment
+	{
+		if (match(tk_identifier))
+		{
+			auto id = parse_identifier();
+
+			if (match(tk_delimiter, ".") && match_next(tk_identifier, "ptr_diff"))
+			{
+				consume(tk_delimiter);
+				consume(tk_identifier);
+
+				auto ptr_at = std::make_shared<occ_ast::ptr_diff>();
+
+				if (match(tk_identifier))
+				{
+					auto n = parse_identifier();
+
+					ptr_at->add_child(id);
+					ptr_at->add_child(n);
+				}
+
+				return ptr_at;
+			}
+			else
+			{
+				throw std::runtime_error("idk what to name this error, a ptr diff error?");
+			}
+		}
+	}
+
 	std::shared_ptr<ast> parser::parse_keywords()
 	{
 		if (match(tk_keyword, "if"))
@@ -718,6 +788,14 @@ namespace occultlang
 		else if (match(tk_keyword, "str"))
 		{
 			return parse_declaration();
+		}
+		else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "ptr_at")
+		{
+			return parse_ptr_at();
+		}
+		else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "ptr_diff")
+		{
+			return parse_ptr_diff();
 		}
 		else if (match(tk_identifier) && match_next(tk_operator, "++"))
 		{
@@ -1045,6 +1123,16 @@ namespace occultlang
 			{
 				auto node = parse_dereference();
 				vec.push_back(node);
+			}
+			else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "ptr_at")
+			{
+				auto n = parse_ptr_at();
+				vec.push_back(n);
+			}
+			else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "ptr_diff")
+			{
+				auto n = parse_ptr_diff();
+				vec.push_back(n);
 			}
 			else if (match(tk_identifier))
 			{

@@ -71,7 +71,6 @@ namespace occultlang
 			{NOT_IMPLEMENTED, "Not implemented"},
 			{EXPECTED_BREAK, "Expected break"},
 			{EXPECTED_STRING_LITERAL, "Expected string literal"}};
-
 	public:
 		parser(const std::string &source) : _lexer(source) { tokens = _lexer.lex(); /* occultlang::lexer::visualize(get_tokens());*/ }
 
@@ -114,6 +113,8 @@ namespace occultlang
 		std::shared_ptr<ast> parse_while();
 		std::shared_ptr<ast> parse_for();
 		std::shared_ptr<ast> parse_continue();
+		std::shared_ptr<ast> parse_ptr_at();
+		std::shared_ptr<ast> parse_ptr_diff();
 		void clean_comments();
 		std::shared_ptr<ast> parse();
 	};

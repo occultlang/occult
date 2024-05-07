@@ -4,6 +4,16 @@ namespace occultlang
 {
     std::string compiler::compile()
     {       
+        finder finder;
+
+        source_original = finder.match_and_replace_casts(source_original);
+
+        source_original = finder.match_and_replace_all_array(source_original, "array<generic>");
+
+        source_original = finder.match_and_replace_all(source_original, "null", "NULL");
+
+        std::cout << source_original << std::endl;
+
         occultlang::parser parser{ source_original };
 
         if (debug)

@@ -49,6 +49,8 @@ namespace occultlang
 	  deref_ptr,
 	  range_for,
 	  step_for,
+	  ptr_diff,
+	  ptr_at,
 	  force_end,
 	};
 
@@ -96,6 +98,28 @@ namespace occultlang
 			virtual ast_type get_type() { return ast_type::num_declaration; }
 
 			virtual std::string to_string() { return "num_declaration"; }
+		};
+
+		struct ptr_at : public ast 
+		{
+			ptr_at() : ast() {}
+			virtual ~ptr_at() {}
+			ptr_at(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::ptr_at; }
+
+			virtual std::string to_string() { return "ptr_at"; }
+		};
+
+		struct ptr_diff : public ast 
+		{
+			ptr_diff() : ast() {}
+			virtual ~ptr_diff() {}
+			ptr_diff(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::ptr_diff; }
+
+			virtual std::string to_string() { return "ptr_diff"; }
 		};
 
 		struct range_for : public ast

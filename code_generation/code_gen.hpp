@@ -45,13 +45,13 @@ namespace occultlang
                 {
                     node = root;
                 }
-                
+
                 auto body_end = check_type<occ_ast::force_end>(node);
                 if (body_end.first)
                 {
                     if (debug)
                         std::cout << "force_end: " << body_end.first << std::endl;
-                    
+
                     break;
                 }
 
@@ -257,7 +257,7 @@ namespace occultlang
                             func_defs += "void* ";
                         }
                     }
-                    else 
+                    else
                     {
                         if (next_typename == "void_declaration")
                         {
@@ -303,7 +303,7 @@ namespace occultlang
 
                     if (func_name == "main")
                         generated_source += func_name + "(int argc, char *argv[]";
-                    else 
+                    else
                     {
                         generated_source += func_name + "(";
                         func_defs += func_name + "(";
@@ -311,7 +311,7 @@ namespace occultlang
 
                     for (int i = 0; i < args.size(); i++)
                     {
-                        if (func_name != "main") 
+                        if (func_name != "main")
                         {
                             if (args[i].first == "num_declaration")
                             {
@@ -376,7 +376,7 @@ namespace occultlang
                     {
                         func_defs += ");\n";
                     }
-                    
+
                     if (func_name == "main")
                     {
                         generated_source += "tgc_start(&gc, &argc);\n";
@@ -392,7 +392,7 @@ namespace occultlang
                         generated_source += generate<occ_ast::body_start>(func_decl.second->get_child(idx2), debug, level, func_name);
                     }
 
-                    if (func_name == "main" && next_typename == "void_declaration") 
+                    if (func_name == "main" && next_typename == "void_declaration")
                     {
                         generated_source += "tgc_stop(&gc);\n";
                     }
@@ -400,10 +400,36 @@ namespace occultlang
                     generated_source += "}\n";
                 }
 
+                auto ptr_at = check_type<occ_ast::ptr_at>(node);
+                if (ptr_at.first)
+                {
+                    if (debug)
+                        std::cout << "ptr_at: 1" << std::endl;
+
+                    auto id = check_type<occ_ast::identifier>(ptr_at.second->get_child()).second->content;
+                    auto n = check_type<occ_ast::number_literal>(ptr_at.second->get_child(1)).second->content;
+
+                    generated_source += "ptr_at(" + id + ", " + n + ")";
+
+                    if (ptr_at.second->get_children().size() == 3)
+                    {
+                        if (auto assign = check_type<occ_ast::assignment>(ptr_at.second->get_child(2)); assign.first) 
+                        {
+                            if (debug)
+                                std::cout << "assignment PTR" << std::endl;
+
+                            generated_source += " = ";
+                            generated_source += generate<occ_ast::assignment>(ptr_at.second->get_child(2));
+                            generated_source += ";\n";
+                        }
+                    }
+                }
+                
                 auto deref = check_type<occ_ast::deref_ptr>(node); // todo is make them equal
                 if (deref.first)
                 {
-                    generated_source += "*";
+                    if (!check_type<occ_ast::assignment>(deref.second->get_parent()).first)
+                        generated_source += "*";
                 }
 
                 auto func_call = check_type<occ_ast::function_call>(node);
@@ -417,7 +443,14 @@ namespace occultlang
 
                     for (int idx = 0; idx < func_call.second->get_children().size(); idx++) // we can remove the checking here and just do recursion...
                     {
-                        if (check_type<occ_ast::identifier>(func_call.second->get_child(idx)).first)
+                        if (auto a10 = check_type<occ_ast::ptr_at>(func_call.second->get_child(idx)); a10.first)
+                        {
+                            auto id = check_type<occ_ast::identifier>(a10.second->get_child()).second->content;
+                            auto n = check_type<occ_ast::number_literal>(a10.second->get_child(1)).second->content;
+
+                            generated_source += "ptr_at(" + id + ", " + n + ")";
+                        }
+                        else if (check_type<occ_ast::identifier>(func_call.second->get_child(idx)).first)
                         {
                             auto x = check_type<occ_ast::identifier>(func_call.second->get_child(idx)).second;
 
@@ -466,7 +499,7 @@ namespace occultlang
                 if (id.first)
                 {
                     if (debug)
-                        std::cout << "identifier: " << id.first << std::endl;
+                        std::cout << "identifier: " << id.first << " " << id.second->content << std::endl;
 
                     if (auto a1 = check_type<occ_ast::identifier>(node); a1.first)
                     {
@@ -490,7 +523,7 @@ namespace occultlang
                 auto arr_decl = check_type<occ_ast::array_declaration>(node); // TODO IS STORE TYPE AND USE LATER FOR DYNAMIC TYPES
                 if (arr_decl.first)
                 {
-                    if (check_type<occ_ast::identifier>(arr_decl.second->get_child()).first) 
+                    if (check_type<occ_ast::identifier>(arr_decl.second->get_child()).first)
                     {
                         auto x = check_type<occ_ast::identifier>(arr_decl.second->get_child()).second;
 
@@ -505,7 +538,7 @@ namespace occultlang
 
                         continue;
                     }
-                    //std::cout << "Array declaration found" << std::endl;
+                    // std::cout << "Array declaration found" << std::endl;
 
                     std::string type;
                     std::shared_ptr<occ_ast::identifier> id;
@@ -513,41 +546,41 @@ namespace occultlang
                     if (auto n = check_type<occ_ast::num_declaration>(arr_decl.second->get_child()); n.first)
                     {
                         type = "long";
-                        //std::cout << "Number declaration found" << std::endl;
+                        // std::cout << "Number declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(n.second->get_child()).second;
                     }
                     else if (auto b = check_type<occ_ast::bool_declaration>(arr_decl.second->get_child()); b.first)
                     {
                         type = "long";
-                        //std::cout << "Boolean declaration found" << std::endl;
+                        // std::cout << "Boolean declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(b.second->get_child()).second;
                     }
                     else if (auto f = check_type<occ_ast::float_declaration>(arr_decl.second->get_child()); f.first)
                     {
                         type = "double";
-                        //std::cout << "Float declaration found" << std::endl;
+                        // std::cout << "Float declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(f.second->get_child()).second;
                     }
                     else if (auto s = check_type<occ_ast::string_declaration>(arr_decl.second->get_child()); s.first)
                     {
                         type = "string"; // const char*
-                        //std::cout << "String declaration found" << std::endl;
+                        // std::cout << "String declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(s.second->get_child()).second;
                     }
                     else if (auto a = check_type<occ_ast::array_declaration>(arr_decl.second->get_child()); a.first)
                     {
                         type = "self";
-                        //std::cout << "Array declaration found" << std::endl;
+                        // std::cout << "Array declaration found" << std::endl;
 
                         id = check_type<occ_ast::identifier>(a.second->get_child()).second;
                     }
 
                     generated_source += "dyn_array* ";
-                    //std::cout << "Generating source code" << std::endl;
+                    // std::cout << "Generating source code" << std::endl;
 
                     generated_source += id->content + " = create_array_" + type + "();\n"; // issues with other sizes other than 0
 
@@ -555,13 +588,13 @@ namespace occultlang
                     std::string array_members = "";
 
                     int c_idx = 0;
-  
+
                     c_idx = 0;
                     bool first = false;
                     while (c_idx < id->get_children().size())
                     {
                         auto c = id->get_child(c_idx);
-                        
+
                         if (auto n = check_type<occ_ast::number_literal>(c); n.first)
                         {
                             size++;
@@ -600,19 +633,19 @@ namespace occultlang
                             size++;
                             array_members += "DYN_VECTOR_PUSH_BACK(" + id->content + ", " + a.second->content + ");\n";
                         }
-                        
+
                         c_idx++;
                     }
 
                     generated_source += array_members;
 
-                    //std::cout << "Finished processing array declaration" << std::endl;
+                    // std::cout << "Finished processing array declaration" << std::endl;
                 }
 
-                auto for_decl = check_type<occ_ast::for_declaration>(node); // basic implementation, and VERY strict 
+                auto for_decl = check_type<occ_ast::for_declaration>(node); // basic implementation, and VERY strict
                 if (for_decl.first)
-                {     
-                    for_count++;               
+                {
+                    for_count++;
                     if (debug)
                         std::cout << "for_declaration: " << for_decl.first << std::endl;
 
@@ -622,18 +655,18 @@ namespace occultlang
                     if (array_node.first)
                     {
                         array = array_node.second->content;
-                        
+
                         if (array_node.second->has_child())
                         {
                             auto child_node_array = check_type<occ_ast::step_for>(array_node.second->get_child());
-                            
-                            if(child_node_array.first)
+
+                            if (child_node_array.first)
                             {
                                 auto step_by_num = check_type<occ_ast::number_literal>(child_node_array.second->get_child()).second->content;
                                 generated_source += "for (int __for_index__" + std::to_string(for_count) + " = 0; __for_index__" + std::to_string(for_count) + " < size(" + array + ");" + " __for_index__" + std::to_string(for_count) + " += " + step_by_num + ") {\n";
                             }
                         }
-                        else 
+                        else
                         {
                             generated_source += "for (int __for_index__" + std::to_string(for_count) + " = 0; __for_index__" + std::to_string(for_count) + " < size(" + array + ");" + " __for_index__" + std::to_string(for_count) + "++) {\n";
                         }
@@ -650,11 +683,11 @@ namespace occultlang
                         }
                         else if (auto b = check_type<occ_ast::bool_declaration>(decl); b.first)
                         {
-                            generated_source += "long " +  generate<occ_ast::bool_declaration>(b.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", num_t);\n";
+                            generated_source += "long " + generate<occ_ast::bool_declaration>(b.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", num_t);\n";
                         }
                         else if (auto s = check_type<occ_ast::string_declaration>(decl); s.first)
                         {
-                            generated_source += "char* " +  generate<occ_ast::string_declaration>(s.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", str_t);\n";
+                            generated_source += "char* " + generate<occ_ast::string_declaration>(s.second) + " = at(" + array + ", __for_index__" + std::to_string(for_count) + ", str_t);\n";
                         }
                         else if (auto a = check_type<occ_ast::array_declaration>(decl); a.first)
                         {
@@ -683,7 +716,7 @@ namespace occultlang
                         auto range_2 = check_type<occ_ast::number_literal>(range_node.second->get_child(2)).second->content;
 
                         generated_source += "for (int __for_index__" + std::to_string(for_count) + " = " + range_1 + "; __for_index__" + std::to_string(for_count) + " < " + range_2 + "; +  __for_index__" + std::to_string(for_count) + "++) {\n";
-                        
+
                         auto decl = for_decl.second->get_child(0);
 
                         if (auto n = check_type<occ_ast::num_declaration>(decl); n.first)
@@ -691,10 +724,10 @@ namespace occultlang
                             generated_source += "long " + generate<occ_ast::num_declaration>(n.second) + " = __for_index__" + std::to_string(for_count) + ";\n";
                         }
 
-                        // floating point for range not sure? 
+                        // floating point for range not sure?
                     }
 
-                    for (int j = 2; j < for_decl.second->get_children().size(); j++) 
+                    for (int j = 2; j < for_decl.second->get_children().size(); j++)
                     {
                         generated_source += generate<occ_ast::body_start>(for_decl.second->get_child(j));
                     }
@@ -729,8 +762,8 @@ namespace occultlang
                 {
                     if (debug)
                         std::cout << "postfix or prefix" << std::endl;
-                    
-                    for (int i = 0; i < postfix_prefix.second->get_children().size(); i++) 
+
+                    for (int i = 0; i < postfix_prefix.second->get_children().size(); i++)
                     {
                         auto child = postfix_prefix.second->get_child(i);
 
@@ -932,7 +965,7 @@ namespace occultlang
                     }
                     if (auto a1 = check_type<occ_ast::string_literal>(node); a1.first)
                     {
-                        generated_source += + "\"" + a1.second->content+ "\"";
+                        generated_source += +"\"" + a1.second->content + "\"";
                     }
                 }
 
@@ -975,7 +1008,11 @@ namespace occultlang
                             { // add other types (operators, delimiters, etc)
                                 auto child_assignment = assignment.second->get_child(j);
 
-                                if (auto a1 = check_type<occ_ast::number_literal>(child_assignment); a1.first)
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::number_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += a1.second->content;
                                 }
@@ -1052,7 +1089,11 @@ namespace occultlang
                             { // add other types (operators, delimiters, etc)
                                 auto child_assignment = assignment.second->get_child(j);
 
-                                if (auto a1 = check_type<occ_ast::float_literal>(child_assignment); a1.first)
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::float_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += a1.second->content;
                                 }
@@ -1129,7 +1170,11 @@ namespace occultlang
                             {
                                 auto child_assignment = assignment.second->get_child(j);
 
-                                if (auto a1 = check_type<occ_ast::boolean_literal>(child_assignment); a1.first)
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::boolean_literal>(child_assignment); a1.first)
                                 {
                                     if (a1.second->content == "true")
                                     {
@@ -1213,7 +1258,11 @@ namespace occultlang
                             {
                                 auto child_assignment = assignment.second->get_child(j);
 
-                                if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += "\"" + a1.second->content + "\"";
                                 }
@@ -1290,7 +1339,11 @@ namespace occultlang
                             {
                                 auto child_assignment = assignment.second->get_child(j);
 
-                                if (auto a1 = check_type<occ_ast::number_literal>(child_assignment); a1.first)
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::number_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += a1.second->content;
                                 }
@@ -1368,7 +1421,12 @@ namespace occultlang
                             {
                                 auto child_assignment = assignment.second->get_child(j);
 
-                                if (auto a1 = check_type<occ_ast::float_literal>(child_assignment); a1.first)
+
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::float_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += a1.second->content;
                                 }
@@ -1445,7 +1503,11 @@ namespace occultlang
                             {
                                 auto child_assignment = assignment.second->get_child(j);
 
-                                if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += "\"" + a1.second->content + "\"";
                                 }
@@ -1522,7 +1584,11 @@ namespace occultlang
                             {
                                 auto child_assignment = assignment.second->get_child(j);
 
-                                if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
+                               if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += "\"" + a1.second->content + "\"";
                                 }
@@ -1574,7 +1640,7 @@ namespace occultlang
 
         std::string func_defs;
 
-            std::string lib = R"(
+        std::string lib = R"(
 #include <setjmp.h>
 
 typedef unsigned int uintptr_t; 
@@ -2095,6 +2161,9 @@ typedef struct dyn_array {
         double* rnum;
         char** str;
         struct dyn_array** self;
+        //long** num_ptr;
+        //double** rnum_ptr;
+        //char*** str_ptr; // ?
     };
     
     int size;
@@ -2392,6 +2461,16 @@ void add_self(dyn_array* array, dyn_array* data) {
 #define calloc(n, s) tgc_calloc(&gc, n, s)
 #define realloc(p, s) tgc_realloc(&gc, p, s)
 #define free(p) tgc_free(&gc, p)
-    )";
+
+#define ptr_at(loc, offset) \
+    _Generic((loc), \
+        double*: (double*)((char*)(loc) + (offset) * sizeof(double)), \
+        long*: (long*)((char*)(loc) + (offset) * sizeof(long)), \
+        char**: (char**)((char**)(loc) + (offset)), \
+        dyn_array**: (dyn_array**)((dyn_array**)(loc) + (offset)) \
+    )
+
+#line 1 "<string>"
+)";
     };
 } // occultlang
