@@ -38,7 +38,7 @@ To clean the build directory just run `clean.sh`
 - [ ] Full memory safety
 
 ## To-do v1.1.0-alpha
-- [ ] Add pointer math
+- [X] Add pointer math (Basic)
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax 
 - [ ] Add match statements, similar to rust ***(next)***
