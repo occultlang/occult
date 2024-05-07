@@ -12,7 +12,7 @@ namespace occultlang
 
         source_original = finder.match_and_replace_all(source_original, "null", "NULL");
 
-        std::cout << source_original << std::endl;
+        // std::cout << source_original << std::endl;
 
         occultlang::parser parser{ source_original };
 
