@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 extern "C" {
     #include "libtcc.h"
@@ -16,6 +17,8 @@ namespace occultlang
         std::string source_original;
         std::string filename;
     public:
+        static std::vector<std::string> symbols_tcc;
+
         tinycc_jit(const std::string& source, std::string filename) : source_original(source), filename(filename) 
         {
             tcc = tcc_new();

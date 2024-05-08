@@ -1,5 +1,6 @@
 #pragma once
 #include "../parser/parser.hpp"
+#include "../jit/tinycc_jit.hpp"
 
 namespace occultlang
 {
@@ -62,11 +63,19 @@ namespace occultlang
 
                     auto func_name = check_type<occ_ast::identifier>(func_decl.second->get_child(idx++)).second->content;
 
+                    for (auto &s : tinycc_jit::symbols_tcc)
+                    {
+                        if (s == func_name)
+                        {
+                            std::cerr << "Symbol already exists in backend: " << s << std::endl;
+                        }
+                    }
+
                     for (auto &s : symbols)
                     {
                         if (s == func_name)
                         {
-                            std::cout << "Symbol already exists" << std::endl;
+                            std::cerr << "Symbol already exists: " << s << std::endl;
                         }
                     }
 
@@ -2480,6 +2489,38 @@ void add_self(dyn_array* array, dyn_array* data) {
         char**: (char**)((char**)(loc) + (offset)), \
         dyn_array**: (dyn_array**)((dyn_array**)(loc) + (offset)) \
     )
+
+int safe_strcmp(const char *s1, const char *s2) {
+    if (s1 == NULL && s2 == NULL) {
+        return 0; 
+    } else if (s1 == NULL || s2 == NULL) {
+        return -1;
+    }
+    
+    while (*s1 && *s2) {
+        if (*s1 != *s2) {
+            return *s1 - *s2; 
+        }
+        s1++;
+        s2++;
+    }
+    
+    if (*s1 != *s2) {
+        return *s1 - *s2;
+    }
+    
+    return 0;
+}
+
+int safe_memcmp(const void *s1, const void *s2, size_t n) {
+    if (s1 == NULL && s2 == NULL) {
+        return 0;
+    } else if (s1 == NULL || s2 == NULL) {
+        return -1; 
+    }
+    
+    return memcmp(s1, s2, n);
+}
 
 #line 1 "<string>"
 )";
