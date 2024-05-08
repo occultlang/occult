@@ -35,6 +35,8 @@ To clean the build directory just run `clean.sh`
 
 ## To-do v1.1.0-alpha
 - [X] Add pointer math (Basic)
+- [ ] Array syntax function calls
+- [ ] declare `__dyn_type_identifierhere__` with the array type, define them above the generated code itself for "dynamic" typing for arrays? and keep the argument available for the typename `array.at(0);` `array.at(0, num_t);`
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax 
 - [ ] Add match statements, similar to rust ***(next)***
