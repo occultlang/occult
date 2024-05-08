@@ -14,11 +14,7 @@ git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./buil
 ```
 
 ## Using Occult
-To use Occult, you can just build it using the steps above and run this (Defaults to JIT)
-```sh
-./occultc [-debug] <source.occ> [-o <filename>]
-```
-If you don't need debug or AOT just do this
+To use Occult, you can just build it using the steps above and run this (Defaults to JIT) if you need help, just use the `-h` option
 ```sh
 ./occultc <source.occ>
 ```
