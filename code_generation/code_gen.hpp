@@ -400,6 +400,17 @@ namespace occultlang
                     generated_source += "}\n";
                 }
 
+                auto comma = check_type<occ_ast::comma>(node);
+                if (comma.first)
+                {
+                    if (debug)
+                        std::cout << "comma: " << comma.first << std::endl;
+                    if (auto a1 = check_type<occ_ast::comma>(node); a1.first)
+                    {
+                        generated_source += ", ";
+                    }
+                }
+
                 auto ptr_at = check_type<occ_ast::ptr_at>(node);
                 if (ptr_at.first)
                 {
