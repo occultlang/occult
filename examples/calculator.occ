@@ -1,0 +1,45 @@
+// TODO PARSE CHAR AS NUMBERS
+
+fn user_in_num(str: msg) -> num {
+	num: result = 0;
+	
+    printf("%s", msg);
+
+	scanf("%ld", &result);
+	
+	return result;
+}
+
+fn user_in_str(str: msg) -> str {
+	str: result = "";
+	
+    printf("%s", msg);
+
+	scanf("%s", result);
+	
+	return result;
+}
+
+fn main() {
+	num: num_1 = user_in_num("Number 1: ");
+	str: op = user_in_str("Operation: ");
+	num: num_2 = user_in_num("Number 2: ");
+
+    printf("%ld %s %ld\n", num_1, op, num_2);
+	
+	if strcmp(op, "+") == 0 {
+		print("%ld\n", num_1 + num_2);
+	}
+	else if strcmp(op, "-") == 0 {
+		print("%ld\n", num_1 - num_2);
+	}
+	else if strcmp(op, "*") == 0 {
+		print("%ld\n", num_1 * num_2);
+	}
+	else if strcmp(op, "/") == 0 {
+		print("%ld\n", num_1 / num_2);
+	}
+	else if strcmp(op, "%") == 0 {
+		print("%ld\n", num_1 % num_2);
+	}
+}
