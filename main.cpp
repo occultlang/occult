@@ -5,10 +5,16 @@
 #include <thread>
 #include "setup/setup.hpp"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) 
+{
     occultlang::setup setup;
 
     setup.setup_main(argc, argv);
+
+    if (setup.help) 
+    {
+        return 0;
+    }
 
     occultlang::static_analyzer analyzer{setup.source_original};
 

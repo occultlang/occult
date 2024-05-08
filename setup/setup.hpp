@@ -7,7 +7,8 @@
 namespace occultlang 
 {
     struct setup 
-    {
+    {        
+        bool help = false;
         bool debug = false;
         bool aot = false;
         std::string output_file = "a.out";

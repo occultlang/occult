@@ -4,8 +4,6 @@ namespace occultlang
 {
     void setup::setup_main(int& argc, char **(&argv))
     {
-        bool help = false;
-
         for (int i = 1; i < argc; i++)
         {
             if (std::string(argv[i]) == "-d")
