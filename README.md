@@ -4,6 +4,9 @@
 </p>
 <h1>The Occult Language</h1>
 <p>An enigmatic programming language, aiming to be memory safe.</p>
+<p>
+Also, just Rust without oxidation!!!
+</p>
 <a href="https://occultlang.org/" target="_blank">occultang.org</a>
 </div>
 
