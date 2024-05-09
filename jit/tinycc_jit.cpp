@@ -2,10 +2,6 @@
 
 namespace occultlang 
 {
-    void symbol_callback(void *ctx, const char *name, const void *val) {
-        tinycc_jit::symbols_tcc.push_back(name);
-    }
-
     void tinycc_jit::run()
     {
         if (!tcc) {
@@ -23,8 +19,6 @@ namespace occultlang
             std::cerr << "failed to compile code" << std::endl;
             return;
         }
-
-        tcc_list_symbols(tcc, NULL, symbol_callback);
 
         tcc_run(tcc, 0, 0);
     }
@@ -46,8 +40,6 @@ namespace occultlang
             std::cerr << "failed to compile code" << std::endl;
             return;
         }
-
-        tcc_list_symbols(tcc, NULL, symbol_callback);
 
         tcc_output_file(tcc, filename.c_str());
     }

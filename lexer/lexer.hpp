@@ -32,5 +32,6 @@ namespace occultlang
 		std::vector<token> lex();
 		static std::string get_typename(token_type tt);
 		static void visualize(std::vector<token> &tokens);
+		static token find_nth_token(std::vector<token> &tokens, const std::string &lexeme, int n);
 	};
 } // occultlang

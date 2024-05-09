@@ -24,7 +24,7 @@ namespace occultlang
         if (debug)
             occultlang::ast::visualize(ast);
 
-        occultlang::code_gen code_gen;
+        occultlang::code_gen code_gen{parser};
 
         auto generated = code_gen.generate<occultlang::ast>(ast, debug, occultlang::debug_level::all);
 

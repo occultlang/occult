@@ -359,4 +359,23 @@ namespace occultlang
 			std::cout << std::endl;
 		}
 	}
+
+	token lexer::find_nth_token(std::vector<token> &tokens, const std::string &lexeme, int n)
+	{
+		int count = 0;
+
+		for (auto &tk : tokens)
+		{
+			if (tk.get_lexeme() == lexeme)
+			{
+				count++;
+				
+				if (count == n)
+				{
+					return tk;
+				}
+			}
+		}
+		return token(); // return an empty token if no match found
+	}
 } // occultlang

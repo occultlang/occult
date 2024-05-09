@@ -14,8 +14,46 @@ namespace occultlang
     class code_gen
     {
         std::vector<std::string> symbols;
+        std::vector<std::string> symbols_tcc = {"tgc_sweep",
+                                                "tgc_start",
+                                                "tgc_stop",
+                                                "tgc_pause",
+                                                "tgc_resume",
+                                                "tgc_run",
+                                                "tgc_alloc",
+                                                "tgc_alloc_opt",
+                                                "tgc_calloc",
+                                                "tgc_calloc_opt",
+                                                "tgc_realloc",
+                                                "tgc_free",
+                                                "tgc_set_dtor",
+                                                "tgc_set_flags",
+                                                "tgc_get_flags",
+                                                "tgc_get_dtor",
+                                                "tgc_get_size",
+                                                "create_array_long",
+                                                "create_array_double",
+                                                "create_array_string",
+                                                "create_array_self",
+                                                "get_size",
+                                                "get_num",
+                                                "add_num",
+                                                "set_num",
+                                                "set_self",
+                                                "get_rnum",
+                                                "get_self",
+                                                "add_rnum",
+                                                "set_rnum",
+                                                "get_str",
+                                                "add_str",
+                                                "set_str",
+                                                "add_self",
+                                                "safe_strcmp",
+                                                "safe_memcmp"};
         int for_count = -1; // so it starts at 0
+        parser parser_instance;
     public:
+        code_gen(parser p) : parser_instance(p) {}
         ~code_gen() = default;
 
         template <typename CheckType, typename NodeType>
@@ -63,19 +101,27 @@ namespace occultlang
 
                     auto func_name = check_type<occ_ast::identifier>(func_decl.second->get_child(idx++)).second->content;
 
-                    for (auto &s : tinycc_jit::symbols_tcc)
+                    for (auto &s : symbols_tcc)
                     {
                         if (s == func_name)
                         {
-                            std::cerr << "Symbol already exists in backend: " << s << std::endl;
+                            auto line = lexer::find_nth_token(parser_instance.get_tokens(), s, 2).get_line();
+                            auto col = lexer::find_nth_token(parser_instance.get_tokens(), s, 2).get_column();
+
+                            std::cerr << "Symbol already exists in backend: " << s << " (line: " << line << ", col: " << col << ")" << std::endl;
+                            return "";
                         }
                     }
 
                     for (auto &s : symbols)
                     {
                         if (s == func_name)
-                        {
-                            std::cerr << "Symbol already exists: " << s << std::endl;
+                        {   
+                            auto line = lexer::find_nth_token(parser_instance.get_tokens(), s, 2).get_line();
+                            auto col = lexer::find_nth_token(parser_instance.get_tokens(), s, 2).get_column();
+
+                            std::cerr << "Symbol already exists: " << s << " (line: " << line << ", col: " << col << ")" << std::endl;
+                            return "";
                         }
                     }
 
