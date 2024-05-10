@@ -26,9 +26,14 @@ int main(int argc, char *argv[])
     {
         occultlang::compiler compiler{setup.source_original, setup.debug};
 
-        std::string compiled = compiler.compile();
+        auto compiled = compiler.compile();
 
-        occultlang::tinycc_jit jit{compiled, setup.output_file};
+        if (!compiled.second) 
+        {
+            return 1;
+        }
+
+        occultlang::tinycc_jit jit{compiled.first, setup.output_file};
 
         if (setup.aot) {
             jit.run_aot();

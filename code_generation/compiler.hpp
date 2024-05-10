@@ -11,6 +11,6 @@ namespace occultlang
         std::string source_original;
     public:
         compiler(const std::string& source, bool debug) : source_original(source), debug(debug) {}
-        std::string compile();
+        std::pair<std::string, bool> compile();
     };
 } // occultlang

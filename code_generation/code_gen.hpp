@@ -1,6 +1,7 @@
 #pragma once
 #include "../parser/parser.hpp"
 #include "../jit/tinycc_jit.hpp"
+#include <unordered_map>
 
 namespace occultlang
 {
@@ -13,8 +14,8 @@ namespace occultlang
 
     class code_gen
     {
-        std::vector<std::string> symbols;
-        std::vector<std::string> symbols_tcc = {"tgc_sweep",
+        std::unordered_set<std::string> symbols;
+        std::unordered_set<std::string> symbols_tcc = {"tgc_sweep",
                                                 "tgc_start",
                                                 "tgc_stop",
                                                 "tgc_pause",
@@ -55,6 +56,8 @@ namespace occultlang
     public:
         code_gen(parser p) : parser_instance(p) {}
         ~code_gen() = default;
+
+        std::unordered_set<std::string> get_symbols() { return symbols; }
 
         template <typename CheckType, typename NodeType>
         std::pair<bool, std::shared_ptr<CheckType>> check_type(NodeType node, bool debug = false, int level = 2)
@@ -100,32 +103,32 @@ namespace occultlang
                     int idx = 0;
 
                     auto func_name = check_type<occ_ast::identifier>(func_decl.second->get_child(idx++)).second->content;
-
-                    for (auto &s : symbols_tcc)
+                    
+                    for (auto &symbol : symbols_tcc)
                     {
-                        if (s == func_name)
+                        if (symbol == func_name)
                         {
-                            auto line = lexer::find_nth_token(parser_instance.get_tokens(), s, 2).get_line();
-                            auto col = lexer::find_nth_token(parser_instance.get_tokens(), s, 2).get_column();
+                            auto line = lexer::find_nth_token(parser_instance.get_tokens(), symbol, 2).get_line();
+                            auto col = lexer::find_nth_token(parser_instance.get_tokens(), symbol, 2).get_column();
 
-                            std::cerr << "Symbol already exists in backend: " << s << " (line: " << line << ", col: " << col << ")" << std::endl;
+                            std::cerr << "\033[31mCompilation Error: Symbol already exists in backend: \033[33m" << symbol << "\033[31m (line: " << line << ", col: " << col << ")\033[0m" << std::endl;
                             return "";
                         }
                     }
 
-                    for (auto &s : symbols)
+                    for (auto &symbol : symbols)
                     {
-                        if (s == func_name)
+                        if (symbol == func_name)
                         {   
-                            auto line = lexer::find_nth_token(parser_instance.get_tokens(), s, 2).get_line();
-                            auto col = lexer::find_nth_token(parser_instance.get_tokens(), s, 2).get_column();
+                            auto line = lexer::find_nth_token(parser_instance.get_tokens(), symbol, 2).get_line();
+                            auto col = lexer::find_nth_token(parser_instance.get_tokens(), symbol, 2).get_column();
 
-                            std::cerr << "Symbol already exists: " << s << " (line: " << line << ", col: " << col << ")" << std::endl;
+                            std::cerr << "\033[31mCompilation Error: Symbol already exists: \033[33m" << symbol << "\033[31m (line: " << line << ", col: " << col << ")\033[0m" << std::endl;
                             return "";
                         }
                     }
 
-                    symbols.push_back(func_name);
+                    symbols.emplace(func_name);
 
                     if (debug && level == 0)
                     {

@@ -35,7 +35,7 @@ namespace occultlang
 
     std::string static_analyzer::append_error(std::string msg)
     {
-        return msg + " (line: " + get_current_line_number() + ", col: " + get_current_col_number() + ")\n";
+        return "\033[31mError: " + msg + " (line: " + get_current_line_number() + ", col: " + get_current_col_number() + ")\033[0m\n";
     }
 
     void static_analyzer::analyze()

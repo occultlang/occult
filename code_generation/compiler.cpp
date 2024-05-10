@@ -2,7 +2,7 @@
 
 namespace occultlang
 {
-    std::string compiler::compile()
+    std::pair<std::string, bool> compiler::compile()
     {       
         finder finder;
 
@@ -31,6 +31,12 @@ namespace occultlang
         if (debug)
             std::cout << std::endl << code_gen.func_defs + generated << std::endl << std::endl;
 
-        return code_gen.lib + code_gen.func_defs + generated;
+        if (code_gen.get_symbols().count("main") == 0) 
+        {
+            std::cerr << "\033[31mCompilation Error: No main function found\033[0m\n\033[94mNotice: this also happens if there is a symbol already existing!\033[0m" << std::endl;
+            return std::make_pair("", false);
+        }
+        else 
+            return std::make_pair(code_gen.lib + code_gen.func_defs + generated, true);
     }
 } // occultlang
