@@ -14,6 +14,8 @@ To build Occult just copy and paste this
 ```sh
 git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./build.sh && ./build.sh
 ```
+### Windows
+Check out `win_instructions.md`
 
 ## Using Occult
 To use Occult, you can just build it using the steps above and run this (Defaults to JIT) if you need help, just use the `-h` option
