@@ -1,4 +1,4 @@
-#Steps to build Occult on windows
+# Steps to build Occult on windows
 Install git: <https://git-scm.com/download/win><br>
 Install mingw with codeblocks (its easier): <https://www.fosshub.com/Code-Blocks.html><br>
 Click the `Code Blocks Windows 64 bit (with compiler)` option (should be the first one) <br>
