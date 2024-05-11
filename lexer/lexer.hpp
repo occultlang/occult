@@ -5,6 +5,7 @@
 #include <cctype>
 #include <iostream>
 #include <vector>
+#include <optional>
 
 namespace occultlang
 {

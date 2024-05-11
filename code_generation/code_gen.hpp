@@ -2,6 +2,7 @@
 #include "../parser/parser.hpp"
 #include "../jit/tinycc_jit.hpp"
 #include <unordered_map>
+#include <optional>
 
 namespace occultlang
 {

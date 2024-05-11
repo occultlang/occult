@@ -1,4 +1,5 @@
 #include "static_analyzer.hpp"
+#include <optional>
 
 namespace occultlang 
 {
