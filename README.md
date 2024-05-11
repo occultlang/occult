@@ -30,7 +30,7 @@ All tests are in the `test_cases` directory
 To clean the build directory just run `clean.sh`
 
 ## Long-term
-- [ ] Windows support (We can build windows now, just no code execution)
+- [x] Windows support
 - [ ] OSX Support
 - [ ] Full *Nix Support
 - [ ] Bootstrapping
