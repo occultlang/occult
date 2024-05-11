@@ -1713,11 +1713,14 @@ namespace occultlang
         std::string lib = R"(
 #include <setjmp.h>
 
+#ifndef _WIN32
 typedef unsigned int uintptr_t; 
 typedef uintptr_t size_t; 
 
 #ifndef NULL
 #define NULL ((void*)0)
+#endif
+
 #endif
 
 #define UINTPTR_MAX 0xffffffff

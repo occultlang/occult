@@ -10,6 +10,10 @@ namespace occultlang
         }
 
         tcc_add_library_path(tcc, "./");
+#ifdef  _WIN32
+        tcc_add_include_path(tcc, "./");
+        tcc_add_include_path(tcc, "./include");
+#endif //  _WIN32
 
         tcc_set_options(tcc, "-g -w");
 
@@ -31,6 +35,10 @@ namespace occultlang
         }
 
         tcc_add_library_path(tcc, "./");
+#ifdef  _WIN32
+        tcc_add_include_path(tcc, "./");
+        tcc_add_include_path(tcc, "./include");
+#endif //  _WIN32
 
         tcc_set_options(tcc, "-g -w ");
 
