@@ -15,9 +15,8 @@ To build Occult just copy and paste this
 git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./build.sh && ./build.sh
 ```
 ### Windows
-It uses CodeBlocks GCC, other window's GCC didn't work with arrays... idk why? I would like to know...
-***So you have to follow `win_instructions.md`***
-Check out `win_instructions.md`
+It uses CodeBlocks GCC, other window's GCC didn't work with arrays... idk why? I would like to know...<br>
+***So you have to follow `win_instructions.md`***<br>
 
 ## Using Occult
 To use Occult, you can just build it using the steps above and run this (Defaults to JIT) if you need help, just use the `-h` option
