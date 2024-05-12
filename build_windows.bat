@@ -4,9 +4,10 @@ setlocal
 if not exist "build" (
     git clone https://github.com/TinyCC/tinycc.git
 
+    copy mbuildtcc.bat .\tinycc\win32
     cd .\tinycc\win32
     
-    call build-tcc.bat
+    call mbuildtcc.bat
 	
     move include ..\..\	
     move libtcc.dll ..\..
@@ -28,7 +29,7 @@ move libtcc1.a .\build
 
 rmdir /s /q tinycc
 
-g++ -std=c++2a *.cpp parser/*.cpp static_analyzer/*.cpp lexer/*.cpp code_generation/*.cpp data_structures/*.cpp jit/*.cpp setup/*.cpp  libtcc.dll -o occultc.exe
+cb_g++ -std=c++2a *.cpp parser/*.cpp static_analyzer/*.cpp lexer/*.cpp code_generation/*.cpp data_structures/*.cpp jit/*.cpp setup/*.cpp  libtcc.dll -o occultc.exe
 
 copy libtcc.dll .\build
 move ./occultc.exe .\build
