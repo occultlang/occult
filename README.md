@@ -19,7 +19,7 @@ git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./buil
 ### Windows
 It uses CodeBlocks GCC, other window's GCC didn't work with arrays... idk why? I would like to know...<br>
 Install git <https://git-scm.com/download/win><br>
-***Run `install_gcc.bat` or else Occult won't run properly...***
+***Run `install_gcc.bat` or else Occult won't run properly...*** (You only need to run this once)<br>
 Now you have gcc and then you can run `build_windows.bat`
 
 ## Using Occult
