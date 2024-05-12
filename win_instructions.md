@@ -1,4 +1,4 @@
-# Steps to build Occult on windows (what i did)
+# Steps to build Occult on Windows
 Install git: <https://git-scm.com/download/win><br>
-Install gcc run: `install_gcc.bat` <br>
+### YOU MUST RUN THIS FOR OCCULT TO RUN!! Install gcc run: `install_gcc.bat` <br> 
 Now you have gcc and then you can run `build_windows.bat`<br>
