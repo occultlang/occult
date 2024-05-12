@@ -10,7 +10,9 @@ An enigmatic programming language.
 </div>
 
 ## Building
-To build Occult just copy and paste this
+### Linux
+
+Just copy and paste this command and you're all good to go
 ```sh
 git clone https://github.com/occultlang/occult && cd ./occult && chmod +x ./build.sh && ./build.sh
 ```
