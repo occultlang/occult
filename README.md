@@ -75,10 +75,7 @@ Right now Occult uses TinyCC as a backend for a JIT compiler, and Occult just co
 Without the advances in generative AI, I would have never been able to write a compiler it has helped me so much with learning new concepts and some coding mistakes!
 There's a clear vision for this project in the end to make it bootstrappable so it can compile itself.
 
-## LICENSE
-GNU Lesser General Public License v2.1 (Same as TinyCC)
-
-## Credits
+## Libraries Used
 https://github.com/orangeduck/tgc/tree/master
 
 https://github.com/TinyCC/tinycc
