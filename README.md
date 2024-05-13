@@ -38,7 +38,7 @@ To clean the build directory just run `clean.sh`
 - [x] Windows support
 - [ ] OSX Support (Probably works, I can't test it though)
 - [ ] Bootstrapping
-- [ ] Move away from cross-compilation, and implement a custom JIT engine (NO LLVM)
+- [ ] Move away from cross-compilation
 - [ ] Full memory safety
 
 ## To-do v1.1.0-alpha
