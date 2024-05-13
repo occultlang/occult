@@ -43,13 +43,13 @@ To clean the build directory just run `clean.sh`
 - [ ] Full static analyzer
 
 ## To-do v1.1.0-alpha
-- [X] Add pointer math (Basic)
+- [X] Add basic pointer math
 - [x] Array syntax function calls
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax 
 - [ ] Add match statements, similar to rust 
 - [ ] Pointers in arrays 
-- [x] Enhance for loops further (added range and step_by SAME AS RUST?)
+- [x] Enhance for loops further 
 - [x] Remove the unsafe keyword entirely because of memory safety guarantee
 - [x] Static analyzer base for Occult
 - [ ] Safe functions
