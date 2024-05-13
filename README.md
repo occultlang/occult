@@ -43,7 +43,7 @@ To clean the build directory just run `clean.sh`
 
 ## To-do v1.1.0-alpha
 - [X] Add pointer math (Basic)
-- [ ] Array syntax function calls
+- [x] Array syntax function calls
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax 
 - [ ] Add match statements, similar to rust ***(next)***
