@@ -36,21 +36,22 @@ To clean the build directory just run `clean.sh`
 
 ## Long-term
 - [x] Windows support
-- [ ] OSX Support (Probably works, I can't test it though)
+- [ ] OSX Support 
 - [ ] Bootstrapping
 - [ ] Move away from cross-compilation
 - [ ] Full memory safety
+- [ ] Full static analyzer
 
 ## To-do v1.1.0-alpha
 - [X] Add pointer math (Basic)
 - [x] Array syntax function calls
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax 
-- [ ] Add match statements, similar to rust ***(next)***
-- [ ] Pointers in arrays ***(next)***
+- [ ] Add match statements, similar to rust 
+- [ ] Pointers in arrays 
 - [x] Enhance for loops further (added range and step_by SAME AS RUST?)
 - [x] Remove the unsafe keyword entirely because of memory safety guarantee
-- [x] Basic static analyzer for Occult (Safety + **IMPROVE MORE**!!!)
+- [x] Basic static analyzer for Occult
 - [ ] Safe functions
 
 ## Finished v1.0.0-alpha
