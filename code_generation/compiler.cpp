@@ -29,7 +29,11 @@ namespace occultlang
         auto generated = code_gen.generate<occultlang::ast>(ast, debug, occultlang::debug_level::all);
 
         if (debug)
+        {
+            generated = finder.remove_lonely_semicolons(generated);
+
             std::cout << std::endl << code_gen.func_defs + generated << std::endl << std::endl;
+        }
 
         if (code_gen.get_symbols().count("main") == 0) 
         {

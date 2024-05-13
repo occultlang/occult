@@ -53,5 +53,12 @@ namespace occultlang  // thank copilot so much for helping with this regex code
         return result;
     }
 
+    std::string finder::remove_lonely_semicolons(std::string source)
+    {
+        std::regex pattern(R"(\n;\n)"); 
+        std::string new_source = std::regex_replace(source, pattern, "\n"); 
+        return new_source;  
+    }
+
     /* we need a function that can recursively flatten the jagged arrays into different sub arrays + generate using only flat arrays */
 } // occultlang

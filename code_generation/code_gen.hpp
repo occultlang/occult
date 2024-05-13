@@ -477,11 +477,11 @@ namespace occultlang
                         std::cout << "ptr_at: 1" << std::endl;
 
                     auto id = check_type<occ_ast::identifier>(ptr_at.second->get_child()).second->content;
-                    auto n = check_type<occ_ast::number_literal>(ptr_at.second->get_child(1)).second->content;
+                    auto n = generate<occ_ast::body_start>(ptr_at.second->get_child(1));
 
-                    generated_source += "ptr_at(" + id + ", " + n + ")";
+                    generated_source += "ptr_at(" + id + ", " + n + ";\n";
 
-                    if (ptr_at.second->get_children().size() == 3)
+                    /*if (ptr_at.second->get_children().size() == 3)
                     {
                         if (auto assign = check_type<occ_ast::assignment>(ptr_at.second->get_child(2)); assign.first) 
                         {
@@ -492,9 +492,68 @@ namespace occultlang
                             generated_source += generate<occ_ast::assignment>(ptr_at.second->get_child(2));
                             generated_source += ";\n";
                         }
-                    }
+                    }*/
                 }
-                
+
+                auto array_get = check_type<occ_ast::arr_get>(node);
+                if (array_get.first)
+                {
+                    if (debug)
+                        std::cout << "array_get: " << array_get.first << std::endl;
+
+                    auto id = check_type<occ_ast::identifier>(array_get.second->get_child()).second->content;
+                    auto expr = generate<occ_ast::body_start>(array_get.second->get_child(1));
+
+                    if (!check_type<occ_ast::body_start>(array_get.second->get_parent()).first)
+                        generated_source += "at(" + id + ", " + expr + ";\n"; 
+                    else 
+                        generated_source += "at(" + id + ", " + expr;    
+                }
+
+                auto array_add = check_type<occ_ast::arr_add>(node);
+                if (array_add.first)
+                {
+                    if (debug)
+                        std::cout << "array_add: " << array_add.first << std::endl;
+
+                    auto id = check_type<occ_ast::identifier>(array_add.second->get_child()).second->content;
+                    auto expr = generate<occ_ast::body_start>(array_add.second->get_child(1));
+
+                    //if (!check_type<occ_ast::body_start>(array_add.second->get_parent()).first)
+                        generated_source += "push_back(" + id + ", " + expr + ";\n"; 
+                    //else 
+                       // generated_source += "push_back(" + id + ", " + expr;    
+                }
+
+                auto array_set = check_type<occ_ast::arr_set>(node);
+                if (array_set.first)
+                {
+                    if (debug)
+                        std::cout << "array_set: " << array_set.first << std::endl;
+
+                    auto id = check_type<occ_ast::identifier>(array_set.second->get_child()).second->content;
+                    auto expr = generate<occ_ast::body_start>(array_set.second->get_child(1));
+
+                    //if (!check_type<occ_ast::body_start>(array_set.second->get_parent()).first)
+                        generated_source += "set(" + id + ", " + expr + ";\n"; 
+                    //else 
+                       // generated_source += "set(" + id + ", " + expr + ""; 
+                }
+
+                auto array_size = check_type<occ_ast::arr_size>(node);
+                if (array_size.first)
+                {
+                    if (debug)
+                        std::cout << "array_size: " << array_size.first << std::endl;
+
+                    auto id = check_type<occ_ast::identifier>(array_size.second->get_child()).second->content;
+                    
+                    if (!check_type<occ_ast::body_start>(array_size.second->get_parent()).first)
+                        generated_source += "size(" + id + ");\n";
+                    else 
+                        generated_source += "size(" + id + ")";
+                }
+
                 auto deref = check_type<occ_ast::deref_ptr>(node); // todo is make them equal
                 if (deref.first)
                 {
@@ -511,14 +570,41 @@ namespace occultlang
                         std::cout << "func_call children: " << func_call.second->get_children().size() << std::endl;
                     }
 
-                    for (int idx = 0; idx < func_call.second->get_children().size(); idx++) // we can remove the checking here and just do recursion...
+                    for (int idx = 0; idx < func_call.second->get_children().size(); idx++)
                     {
                         if (auto a10 = check_type<occ_ast::ptr_at>(func_call.second->get_child(idx)); a10.first)
                         {
                             auto id = check_type<occ_ast::identifier>(a10.second->get_child()).second->content;
-                            auto n = check_type<occ_ast::number_literal>(a10.second->get_child(1)).second->content;
+                            auto n = generate<occ_ast::body_start>(a10.second->get_child(1));
 
-                            generated_source += "ptr_at(" + id + ", " + n + ")";
+                            generated_source += "ptr_at(" + id + ", " + n;
+                        }
+                        /*else if (auto a11 = check_type<occ_ast::arr_add>(func_call.second->get_child(idx)); a11.first)
+                        {
+                            auto id = check_type<occ_ast::identifier>(a11.second->get_child()).second->content;
+                            auto expr = generate<occ_ast::body_start>(a11.second->get_child(1));
+
+                            generated_source += "push_back(" + id + ", " + expr; 
+                        }*/
+                        else if (auto a12 = check_type<occ_ast::arr_get>(func_call.second->get_child(idx)); a12.first)
+                        {
+                            auto id = check_type<occ_ast::identifier>(a12.second->get_child()).second->content;
+                            auto expr = generate<occ_ast::body_start>(a12.second->get_child(1));
+
+                            generated_source += "at(" + id + ", " + expr; 
+                        }
+                        /*else if (auto a13 = check_type<occ_ast::arr_set>(func_call.second->get_child(idx)); a13.first)
+                        {
+                            auto id = check_type<occ_ast::identifier>(a13.second->get_child()).second->content;
+                            auto expr = generate<occ_ast::body_start>(a13.second->get_child(1));
+
+                            generated_source += "set(" + id + ", " + expr; 
+                        }*/
+                        else if (auto a14 = check_type<occ_ast::arr_size>(func_call.second->get_child(idx)); a14.first)
+                        {
+                            auto id = check_type<occ_ast::identifier>(a14.second->get_child()).second->content;
+
+                            generated_source += "size(" + id + ")";
                         }
                         else if (check_type<occ_ast::identifier>(func_call.second->get_child(idx)).first)
                         {
@@ -526,7 +612,7 @@ namespace occultlang
 
                             generated_source += x->content;
                         }
-                        else if (check_type<occ_ast::deref_ptr>(func_call.second->get_child(idx)).first) // todo fix this
+                        else if (check_type<occ_ast::deref_ptr>(func_call.second->get_child(idx)).first)
                         {
                             generated_source += "*";
                         }
@@ -2574,6 +2660,25 @@ int safe_memcmp(const void *s1, const void *s2, size_t n) {
     
     return memcmp(s1, s2, n);
 }
+
+int compare_long(const void *a, const void *b) {
+    return *(const long *)a == *(const long *)b;
+}
+
+int compare_double(const void *a, const void *b) {
+    return *(const double *)a == *(const double *)b;
+}
+
+int compare_string(const void *a, const void *b) {
+    return strcmp(*(const char **)a, *(const char **)b) == 0;
+}
+
+#define COMPARE(a, b, type) \
+    _Generic((a), \
+        int: compare_int, \
+        double: compare_double, \
+        char *: compare_string \
+    )(a, b)
 
 #line 1 "<string>"
 )";

@@ -8,7 +8,7 @@
 #include "../data_structures/tree.hpp"
 
 namespace occultlang
-{ // for expressions, operator precedence doesn't matter, we're transpiling, a C compiler will take care of it :)
+{ 	
 	enum ast_type
 	{ 
 	  root,
@@ -49,9 +49,15 @@ namespace occultlang
 	  deref_ptr,
 	  range_for,
 	  step_for,
-	  ptr_diff,
 	  ptr_at,
+	  arr_get,
+	  arr_size,
+	  arr_add,
+	  arr_set,
 	  force_end,
+	  match_statement,
+	  case_statement,
+	  defualt_statement,
 	};
 
 	struct ast : public tree<std::shared_ptr<ast>>
@@ -111,15 +117,48 @@ namespace occultlang
 			virtual std::string to_string() { return "ptr_at"; }
 		};
 
-		struct ptr_diff : public ast 
+		struct arr_get : public ast 
 		{
-			ptr_diff() : ast() {}
-			virtual ~ptr_diff() {}
-			ptr_diff(std::string content) {}
+			arr_get() : ast() {}
+			virtual ~arr_get() {}
+			arr_get(std::string content) {}
 
-			virtual ast_type get_type() { return ast_type::ptr_diff; }
+			virtual ast_type get_type() { return ast_type::arr_get; }
 
-			virtual std::string to_string() { return "ptr_diff"; }
+			virtual std::string to_string() { return "arr_get"; }
+		};
+
+		struct arr_size : public ast 
+		{
+			arr_size() : ast() {}
+			virtual ~arr_size() {}
+			arr_size(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::arr_size; }
+
+			virtual std::string to_string() { return "arr_size"; }
+		};
+
+		struct arr_set : public ast 
+		{
+			arr_set() : ast() {}
+			virtual ~arr_set() {}
+			arr_set(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::arr_set; }
+
+			virtual std::string to_string() { return "arr_set"; }
+		};
+
+		struct arr_add : public ast 
+		{
+			arr_add() : ast() {}
+			virtual ~arr_add() {}
+			arr_add(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::arr_add; }
+
+			virtual std::string to_string() { return "arr_add"; }
 		};
 
 		struct range_for : public ast

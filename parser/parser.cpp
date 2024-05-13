@@ -650,22 +650,21 @@ namespace occultlang
 				{
 					consume(tk_delimiter);
 
-					if (match(tk_number_literal))
+					ptr_at->add_child(id);
+
+					auto n = std::make_shared<occ_ast::body_start>();
+
+					auto expr = parse_expression();
+					for (auto &child : expr->get_children())
 					{
-						auto n = parse_number_literal();
+						child->swap_parent(n);
+					}
 
-						ptr_at->add_child(id);
-						ptr_at->add_child(n);
+					ptr_at->add_child(n);
 
-						if (match(tk_delimiter, ")"))
-							consume(tk_delimiter);
-						else
-							throw occ_runtime_error("no L parenthesis", peek());
-
-						if (match(tk_operator, "="))
-						{
-							ptr_at->add_child(parse_assignment());	
-						}
+					if (match(tk_operator, "="))
+					{
+						ptr_at->add_child(parse_assignment());	
 					}
 				}
 				else
@@ -681,38 +680,166 @@ namespace occultlang
 		}
 	}
 
-	std::shared_ptr<ast> parser::parse_ptr_diff() // no assignment
+	//array.get(expr, type); NO ASSIGNMENT
+	std::shared_ptr<ast> parser::parse_array_get() 
 	{
 		if (match(tk_identifier))
 		{
 			auto id = parse_identifier();
 
-			if (match(tk_delimiter, ".") && match_next(tk_identifier, "ptr_diff"))
+			if (match(tk_delimiter, ".") && match_next(tk_identifier, "get"))
 			{
 				consume(tk_delimiter);
 				consume(tk_identifier);
 
-				auto ptr_at = std::make_shared<occ_ast::ptr_diff>();
+				auto get = std::make_shared<occ_ast::arr_get>();
 
-				if (match(tk_identifier))
+				if (match(tk_delimiter, "("))
 				{
-					auto n = parse_identifier();
+					consume(tk_delimiter);
 
-					ptr_at->add_child(id);
-					ptr_at->add_child(n);
+					get->add_child(id);
+
+					auto n = std::make_shared<occ_ast::body_start>();
+
+					auto expr = parse_expression();
+					for (auto &child : expr->get_children())
+					{
+						child->swap_parent(n);
+					}
+
+					get->add_child(n);
+
+					auto force_end = std::make_shared<occ_ast::force_end>();
+
+					get->add_child(force_end);
+
+					return get;
 				}
-
-				return ptr_at;
-			}
-			else
-			{
-				throw std::runtime_error("idk what to name this error, a ptr diff error?");
 			}
 		}
 	}
 
-	std::shared_ptr<ast> parser::parse_keywords()
+	// array.add(value); NO ASSIGNMENT
+	std::shared_ptr<ast> parser::parse_array_add() 
 	{
+		if (match(tk_identifier))
+		{
+			auto id = parse_identifier();
+
+			if (match(tk_delimiter, ".") && match_next(tk_identifier, "add"))
+			{
+				consume(tk_delimiter);
+				consume(tk_identifier);
+
+				auto add = std::make_shared<occ_ast::arr_add>();
+
+				if (match(tk_delimiter, "("))
+				{
+					consume(tk_delimiter);
+
+					add->add_child(id);
+
+					auto body_start = std::make_shared<occ_ast::body_start>();
+
+					auto expr = parse_expression();
+					for (auto &child : expr->get_children())
+					{
+						child->swap_parent(body_start);
+					}
+
+					add->add_child(body_start);
+
+					auto force_end = std::make_shared<occ_ast::force_end>();
+
+					add->add_child(force_end);
+
+					return add;
+				}
+				else 
+					throw occ_runtime_error("expected (", peek());
+			}
+			else 
+				throw occ_runtime_error("expected .add", peek());
+		}
+		else 
+			throw occ_runtime_error("expected identifier", peek());
+	}
+
+	// array.set(expr, value); NO ASSIGNMENT could also accept other types of values
+	std::shared_ptr<ast> parser::parse_array_set() 
+	{
+		if (match(tk_identifier))
+		{
+			auto id = parse_identifier();
+
+			if (match(tk_delimiter, ".") && match_next(tk_identifier, "set"))
+			{
+				consume(tk_delimiter);
+				consume(tk_identifier);
+
+				auto set = std::make_shared<occ_ast::arr_set>();
+
+				if (match(tk_delimiter, "("))
+				{
+					consume(tk_delimiter);
+
+					set->add_child(id);
+
+					auto n = std::make_shared<occ_ast::body_start>();
+
+					auto expr = parse_expression();
+					for (auto &child : expr->get_children())
+					{
+						child->swap_parent(n);
+					}
+
+					set->add_child(n);
+
+					auto force_end = std::make_shared<occ_ast::force_end>();
+
+					set->add_child(force_end);
+
+					return set;
+				}
+			}
+		}
+	}
+
+	//array.size(); NO ASSIGNMENT
+	std::shared_ptr<ast> parser::parse_array_size() 
+	{
+		if (match(tk_identifier))
+		{
+			auto id = parse_identifier();
+
+			if (match(tk_delimiter, ".") && match_next(tk_identifier, "size"))
+			{
+				consume(tk_delimiter);
+				consume(tk_identifier);
+
+				auto size = std::make_shared<occ_ast::arr_size>();
+
+				if (match(tk_delimiter, "("))
+				{
+					consume(tk_delimiter);
+
+					if (match(tk_delimiter, ")"))
+						consume(tk_delimiter);
+					else
+						throw occ_runtime_error("no R parenthesis", peek());
+
+					size->add_child(id);
+
+					return size;
+				}
+			}
+		}
+	}
+
+
+	std::shared_ptr<ast> parser::parse_keywords()
+	{		
 		if (match(tk_keyword, "if"))
 		{
 			return parse_if();
@@ -793,9 +920,21 @@ namespace occultlang
 		{
 			return parse_ptr_at();
 		}
-		else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "ptr_diff")
+		else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "get")
 		{
-			return parse_ptr_diff();
+			return parse_array_get();
+		}
+		else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "add")
+		{
+			return parse_array_add();
+		}
+		else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "set")
+		{
+			return parse_array_set();
+		}
+		else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "size")
+		{
+			return parse_array_size();
 		}
 		else if (match(tk_identifier) && match_next(tk_operator, "++"))
 		{
@@ -1109,7 +1248,7 @@ namespace occultlang
 		}
 	}
 
-	std::vector<std::shared_ptr<ast>> parser::parse_term()
+	std::vector<std::shared_ptr<ast>> parser::parse_term() // does this work with i++?
 	{
 		std::vector<std::shared_ptr<ast>> vec;
 
@@ -1129,9 +1268,24 @@ namespace occultlang
 				auto n = parse_ptr_at();
 				vec.push_back(n);
 			}
-			else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "ptr_diff")
+			else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "get")
 			{
-				auto n = parse_ptr_diff();
+				auto n = parse_array_get();
+				vec.push_back(n);
+			}
+			else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "set")
+			{
+				auto n = parse_array_set();
+				vec.push_back(n);
+			}
+			else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "add")
+			{
+				auto n = parse_array_add();
+				vec.push_back(n);
+			}
+			else if (match(tk_identifier) && match_next(tk_delimiter, ".") && peek(2).get_lexeme() == "size")
+			{
+				auto n = parse_array_size();
 				vec.push_back(n);
 			}
 			else if (match(tk_identifier))

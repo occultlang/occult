@@ -1,7 +1,13 @@
+fn get_3() -> num {
+    return 3;
+}
+
 fn main() { // basic pointer math implemented in occult
     num ptr: x = malloc(8); // sizeof(long)
 
-    deref x.ptr_at(0) = 3; // same as deref x
+    num: n = 0;
+
+    deref x.ptr_at(1 * (n + -1) + 1) = get_3(); // same as deref x
     
     num: x_clone = deref x.ptr_at(0);
 
@@ -13,5 +19,5 @@ fn main() { // basic pointer math implemented in occult
 
     //num: diff = (x - new_mem) as num; FIX THIS IT DOESNT WORK WITH PARENTHESIS???!!!!
 
-    printf("difference in memory: %ld\n", new_mem - x as num);
+    printf("difference in memory: %ld\n", new_mem - x as num); 
 }

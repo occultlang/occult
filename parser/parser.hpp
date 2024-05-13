@@ -5,7 +5,7 @@
 #include <variant>
 #include <functional>
 #include <optional>
-#include <unordered_map>'
+#include <unordered_map>
 #include <tuple>
 #include <stack>
 #include "error.hpp"
@@ -114,7 +114,10 @@ namespace occultlang
 		std::shared_ptr<ast> parse_for();
 		std::shared_ptr<ast> parse_continue();
 		std::shared_ptr<ast> parse_ptr_at();
-		std::shared_ptr<ast> parse_ptr_diff();
+		std::shared_ptr<ast> parse_array_get();
+		std::shared_ptr<ast> parse_array_add();
+		std::shared_ptr<ast> parse_array_set();
+		std::shared_ptr<ast> parse_array_size();
 		void clean_comments();
 		std::shared_ptr<ast> parse();
 	};
