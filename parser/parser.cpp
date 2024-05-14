@@ -561,11 +561,6 @@ namespace occultlang
 		}
 	}
 
-	std::shared_ptr<ast> parser::parse_match() 
-	{
-		throw occ_runtime_error(parse_exceptions[NOT_IMPLEMENTED], peek());
-	}
-
 	std::shared_ptr<ast> parser::parse_break()
 	{
 		if (match(tk_keyword, "break"))
@@ -837,6 +832,144 @@ namespace occultlang
 		}
 	}
 
+	/*
+		match expr {
+			case expr {
+
+			}
+
+			case expr {
+
+			}
+
+			/.../
+
+			default {
+
+			}
+		}
+	*/
+
+	std::shared_ptr<ast> parser::parse_case() 
+	{
+		if (match(tk_keyword, "case"))
+		{
+			consume(tk_keyword);
+
+			auto case_stmt = std::make_shared<occ_ast::case_statement>();
+
+			auto expr_main = parse_expression();
+			for (auto &child : expr_main->get_children())
+			{
+				child->swap_parent(case_stmt);
+			}
+
+			if (match(tk_delimiter, "{"))
+			{
+				consume(tk_delimiter);
+
+				while (!match(tk_delimiter, "}"))
+				{
+					auto statement = std::make_shared<occ_ast::body_start>();
+
+					statement->add_child(parse_keywords()); // body
+
+					if (match(tk_delimiter, ";"))
+					{
+						consume(tk_delimiter);
+					}
+
+					if (statement)
+					{
+						case_stmt->add_child(statement);
+					}
+
+					statement->add_child(std::make_shared<occ_ast::body_end>());
+				}
+
+				consume(tk_delimiter);
+			}
+
+			return case_stmt;
+		}
+	}
+
+	std::shared_ptr<ast> parser::parse_default() 
+	{
+		if (match(tk_keyword, "default"))
+		{
+			consume(tk_keyword);
+
+			auto default_stmt = std::make_shared<occ_ast::default_statement>();
+
+			if (match(tk_delimiter, "{"))
+			{
+				consume(tk_delimiter);
+
+				while (!match(tk_delimiter, "}"))
+				{
+					auto statement = std::make_shared<occ_ast::body_start>();
+
+					statement->add_child(parse_keywords()); // body
+
+					if (match(tk_delimiter, ";"))
+					{
+						consume(tk_delimiter);
+					}
+
+					if (statement)
+					{
+						default_stmt->add_child(statement);
+					}
+
+					statement->add_child(std::make_shared<occ_ast::body_end>());
+				}
+
+				consume(tk_delimiter);
+			}
+
+			return default_stmt;
+		}
+	}
+
+	std::shared_ptr<ast> parser::parse_match() 
+	{
+		if (match(tk_keyword, "match"))
+		{
+			consume(tk_keyword);
+
+			auto match_stmt = std::make_shared<occ_ast::match_statement>();
+
+			auto expr_main = parse_expression();
+			for (auto &child : expr_main->get_children())
+			{
+				child->swap_parent(match_stmt);
+			}
+
+			if (match(tk_delimiter, "{"))
+			{
+				consume(tk_delimiter);
+
+				while (!match(tk_delimiter, "}"))
+				{
+					if (match(tk_keyword, "case")) 
+					{
+						auto case_stmt = parse_case();
+						match_stmt->add_child(case_stmt);
+					}
+					else if (match(tk_keyword, "default"))
+					{
+						auto default_stmt = parse_default();
+						match_stmt->add_child(default_stmt);
+					}
+				}
+
+				consume(tk_delimiter);
+			}
+
+			return match_stmt;
+		}
+	}
 
 	std::shared_ptr<ast> parser::parse_keywords()
 	{		
@@ -851,6 +984,10 @@ namespace occultlang
 		else if (match(tk_keyword, "else"))
 		{
 			return parse_else();
+		}
+		else if (match(tk_keyword, "match"))
+		{
+			return parse_match();
 		}
 		else if (match(tk_keyword, "loop"))
 		{

@@ -57,7 +57,7 @@ namespace occultlang
 	  force_end,
 	  match_statement,
 	  case_statement,
-	  defualt_statement,
+	  default_statement,
 	};
 
 	struct ast : public tree<std::shared_ptr<ast>>
@@ -104,6 +104,39 @@ namespace occultlang
 			virtual ast_type get_type() { return ast_type::num_declaration; }
 
 			virtual std::string to_string() { return "num_declaration"; }
+		};
+
+		struct match_statement : public ast 
+		{			
+			match_statement() : ast() {}
+			virtual ~match_statement() {}
+			match_statement(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::match_statement; }
+
+			virtual std::string to_string() { return "match_statement"; }
+		};
+
+		struct case_statement : public ast
+		{
+			case_statement() : ast() {}
+			virtual ~case_statement() {}
+			case_statement(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::case_statement; }
+
+			virtual std::string to_string() { return "case_statement"; }
+		};
+
+		struct default_statement : public ast
+		{
+			default_statement() : ast() {}
+			virtual ~default_statement() {}
+			default_statement(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::default_statement; }
+
+			virtual std::string to_string() { return "default_statement"; }
 		};
 
 		struct ptr_at : public ast 

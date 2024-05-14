@@ -470,6 +470,12 @@ namespace occultlang
                     }
                 }
 
+                auto match = check_type<occ_ast::match_statement>(node);
+                if (match.first)
+                {
+
+                }
+
                 auto ptr_at = check_type<occ_ast::ptr_at>(node);
                 if (ptr_at.first)
                 {

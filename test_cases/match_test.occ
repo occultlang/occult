@@ -1,0 +1,31 @@
+fn user_in_num(str: msg) -> num {
+	num: result = 0;
+    
+	print("%s", msg);
+
+	scanf("%ld", &result);
+	
+	return result;
+}
+
+fn main() {
+    num: i = user_in_num("number to match: ");
+
+    match i {
+        case 1 {
+            print("matched 1\n");
+        }
+
+        case 2 {
+            print("matched 2\n");
+        }
+
+        case 3 {
+            print("matched 3\n");
+        }
+
+        default {
+            print("no match\n");
+        }
+    }
+}
