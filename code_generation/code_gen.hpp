@@ -724,10 +724,16 @@ namespace occultlang
                     auto id = check_type<occ_ast::identifier>(array_get.second->get_child()).second->content;
                     auto expr = generate<occ_ast::body_start>(array_get.second->get_child(1));
 
-                    if (!check_type<occ_ast::body_start>(array_get.second->get_parent()).first)
-                        generated_source += "at(" + id + ", " + expr + ";\n";
-                    else
+                     if (check_type<occ_ast::if_declaration>(array_get.second->get_parent()).first)
                         generated_source += "at(" + id + ", " + expr;
+                    else if (check_type<occ_ast::elseif_declaration>(array_get.second->get_parent()).first)
+                        generated_source += "at(" + id + ", " + expr;
+                    else if (check_type<occ_ast::while_declaration>(array_get.second->get_parent()).first)
+                        generated_source += "at(" + id + ", " + expr;
+                    else if (check_type<occ_ast::body_start>(array_get.second->get_parent()).first)
+                        generated_source += "at(" + id + ", " + expr;
+                    else 
+                        generated_source += "at(" + id + ", " + expr + ";\n";
                 }
 
                 auto array_add = check_type<occ_ast::arr_add>(node);
@@ -768,10 +774,17 @@ namespace occultlang
 
                     auto id = check_type<occ_ast::identifier>(array_size.second->get_child()).second->content;
 
-                    if (!check_type<occ_ast::body_start>(array_size.second->get_parent()).first)
-                        generated_source += "size(" + id + ");\n";
-                    else
+                   
+                    if (check_type<occ_ast::if_declaration>(array_size.second->get_parent()).first)
                         generated_source += "size(" + id + ")";
+                    else if (check_type<occ_ast::elseif_declaration>(array_size.second->get_parent()).first)
+                        generated_source += "size(" + id + ")";
+                    else if (check_type<occ_ast::while_declaration>(array_size.second->get_parent()).first)
+                        generated_source += "size(" + id + ")";
+                    else if (check_type<occ_ast::body_start>(array_size.second->get_parent()).first)
+                        generated_source += "size(" + id + ")";
+                    else 
+                        generated_source += "size(" + id + ");\n";
                 }
 
                 auto deref = check_type<occ_ast::deref_ptr>(node); // todo is make them equal
@@ -1388,6 +1401,14 @@ namespace occultlang
                                 {
                                     generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
                                 }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
                                 else if (auto a1 = check_type<occ_ast::number_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += a1.second->content;
@@ -1469,6 +1490,14 @@ namespace occultlang
                                 {
                                     generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
                                 }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
                                 else if (auto a1 = check_type<occ_ast::float_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += a1.second->content;
@@ -1547,6 +1576,14 @@ namespace occultlang
                                 auto child_assignment = assignment.second->get_child(j);
 
                                 if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
                                 {
                                     generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
                                 }
@@ -1642,6 +1679,14 @@ namespace occultlang
                                 {
                                     generated_source += "\"" + a1.second->content + "\"";
                                 }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
                                 else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
                                 {
                                     generated_source += a2.second->content;
@@ -1722,6 +1767,14 @@ namespace occultlang
                                 else if (auto a1 = check_type<occ_ast::number_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += a1.second->content;
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
                                 }
                                 else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
                                 {
@@ -1805,6 +1858,14 @@ namespace occultlang
                                 {
                                     generated_source += a1.second->content;
                                 }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
                                 else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
                                 {
                                     generated_source += a2.second->content;
@@ -1886,6 +1947,14 @@ namespace occultlang
                                 {
                                     generated_source += "\"" + a1.second->content + "\"";
                                 }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
                                 else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
                                 {
                                     generated_source += a2.second->content;
@@ -1966,6 +2035,14 @@ namespace occultlang
                                 else if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
                                 {
                                     generated_source += "\"" + a1.second->content + "\"";
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
                                 }
                                 else if (auto a6 = check_type<occ_ast::number_literal>(child_assignment); a6.first)
                                 {
