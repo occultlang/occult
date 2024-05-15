@@ -47,7 +47,7 @@ To clean the build directory just run `clean.sh`
 - [x] Array syntax function calls
 - [ ] Better string support to guarantee safety + syntax
 - [ ] Better multidimensional array syntax 
-- [ ] Add match statements
+- [x] Add match statements
 - [ ] Pointers in arrays 
 - [x] Enhance for loops further 
 - [x] Remove the unsafe keyword entirely because of memory safety guarantee
