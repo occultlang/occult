@@ -17,43 +17,44 @@ namespace occultlang
     {
         std::unordered_set<std::string> symbols;
         std::unordered_set<std::string> symbols_tcc = {"tgc_sweep",
-                                                "tgc_start",
-                                                "tgc_stop",
-                                                "tgc_pause",
-                                                "tgc_resume",
-                                                "tgc_run",
-                                                "tgc_alloc",
-                                                "tgc_alloc_opt",
-                                                "tgc_calloc",
-                                                "tgc_calloc_opt",
-                                                "tgc_realloc",
-                                                "tgc_free",
-                                                "tgc_set_dtor",
-                                                "tgc_set_flags",
-                                                "tgc_get_flags",
-                                                "tgc_get_dtor",
-                                                "tgc_get_size",
-                                                "create_array_long",
-                                                "create_array_double",
-                                                "create_array_string",
-                                                "create_array_self",
-                                                "get_size",
-                                                "get_num",
-                                                "add_num",
-                                                "set_num",
-                                                "set_self",
-                                                "get_rnum",
-                                                "get_self",
-                                                "add_rnum",
-                                                "set_rnum",
-                                                "get_str",
-                                                "add_str",
-                                                "set_str",
-                                                "add_self",
-                                                "safe_strcmp",
-                                                "safe_memcmp"};
+                                                       "tgc_start",
+                                                       "tgc_stop",
+                                                       "tgc_pause",
+                                                       "tgc_resume",
+                                                       "tgc_run",
+                                                       "tgc_alloc",
+                                                       "tgc_alloc_opt",
+                                                       "tgc_calloc",
+                                                       "tgc_calloc_opt",
+                                                       "tgc_realloc",
+                                                       "tgc_free",
+                                                       "tgc_set_dtor",
+                                                       "tgc_set_flags",
+                                                       "tgc_get_flags",
+                                                       "tgc_get_dtor",
+                                                       "tgc_get_size",
+                                                       "create_array_long",
+                                                       "create_array_double",
+                                                       "create_array_string",
+                                                       "create_array_self",
+                                                       "get_size",
+                                                       "get_num",
+                                                       "add_num",
+                                                       "set_num",
+                                                       "set_self",
+                                                       "get_rnum",
+                                                       "get_self",
+                                                       "add_rnum",
+                                                       "set_rnum",
+                                                       "get_str",
+                                                       "add_str",
+                                                       "set_str",
+                                                       "add_self",
+                                                       "safe_strcmp",
+                                                       "safe_memcmp"};
         int for_count = -1; // so it starts at 0
         parser parser_instance;
+
     public:
         code_gen(parser p) : parser_instance(p) {}
         ~code_gen() = default;
@@ -104,7 +105,7 @@ namespace occultlang
                     int idx = 0;
 
                     auto func_name = check_type<occ_ast::identifier>(func_decl.second->get_child(idx++)).second->content;
-                    
+
                     for (auto &symbol : symbols_tcc)
                     {
                         if (symbol == func_name)
@@ -120,7 +121,7 @@ namespace occultlang
                     for (auto &symbol : symbols)
                     {
                         if (symbol == func_name)
-                        {   
+                        {
                             auto line = lexer::find_nth_token(parser_instance.get_tokens(), symbol, 2).get_line();
                             auto col = lexer::find_nth_token(parser_instance.get_tokens(), symbol, 2).get_column();
 
@@ -473,7 +474,220 @@ namespace occultlang
                 auto match = check_type<occ_ast::match_statement>(node);
                 if (match.first)
                 {
+                    // expr
+                    if (debug)
+                        std::cout << "match: " << match.first << std::endl;
 
+                    auto compare_left = std::string("");
+
+                    for (int idx = 0; idx < match.second->get_children().size(); idx++)
+                    {
+                        if (auto case_ = check_type<occ_ast::case_statement>(match.second->get_child(idx)); case_.first)
+                        {
+                            break;
+                        }
+
+                        if (auto a10 = check_type<occ_ast::ptr_at>(match.second->get_child(idx)); a10.first)
+                        {
+                            auto id = check_type<occ_ast::identifier>(a10.second->get_child()).second->content;
+                            auto n = generate<occ_ast::body_start>(a10.second->get_child(1));
+
+                            compare_left += "ptr_at(" + id + ", " + n;
+                        }
+                        else if (auto a12 = check_type<occ_ast::arr_get>(match.second->get_child(idx)); a12.first)
+                        {
+                            auto id = check_type<occ_ast::identifier>(a12.second->get_child()).second->content;
+                            auto expr = generate<occ_ast::body_start>(a12.second->get_child(1));
+
+                            compare_left += "at(" + id + ", " + expr;
+                        }
+                        else if (auto a14 = check_type<occ_ast::arr_size>(match.second->get_child(idx)); a14.first)
+                        {
+                            auto id = check_type<occ_ast::identifier>(a14.second->get_child()).second->content;
+
+                            compare_left += "size(" + id + ")";
+                        }
+                        else if (check_type<occ_ast::identifier>(match.second->get_child(idx)).first)
+                        {
+                            auto x = check_type<occ_ast::identifier>(match.second->get_child(idx)).second;
+
+                            compare_left += x->content;
+                        }
+                        else if (check_type<occ_ast::deref_ptr>(match.second->get_child(idx)).first)
+                        {
+                            compare_left += "*";
+                        }
+                        else if (check_type<occ_ast::string_literal>(match.second->get_child(idx)).first)
+                        {
+                            auto x = check_type<occ_ast::string_literal>(match.second->get_child(idx)).second;
+                            compare_left += "\"" + x->content + "\"";
+                        }
+                        else if (check_type<occ_ast::delimiter_declaration>(match.second->get_child(idx)).first)
+                        {
+                            auto x = check_type<occ_ast::delimiter_declaration>(match.second->get_child(idx)).second;
+                            compare_left += x->content;
+                        }
+                        else if (check_type<occ_ast::operator_declaration>(match.second->get_child(idx)).first)
+                        {
+                            auto x = check_type<occ_ast::operator_declaration>(match.second->get_child(idx)).second;
+                            compare_left += x->content;
+                        }
+                        else if (check_type<occ_ast::number_literal>(match.second->get_child(idx)).first)
+                        {
+                            auto x = check_type<occ_ast::number_literal>(match.second->get_child(idx)).second;
+                            compare_left += x->content;
+                        }
+                        else if (check_type<occ_ast::comma>(match.second->get_child(idx)).first)
+                        {
+                            auto x = check_type<occ_ast::comma>(match.second->get_child(idx)).second;
+                            compare_left += ", ";
+                        }
+                        else if (check_type<occ_ast::float_literal>(match.second->get_child(idx)).first)
+                        {
+                            auto x = check_type<occ_ast::float_literal>(match.second->get_child(idx)).second;
+                            compare_left += x->content;
+                        }
+                    }
+
+                    if (debug)
+                    {
+                        std::cout << "compare_left: " << compare_left << std::endl;
+                    }
+                    
+                    std::vector<std::string> compare_right;
+                    std::vector<std::string> right_bodies; 
+
+                    for (int idx = 0; idx < match.second->get_children().size(); idx++) 
+                    {
+                        auto case_ = check_type<occ_ast::case_statement>(match.second->get_child(idx));
+
+                        if (case_.first)
+                        {
+                            auto child = case_.second;
+                            auto _compare_right = std::string("");
+                            auto _right_bodies = std::string("");
+
+                            for (auto case_idx = 0; case_idx < child->get_children().size(); case_idx++)
+                            {
+                                auto c = child->get_child(case_idx);
+
+                                if (check_type<occ_ast::body_start>(c).first)
+                                {
+                                    _right_bodies += generate<occ_ast::body_start>(c);
+                                }
+
+                                if (auto c_n = check_type<occ_ast::number_literal>(c); c_n.first) // other cases
+                                {
+                                    _compare_right += c_n.second->content;
+                                }
+                                else if (auto c_f = check_type<occ_ast::float_literal>(c); c_f.first)
+                                {
+                                    _compare_right += c_f.second->content;
+                                }
+                                else if (auto c_i = check_type<occ_ast::identifier>(c); c_i.first)
+                                {
+                                    _compare_right += c_i.second->content;
+                                }
+                                else if (auto c_s = check_type<occ_ast::string_literal>(c); c_s.first)
+                                {
+                                    _compare_right += "\"" + c_s.second->content + "\"";
+                                }
+                                else if (auto c_d = check_type<occ_ast::delimiter_declaration>(c); c_d.first)
+                                {
+                                    _compare_right += c_d.second->content;
+                                }
+                                else if (auto c_o = check_type<occ_ast::operator_declaration>(c); c_o.first)
+                                {
+                                    _compare_right += c_o.second->content;
+                                }
+                                else if (auto c_c = check_type<occ_ast::comma>(c); c_c.first)
+                                {
+                                    _compare_right += ", ";
+                                }
+                                else if (auto c_deref = check_type<occ_ast::deref_ptr>(c); c_deref.first)
+                                {
+                                    _compare_right += "*";
+                                }
+                                else if (auto c_at = check_type<occ_ast::arr_get>(c); c_at.first)
+                                {
+                                    auto id = check_type<occ_ast::identifier>(c_at.second->get_child()).second->content;
+                                    auto expr = generate<occ_ast::body_start>(c_at.second->get_child(1));
+
+                                    _compare_right += "at(" + id + ", " + expr;
+                                }
+                                else if (auto c_size = check_type<occ_ast::arr_size>(c); c_size.first)
+                                {
+                                    auto id = check_type<occ_ast::identifier>(c_size.second->get_child()).second->content;
+
+                                    _compare_right += "size(" + id + ")";
+                                }
+                                else if (auto c_ptr = check_type<occ_ast::ptr_at>(c); c_ptr.first)
+                                {
+                                    auto id = check_type<occ_ast::identifier>(c_ptr.second->get_child()).second->content;
+                                    auto n = generate<occ_ast::body_start>(c_ptr.second->get_child(1));
+
+                                    _compare_right += "ptr_at(" + id + ", " + n;
+                                }
+                            }
+
+                            if (debug)
+                            {
+                                std::cout << "compare_right: " << _compare_right << std::endl;
+                                std::cout << "right_bodies: " << _right_bodies << std::endl;
+                            }
+
+                            compare_right.push_back(_compare_right);
+                            _compare_right = "";
+
+                            right_bodies.push_back(_right_bodies);
+                            _right_bodies = "";
+                        }
+                    }
+
+                    if (debug)
+                    {
+                        std::cout << "compare_right size: " << compare_right.size() << std::endl;
+                        std::cout << "right_bodies size: " << right_bodies.size() << std::endl;
+                    }
+
+                    bool first = true;
+
+                    if (compare_right.size() != right_bodies.size())
+                        throw std::runtime_error("not the right_bodies size for the compare_right size (!=)");
+                    else 
+                    {
+                        for (int cr_sz_idx = 0; cr_sz_idx < compare_right.size(); cr_sz_idx++)
+                        {
+                            if (first)
+                            {
+                                generated_source += "if (COMPARE(" + compare_left + ", " + compare_right[cr_sz_idx] + ")) {\n";
+                                first = false;
+                            }
+                            else
+                            {
+                                generated_source += "else if (COMPARE(" + compare_left + ", " + compare_right[cr_sz_idx] + ")) {\n";
+                            }
+
+                            generated_source += right_bodies[cr_sz_idx];
+                            generated_source += "}\n";
+                        }
+                    }
+
+                    // default ONLY ONE CASE
+                    for (int idx = 0; idx < match.second->get_children().size(); idx++)
+                    {
+                        if (auto default_ = check_type<occ_ast::default_statement>(match.second->get_child(idx)); default_.first)
+                        {
+                            if (debug)
+                                std::cout << "default: " << default_.first << std::endl;
+
+                            auto child = default_.second;
+
+                            generated_source += "else {\n";
+                            generated_source += generate<occ_ast::body_start>(child->get_child());
+                            generated_source += "}\n";
+                        }
+                    }
                 }
 
                 auto ptr_at = check_type<occ_ast::ptr_at>(node);
@@ -489,7 +703,7 @@ namespace occultlang
 
                     /*if (ptr_at.second->get_children().size() == 3)
                     {
-                        if (auto assign = check_type<occ_ast::assignment>(ptr_at.second->get_child(2)); assign.first) 
+                        if (auto assign = check_type<occ_ast::assignment>(ptr_at.second->get_child(2)); assign.first)
                         {
                             if (debug)
                                 std::cout << "assignment PTR" << std::endl;
@@ -511,9 +725,9 @@ namespace occultlang
                     auto expr = generate<occ_ast::body_start>(array_get.second->get_child(1));
 
                     if (!check_type<occ_ast::body_start>(array_get.second->get_parent()).first)
-                        generated_source += "at(" + id + ", " + expr + ";\n"; 
-                    else 
-                        generated_source += "at(" + id + ", " + expr;    
+                        generated_source += "at(" + id + ", " + expr + ";\n";
+                    else
+                        generated_source += "at(" + id + ", " + expr;
                 }
 
                 auto array_add = check_type<occ_ast::arr_add>(node);
@@ -525,10 +739,10 @@ namespace occultlang
                     auto id = check_type<occ_ast::identifier>(array_add.second->get_child()).second->content;
                     auto expr = generate<occ_ast::body_start>(array_add.second->get_child(1));
 
-                    //if (!check_type<occ_ast::body_start>(array_add.second->get_parent()).first)
-                        generated_source += "push_back(" + id + ", " + expr + ";\n"; 
-                    //else 
-                       // generated_source += "push_back(" + id + ", " + expr;    
+                    // if (!check_type<occ_ast::body_start>(array_add.second->get_parent()).first)
+                    generated_source += "push_back(" + id + ", " + expr + ";\n";
+                    // else
+                    //  generated_source += "push_back(" + id + ", " + expr;
                 }
 
                 auto array_set = check_type<occ_ast::arr_set>(node);
@@ -540,10 +754,10 @@ namespace occultlang
                     auto id = check_type<occ_ast::identifier>(array_set.second->get_child()).second->content;
                     auto expr = generate<occ_ast::body_start>(array_set.second->get_child(1));
 
-                    //if (!check_type<occ_ast::body_start>(array_set.second->get_parent()).first)
-                        generated_source += "set(" + id + ", " + expr + ";\n"; 
-                    //else 
-                       // generated_source += "set(" + id + ", " + expr + ""; 
+                    // if (!check_type<occ_ast::body_start>(array_set.second->get_parent()).first)
+                    generated_source += "set(" + id + ", " + expr + ";\n";
+                    // else
+                    //  generated_source += "set(" + id + ", " + expr + "";
                 }
 
                 auto array_size = check_type<occ_ast::arr_size>(node);
@@ -553,10 +767,10 @@ namespace occultlang
                         std::cout << "array_size: " << array_size.first << std::endl;
 
                     auto id = check_type<occ_ast::identifier>(array_size.second->get_child()).second->content;
-                    
+
                     if (!check_type<occ_ast::body_start>(array_size.second->get_parent()).first)
                         generated_source += "size(" + id + ");\n";
-                    else 
+                    else
                         generated_source += "size(" + id + ")";
                 }
 
@@ -590,21 +804,21 @@ namespace occultlang
                             auto id = check_type<occ_ast::identifier>(a11.second->get_child()).second->content;
                             auto expr = generate<occ_ast::body_start>(a11.second->get_child(1));
 
-                            generated_source += "push_back(" + id + ", " + expr; 
+                            generated_source += "push_back(" + id + ", " + expr;
                         }*/
                         else if (auto a12 = check_type<occ_ast::arr_get>(func_call.second->get_child(idx)); a12.first)
                         {
                             auto id = check_type<occ_ast::identifier>(a12.second->get_child()).second->content;
                             auto expr = generate<occ_ast::body_start>(a12.second->get_child(1));
 
-                            generated_source += "at(" + id + ", " + expr; 
+                            generated_source += "at(" + id + ", " + expr;
                         }
                         /*else if (auto a13 = check_type<occ_ast::arr_set>(func_call.second->get_child(idx)); a13.first)
                         {
                             auto id = check_type<occ_ast::identifier>(a13.second->get_child()).second->content;
                             auto expr = generate<occ_ast::body_start>(a13.second->get_child(1));
 
-                            generated_source += "set(" + id + ", " + expr; 
+                            generated_source += "set(" + id + ", " + expr;
                         }*/
                         else if (auto a14 = check_type<occ_ast::arr_size>(func_call.second->get_child(idx)); a14.first)
                         {
@@ -1583,7 +1797,6 @@ namespace occultlang
                             {
                                 auto child_assignment = assignment.second->get_child(j);
 
-
                                 if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
                                 {
                                     generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
@@ -1746,7 +1959,7 @@ namespace occultlang
                             {
                                 auto child_assignment = assignment.second->get_child(j);
 
-                               if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
                                 {
                                     generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
                                 }
@@ -2667,21 +2880,21 @@ int safe_memcmp(const void *s1, const void *s2, size_t n) {
     return memcmp(s1, s2, n);
 }
 
-int compare_long(const void *a, const void *b) {
-    return *(const long *)a == *(const long *)b;
+int compare_long(long a, long b) {
+    return a == b;
 }
 
-int compare_double(const void *a, const void *b) {
-    return *(const double *)a == *(const double *)b;
+int compare_double(double a, double b) {
+    return a == b;
 }
 
-int compare_string(const void *a, const void *b) {
-    return strcmp(*(const char **)a, *(const char **)b) == 0;
+int compare_string(char *a, char *b) {
+    return (safe_strcmp(a, b) == 0);
 }
 
-#define COMPARE(a, b, type) \
+#define COMPARE(a, b) \
     _Generic((a), \
-        int: compare_int, \
+        long: compare_long, \
         double: compare_double, \
         char *: compare_string \
     )(a, b)
