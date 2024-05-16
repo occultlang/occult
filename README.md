@@ -15,13 +15,13 @@ Assuming you have git and gcc, and other required dependencies installed, all of
 > Occult uses [tgc](https://github.com/orangeduck/tgc) which causes **undefiend behavior** but most of the time it should be fine, as per tgc's documentation
 > 
 ### Building on Linux (64 bit)
-Just run [build.sh](https://github.com/occultlang/occult/blob/main/build.sh) and the process should be fine
+1) Run [build.sh](https://github.com/occultlang/occult/blob/main/build.sh)
 ### Building on Windows
-> [!NOTICE]
-> Even if you have gcc already installed you must run this script! 
 > [!IMPORTANT]
-> Prior to building Occult you need gcc, so run [install_gcc.bat](https://github.com/occultlang/occult/blob/main/install_gcc.bat) <br>
-> Now with that you can run [build_windows.bat](https://github.com/occultlang/occult/blob/main/build_windows.bat)
+> Even if you have gcc already installed you must follow this for now!
+
+1) Run [install_gcc.bat](https://github.com/occultlang/occult/blob/main/install_gcc.bat) <br>
+2) Run [build_windows.bat](https://github.com/occultlang/occult/blob/main/build_windows.bat)
 
 # Using Occult
 > [!TIP]
