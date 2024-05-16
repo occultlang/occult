@@ -18,7 +18,9 @@ Assuming you have git and gcc, and other required dependencies installed, all of
 Just run [build.sh](https://github.com/occultlang/occult/blob/main/build.sh) and the process should be fine
 ### Building on Windows
 > [!IMPORTANT]
-> You must use the gcc install script provided [install_gcc.bat](https://github.com/occultlang/occult/blob/main/install_gcc.bat) <br>
+> > [!NOTICE]
+> > Even if you have gcc already installed you must run this script! 
+> Prior to building Occult you need gcc, so run [install_gcc.bat](https://github.com/occultlang/occult/blob/main/install_gcc.bat) <br>
 > Now with that you can run [build_windows.bat](https://github.com/occultlang/occult/blob/main/build_windows.bat)
 
 # Using Occult
