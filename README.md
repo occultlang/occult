@@ -9,7 +9,7 @@ An enigmatic programming language.
 <a href="https://occultlang.org/" target="_blank">occultang.org</a>
 </div>
 
-# About Occult
+# About
 Occult aims to be a memory-safe, statically-typed programming language with an elegant syntax similar to Rust and the performance of C. It achieves this by cross-compiling Occult code into C and using [tinycc](https://github.com/TinyCC/tinycc) as both a just-in-time (JIT) and ahead-of-time (AOT) compiler.
 
 In Occult, dynamic arrays are the default array type, functioning similarly to vectors. These arrays are managed by [tgc](https://github.com/orangeduck/tgc/tree/master), a lightweight garbage collector implemented in C. Occult enforces the use of stack-based variables, promoting predictable memory management and reducing the risk of dangling pointers. However, it also allows for heap allocations using tgc's malloc implementation, which is automatically freed by the garbage collector.
