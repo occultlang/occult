@@ -34,8 +34,8 @@ Just run [build.sh](https://github.com/occultlang/occult/blob/main/build.sh) and
 - [x] Windows support
 - [ ] OSX Support 
 - [ ] Bootstrapping
-- [ ] Move away from cross-compilation
-- [ ] Full memory safety
+- [ ] Move away from cross-compilation for just-in-time
+- [ ] Memory safety as far as we can get it
 - [ ] Full static analyzer
 
 ### v1.1.0-alpha
