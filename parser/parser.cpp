@@ -404,16 +404,15 @@ namespace occultlang
 						{
 							consume(tk_delimiter);
 
-							if (match(tk_number_literal))
+							auto body_start = std::make_shared<occ_ast::body_start>();
+
+							auto expr = parse_expression();
+							for (auto &child : expr->get_children())
 							{
-								auto start = parse_number_literal();
-								step_by->add_child(start);
+								child->swap_parent(body_start);
 							}
-							else if (match(tk_identifier))
-							{
-								auto start = parse_identifier();
-								step_by->add_child(start);
-							}
+
+							step_by->add_child(body_start);
 
 							if (match(tk_delimiter, ")"))
 							{
@@ -434,42 +433,16 @@ namespace occultlang
 				if (match(tk_delimiter, "("))
 				{
 					consume(tk_delimiter);
-					
-					if (match(tk_number_literal))
-					{
-						auto start = parse_number_literal();
-						range->add_child(start);
-					}
-					else if (match(tk_identifier))
-					{
-						auto start = parse_identifier();
-						range->add_child(start);
-					}
-				
-					if (match(tk_delimiter, ","))
-					{
-						consume(tk_delimiter);
 
-						auto comma = std::make_shared<occ_ast::comma>();
+					auto body_start = std::make_shared<occ_ast::body_start>();
 
-						range->add_child(comma);
+					auto expr = parse_expression();
+					for (auto &child : expr->get_children())
+					{
+						child->swap_parent(body_start);
 					}
 
-					if (match(tk_number_literal))
-					{
-						auto end = parse_number_literal();
-						range->add_child(end);
-					}
-					else if (match(tk_identifier))
-					{
-						auto end = parse_identifier();
-						range->add_child(end);
-					}
-
-					if (match(tk_delimiter, ")"))
-					{
-						consume(tk_delimiter);
-					}
+					range->add_child(body_start);
 				}
 
 				for_declaration->add_child(range);

@@ -1,0 +1,29 @@
+fn func_call_test() num {
+    return 3;
+}
+
+fn main() {
+    array: x = [1,2,3];
+
+    for num: i in range(func_call_test() - 3, 1 * 3) {
+        print("%ld\n", i);
+    }
+
+    print("\n");
+
+    for num: i in range(1 - 1, func_call_test()) {
+        print("%ld\n", i);
+    }
+
+    print("\n");
+
+    for num: i in x.step_by(func_call_test()) {
+        print("%ld\n", i);
+    }
+
+    print("\n");
+
+    for num: i in x.step_by(1 + 1 + 1) {
+        print("%ld\n", i);
+    }
+}

@@ -3,7 +3,7 @@ fn add(num: x, num: y) -> num {
 }
 
 fn main() -> num {
-    printf("%i\n", add(3, 2));
+    printf("%i\n", add(3, 2) - 1);
 
     return 0;
 }

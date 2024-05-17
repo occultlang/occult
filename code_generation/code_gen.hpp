@@ -1051,8 +1051,8 @@ namespace occultlang
 
                             if (child_node_array.first)
                             {
-                                auto step_by_num = check_type<occ_ast::number_literal>(child_node_array.second->get_child()).second->content;
-                                generated_source += "for (int __for_index__" + std::to_string(for_count) + " = 0; __for_index__" + std::to_string(for_count) + " < size(" + array + ");" + " __for_index__" + std::to_string(for_count) + " += " + step_by_num + ") {\n";
+                                auto step_by_num = generate<occ_ast::body_start>(child_node_array.second->get_child());
+                                generated_source += "for (int __for_index__" + std::to_string(for_count) + " = 0; __for_index__" + std::to_string(for_count) + " < size(" + array + ");" + " __for_index__" + std::to_string(for_count) + " += " + step_by_num + " {\n";
                             }
                         }
                         else
@@ -1101,10 +1101,9 @@ namespace occultlang
                     }
                     else if (auto range_node = check_type<occ_ast::range_for>(for_decl.second->get_child(1)); range_node.first)
                     {
-                        auto range_1 = check_type<occ_ast::number_literal>(range_node.second->get_child(0)).second->content;
-                        auto range_2 = check_type<occ_ast::number_literal>(range_node.second->get_child(2)).second->content;
+                        auto range = generate<occ_ast::body_start>(range_node.second->get_child());
 
-                        generated_source += "for (int __for_index__" + std::to_string(for_count) + " = " + range_1 + "; __for_index__" + std::to_string(for_count) + " < " + range_2 + "; +  __for_index__" + std::to_string(for_count) + "++) {\n";
+                        generated_source += "FOR_RANGE(__for_index__" + std::to_string(for_count) + ", " + range + " {\n";
 
                         auto decl = for_decl.second->get_child(0);
 
@@ -2975,6 +2974,9 @@ int compare_string(char *a, char *b) {
         double: compare_double, \
         char *: compare_string \
     )(a, b)
+
+#define FOR_RANGE(var, start, end) \
+    for (int var = (start); var < (end); var++)
 
 #line 1 "<string>"
 )";
