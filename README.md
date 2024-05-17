@@ -47,11 +47,10 @@ Assuming you have git and gcc, and other required dependencies installed, all of
 ### v1.1.0-alpha
 - [X] Add basic pointer math
 - [x] Array syntax function calls
-- [ ] Better string support to guarantee safety + syntax
+- [ ] Add string supported function calls
 - [ ] Better multidimensional array syntax 
 - [x] Add match statements
 - [ ] Pointers in arrays 
 - [x] Enhance for loops further 
 - [x] Remove the unsafe keyword entirely because of memory safety guarantee
 - [x] Static analyzer base for Occult
-- [ ] Safe functions
