@@ -55,4 +55,3 @@ Assuming you have git and gcc, and other required dependencies installed, all of
 - [x] Remove the unsafe keyword entirely because of memory safety guarantee
 - [x] Static analyzer base for Occult
 - [ ] Safe functions
-- [ ] Forloop with strings
