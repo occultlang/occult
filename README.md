@@ -58,6 +58,7 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [x] Enhance for loops further 
 - [x] Remove the unsafe keyword entirely because of the memory safety guarantee
 - [x] Static analyzer base for Occult
+- [ ] Module system base and change "import" and add "include" for including files
 
 ### Temporary
 - [ ] A breakpoint system for fixing bugs with codegen
