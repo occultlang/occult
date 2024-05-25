@@ -61,4 +61,4 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [ ] Module system base and change "import" and add "include" for including files
 
 ### Temporary
-- [ ] A breakpoint system for fixing bugs with codegen
+- [x] A breakpoint system for fixing bugs with codegen (compilerbreakpoint)
