@@ -47,18 +47,18 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [ ] Memory safety as far as we can get it
 - [ ] Full static analyzer
 - [ ] Fixing bugs
+- [ ] Add string-supported function calls + other types (array, etc.)
+- [ ] Module system base and change "import" and add "include" for including files
 
 ### v1.1.0-alpha
 - [X] Add basic pointer math
 - [x] Array syntax function calls
-- [ ] Add string supported function calls
 - [ ] Better multidimensional array syntax 
 - [x] Add match statements
 - [ ] Pointers in arrays 
 - [x] Enhance for loops further 
 - [x] Remove the unsafe keyword entirely because of the memory safety guarantee
 - [x] Static analyzer base for Occult
-- [ ] Module system base and change "import" and add "include" for including files
 
 ### Temporary
 - [x] Add a "compilerbreakpoint" keyword (stops codegen / program during compilation)
