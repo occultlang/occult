@@ -182,6 +182,10 @@ namespace occultlang
                         {
                             next_typename = n5.second->to_string();
                         }
+                        else if (auto n15 = check_type<occ_ast::array_ptr_declaration>(next); n15.first)
+                        {
+                            next_typename = n15.second->to_string();
+                        }
                         else if (auto n6 = check_type<occ_ast::num_ptr_declaration>(next); n6.first)
                         {
                             next_typename = n6.second->to_string();
@@ -251,6 +255,10 @@ namespace occultlang
                     {
                         next_typename = n5.second->to_string();
                     }
+                    else if (auto n15 = check_type<occ_ast::array_ptr_declaration>(next); n15.first)
+                    {
+                        next_typename = n15.second->to_string();
+                    }
                     else if (auto n6 = check_type<occ_ast::num_ptr_declaration>(next); n6.first)
                     {
                         next_typename = n6.second->to_string();
@@ -307,6 +315,11 @@ namespace occultlang
                             generated_source += "dyn_array* ";
                             func_defs += "dyn_array* ";
                         }
+                        else if (next_typename == "array_ptr_declaration")
+                        {
+                            generated_source += "dyn_array** ";
+                            func_defs += "dyn_array** ";
+                        }
                         else if (next_typename == "num_ptr_declaration")
                         {
                             generated_source += "long* ";
@@ -345,6 +358,10 @@ namespace occultlang
                         else if (next_typename == "bool_declaration")
                         {
                             generated_source += "long ";
+                        }
+                        else if (next_typename == "array_ptr_declaration")
+                        {
+                            generated_source += "dyn_array** ";
                         }
                         else if (next_typename == "string_declaration")
                         {
@@ -408,6 +425,11 @@ namespace occultlang
                             {
                                 generated_source += "dyn_array* ";
                                 func_defs += "dyn_array* ";
+                            }
+                            else if (args[i].first == "array_ptr_declaration")
+                            {
+                                generated_source += "dyn_array** ";
+                                func_defs += "dyn_array** ";
                             }
                             else if (args[i].first == "num_ptr_declaration")
                             {
@@ -2095,6 +2117,103 @@ namespace occultlang
 
                     generated_source += ";\n";
                 }
+
+                auto array_ptr_decl = check_type<occ_ast::array_ptr_declaration>(node);
+                if (array_ptr_decl.first)
+                {
+                    if (debug)
+                    {
+                        std::cout << "array_pointer_declaration: " << array_ptr_decl.first << std::endl;
+                    }
+                    generated_source += "dyn_array** ";
+                    if (debug)
+                    {
+                        std::cout << "array_pointer_declaration children: " << array_ptr_decl.second->get_children().size() << std::endl;
+                    }
+
+                    auto num_name = array_ptr_decl.second->get_child(0);
+
+                    if (auto n1 = check_type<occ_ast::identifier>(num_name); n1.first)
+                    {
+                        if (debug)
+                        {
+                            std::cout << "array_pointer_declaration name: " << n1.first << std::endl;
+                        }
+
+                        auto num_name_content = n1.second->content;
+
+                        generated_source += num_name_content;
+
+                        if (auto assignment = check_type<occ_ast::assignment>(array_ptr_decl.second->get_child(1)); assignment.first)
+                        {
+                            if (debug)
+                            {
+                                std::cout << "assignment: " << assignment.first << std::endl;
+                            }
+
+                            generated_source += " = ";
+
+                            for (int j = 0; j < assignment.second->get_children().size(); j++)
+                            {
+                                auto child_assignment = assignment.second->get_child(j);
+
+                                if (auto a10 = check_type<occ_ast::ptr_at>(child_assignment); a10.first)
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a1 = check_type<occ_ast::string_literal>(child_assignment); a1.first)
+                                {
+                                    generated_source += "\"" + a1.second->content + "\"";
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_get>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a13 = check_type<occ_ast::arr_size>(child_assignment); a13.first) 
+                                {
+                                    generated_source += generate<occ_ast::assignment>(child_assignment->get_parent());
+                                }
+                                else if (auto a6 = check_type<occ_ast::number_literal>(child_assignment); a6.first)
+                                {
+                                    generated_source += a6.second->content;
+                                }
+                                else if (auto a9 = check_type<occ_ast::float_literal>(child_assignment); a9.first)
+                                {
+                                    generated_source += a9.second->content;
+                                }
+                                else if (auto a2 = check_type<occ_ast::identifier>(child_assignment); a2.first)
+                                {
+                                    generated_source += a2.second->content;
+                                }
+                                else if (auto a3 = check_type<occ_ast::operator_declaration>(child_assignment); a3.first)
+                                {
+                                    generated_source += a3.second->content;
+                                }
+                                else if (auto a4 = check_type<occ_ast::delimiter_declaration>(child_assignment); a4.first)
+                                {
+                                    generated_source += a4.second->content;
+                                }
+                                else if (auto a5 = check_type<occ_ast::function_call>(child_assignment); a5.first)
+                                {
+                                    generated_source += generate<occ_ast::function_call>(a5.second);
+                                }
+                                else if (auto a8 = check_type<occ_ast::deref_ptr>(child_assignment); a8.first)
+                                {
+                                    generated_source += "*";
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (debug)
+                        {
+                            std::cout << "array_pointer_declaration name: " << n1.first << std::endl;
+                        }
+                    }
+
+                    generated_source += ";\n";
+                }
             }
 
             return generated_source;
@@ -2626,9 +2745,7 @@ typedef struct dyn_array {
         double* rnum;
         char** str;
         struct dyn_array** self;
-        //long** num_ptr;
-        //double** rnum_ptr;
-        //char*** str_ptr; // ?
+        void** ptr;
     };
     
     int size;
@@ -2722,6 +2839,35 @@ dyn_array* create_array_self() {
     }
 
     return array;
+}
+
+void add_ptr(dyn_array* array, void* data) {
+    if (array->ptr == (void*)0) {
+        exit(1);
+    }
+    array->size++;
+    array->ptr = (void**)tgc_realloc(&gc, array->ptr, array->size * sizeof(void*));
+    if (array->ptr == (void*)0) {
+        exit(1);
+    }
+    array->ptr[array->size - 1] = data;
+}
+
+void* get_ptr(dyn_array* array, int index) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+    return array->ptr[index];
+}
+
+void set_ptr(dyn_array* array, int index, void* data) {
+    if (index < 0 || index >= array->size) {
+        exit(1);
+    }
+    
+    if (array->ptr != NULL) {
+        array->ptr[index] = data;
+    }
 }
 
 int get_size(dyn_array* array) {

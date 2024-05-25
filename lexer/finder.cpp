@@ -4,7 +4,14 @@ namespace occultlang  // thank copilot so much for helping with this regex code
 {
     std::string finder::match_and_replace_all_array(std::string source, std::string to_replace)
     {
-        std::regex pattern("(array:)(\\s+\\w+\\s*=\\s*\\[)");
+        std::regex pattern("(array|array:)(\\s+\\w+\\s*=\\s*\\[)");
+        std::string new_source = std::regex_replace(source, pattern, to_replace + "$2");
+        return new_source;  
+    }
+
+    std::string finder::match_and_replace_array_more(std::string source, std::string to_replace) 
+    {
+        std::regex pattern("(array)(\\s+\\w+\\s*)");
         std::string new_source = std::regex_replace(source, pattern, to_replace + "$2");
         return new_source;  
     }

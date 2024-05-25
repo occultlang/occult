@@ -1,10 +1,10 @@
-import "../test_cases/math.occ";
+include "../test_cases/math.occ";
 
 fn main() {
     printf("%ld\n", add(4, 2));
 
     num: x = 5;
     x--;
-
+    
     printf("%ld\n", inc(x));
 }

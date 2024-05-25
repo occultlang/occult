@@ -9,7 +9,8 @@ namespace occultlang
         source_original = finder.match_and_replace_casts(source_original);
 
         source_original = finder.match_and_replace_all_array(source_original, "array<generic>");
-
+        source_original = finder.match_and_replace_array_more(source_original, "array:");
+        
         source_original = finder.match_and_replace_all(source_original, "null", "NULL");
 
         // std::cout << source_original << std::endl;

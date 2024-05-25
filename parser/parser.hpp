@@ -101,7 +101,7 @@ namespace occultlang
 		std::shared_ptr<ast> parse_loop();
 		std::shared_ptr<ast> parse_return();
 		std::shared_ptr<ast> parse_break();
-		std::shared_ptr<ast> parse_imports();
+		std::shared_ptr<ast> parse_include();
 		std::shared_ptr<ast> parse_string_literal();
 		std::shared_ptr<ast> parse_boolean_literal();
 		std::shared_ptr<ast> parse_assignment();

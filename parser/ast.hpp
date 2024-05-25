@@ -58,7 +58,8 @@ namespace occultlang
 	  match_statement,
 	  case_statement,
 	  default_statement,
-	  compilerbreakpoint
+	  compilerbreakpoint,
+	  array_ptr_declaration
 	};
 
 	struct ast : public tree<std::shared_ptr<ast>>
@@ -281,6 +282,17 @@ namespace occultlang
 			virtual ast_type get_type() { return ast_type::void_ptr_declaration; }
 
 			virtual std::string to_string() { return "void_ptr_declaration"; }
+		};
+
+		struct array_ptr_declaration : public ast
+		{
+			array_ptr_declaration() : ast() {}
+			virtual ~array_ptr_declaration() {}
+			array_ptr_declaration(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::array_ptr_declaration; }
+
+			virtual std::string to_string() { return "array_ptr_declaration"; }
 		};
 
 		struct float_declaration : public ast

@@ -550,9 +550,9 @@ namespace occultlang
 		}
 	}
 
-	std::shared_ptr<ast> parser::parse_imports()
+	std::shared_ptr<ast> parser::parse_include()
 	{
-		if (match(tk_keyword, "import"))
+		if (match(tk_keyword, "include"))
 		{
 			consume(tk_keyword);
 
@@ -1008,11 +1008,23 @@ namespace occultlang
 		{
 			return parse_declaration();
 		}
+		else if (match(tk_keyword, "array") && match_next(tk_keyword, "ptr"))
+		{
+			return parse_declaration();
+		}
 		else if (match(tk_keyword, "deref"))
 		{
 			return parse_dereference();
 		}
 		else if (match(tk_keyword, "rnum") && match_next(tk_keyword, "ptr")) // order matters here, ptr has to be first
+		{
+			return parse_declaration();
+		}
+		else if (match(tk_keyword, "float") && match_next(tk_keyword, "ptr"))
+		{
+			return parse_declaration();
+		}
+		else if (match(tk_keyword, "int") && match_next(tk_keyword, "ptr"))
 		{
 			return parse_declaration();
 		}
@@ -1028,11 +1040,11 @@ namespace occultlang
 		{
 			return parse_declaration();
 		}
-		else if (match(tk_keyword, "rnum"))
+		else if (match(tk_keyword, "rnum") || match(tk_keyword, "float"))
 		{
 			return parse_declaration();
 		}
-		else if (match(tk_keyword, "num"))
+		else if (match(tk_keyword, "num") || match(tk_keyword, "int"))
 		{
 			return parse_declaration();
 		}
@@ -1136,8 +1148,8 @@ namespace occultlang
 
 			return function_call;
 		}
-		else if (match(tk_identifier) && match_next(tk_operator, "="))
-		{ // assignment to variable
+		else if (match(tk_identifier) && match_next(tk_operator, "=")) // assignment to variable
+		{
 			auto v = parse_identifier();
 
 			if (match(tk_operator, "="))
@@ -1189,6 +1201,11 @@ namespace occultlang
 				variable_declaration.value()->add_child(parse_identifier());
 			}
 
+			if (match(tk_identifier))
+			{
+				variable_declaration.value()->add_child(parse_identifier());
+			}
+
 			if (match(tk_operator, "="))
 			{
 				variable_declaration.value()->add_child(parse_assignment());
@@ -1204,14 +1221,14 @@ namespace occultlang
 
 	std::shared_ptr<ast> parser::parse_declaration()
 	{
-		if (match(tk_keyword, "rnum") && match_next(tk_keyword, "ptr")) // order matters here ptr has to be first
+		if ((match(tk_keyword, "rnum") || match(tk_keyword, "float")) && match_next(tk_keyword, "ptr")) // order matters here ptr has to be first
 		{
 			consume(tk_keyword);
 			consume(tk_keyword);
 
 			return _parse_delaration(std::make_shared<occ_ast::rnum_ptr_declaration>());
 		}
-		else if (match(tk_keyword, "num") && match_next(tk_keyword, "ptr"))
+		else if ((match(tk_keyword, "num") || match(tk_keyword, "int")) && match_next(tk_keyword, "ptr"))
 		{
 			consume(tk_keyword);
 			consume(tk_keyword);
@@ -1232,13 +1249,13 @@ namespace occultlang
 
 			return _parse_delaration(std::make_shared<occ_ast::void_ptr_declaration>());
 		}
-		else if (match(tk_keyword, "rnum"))
+		else if (match(tk_keyword, "rnum") || match(tk_keyword, "float"))
 		{
 			consume(tk_keyword);
 
 			return _parse_delaration(std::make_shared<occ_ast::float_declaration>());
 		}
-		else if (match(tk_keyword, "num"))
+		else if (match(tk_keyword, "num") || match(tk_keyword, "int"))
 		{
 			consume(tk_keyword);
 
@@ -1256,6 +1273,13 @@ namespace occultlang
 
 			return _parse_delaration(std::make_shared<occ_ast::string_declaration>());
 		}
+		else if (match(tk_keyword, "array") && match_next(tk_keyword, "ptr")) 
+		{
+			consume(tk_keyword);
+			consume(tk_keyword);
+
+			return _parse_delaration(std::make_shared<occ_ast::array_ptr_declaration>());
+		}
 		else if (match(tk_keyword, "array")) 
 		{
 			consume(tk_keyword);
@@ -1270,11 +1294,11 @@ namespace occultlang
 				{
 					auto keyword = consume(tk_keyword).get_lexeme();
 
-					if (keyword == "num")
+					if (keyword == "num" || keyword == "int")
 					{
 						arr_decl->add_child(std::make_shared<occ_ast::num_declaration>());
 					}
-					else if (keyword == "rnum")
+					else if (keyword == "rnum" || keyword == "float")
 					{
 						arr_decl->add_child(std::make_shared<occ_ast::float_declaration>());
 					}
@@ -1666,9 +1690,9 @@ namespace occultlang
 			auto statement = std::shared_ptr<ast>();
 			bool isimport = false;
 			
-			if (match(tk_keyword, "import"))
+			if (match(tk_keyword, "include"))
 			{
-				statement = parse_imports();
+				statement = parse_include();
 				isimport = true;
 			}
 			else if (match(tk_keyword, "fn"))
