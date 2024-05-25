@@ -37,7 +37,7 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 # To-do
 
 > [!NOTE]
-> What am I currently working on you ask? Fixing bugs!
+> What am I currently working on you ask? Fixing bugs and long-term things!
 
 ### Long-term
 - [x] Windows support
