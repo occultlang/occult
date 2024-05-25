@@ -90,6 +90,17 @@ namespace occultlang
                     node = root;
                 }
 
+                auto compilerbreak = check_type<occ_ast::compilerbreakpoint>(node);
+                if (compilerbreak.first) 
+                {
+                    if (debug)
+                        std::cout << "compiler break: " << compilerbreak.first << std::endl;
+
+                    std::cout << "\033[31m" << compilerbreak.second->content << "\033[0m"<< std::endl;
+
+                    exit(1);
+                }
+
                 auto body_end = check_type<occ_ast::force_end>(node);
                 if (body_end.first)
                 {

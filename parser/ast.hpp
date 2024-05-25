@@ -58,6 +58,7 @@ namespace occultlang
 	  match_statement,
 	  case_statement,
 	  default_statement,
+	  compilerbreakpoint
 	};
 
 	struct ast : public tree<std::shared_ptr<ast>>
@@ -104,6 +105,17 @@ namespace occultlang
 			virtual ast_type get_type() { return ast_type::num_declaration; }
 
 			virtual std::string to_string() { return "num_declaration"; }
+		};
+
+		struct compilerbreakpoint : public ast 
+		{
+			compilerbreakpoint() : ast() {}
+			virtual ~compilerbreakpoint() {}
+			compilerbreakpoint(std::string content) {}
+
+			virtual ast_type get_type() { return ast_type::compilerbreakpoint; }
+
+			virtual std::string to_string() { return "compilerbreakpoint"; }
 		};
 
 		struct match_statement : public ast 

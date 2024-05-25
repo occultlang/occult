@@ -120,6 +120,7 @@ namespace occultlang
 		std::shared_ptr<ast> parse_match();
 		std::shared_ptr<ast> parse_case();
 		std::shared_ptr<ast> parse_default();
+		std::shared_ptr<ast> parse_compiler_breakpoint();
 		void clean_comments();
 		std::shared_ptr<ast> parse();
 	};

@@ -867,6 +867,20 @@ namespace occultlang
 		}
 	}
 
+	std::shared_ptr<ast> parser::parse_compiler_breakpoint() 
+	{
+		if (match(tk_keyword, "compilerbreakpoint"))
+		{
+			consume(tk_keyword);
+
+			auto breakpoint = std::make_shared<occ_ast::compilerbreakpoint>();
+
+			breakpoint->content = "Stopping Compiler (break)!\nLine: " + std::to_string(peek().get_line()) + "\nColumn: " + std::to_string(peek().get_column());
+			
+			return breakpoint;
+		}
+	}
+
 	std::shared_ptr<ast> parser::parse_default() 
 	{
 		if (match(tk_keyword, "default"))
@@ -949,6 +963,10 @@ namespace occultlang
 		if (match(tk_keyword, "if"))
 		{
 			return parse_if();
+		}
+		else if (match(tk_keyword, "compilerbreakpoint"))
+		{
+			return parse_compiler_breakpoint();
 		}
 		else if (match(tk_keyword, "else") && match_next(tk_keyword, "if"))
 		{
