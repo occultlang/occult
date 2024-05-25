@@ -37,7 +37,7 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 # To-do
 
 > [!NOTE]
-> What am I currently working on you ask? Fixing bugs and long-term things!
+> What am I working on? Fixing bugs and long-term things!
 
 ### Long-term
 - [x] Windows support
@@ -52,7 +52,7 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [ ] Module system
 
 ### v1.2.0-alpha
-*Working on long-term things for now!*
+*Working on long-term things for now and flattening bugs!*
 
 ### Temporary
 - [x] Add a "compilerbreakpoint" keyword (stops codegen / program during compilation)
