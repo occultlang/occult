@@ -48,7 +48,7 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [ ] Full static analyzer
 - [ ] Fixing bugs
 - [ ] Add string-supported function calls + other types (array, etc.)
-- [ ] Module system base and change "import" and add "include" for including files
+- [ ] Module system
 
 ### v1.1.0-alpha
 - [X] Add basic pointer math
@@ -59,6 +59,7 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [x] Enhance for loops further 
 - [x] Remove the unsafe keyword entirely because of the memory safety guarantee
 - [x] Static analyzer base for Occult
+- [ ] Change import to include and reserve import for a module system 
 
 ### Temporary
 - [x] Add a "compilerbreakpoint" keyword (stops codegen / program during compilation)
