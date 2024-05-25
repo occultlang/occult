@@ -47,13 +47,13 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [ ] Memory safety as far as we can get it
 - [ ] Full static analyzer
 - [ ] Fixing bugs
+- [ ] Better multidimensional array syntax 
 - [ ] Add string-supported function calls + other types (array, etc.)
 - [ ] Module system
 
 ### v1.1.0-alpha
 - [X] Add basic pointer math
 - [x] Array syntax function calls
-- [ ] Better multidimensional array syntax 
 - [x] Add match statements
 - [x] Enhance for loops further 
 - [x] Remove the unsafe keyword entirely because of the memory safety guarantee
