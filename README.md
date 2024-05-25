@@ -55,11 +55,10 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [x] Array syntax function calls
 - [ ] Better multidimensional array syntax 
 - [x] Add match statements
-- [ ] Pointers in arrays 
 - [x] Enhance for loops further 
 - [x] Remove the unsafe keyword entirely because of the memory safety guarantee
 - [x] Static analyzer base for Occult
-- [ ] Change import to include and reserve import for a module system 
+- [x] Change import to include and reserve import for a module system 
 
 ### Temporary
 - [x] Add a "compilerbreakpoint" keyword (stops codegen / program during compilation)
