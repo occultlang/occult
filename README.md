@@ -37,7 +37,7 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 # To-do
 
 > [!NOTE]
-> What am I working on? Fixing bugs and long-term things!
+> ***The big overhaul.*** *v2.0.0-alpha*
 
 ### Long-term
 - [x] Windows support
@@ -50,9 +50,6 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 - [ ] Better multidimensional array syntax 
 - [ ] Add string-supported function calls + other types (array, etc.)
 - [ ] Module system
-
-### v1.2.0-alpha
-*Working on long-term things for now and flattening bugs!*
 
 ### Temporary
 - [x] Add a "compilerbreakpoint" keyword (stops codegen / program during compilation)
