@@ -37,7 +37,7 @@ Assuming you have git gcc, and other required dependencies installed, all of thi
 # To-do
 
 > [!NOTE]
-> ***The big overhaul.*** *v2.0.0-alpha*
+> ***The big overhaul to the language syntax and how it works.*** *v2.0.0-alpha*
 
 ### Long-term
 - [x] Windows support
