@@ -15,5 +15,6 @@ Occult v2
 ```
 git clone https://github.com/occultlang/occult.git
 cmake -S occult/ -B occult/build
-make occult/build
+cd occult/build
+make
 ```
