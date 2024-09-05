@@ -13,4 +13,4 @@ An enigmatic programming language.
 Occult v2
 # Building
 ```
-git clone https://github.com/occultlang/occult/tree/future
+git clone https://github.com/occultlang/occult.git
