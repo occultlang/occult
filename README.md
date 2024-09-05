@@ -10,7 +10,7 @@ An enigmatic programming language.
 </div>
 
 # About
-Occult is a just-in-time scripting language, just a toy for now!
+Occult v2
 # Building
 ```
 git clone https://github.com/occultlang/occult/tree/future
