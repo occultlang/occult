@@ -1,6 +1,8 @@
 #include "lexer.hpp"
 #include <iostream>
 
+// the main architecture i'm going to support is ARM or RISC-V at first
+
 int main() {
   std::string source = R"(
   /*multiline
@@ -14,6 +16,8 @@ int main() {
   []
   * / %
   == <= >=
+  144.324
+  3.14
   )";
 
   occult::lexer lexer(source);

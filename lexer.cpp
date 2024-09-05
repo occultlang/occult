@@ -3,7 +3,7 @@
 /*
  * The reason for all of the maps & sets is to avoid using C library functions like isalnum, isdigit etc.
  *
- * TODO: floating points + scientific notation, hexadecimal, octal and binary for numbers
+ * TODO: scientific notation, hexadecimal, octal and binary for numbers (it's not necessary right now)
  * */
 
 #define DONT_USE_WHITESPACES 1
@@ -145,40 +145,50 @@ namespace occult {
 
       return token_t(line, column, lexeme, char_literal_tt);
     }
-
-    // float literal
-
-    // int
-    if (numeric_set.contains(source[pos])) {
+    
+    if (numeric_set.contains(source[pos])) { // int literals & float literals
       std::string lexeme = "";
-
+      
+      bool isfloat = false;
+      
       while (pos < source.size() && numeric_set.contains(source[pos])) {
         lexeme += source[pos];
         pos++;
         column++;
       }
+      
+      if (source[pos] == '.') {
+        lexeme += source[pos];
+        pos++;
+        column++;
+        
+        isfloat = true;
+        
+        while (pos < source.size() && numeric_set.contains(source[pos])) {
+          lexeme += source[pos];
+          pos++;
+          column++;
+        }
+      }
 
-      return token_t(line, column, lexeme, number_literal_tt);
+      return token_t(line, column, lexeme, (isfloat) ? float_literal_tt : number_literal_tt);
     }
 
-    // delimiters
-    if (delimiter_map.contains(source[pos])) {
+    if (delimiter_map.contains(source[pos])) { // delimiters
       pos++;
       column++;
 
       return token_t(line, column, std::string(1, source[pos - 1]), delimiter_map[source[pos - 1]]);
     }
 
-    // double operators
-    if (operator_map_double.contains(std::string() + source[pos] + source[pos + 1])) {
+    if (operator_map_double.contains(std::string() + source[pos] + source[pos + 1])) { // double operators
       pos += 2;
       column += 2;
 
       return token_t(line, column, std::string() + source[pos - 2] + source[pos - 1], operator_map_double[std::string() + source[pos - 2] + source[pos - 1]]);
     }
 
-    // single operators
-    if (operator_map_single.contains(source[pos])) {
+    if (operator_map_single.contains(source[pos])) { // single operators
       pos++;
       column++;
 
