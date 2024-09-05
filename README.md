@@ -13,5 +13,5 @@ An enigmatic programming language.
 Occult v2
 # Building
 ```
-git clone https://github.com/occultlang/occult.git && chmod +x build.sh && ./build.sh
+git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
 ```
