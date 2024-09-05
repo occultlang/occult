@@ -10,49 +10,6 @@ An enigmatic programming language.
 </div>
 
 # About
-Occult aims to be a memory-safe, statically typed programming language with an elegant syntax similar to Rust and the performance of C. It achieves this by cross-compiling Occult code into C and using [tinycc](https://github.com/TinyCC/tinycc) as both a just-in-time (JIT) and ahead-of-time (AOT) compiler.
-
-In Occult, dynamic arrays are the default array type, functioning similarly to vectors. These arrays are managed by [tgc](https://github.com/orangeduck/tgc/tree/master), a lightweight garbage collector implemented in C. Occult enforces the use of stack-based variables, promoting predictable memory management and reducing the risk of dangling pointers. However, it also allows for heap allocations using tgc's malloc implementation, which the garbage collector automatically frees.
+Occult is a just-in-time scripting language, just a toy for now!
 # Building
-Assuming you have git gcc, and other required dependencies installed, all of this should go smoothly.
-> [!WARNING]  
-> Occult uses [tgc](https://github.com/orangeduck/tgc) which causes **undefined behavior** but most of the time it should be fine, as per tgc's documentation.
-> 
-### Building on Linux (64-bit)
-1) Run [build.sh](https://github.com/occultlang/occult/blob/main/build.sh)
-### Building on Windows
-> [!IMPORTANT]
-> Even if you have gcc installed, you must follow this for now!
-
-1) Run [install_gcc.bat](https://github.com/occultlang/occult/blob/main/install_gcc.bat) <br>
-2) Run [build_windows.bat](https://github.com/occultlang/occult/blob/main/build_windows.bat)
-
-# Using Occult
-> [!TIP]
-> If you need help use the `-h` option!
-```sh
-./occultc <source.occ>
 ```
-
-# To-do
-
-> [!NOTE]
-> What am I working on? Fixing bugs and long-term things!
-
-### Long-term
-- [x] Windows support
-- [ ] OSX Support 
-- [ ] Bootstrapping
-- [ ] Move away from cross-compilation for just-in-time
-- [ ] Memory safety as far as we can get it
-- [ ] Full static analyzer
-- [ ] Fixing bugs
-- [ ] Better multidimensional array syntax 
-- [ ] Add string-supported function calls + other types (array, etc.)
-- [ ] Module system
-
-### v1.2.0-alpha
-*Working on long-term things for now and flattening bugs!*
-
-### Temporary
-- [x] Add a "compilerbreakpoint" keyword (stops codegen / program during compilation)
