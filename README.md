@@ -13,3 +13,4 @@ An enigmatic programming language.
 Occult is a just-in-time scripting language, just a toy for now!
 # Building
 ```
+git clone https://github.com/occultlang/occult/tree/future
