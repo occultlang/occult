@@ -1,7 +1,0 @@
-fn add(num: x, num: y) -> num {
-    return x + y;
-}
-
-fn inc(num: x) -> num {
-    return ++x;
-}
