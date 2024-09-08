@@ -12,7 +12,7 @@ An enigmatic programming language.
 # About
 Occult is a Just-in-time compiled language, aiming to have blazingly fast compilation speeds.
 > [!NOTE]
-> Occult is still being rewritten at this moment, the old branch has a working language. The version two changes are significant as it is a whole language rewrite and syntax overhaul, so no code will be compatible as of this update.
+> Occult is still being rewritten at this moment, the old branch has a working language. The version two changes are significant as it is a whole language rewrite and syntax overhaul. With that in mind there won't be much in the readme for awhile.
 # Building
 ```
 git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
