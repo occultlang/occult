@@ -110,11 +110,14 @@ namespace occult {
     std::uintptr_t pos;
     std::uintptr_t line;
     std::uintptr_t column;
-
+    
   public:
     lexer(std::string source) : source(source), pos(0), line(1), column(1) {}
-
+    
+    std::vector<token_t> stream;
+    
     token_t get_next();             // getting next token to put into stream
     std::vector<token_t> analyze(); // returns a token stream which will be put into the parser later on
+    void visualize(); // print out the AST
   };
 } // namespace occult

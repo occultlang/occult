@@ -1,7 +1,6 @@
 #include "lexer.hpp"
 #include <iostream>
-
-// the main architecture i'm going to support is ARM or RISC-V at first
+#include "ast.hpp"
 
 int main() {
   std::string source = R"(
@@ -16,7 +15,8 @@ int main() {
   []
   * / %
   == <= >=
-  144.324
+  
+  144.324234234
   3.14
   )";
 
@@ -24,9 +24,13 @@ int main() {
 
   std::vector<occult::token_t> stream = lexer.analyze();
 
-  for (auto s : stream) {
-    std::println("Lexeme: {}\nType: {}\n", s.lexeme, occult::token_t::get_typename(s.tt));
-  }
-
+  lexer.visualize();
+  
+  auto root = occult::ast::new_node<occult::ast_root>(); // new root node
+  
+  root->add_child(occult::ast::new_node<occult::ast_binaryexpr>()); // create new node
+  
+  root->visualize();
+  
   return 0;
 }

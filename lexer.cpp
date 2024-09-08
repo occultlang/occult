@@ -240,8 +240,15 @@ namespace occult {
     }
 
     token_stream.push_back(token);
-
+    
+    stream = token_stream;
+    
     return token_stream;
   }
-
+  
+  void lexer::visualize() {
+    for (auto s : stream) {
+      std::println("Lexeme: {}\nType: {}\n", s.lexeme, occult::token_t::get_typename(s.tt));
+    }
+  }
 } // namespace occult
