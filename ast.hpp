@@ -90,4 +90,4 @@ namespace occult {
   NODE(breakstmt, ast_breakstmt)
   NODE(returnstmt, ast_returnstmt)
   NODE(instmt, ast_instmt)
-}
+} // namespace occult
