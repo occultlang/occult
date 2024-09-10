@@ -5,10 +5,8 @@ namespace occult {
     return stream[pos];
   }
   
-  token_t parser::consume() {
+  void parser::consume() {
     pos++;
-    
-    return stream[pos - 1];
   }
   
   bool parser::match(token_t t, token_type tt) {
