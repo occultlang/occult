@@ -7,7 +7,7 @@ namespace occult {
     public:
     std::unique_ptr<ast_root> root;
     std::vector<token_t> stream;
-    std::uintptr_t pos;
+    std::uintptr_t pos = 0;
   public:
     parser(std::vector<token_t> stream) : root(ast::new_node<ast_root>()), stream(stream) {}
     
