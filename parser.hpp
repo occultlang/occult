@@ -4,11 +4,16 @@
 
 namespace occult {
   class parser {
+    public:
     std::unique_ptr<ast_root> root;
     std::vector<token_t> stream;
+    std::uintptr_t pos;
   public:
     parser(std::vector<token_t> stream) : root(ast::new_node<ast_root>()), stream(stream) {}
     
+    token_t peek();
+    token_t consume();
+    bool match(token_t t, token_type tt);
     std::unique_ptr<ast_function> parse_function();
     std::unique_ptr<ast_block> parse_block();
     std::unique_ptr<ast_binaryexpr> parse_binaryexpr();

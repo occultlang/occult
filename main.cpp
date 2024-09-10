@@ -1,12 +1,10 @@
 #include "lexer.hpp"
 #include <iostream>
 #include "ast.hpp"
+#include "parser.hpp"
 
 int main() {
-  std::string source = R"(
-  /*multiline
-  comments are
-  cool */
+  /*std::string source = R"(
   
   // so are normal comments cool too?
   _identifieryeeea
@@ -18,7 +16,9 @@ int main() {
   
   144.324234234
   3.14
-  )";
+  )";*/
+  
+  std::string source = "fn";
 
   occult::lexer lexer(source);
 
@@ -26,11 +26,17 @@ int main() {
 
   lexer.visualize();
   
-  auto root = occult::ast::new_node<occult::ast_root>(); // new root node
+  //auto root = occult::ast::new_node<occult::ast_root>(); // new root node
   
-  root->add_child(occult::ast::new_node<occult::ast_binaryexpr>()); // create new node
+  //root->add_child(occult::ast::new_node<occult::ast_binaryexpr>()); // create new node
   
-  root->visualize();
+  //root->visualize();
+  
+  occult::parser parser(stream);
+  
+  parser.parse_function();
+  
+  parser.root->visualize();
   
   return 0;
 }

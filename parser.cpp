@@ -1,8 +1,33 @@
 #include "parser.hpp"
 
 namespace occult {
-  std::unique_ptr<ast_function> parser::parse_function() {
+  token_t parser::peek() {
+    return stream[pos];
+  }
+  
+  token_t parser::consume() {
+    pos++;
     
+    return stream[pos - 1];
+  }
+  
+  bool parser::match(token_t t, token_type tt) {
+    if (t.tt == tt) {
+      consume();
+      
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+  
+  std::unique_ptr<ast_function> parser::parse_function() {
+    if (match(peek(), function_keyword_tt)) {
+      return ast::new_node<ast_function>();
+    }
+    
+    return nullptr;
   }
   
   std::unique_ptr<ast_block> parser::parse_block() {
