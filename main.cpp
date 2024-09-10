@@ -18,7 +18,7 @@ int main() {
   3.14
   )";*/
   
-  std::string source = "fn";
+  std::string source = "fn main() {} fn test() int32 {}";
 
   occult::lexer lexer(source);
 
@@ -26,17 +26,11 @@ int main() {
 
   lexer.visualize();
   
-  //auto root = occult::ast::new_node<occult::ast_root>(); // new root node
-  
-  //root->add_child(occult::ast::new_node<occult::ast_binaryexpr>()); // create new node
-  
-  //root->visualize();
-  
   occult::parser parser(stream);
   
-  parser.parse_function();
+  auto root = parser.parse();
   
-  parser.root->visualize();
+  root->visualize();
   
   return 0;
 }

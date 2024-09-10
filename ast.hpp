@@ -24,6 +24,7 @@ namespace occult {
     breakstmt,
     returnstmt,
     instmt,
+    functionarguments,
   };
   
   class ast {
@@ -77,6 +78,7 @@ namespace occult {
   NODE(block, ast_block)
   NODE(identifier, ast_identifier)
   NODE(function, ast_function)
+  NODE(functionarguments, ast_functionargs)
   NODE(ifstmt, ast_ifstmt)
   NODE(elsestmt, ast_elsestmt)
   NODE(elseifstmt, ast_elseifstmt)

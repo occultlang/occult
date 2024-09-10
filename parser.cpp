@@ -22,10 +22,28 @@ namespace occult {
   
   std::unique_ptr<ast_function> parser::parse_function() {
     if (match(peek(), function_keyword_tt)) {
-      return ast::new_node<ast_function>();
+      auto function_node = ast::new_node<ast_function>();
+      
+      if (match(peek(), left_paren_tt)) {
+        auto function_args_node = ast::new_node<ast_functionargs>();
+        
+        while (!match(peek(), right_paren_tt)) {
+          auto literal = parse_literal();
+          
+          function_args_node->add_child(std::move(literal));
+          
+          // add more
+        }
+        
+        function_node->add_child(std::move(function_args_node));
+      }
+      else
+        throw runtime_error("Expected left parenthesis", peek());
+      
+      return function_node;
     }
-    
-    return nullptr;
+    else
+      throw runtime_error("Expected function keyword", peek());
   }
   
   std::unique_ptr<ast_block> parser::parse_block() {
@@ -93,6 +111,10 @@ namespace occult {
   }
   
   std::unique_ptr<ast_instmt> parser::parse_in() {
+    
+  }
+  
+  std::unique_ptr<ast_root> parse() {
     
   }
 } // namespace occult
