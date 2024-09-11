@@ -25,6 +25,7 @@ namespace occult {
     returnstmt,
     instmt,
     functionarguments,
+    datatype
   };
   
   class ast {
@@ -32,7 +33,7 @@ namespace occult {
   public:
     ast() = default;
     
-    std::string content = "base"; // base class
+    std::string content = ""; // base class
     
     template<typename BaseAst = ast>
     static std::unique_ptr<BaseAst> new_node() {
@@ -53,7 +54,12 @@ namespace occult {
     
     void visualize(int depth = 0) {
         std::string indent(depth * 2, ' ');
-        std::println("{}", indent + to_string());
+        std::print("{}", indent + to_string());
+        
+        if (!content.empty())
+          std::print(": {}\n", content);
+        else
+          std::println();
         
         for (const auto& child : children) {
             child->visualize(depth + 1);
@@ -75,6 +81,7 @@ namespace occult {
   NODE(root, ast_root)
   NODE(binaryexpr, ast_binaryexpr)
   NODE(literalexpr, ast_literalexpr)
+  NODE(datatype, ast_datatype)
   NODE(block, ast_block)
   NODE(identifier, ast_identifier)
   NODE(function, ast_function)

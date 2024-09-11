@@ -5,6 +5,13 @@ namespace occult {
     return stream[pos];
   }
   
+  token_t parser::previous() {
+    if ((pos - 1) != 0)
+      return stream[pos - 1];
+    else
+      throw std::runtime_error("Out of bounds parser::previous");
+  }
+  
   void parser::consume() {
     pos++;
   }
@@ -24,18 +31,29 @@ namespace occult {
     if (match(peek(), function_keyword_tt)) {
       auto function_node = ast::new_node<ast_function>();
       
+      auto identifier_node = parse_identifier();
+      function_node->add_child(std::move(identifier_node));
+      
       if (match(peek(), left_paren_tt)) {
         auto function_args_node = ast::new_node<ast_functionargs>();
         
         while (!match(peek(), right_paren_tt)) {
-          auto literal = parse_literal();
+          auto arg = parse_datatype();
           
-          function_args_node->add_child(std::move(literal));
+          function_args_node->add_child(std::move(arg));
           
-          // add more
+          if (!match(peek(), comma_tt) && peek().tt != right_paren_tt) {
+              throw runtime_error("Expected comma or left parenthesis after argument", peek());
+          }
         }
         
         function_node->add_child(std::move(function_args_node));
+        
+        auto return_type = parse_datatype();
+        function_node->add_child(std::move(return_type));
+        
+        auto body = parse_block();  
+        function_node->add_child(std::move(body));
       }
       else
         throw runtime_error("Expected left parenthesis", peek());
@@ -46,20 +64,33 @@ namespace occult {
       throw runtime_error("Expected function keyword", peek());
   }
   
-  std::unique_ptr<ast_block> parser::parse_block() {
-    
+  std::unique_ptr<ast_block> parser::parse_block() { 
+    // TODO
+  }
+  
+  std::unique_ptr<ast_datatype> parser::parse_datatype() { 
+    if (match(peek(), int32_keyword_tt)) {
+      // TODO
+    }
   }
   
   std::unique_ptr<ast_binaryexpr> parser::parse_binaryexpr() {
-    
+    // TODO
   }
   
   std::unique_ptr<ast_literalexpr> parser::parse_literal() {
-    
+    // TODO
   }
   
   std::unique_ptr<ast_identifier> parser::parse_identifier() {
-    
+    if (match(peek(), identifier_tt)) {
+      auto identifier = ast::new_node<ast_identifier>();
+      identifier->content = previous().lexeme;
+      
+      return identifier;
+    }
+    else
+      throw runtime_error("Expected identifier", peek());
   }
   
   std::unique_ptr<ast_ifstmt> parser::parse_if() {
@@ -114,7 +145,15 @@ namespace occult {
     
   }
   
-  std::unique_ptr<ast_root> parse() {
+  std::unique_ptr<ast_root> parser::parse() {
+    while(!match(peek(), end_of_file_tt)) {
+      root->add_child(parse_function());
+      
+      if (match(peek(), end_of_file_tt)) {
+        break;
+      }
+    }
     
+    return std::move(root);
   }
 } // namespace occult
