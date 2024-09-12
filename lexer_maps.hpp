@@ -31,7 +31,7 @@ namespace occult {
       {"<=", less_than_or_equal_operator_tt}};
 
   std::unordered_map<char, token_type> delimiter_map = {
-      {'(', right_paren_tt},
+      {')', right_paren_tt},
       {'(', left_paren_tt},
       {']', right_bracket_tt},
       {'[', left_bracket_tt},

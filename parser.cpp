@@ -1,5 +1,7 @@
 #include "parser.hpp"
 
+// can we implement a pre-allocated heap for occult to use as a virutal memory space to prevent buffer overflows
+
 namespace occult {
   token_t parser::peek() {
     return stream[pos];
@@ -41,10 +43,6 @@ namespace occult {
           auto arg = parse_datatype();
           
           function_args_node->add_child(std::move(arg));
-          
-          if (!match(peek(), comma_tt) && peek().tt != right_paren_tt) {
-              throw runtime_error("Expected comma or left parenthesis after argument", peek());
-          }
         }
         
         function_node->add_child(std::move(function_args_node));
@@ -64,13 +62,27 @@ namespace occult {
       throw runtime_error("Expected function keyword", peek());
   }
   
-  std::unique_ptr<ast_block> parser::parse_block() { 
-    // TODO
+  std::unique_ptr<ast_block> parser::parse_block() { // i think this is done
+    if (match(peek(), left_curly_bracket_tt)) {
+      auto block_node = ast::new_node<ast_block>();
+      
+      while (!match(peek(), right_curly_bracket_tt)) {
+        block_node->add_child(parse_keyword()); 
+      }
+      
+      return block_node;
+    }
   }
   
   std::unique_ptr<ast_datatype> parser::parse_datatype() { 
     if (match(peek(), int32_keyword_tt)) {
-      // TODO
+      auto int32_node = ast::new_node<ast_datatype>();
+      int32_node->content = previous().lexeme;
+      
+      if (peek().tt == identifier_tt)
+        int32_node->add_child(parse_identifier());
+      
+      return int32_node;
     }
   }
   
@@ -91,6 +103,13 @@ namespace occult {
     }
     else
       throw runtime_error("Expected identifier", peek());
+  }
+  
+  std::unique_ptr<ast> parser::parse_keyword() { // parsing keywords
+    if (match(peek(), if_keyword_tt)) {
+      return parse_if();
+    }
+    // etc.
   }
   
   std::unique_ptr<ast_ifstmt> parser::parse_if() {

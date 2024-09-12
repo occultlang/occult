@@ -18,9 +18,7 @@ int main() {
   3.14
   )";*/
   
-  //() {} fn test() int32 {}
-  
-  std::string source = "fn main"; 
+  std::string source = "fn main(int32 a) int32 {} fn main(int32 a) int32 {}"; 
 
   occult::lexer lexer(source);
 
