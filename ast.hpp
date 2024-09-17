@@ -54,7 +54,7 @@ namespace occult {
     
     void visualize(int depth = 0) {
         std::string indent(depth * 2, ' ');
-        std::print("{}", indent + "| " + to_string());
+        std::print("{}", indent + to_string());
         
         if (!content.empty())
           std::print(": {}\n", content);

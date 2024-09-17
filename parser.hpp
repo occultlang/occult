@@ -5,7 +5,6 @@
 
 namespace occult {
   class parser {
-    public:
     std::unique_ptr<ast_root> root;
     std::vector<token_t> stream;
     std::uintptr_t pos = 0;
@@ -33,8 +32,8 @@ namespace occult {
     std::unique_ptr<ast_continuestmt> parse_continue();
     std::unique_ptr<ast_breakstmt> parse_break();
     std::unique_ptr<ast_returnstmt> parse_return();
-    std::unique_ptr<ast_instmt> parse_in();
-  //public:
+    //std::unique_ptr<ast_instmt> parse_in();
+  public:
     parser(std::vector<token_t> stream) : root(ast::new_node<ast_root>()), stream(stream) {}
     
     std::unique_ptr<ast_root> parse();

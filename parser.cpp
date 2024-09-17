@@ -8,10 +8,12 @@ namespace occult {
   }
   
   token_t parser::previous() {
-    if ((pos - 1) != 0)
+    if ((pos - 1) != 0) {
       return stream[pos - 1];
-    else
+    }
+    else {
       throw std::runtime_error("Out of bounds parser::previous");
+    }
   }
   
   void parser::consume() {
@@ -72,6 +74,9 @@ namespace occult {
       
       return block_node;
     }
+    else {
+      throw runtime_error("Can't find left curly bracket", peek());
+    }
   }
   
   std::unique_ptr<ast_datatype> parser::parse_datatype() { 
@@ -79,10 +84,14 @@ namespace occult {
       auto int32_node = ast::new_node<ast_datatype>();
       int32_node->content = previous().lexeme;
       
-      if (peek().tt == identifier_tt)
+      if (peek().tt == identifier_tt) {
         int32_node->add_child(parse_identifier());
-      
+      }
+        
       return int32_node;
+    }
+    else {
+      throw runtime_error("Invalid datatype", peek());
     }
   }
   
@@ -101,15 +110,54 @@ namespace occult {
       
       return identifier;
     }
-    else
+    else {
       throw runtime_error("Expected identifier", peek());
+    }
   }
   
   std::unique_ptr<ast> parser::parse_keyword() { // parsing keywords
     if (match(peek(), if_keyword_tt)) {
       return parse_if();
     }
-    // etc.
+    else if (match(peek(), elseif_keyword_tt)) {
+      return parse_elseif();
+    }
+    else if (match(peek(), else_keyword_tt)) {
+      return parse_else();
+    }
+    else if (match(peek(), loop_keyword_tt)) {
+      return parse_loop();
+    }
+    else if (match(peek(), while_keyword_tt)) {
+      return parse_while();
+    }
+    else if (match(peek(), for_keyword_tt)) {
+      return parse_for();
+    }
+    else if (match(peek(), match_keyword_tt)) {
+      return parse_match();
+    }
+    else if (match(peek(), case_keyword_tt)) {
+      return parse_case();
+    }
+    else if (match(peek(), default_keyword_tt)) {
+      return parse_defaultcase();
+    }
+    else if (match(peek(), continue_keyword_tt)) {
+      return parse_continue();
+    }
+    else if (match(peek(), break_keyword_tt)) {
+      return parse_break();
+    }
+    else if (match(peek(), return_keyword_tt)) {
+      return parse_return();
+    }
+    else if (match(peek(), int32_keyword_tt)) {
+      
+    }
+    else {
+      throw runtime_error("Can't find keyword", peek());
+    }
   }
   
   std::unique_ptr<ast_ifstmt> parser::parse_if() {
@@ -160,9 +208,9 @@ namespace occult {
     
   }
   
-  std::unique_ptr<ast_instmt> parser::parse_in() {
+  /*std::unique_ptr<ast_instmt> parser::parse_in() {
     
-  }
+  }*/
   
   std::unique_ptr<ast_root> parser::parse() {
     while(!match(peek(), end_of_file_tt)) {

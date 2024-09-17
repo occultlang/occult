@@ -64,7 +64,7 @@ namespace occult {
     else_keyword_tt,     // else
     elseif_keyword_tt,   // elif
     loop_keyword_tt,     // loop
-    in_keyword_tt,       // in
+    //in_keyword_tt,       // in
     return_keyword_tt,   // return
     break_keyword_tt,    // break
     continue_keyword_tt, // continue

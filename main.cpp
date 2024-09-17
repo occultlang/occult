@@ -3,6 +3,8 @@
 #include "ast.hpp"
 #include "parser.hpp"
 
+// TODO organize files into directories
+
 int main() {
   /*std::string source = R"(
   
