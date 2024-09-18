@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <stack>
 
 namespace occult {
   enum token_type {
@@ -24,17 +25,24 @@ namespace occult {
     float_literal_tt,
 
     // arithmetic operators
-    add_operator_tt,      // +
-    subtract_operator_tt, // -
+    add_operator_tt,      // + unary
+    subtract_operator_tt, // - unary
+    
     multiply_operator_tt, // *
     division_operator_tt, // /
     modulo_operator_tt,   // %
-    exponent_operator_tt, // ^
-
+    
+    bitwise_and_tt, // &
+    bitwise_not_tt, // ~
+    bitwise_or_tt, // |
+    xor_operator_tt, // ^
+    bitwise_lshift_tt, // <<
+    bitwise_rshift_tt, // >>
+    
     // logical operators
     and_operator_tt, // &&
     or_operator_tt,  // ||
-    not_operator_tt, // !
+    not_operator_tt, // ! unary
 
     // relational operators
     equals_operator_tt,                // ==
@@ -111,12 +119,12 @@ namespace occult {
     std::uintptr_t line;
     std::uintptr_t column;
     
+    std::vector<token_t> stream;
+    token_t get_next();             // getting next token to put into stream
   public:
     lexer(std::string source) : source(source), pos(0), line(1), column(1) {}
     
-    std::vector<token_t> stream;
-    
-    token_t get_next();             // getting next token to put into stream
+    std::vector<token_t> shunting_yard(); // turning infix to postfix notation
     std::vector<token_t> analyze(); // returns a token stream which will be put into the parser later on
     void visualize(); // print out the AST
   };

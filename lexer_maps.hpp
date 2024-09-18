@@ -19,7 +19,10 @@ namespace occult {
       {'*', multiply_operator_tt},
       {'/', division_operator_tt},
       {'%', modulo_operator_tt},
-      {'^', exponent_operator_tt},
+      {'^', xor_operator_tt},
+      {'&', bitwise_and_tt},
+      {'~', bitwise_and_tt},
+      {'|', bitwise_and_tt},
       {'=', assignment_tt}};
 
   std::unordered_map<std::string, token_type> operator_map_double = {
@@ -28,7 +31,9 @@ namespace occult {
       {"==", equals_operator_tt},
       {"!=", not_equals_operator_tt},
       {">=", greater_than_or_equal_operator_tt},
-      {"<=", less_than_or_equal_operator_tt}};
+      {"<=", less_than_or_equal_operator_tt},
+      {"<<", bitwise_lshift_tt},
+      {">>", bitwise_rshift_tt}};
 
   std::unordered_map<char, token_type> delimiter_map = {
       {')', right_paren_tt},

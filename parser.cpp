@@ -99,8 +99,8 @@ namespace occult {
     // TODO
   }
   
-  std::unique_ptr<ast_literalexpr> parser::parse_literal() {
-    // TODO
+  std::unique_ptr<ast_literal> parser::parse_number_literal() {
+    
   }
   
   std::unique_ptr<ast_identifier> parser::parse_identifier() {
@@ -152,8 +152,8 @@ namespace occult {
     else if (match(peek(), return_keyword_tt)) {
       return parse_return();
     }
-    else if (match(peek(), int32_keyword_tt)) {
-      
+    else if (match(peek(), number_literal_tt)) {
+      return parse_number_literal();
     }
     else {
       throw runtime_error("Can't find keyword", peek());

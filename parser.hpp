@@ -17,7 +17,7 @@ namespace occult {
     std::unique_ptr<ast_block> parse_block();
     std::unique_ptr<ast_datatype> parse_datatype();
     std::unique_ptr<ast_binaryexpr> parse_binaryexpr();
-    std::unique_ptr<ast_literalexpr> parse_literal();
+    std::unique_ptr<ast_literal> parse_number_literal(); // add more literals
     std::unique_ptr<ast_identifier> parse_identifier();
     std::unique_ptr<ast> parse_keyword();
     std::unique_ptr<ast_ifstmt> parse_if();
