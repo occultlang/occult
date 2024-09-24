@@ -15,12 +15,12 @@ int main() {
   []
   * / %
   == <= >=
-  
+  12 4 1
   144.324234234
   3.14
   )";*/
   
-  std::string source = "fn main(int32 a) int32 {} fn main(int32 a) int32 {}"; 
+  std::string source = "fn main(int32 a) int32 { int32 tvar = 3 2 +; }"; 
 
   occult::lexer lexer(source);
 

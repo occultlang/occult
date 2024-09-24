@@ -1,7 +1,5 @@
 #include "parser.hpp"
 
-// can we implement a pre-allocated heap for occult to use as a virutal memory space to prevent buffer overflows
-
 namespace occult {
   token_t parser::peek() {
     return stream[pos];
@@ -79,13 +77,50 @@ namespace occult {
     }
   }
   
+  std::unique_ptr<ast_assignment> parser::parse_assignment() {
+    if (match(peek(), assignment_tt)) {
+      auto assignment_node = ast::new_node<ast_assignment>();
+      
+      if (peek().tt == number_literal_tt) {
+        auto left = parse_literal(); // rpn notation
+        
+        auto right = parse_literal();
+        
+        auto binaryexpr = ast::new_node<ast_binaryexpr>();
+        binaryexpr->content = peek().lexeme;
+        pos++;
+        
+        binaryexpr->add_child(std::move(left));
+        binaryexpr->add_child(std::move(right));
+        
+        assignment_node->add_child(std::move(binaryexpr));
+        
+        return assignment_node;
+      }
+    }
+    else {
+      throw runtime_error("Can't find assignment, expected '='", peek());
+    }
+  }
+  
   std::unique_ptr<ast_datatype> parser::parse_datatype() { 
     if (match(peek(), int32_keyword_tt)) {
       auto int32_node = ast::new_node<ast_datatype>();
       int32_node->content = previous().lexeme;
       
+      std::cout << previous().lexeme << std::endl;
+      
       if (peek().tt == identifier_tt) {
         int32_node->add_child(parse_identifier());
+        std::cout << previous().lexeme << std::endl;
+      }
+        
+      if (peek().tt == assignment_tt) {
+        int32_node->add_child(parse_assignment());
+        
+        if (!match(peek(), semicolon_tt)) {
+          throw runtime_error("Expected semicolon", peek());
+        }
       }
         
       return int32_node;
@@ -95,12 +130,12 @@ namespace occult {
     }
   }
   
-  std::unique_ptr<ast_binaryexpr> parser::parse_binaryexpr() {
-    // TODO
-  }
-  
-  std::unique_ptr<ast_literal> parser::parse_number_literal() {
+  std::unique_ptr<ast_literal> parser::parse_literal() { // maybe do matching here?
+    auto literal = ast::new_node<ast_literal>();
+    literal->content = peek().lexeme;
+    pos++;
     
+    return literal;
   }
   
   std::unique_ptr<ast_identifier> parser::parse_identifier() {
@@ -152,8 +187,9 @@ namespace occult {
     else if (match(peek(), return_keyword_tt)) {
       return parse_return();
     }
-    else if (match(peek(), number_literal_tt)) {
-      return parse_number_literal();
+    else if (match(peek(), int32_keyword_tt)) {
+      pos--;
+      return parse_datatype();
     }
     else {
       throw runtime_error("Can't find keyword", peek());

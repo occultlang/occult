@@ -124,7 +124,6 @@ namespace occult {
   public:
     lexer(std::string source) : source(source), pos(0), line(1), column(1) {}
     
-    std::vector<token_t> shunting_yard(); // turning infix to postfix notation
     std::vector<token_t> analyze(); // returns a token stream which will be put into the parser later on
     void visualize(); // print out the AST
   };

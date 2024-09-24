@@ -23,9 +23,10 @@ namespace occult {
     continuestmt,
     breakstmt,
     returnstmt,
-    instmt,
+    //instmt,
     functionarguments,
-    datatype
+    datatype,
+    assignment,
   };
   
   class ast {
@@ -98,5 +99,6 @@ namespace occult {
   NODE(continuestmt, ast_continuestmt)
   NODE(breakstmt, ast_breakstmt)
   NODE(returnstmt, ast_returnstmt)
-  NODE(instmt, ast_instmt)
+  //NODE(instmt, ast_instmt)
+  NODE(assignment, ast_assignment)
 } // namespace occult

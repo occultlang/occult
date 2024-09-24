@@ -104,7 +104,7 @@ namespace occult {
       {multiply_operator_tt, "multiply_operator"},
       {division_operator_tt, "division_operator"},
       {modulo_operator_tt, "modulo_operator"},
-      {exponent_operator_tt, "exponent_operator"},
+      {xor_operator_tt, "xor_operator"},
       {and_operator_tt, "and_operator"},
       {or_operator_tt, "or_operator"},
       {not_operator_tt, "not_operator"},

@@ -216,13 +216,6 @@ namespace occult {
     return token_t(line, column, "unknown token", unkown_tt);
   }
   
-  std::vector<token_t> lexer::shunting_yard() {
-      std::vector<token_t> postfix_expr;
-      std::stack<token_t> operator_stack;
-      
-      
-  }
-
   std::vector<token_t> lexer::analyze() {
     std::vector<token_t> token_stream;
     token_t token = get_next();
