@@ -79,28 +79,43 @@ namespace occult {
   
   std::unique_ptr<ast_assignment> parser::parse_assignment() {
     if (match(peek(), assignment_tt)) {
-      auto assignment_node = ast::new_node<ast_assignment>();
-      
-      if (peek().tt == number_literal_tt) {
-        auto left = parse_literal(); // rpn notation
+        auto assignment_node = ast::new_node<ast_assignment>();
         
-        auto right = parse_literal();
-        
-        auto binaryexpr = ast::new_node<ast_binaryexpr>();
-        binaryexpr->content = peek().lexeme;
-        pos++;
-        
-        binaryexpr->add_child(std::move(left));
-        binaryexpr->add_child(std::move(right));
-        
-        assignment_node->add_child(std::move(binaryexpr));
-        
+        std::stack<std::unique_ptr<ast>> operands; 
+
+        while (!match(peek(), semicolon_tt)) {  
+          if (peek().tt == number_literal_tt) {
+            auto operand = parse_literal();
+            operands.push(std::move(operand));
+          }
+          else {
+            if (operands.size() < 2) {
+              throw runtime_error("Insufficient operands for operator", peek());
+            }
+            
+            auto right = std::move(operands.top()); operands.pop();
+            auto left = std::move(operands.top()); operands.pop();
+            
+            auto binaryexpr = ast::new_node<ast_binaryexpr>();
+            binaryexpr->content = peek().lexeme; 
+            pos++; 
+            
+            binaryexpr->add_child(std::move(left));
+            binaryexpr->add_child(std::move(right));
+            operands.push(std::move(binaryexpr));
+          }
+        }
+
+        if (operands.size() != 1) {
+            throw runtime_error("Invalid RPN expression", peek());
+        }
+
+        assignment_node->add_child(std::move(operands.top()));
+
         return assignment_node;
-      }
-    }
-    else {
+    } else {
       throw runtime_error("Can't find assignment, expected '='", peek());
-    }
+   }
   }
   
   std::unique_ptr<ast_datatype> parser::parse_datatype() { 
@@ -117,11 +132,9 @@ namespace occult {
         
       if (peek().tt == assignment_tt) {
         int32_node->add_child(parse_assignment());
-        
-        if (!match(peek(), semicolon_tt)) {
-          throw runtime_error("Expected semicolon", peek());
-        }
       }
+      
+      if (match(peek(), semicolon_tt)) {}
         
       return int32_node;
     }

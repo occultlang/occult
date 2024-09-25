@@ -20,7 +20,7 @@ int main() {
   3.14
   )";*/
   
-  std::string source = "fn main(int32 a) int32 { int32 tvar = 3 2 +; }"; 
+  std::string source = "fn main(int32 a) int32 { int32 tvar = 3 2 + 5 *; }"; 
 
   occult::lexer lexer(source);
 
