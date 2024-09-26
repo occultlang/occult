@@ -17,13 +17,9 @@ namespace occult {
     loopstmt,
     whilestmt,
     forstmt,
-    matchstmt,
-    caseblock,
-    defaultcase,
     continuestmt,
     breakstmt,
     returnstmt,
-    //instmt,
     functionarguments,
     datatype,
     assignment,
@@ -93,9 +89,6 @@ namespace occult {
   NODE(loopstmt, ast_loopstmt)
   NODE(whilestmt, ast_whilestmt)
   NODE(forstmt, ast_forstmt)
-  NODE(matchstmt, ast_matchstmt)
-  NODE(caseblock, ast_caseblock)
-  NODE(defaultcase, ast_defaultcase)
   NODE(continuestmt, ast_continuestmt)
   NODE(breakstmt, ast_breakstmt)
   NODE(returnstmt, ast_returnstmt)
