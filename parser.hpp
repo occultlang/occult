@@ -26,12 +26,9 @@ namespace occult {
     std::unique_ptr<ast_loopstmt> parse_loop();
     std::unique_ptr<ast_whilestmt> parse_while();
     std::unique_ptr<ast_forstmt> parse_for();
-    std::unique_ptr<ast_caseblock> parse_case();
-    std::unique_ptr<ast_defaultcase> parse_defaultcase();
     std::unique_ptr<ast_continuestmt> parse_continue();
     std::unique_ptr<ast_breakstmt> parse_break();
     std::unique_ptr<ast_returnstmt> parse_return();
-    //std::unique_ptr<ast_instmt> parse_in();
   public:
     parser(std::vector<token_t> stream) : root(ast::new_node<ast_root>()), stream(stream) {}
     
