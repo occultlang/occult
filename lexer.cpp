@@ -1,9 +1,7 @@
 #include "lexer.hpp"
 #include "lexer_maps.hpp"
 /*
- * The reason for all of the maps & sets is to avoid using C library functions like isalnum, isdigit etc.
- *
- * TODO: scientific notation, hexadecimal, octal and binary for numbers (it's not necessary right now)
+ * TODO scientific notation, hexadecimal, octal and binary for numbers (it's not necessary right now)
  * */
 
 #define DONT_USE_WHITESPACES 1

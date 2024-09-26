@@ -26,7 +26,6 @@ namespace occult {
     std::unique_ptr<ast_loopstmt> parse_loop();
     std::unique_ptr<ast_whilestmt> parse_while();
     std::unique_ptr<ast_forstmt> parse_for();
-    std::unique_ptr<ast_matchstmt> parse_match();
     std::unique_ptr<ast_caseblock> parse_case();
     std::unique_ptr<ast_defaultcase> parse_defaultcase();
     std::unique_ptr<ast_continuestmt> parse_continue();

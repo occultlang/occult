@@ -1,5 +1,21 @@
 #include "parser.hpp"
 
+/*
+ * TODO
+ * Function Calls
+ * Assignments
+   * Strings
+   * Integers
+   * Floats
+   * Bools
+   * Chars
+   * RPN for ints + floats
+ * Conditionals (if else while, etc) & A notation for that (RPN variant?)
+ * Return
+ * For
+ * Other keywords
+ */
+
 namespace occult {
   token_t parser::peek() {
     return stream[pos];
@@ -77,45 +93,8 @@ namespace occult {
     }
   }
   
-  std::unique_ptr<ast_assignment> parser::parse_assignment() {
-    if (match(peek(), assignment_tt)) {
-        auto assignment_node = ast::new_node<ast_assignment>();
-        
-        std::stack<std::unique_ptr<ast>> operands; 
-
-        while (!match(peek(), semicolon_tt)) {  
-          if (peek().tt == number_literal_tt) {
-            auto operand = parse_literal();
-            operands.push(std::move(operand));
-          }
-          else {
-            if (operands.size() < 2) {
-              throw runtime_error("Insufficient operands for operator", peek());
-            }
-            
-            auto right = std::move(operands.top()); operands.pop();
-            auto left = std::move(operands.top()); operands.pop();
-            
-            auto binaryexpr = ast::new_node<ast_binaryexpr>();
-            binaryexpr->content = peek().lexeme; 
-            pos++; 
-            
-            binaryexpr->add_child(std::move(left));
-            binaryexpr->add_child(std::move(right));
-            operands.push(std::move(binaryexpr));
-          }
-        }
-
-        if (operands.size() != 1) {
-            throw runtime_error("Invalid RPN expression", peek());
-        }
-
-        assignment_node->add_child(std::move(operands.top()));
-
-        return assignment_node;
-    } else {
-      throw runtime_error("Can't find assignment, expected '='", peek());
-   }
+  std::unique_ptr<ast_assignment> parser::parse_assignment() { 
+    
   }
   
   std::unique_ptr<ast_datatype> parser::parse_datatype() { 
@@ -123,11 +102,8 @@ namespace occult {
       auto int32_node = ast::new_node<ast_datatype>();
       int32_node->content = previous().lexeme;
       
-      std::cout << previous().lexeme << std::endl;
-      
       if (peek().tt == identifier_tt) {
         int32_node->add_child(parse_identifier());
-        std::cout << previous().lexeme << std::endl;
       }
         
       if (peek().tt == assignment_tt) {
@@ -182,9 +158,6 @@ namespace occult {
     else if (match(peek(), for_keyword_tt)) {
       return parse_for();
     }
-    else if (match(peek(), match_keyword_tt)) {
-      return parse_match();
-    }
     else if (match(peek(), case_keyword_tt)) {
       return parse_case();
     }
@@ -233,18 +206,6 @@ namespace occult {
     
   }
   
-  std::unique_ptr<ast_matchstmt> parser::parse_match() {
-    
-  }
-  
-  std::unique_ptr<ast_caseblock> parser::parse_case() {
-    
-  }
-  
-  std::unique_ptr<ast_defaultcase> parser::parse_defaultcase() {
-    
-  }
-  
   std::unique_ptr<ast_continuestmt> parser::parse_continue() {
     
   }
@@ -256,10 +217,6 @@ namespace occult {
   std::unique_ptr<ast_returnstmt> parser::parse_return() {
     
   }
-  
-  /*std::unique_ptr<ast_instmt> parser::parse_in() {
-    
-  }*/
   
   std::unique_ptr<ast_root> parser::parse() {
     while(!match(peek(), end_of_file_tt)) {

@@ -6,22 +6,26 @@
 // TODO organize files into directories
 
 int main() {
-  /*std::string source = R"(
+  std::string source = R"(
+  fn func_call(int32 y) int32 {
+    return y + 6;
+  }
   
-  // so are normal comments cool too?
-  _identifieryeeea
-  fn main "hi world world world" 'a'
-  123423624562456
-  []
-  * / %
-  == <= >=
-  12 4 1
-  144.324234234
-  3.14
-  )";*/
+  fn test() int32 {
+    return func_call(3);
+  }
   
-  std::string source = "fn main(int32 a) int32 { int32 tvar = 3 2 + 5 *; }"; 
-
+  fn main() {
+    int32 tvar = 3;
+    int32 foo = 43 9 +;
+    func_call(5);
+    int32 x = func_call(6) 4 +;
+    int32 y = test() 9 %;
+  }
+  )"; // The goal is to parse this fully, right now if we get everything in the TODO done, we can.
+  
+  std::println("{}\n", source);
+  
   occult::lexer lexer(source);
 
   std::vector<occult::token_t> stream = lexer.analyze();
@@ -36,3 +40,4 @@ int main() {
   
   return 0;
 }
+  
