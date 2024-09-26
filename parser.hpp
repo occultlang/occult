@@ -9,7 +9,7 @@ namespace occult {
     std::vector<token_t> stream;
     std::uintptr_t pos = 0;
     
-    token_t peek();
+    token_t peek(std::uintptr_t pos = 0);
     token_t previous();
     void consume();
     bool match(token_t t, token_type tt);

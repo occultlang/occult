@@ -2,7 +2,7 @@
 
 /*
  * TODO
- * Function Calls
+ * Function Calls : can't have its own function, has to be inside every function
  * Assignments
    * Strings
    * Integers
@@ -17,8 +17,8 @@
  */
 
 namespace occult {
-  token_t parser::peek() {
-    return stream[pos];
+  token_t parser::peek(std::uintptr_t pos) {
+    return stream[this->pos + pos];
   }
   
   token_t parser::previous() {
@@ -158,12 +158,6 @@ namespace occult {
     else if (match(peek(), for_keyword_tt)) {
       return parse_for();
     }
-    else if (match(peek(), case_keyword_tt)) {
-      return parse_case();
-    }
-    else if (match(peek(), default_keyword_tt)) {
-      return parse_defaultcase();
-    }
     else if (match(peek(), continue_keyword_tt)) {
       return parse_continue();
     }
@@ -172,6 +166,9 @@ namespace occult {
     }
     else if (match(peek(), return_keyword_tt)) {
       return parse_return();
+    }
+    else if (peek().tt == identifier_tt && peek(1).tt == right_paren_tt) {
+      // function call magic
     }
     else if (match(peek(), int32_keyword_tt)) {
       pos--;

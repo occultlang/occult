@@ -8,19 +8,19 @@
 int main() {
   std::string source = R"(
   fn func_call(int32 y) int32 {
-    return y + 6;
+    //return y + 6;
   }
   
   fn test() int32 {
-    return func_call(3);
+    //return func_call(3);
   }
   
   fn main() {
-    int32 tvar = 3;
-    int32 foo = 43 9 +;
+    //int32 tvar = 3;
+    //int32 foo = 43 9 +;
     func_call(5);
-    int32 x = func_call(6) 4 +;
-    int32 y = test() 9 %;
+    //int32 x = func_call(6) 4 +;
+    //int32 y = test() 9 %;
   }
   )"; // The goal is to parse this fully, right now if we get everything in the TODO done, we can.
   
