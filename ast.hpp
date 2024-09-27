@@ -22,6 +22,7 @@ namespace occult {
     returnstmt,
     functionarguments,
     datatype,
+    functioncall,
     assignment,
   };
   
@@ -83,6 +84,7 @@ namespace occult {
   NODE(identifier, ast_identifier)
   NODE(function, ast_function)
   NODE(functionarguments, ast_functionargs)
+  NODE(functioncall, ast_functioncall)
   NODE(ifstmt, ast_ifstmt)
   NODE(elsestmt, ast_elsestmt)
   NODE(elseifstmt, ast_elseifstmt)
@@ -92,6 +94,5 @@ namespace occult {
   NODE(continuestmt, ast_continuestmt)
   NODE(breakstmt, ast_breakstmt)
   NODE(returnstmt, ast_returnstmt)
-  //NODE(instmt, ast_instmt)
   NODE(assignment, ast_assignment)
 } // namespace occult

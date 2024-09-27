@@ -59,6 +59,8 @@ namespace occult {
           auto arg = parse_datatype();
           
           function_args_node->add_child(std::move(arg));
+          
+          match(peek(), comma_tt);
         }
         
         function_node->add_child(std::move(function_args_node));
@@ -110,7 +112,7 @@ namespace occult {
         int32_node->add_child(parse_assignment());
       }
       
-      if (match(peek(), semicolon_tt)) {}
+      match(peek(), semicolon_tt);
         
       return int32_node;
     }
@@ -140,7 +142,66 @@ namespace occult {
   }
   
   std::unique_ptr<ast> parser::parse_keyword() { // parsing keywords
-    if (match(peek(), if_keyword_tt)) {
+    if (peek().tt == identifier_tt && peek(1).tt == left_paren_tt) {
+      auto func_call_node = ast::new_node<ast_functioncall>();
+      
+      func_call_node->add_child(parse_identifier());
+      
+      consume(); // consume left paren
+      
+      auto function_args_node = ast::new_node<ast_functionargs>();
+      
+      std::stack<std::unique_ptr<ast>> operands;
+      
+      while (!match(peek(), right_paren_tt)) {
+        if (peek().tt == identifier_tt && peek(1).tt == left_paren_tt) {
+          // function call as argument. 
+        }
+        // do with float as well \/
+        else if (peek().tt == number_literal_tt && (peek(1).tt == right_paren_tt || peek(1).tt == comma_tt)) { // number literal NON EXPR
+          auto operand = parse_literal();
+          function_args_node->add_child(std::move(operand));
+        }
+        else {
+          while (!match(peek(), comma_tt)) {
+            if (peek().tt == number_literal_tt) { // FOR RPN NUMBER LITERALS
+              auto operand = parse_literal();
+              operands.push(std::move(operand));
+            }
+            // other things like strings etc.
+            else {
+              if (operands.size() < 2) {
+                throw runtime_error("Insufficient operands for operator", peek());
+              }
+              
+              auto right = std::move(operands.top()); operands.pop();
+              auto left = std::move(operands.top()); operands.pop();
+              
+              auto binaryexpr = ast::new_node<ast_binaryexpr>();
+              binaryexpr->content = peek().lexeme; 
+              pos++; 
+              
+              binaryexpr->add_child(std::move(left));
+              binaryexpr->add_child(std::move(right));
+              operands.push(std::move(binaryexpr));
+              
+              function_args_node->add_child(std::move(operands.top()));
+            }
+          }
+        }
+        
+        match(peek(), comma_tt);
+      }
+      
+      if (!match(peek(), semicolon_tt)) {
+        throw runtime_error("Expected semicolon", peek());
+      }
+    
+      func_call_node->add_child(std::move(function_args_node));
+      
+      return func_call_node;
+    }
+    else if (match(peek(), if_keyword_tt)) {
       return parse_if();
     }
     else if (match(peek(), elseif_keyword_tt)) {
@@ -166,9 +227,6 @@ namespace occult {
     }
     else if (match(peek(), return_keyword_tt)) {
       return parse_return();
-    }
-    else if (peek().tt == identifier_tt && peek(1).tt == right_paren_tt) {
-      // function call magic
     }
     else if (match(peek(), int32_keyword_tt)) {
       pos--;

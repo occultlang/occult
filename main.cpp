@@ -15,10 +15,10 @@ int main() {
     //return func_call(3);
   }
   
-  fn main() {
+  fn main() int32 {
     //int32 tvar = 3;
     //int32 foo = 43 9 +;
-    func_call(5);
+    func_call(5, 7);
     //int32 x = func_call(6) 4 +;
     //int32 y = test() 9 %;
   }
