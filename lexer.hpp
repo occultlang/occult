@@ -25,15 +25,17 @@ namespace occult {
     float_literal_tt,
 
     // arithmetic operators
-    add_operator_tt,      // + unary
-    subtract_operator_tt, // - unary
+    add_operator_tt,      // + 
+    subtract_operator_tt, // - 
+    unary_plus_operator_tt,      // + unary
+    unary_minus_operator_tt, // - unary
     
     multiply_operator_tt, // *
     division_operator_tt, // /
     modulo_operator_tt,   // %
     
     bitwise_and_tt, // &
-    bitwise_not_tt, // ~
+    unary_bitwise_not_tt, // ~
     bitwise_or_tt, // |
     xor_operator_tt, // ^
     bitwise_lshift_tt, // <<
@@ -42,7 +44,7 @@ namespace occult {
     // logical operators
     and_operator_tt, // &&
     or_operator_tt,  // ||
-    not_operator_tt, // ! unary
+    unary_not_operator_tt, // ! unary
 
     // relational operators
     equals_operator_tt,                // ==
@@ -72,7 +74,6 @@ namespace occult {
     else_keyword_tt,     // else
     elseif_keyword_tt,   // elif
     loop_keyword_tt,     // loop
-    //in_keyword_tt,       // in
     return_keyword_tt,   // return
     break_keyword_tt,    // break
     continue_keyword_tt, // continue
@@ -96,7 +97,8 @@ namespace occult {
     false_keyword_tt,    // false
 
     end_of_file_tt,
-    unkown_tt
+    unkown_tt,
+    function_call_parser_tt,
   };
 
   typedef struct token_t {
@@ -122,6 +124,6 @@ namespace occult {
     lexer(std::string source) : source(source), pos(0), line(1), column(1) {}
     
     std::vector<token_t> analyze(); // returns a token stream which will be put into the parser later on
-    void visualize(); // print out the AST
+    void visualize(std::optional<std::vector<token_t>> o_s = std::nullopt); 
   };
 } // namespace occult

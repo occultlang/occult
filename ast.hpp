@@ -7,7 +7,6 @@ namespace occult {
   enum class ast_type {
     root,
     binaryexpr,
-    literal,
     block,
     identifier,
     function,
@@ -21,9 +20,44 @@ namespace occult {
     breakstmt,
     returnstmt,
     functionarguments,
-    datatype,
     functioncall,
     assignment,
+    int8_datatype, // char as well as boolean
+    int16_datatype,
+    int32_datatype,
+    int64_datatype,
+    uint8_datatype,
+    uint16_datatype,
+    uint32_datatype,
+    uint64_datatype,
+    float32_datatype,
+    float64_datatype, 
+    number_literal,
+    float_literal,
+    add_operator,
+    subtract_operator,
+    unary_plus_operator,
+    unary_minus_operator,
+    multiply_operator,
+    division_operator,
+    modulo_operator,
+    bitwise_and,
+    unary_bitwise_not,
+    bitwise_or,
+    xor_operator,
+    bitwise_lshift,
+    bitwise_rshift,
+    and_operator,
+    or_operator,
+    unary_not_operator,
+    equals_operator,
+    not_equals_operator,
+    greater_than_operator,
+    less_than_operator,
+    greater_than_or_equal,
+    less_than_or_equal,
+    greater_than_or_equal_operator,
+    less_than_or_equal_operator,
   };
   
   class ast {
@@ -78,8 +112,6 @@ namespace occult {
   
   NODE(root, ast_root)
   NODE(binaryexpr, ast_binaryexpr)
-  NODE(literal, ast_literal)
-  NODE(datatype, ast_datatype)
   NODE(block, ast_block)
   NODE(identifier, ast_identifier)
   NODE(function, ast_function)
@@ -95,4 +127,29 @@ namespace occult {
   NODE(breakstmt, ast_breakstmt)
   NODE(returnstmt, ast_returnstmt)
   NODE(assignment, ast_assignment)
+  NODE(int8_datatype, ast_int8)
+  NODE(number_literal, ast_numberliteral)
+  NODE(float_literal, ast_floatliteral)
+  NODE(add_operator, ast_add)
+  NODE(subtract_operator, ast_subtract)
+  NODE(unary_plus_operator, ast_unary_plus)
+  NODE(unary_minus_operator, ast_unary_minus)
+  NODE(multiply_operator, ast_multiply)
+  NODE(division_operator, ast_divide)
+  NODE(modulo_operator, ast_modulo)
+  NODE(bitwise_and, ast_bitwise_and)
+  NODE(unary_bitwise_not, ast_unary_bitwise_not)
+  NODE(bitwise_or, ast_bitwise_or)
+  NODE(xor_operator, ast_xor)
+  NODE(bitwise_lshift, ast_bitwise_lshift)
+  NODE(bitwise_rshift, ast_bitwise_rshift)
+  NODE(and_operator, ast_and)
+  NODE(or_operator, ast_or)
+  NODE(unary_not_operator, ast_unary_not)
+  NODE(equals_operator, ast_equals)
+  NODE(not_equals_operator, ast_not_equals)
+  NODE(greater_than_operator, ast_greater_than)
+  NODE(less_than_operator, ast_less_than)
+  NODE(greater_than_or_equal_operator, ast_greater_than_or_equal)
+  NODE(less_than_or_equal_operator, ast_less_than_or_equal)
 } // namespace occult

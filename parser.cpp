@@ -1,287 +1,551 @@
 #include "parser.hpp"
 
-/*
- * TODO
- * Function Calls : can't have its own function, has to be inside every function
- * Assignments
-   * Strings
-   * Integers
-   * Floats
-   * Bools
-   * Chars
-   * RPN for ints + floats
- * Conditionals (if else while, etc) & A notation for that (RPN variant?)
- * Return
- * For
- * Other keywords
- */
-
 namespace occult {
   token_t parser::peek(std::uintptr_t pos) {
     return stream[this->pos + pos];
   }
-  
+
   token_t parser::previous() {
     if ((pos - 1) != 0) {
       return stream[pos - 1];
-    }
-    else {
-      throw std::runtime_error("Out of bounds parser::previous");
+    } else {
+      throw std::runtime_error("out of bounds parser::previous");
     }
   }
-  
+
   void parser::consume() {
     pos++;
   }
-  
+
   bool parser::match(token_t t, token_type tt) {
     if (t.tt == tt) {
-      consume();
-      
       return true;
-    }
-    else {
+    } else {
       return false;
     }
   }
-  
-  std::unique_ptr<ast_function> parser::parse_function() {
-    if (match(peek(), function_keyword_tt)) {
-      auto function_node = ast::new_node<ast_function>();
-      
-      auto identifier_node = parse_identifier();
-      function_node->add_child(std::move(identifier_node));
-      
-      if (match(peek(), left_paren_tt)) {
-        auto function_args_node = ast::new_node<ast_functionargs>();
-        
-        while (!match(peek(), right_paren_tt)) {
-          auto arg = parse_datatype();
-          
-          function_args_node->add_child(std::move(arg));
-          
-          match(peek(), comma_tt);
-        }
-        
-        function_node->add_child(std::move(function_args_node));
-        
-        auto return_type = parse_datatype();
-        function_node->add_child(std::move(return_type));
-        
-        auto body = parse_block();  
-        function_node->add_child(std::move(body));
-      }
-      else
-        throw runtime_error("Expected left parenthesis", peek());
-      
-      return function_node;
+
+  bool parser::match_and_consume(token_t t, token_type tt) {
+    if (match(t, tt)) {
+      consume();
+
+      return true;
+    } else {
+      return false;
     }
-    else
-      throw runtime_error("Expected function keyword", peek());
+  }
+
+  std::unordered_map<token_type, int> precedence_map = {
+      {unary_plus_operator_tt, 2},
+      {unary_minus_operator_tt, 2},
+      {unary_bitwise_not_tt, 2},
+      {unary_not_operator_tt, 2}, // logical
+
+      {multiply_operator_tt, 3},
+      {division_operator_tt, 3},
+      {modulo_operator_tt, 3},
+
+      {add_operator_tt, 4},
+      {subtract_operator_tt, 4},
+
+      {bitwise_rshift_tt, 5},
+      {bitwise_lshift_tt, 5},
+
+      {greater_than_operator_tt, 6},
+      {less_than_operator_tt, 6},
+      {less_than_or_equal_operator_tt, 6},
+      {greater_than_or_equal_operator_tt, 6},
+
+      {equals_operator_tt, 7},
+      {not_equals_operator_tt, 7},
+
+      {bitwise_and_tt, 8},
+
+      {xor_operator_tt, 9}, // bitwise
+
+      {bitwise_or_tt, 10}, // bitwise
+
+      {and_operator_tt, 11}, // logical
+
+      {or_operator_tt, 12}, // logical
+
+      {assignment_tt, 14},
+
+      {comma_tt, 15}};
+
+  // true is right associative, false is left
+  std::unordered_map<token_type, bool> associativity_map = {
+      {unary_plus_operator_tt, true},
+      {unary_minus_operator_tt, true},
+      {unary_bitwise_not_tt, true},
+      {unary_not_operator_tt, true}, // logical
+
+      {multiply_operator_tt, false},
+      {division_operator_tt, false},
+      {modulo_operator_tt, false},
+
+      {add_operator_tt, false},
+      {subtract_operator_tt, false},
+
+      {bitwise_rshift_tt, false},
+      {bitwise_lshift_tt, false},
+
+      {greater_than_operator_tt, false},
+      {less_than_operator_tt, false},
+      {less_than_or_equal_operator_tt, false},
+      {greater_than_or_equal_operator_tt, false},
+
+      {equals_operator_tt, false},
+      {not_equals_operator_tt, false},
+
+      {bitwise_and_tt, false},
+
+      {xor_operator_tt, false}, // bitwise
+
+      {bitwise_or_tt, false}, // bitwise
+
+      {and_operator_tt, false}, // logical
+
+      {or_operator_tt, false}, // logical
+
+      {assignment_tt, true},
+
+      {comma_tt, false}};
+
+  bool is_unary(token_type tt) {
+    return tt == unary_plus_operator_tt || tt == unary_minus_operator_tt ||
+           tt == unary_bitwise_not_tt || tt == unary_not_operator_tt;
+  }
+
+  bool is_binary(token_type tt) {
+    return tt == add_operator_tt ||
+           tt == subtract_operator_tt ||
+           tt == multiply_operator_tt ||
+           tt == division_operator_tt ||
+           tt == modulo_operator_tt ||
+           tt == bitwise_and_tt ||
+           tt == bitwise_or_tt ||
+           tt == xor_operator_tt ||
+           tt == bitwise_lshift_tt ||
+           tt == bitwise_rshift_tt ||
+           tt == greater_than_operator_tt ||
+           tt == less_than_operator_tt ||
+           tt == equals_operator_tt ||
+           tt == not_equals_operator_tt ||
+           tt == less_than_or_equal_operator_tt ||
+           tt == greater_than_or_equal_operator_tt ||
+           tt == and_operator_tt ||
+           tt == or_operator_tt;
+  }
+
+  std::vector<token_t> parser::to_rpn(std::vector<token_t> expr) {
+    std::stack<token_t> operator_stack;
+    std::vector<token_t> rpn_output;
+
+    for (std::size_t i = 0; i < expr.size(); i++) {
+      auto t = expr.at(i);
+
+      if (t.tt == semicolon_tt) { // stop if semicolon
+        break;
+      }
+      
+      else if (t.tt == number_literal_tt || t.tt == float_literal_tt || t.tt == identifier_tt) {
+        rpn_output.push_back(t);
+      }
+      else if (is_unary(t.tt)) {
+        operator_stack.push(t);
+      }
+      else if (is_binary(t.tt)) {
+        while (!operator_stack.empty() && precedence_map[operator_stack.top().tt] <= precedence_map[t.tt]) {
+          rpn_output.push_back(operator_stack.top());
+          operator_stack.pop();
+        }
+
+        operator_stack.push(t);
+      }
+      else if (t.tt == left_paren_tt) {
+        operator_stack.push(t);
+      }
+      else if (t.tt == right_paren_tt) {
+        while (!operator_stack.empty() && operator_stack.top().tt != left_paren_tt) {
+          rpn_output.push_back(operator_stack.top());
+          operator_stack.pop();
+        }
+
+        if (!operator_stack.empty()) {
+          operator_stack.pop();
+        }
+      }
+
+      consume();
+    }
+
+    while (!operator_stack.empty()) {
+      rpn_output.push_back(operator_stack.top());
+      operator_stack.pop();
+    }
+
+    std::vector<token_t> final_rpn_output;
+
+    for (std::size_t i = 0; i < rpn_output.size(); i++) {
+      auto t = rpn_output.at(i);
+
+      if (t.tt != left_paren_tt && t.tt != right_paren_tt) {
+        final_rpn_output.push_back(t);
+      }
+    }
+
+    return final_rpn_output;
+  }
+
+  std::vector<std::unique_ptr<ast>> parser::to_vec(std::vector<token_t> expr) {
+    std::vector<std::unique_ptr<ast>> expr_ast;
+
+    for (auto t : expr) {
+      switch (t.tt) {
+        case number_literal_tt: {
+          auto node = ast::new_node<ast_numberliteral>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case identifier_tt: {
+          auto node = ast::new_node<ast_identifier>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case float_literal_tt: {
+          auto node = ast::new_node<ast_floatliteral>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case add_operator_tt: {
+          auto node = ast::new_node<ast_add>();
+          node->content = t.lexeme; 
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case subtract_operator_tt: {
+          auto node = ast::new_node<ast_subtract>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case unary_plus_operator_tt: {
+          auto node = ast::new_node<ast_unary_plus>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case unary_minus_operator_tt: {
+          auto node = ast::new_node<ast_unary_minus>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case multiply_operator_tt: {
+          auto node = ast::new_node<ast_multiply>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case division_operator_tt: {
+          auto node = ast::new_node<ast_divide>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case modulo_operator_tt: {
+          auto node = ast::new_node<ast_modulo>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case bitwise_and_tt: {
+          auto node = ast::new_node<ast_bitwise_and>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case unary_bitwise_not_tt: {
+          auto node = ast::new_node<ast_unary_bitwise_not>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case bitwise_or_tt: {
+          auto node = ast::new_node<ast_bitwise_or>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case xor_operator_tt: {
+          auto node = ast::new_node<ast_xor>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case bitwise_lshift_tt: {
+          auto node = ast::new_node<ast_bitwise_lshift>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case bitwise_rshift_tt: {
+          auto node = ast::new_node<ast_bitwise_rshift>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case and_operator_tt: {
+          auto node = ast::new_node<ast_and>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case or_operator_tt: {
+          auto node = ast::new_node<ast_or>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case unary_not_operator_tt: {
+          auto node = ast::new_node<ast_unary_not>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case equals_operator_tt: {
+          auto node = ast::new_node<ast_equals>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case not_equals_operator_tt: {
+          auto node = ast::new_node<ast_not_equals>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case greater_than_operator_tt: {
+          auto node = ast::new_node<ast_greater_than>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case less_than_operator_tt: {
+          auto node = ast::new_node<ast_less_than>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case greater_than_or_equal_operator_tt: {
+          auto node = ast::new_node<ast_greater_than_or_equal>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        case less_than_or_equal_operator_tt: {
+          auto node = ast::new_node<ast_less_than_or_equal>();
+          node->content = t.lexeme;
+          expr_ast.push_back(std::move(node));
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    return expr_ast;
   }
   
-  std::unique_ptr<ast_block> parser::parse_block() { // i think this is done
+  std::unique_ptr<ast> parser::parse_datatype() { // add more
+    if (match(peek(), int8_keyword_tt)) {
+      consume();
+      
+      auto node = ast::new_node<ast_int8>();
+      
+      if (peek().tt == identifier_tt) {
+        node->add_child(parse_identifier());
+      }
+      
+      return node;
+    }
+    else {
+      throw runtime_error("invalid datatype", peek());
+    }
+  }
+
+  std::unique_ptr<ast_identifier> parser::parse_identifier() {
+    consume();
+
+    auto node = ast::new_node<ast_identifier>();
+
+    node->content = previous().lexeme;
+
+    return node;
+  }
+
+  std::unique_ptr<ast_function> parser::parse_function() {
+    auto func_node = ast::new_node<ast_function>();
+    
+    consume(); // consume function keyword
+    
+    auto name = parse_identifier();
+    
+    func_node->add_child(std::move(name));
+    
+    if (match(peek(), left_paren_tt)) {
+      consume();
+      
+      auto func_args_node = ast::new_node<ast_functionargs>();
+      
+      while (!match(peek(), right_paren_tt)) {
+        auto arg = parse_datatype();
+        
+        func_args_node->add_child(std::move(arg));
+        
+        match(peek(), comma_tt);
+      }
+      
+      if (!match(peek(), right_paren_tt)) {
+        throw runtime_error("expected right parenthesis", peek());
+      }
+      else {
+        consume();
+      }
+      
+      func_node->add_child(std::move(func_args_node));
+    }
+    else {
+      throw runtime_error("expected left parenthesis", peek());
+    }
+    
+    auto return_type = parse_datatype();
+    func_node->add_child(std::move(return_type));
+    
+    auto body = parse_block();  
+    func_node->add_child(std::move(body));
+    
+    return func_node;
+  }
+  
+  std::unique_ptr<ast_block> parser::parse_block() { 
     if (match(peek(), left_curly_bracket_tt)) {
+      consume();
+      
       auto block_node = ast::new_node<ast_block>();
       
       while (!match(peek(), right_curly_bracket_tt)) {
         block_node->add_child(parse_keyword()); 
       }
       
+      if (!match(peek(), right_curly_bracket_tt)) {
+        throw runtime_error("expected right curly brace", peek());
+      }
+      else {
+        consume();
+      }
+      
       return block_node;
     }
     else {
-      throw runtime_error("Can't find left curly bracket", peek());
+      throw runtime_error("expected left curly brace", peek());
     }
   }
-  
-  std::unique_ptr<ast_assignment> parser::parse_assignment() { 
-    
+
+  std::unique_ptr<ast_assignment> parser::parse_assignment() {
+    consume();
+
+    auto node = ast::new_node<ast_assignment>();
+
+    return node;
   }
-  
-  std::unique_ptr<ast_datatype> parser::parse_datatype() { 
-    if (match(peek(), int32_keyword_tt)) {
-      auto int32_node = ast::new_node<ast_datatype>();
-      int32_node->content = previous().lexeme;
-      
-      if (peek().tt == identifier_tt) {
-        int32_node->add_child(parse_identifier());
-      }
-        
-      if (peek().tt == assignment_tt) {
-        int32_node->add_child(parse_assignment());
-      }
-      
-      match(peek(), semicolon_tt);
-        
-      return int32_node;
-    }
-    else {
-      throw runtime_error("Invalid datatype", peek());
-    }
-  }
-  
-  std::unique_ptr<ast_literal> parser::parse_literal() { // maybe do matching here?
-    auto literal = ast::new_node<ast_literal>();
-    literal->content = peek().lexeme;
-    pos++;
-    
-    return literal;
-  }
-  
-  std::unique_ptr<ast_identifier> parser::parse_identifier() {
+
+  std::unique_ptr<ast_int8> parser::parse_int8() {
+    consume(); // consume int8 keyword
+
+    auto i8_node = ast::new_node<ast_int8>();
+
     if (match(peek(), identifier_tt)) {
-      auto identifier = ast::new_node<ast_identifier>();
-      identifier->content = previous().lexeme;
+      i8_node->add_child(parse_identifier()); // add identifier as a child node
+    } else {
+      throw runtime_error("expected identifier", peek());
+    }
+
+    if (match(peek(), assignment_tt)) {
+      i8_node->add_child(parse_assignment());
       
-      return identifier;
+      if (match(peek(), semicolon_tt)) {
+        throw runtime_error("expected expression", peek());
+      }
+      
+      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.end()}; 
+      auto rpn_expr = to_rpn(sub_stream);  // stops at semicolon
+      auto converted_rpn = to_vec(rpn_expr);
+      
+      for (auto &c : converted_rpn) { // adding all the children of the converted expression into the i8_node
+        i8_node->get_children().at(1)->add_child(std::move(c));
+      }
     }
-    else {
-      throw runtime_error("Expected identifier", peek());
+
+    if (match(peek(), semicolon_tt)) { // end of declaration
+      consume();
+    } else {
+      throw runtime_error("expected semicolon", peek());
     }
+
+    return i8_node;
   }
   
-  std::unique_ptr<ast> parser::parse_keyword() { // parsing keywords
-    if (peek().tt == identifier_tt && peek(1).tt == left_paren_tt) {
-      auto func_call_node = ast::new_node<ast_functioncall>();
-      
-      func_call_node->add_child(parse_identifier());
-      
-      consume(); // consume left paren
-      
-      auto function_args_node = ast::new_node<ast_functionargs>();
-      
-      std::stack<std::unique_ptr<ast>> operands;
-      
-      while (!match(peek(), right_paren_tt)) {
-        if (peek().tt == identifier_tt && peek(1).tt == left_paren_tt) {
-          // function call as argument. 
-        }
-        // do with float as well \/
-        else if (peek().tt == number_literal_tt && (peek(1).tt == right_paren_tt || peek(1).tt == comma_tt)) { // number literal NON EXPR
-          auto operand = parse_literal();
-          function_args_node->add_child(std::move(operand));
-        }
-        else {
-          while (!match(peek(), comma_tt)) {
-            if (peek().tt == number_literal_tt) { // FOR RPN NUMBER LITERALS
-              auto operand = parse_literal();
-              operands.push(std::move(operand));
-            }
-            // other things like strings etc.
-            else {
-              if (operands.size() < 2) {
-                throw runtime_error("Insufficient operands for operator", peek());
-              }
-              
-              auto right = std::move(operands.top()); operands.pop();
-              auto left = std::move(operands.top()); operands.pop();
-              
-              auto binaryexpr = ast::new_node<ast_binaryexpr>();
-              binaryexpr->content = peek().lexeme; 
-              pos++; 
-              
-              binaryexpr->add_child(std::move(left));
-              binaryexpr->add_child(std::move(right));
-              operands.push(std::move(binaryexpr));
-              
-              function_args_node->add_child(std::move(operands.top()));
-            }
-          }
-        }
-        
-        match(peek(), comma_tt);
-      }
-      
-      if (!match(peek(), semicolon_tt)) {
-        throw runtime_error("Expected semicolon", peek());
-      }
+  std::unique_ptr<ast_returnstmt> parser::parse_return() {
+    consume();
     
-      func_call_node->add_child(std::move(function_args_node));
-      
-      return func_call_node;
+    auto return_node = ast::new_node<ast_returnstmt>();
+    
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.end()}; 
+    auto rpn_expr = to_rpn(sub_stream);
+    auto converted_rpn = to_vec(rpn_expr);
+    
+    for (auto &c : converted_rpn) { 
+      return_node->add_child(std::move(c));
     }
-    else if (match(peek(), if_keyword_tt)) {
-      return parse_if();
+    
+    if (match(peek(), semicolon_tt)) { 
+      consume();
+    } else {
+      throw runtime_error("expected semicolon", peek());
     }
-    else if (match(peek(), elseif_keyword_tt)) {
-      return parse_elseif();
+    
+    return return_node;
+  }
+
+  std::unique_ptr<ast> parser::parse_keyword(bool nested_function) {
+    if (nested_function) {
+      if (match(peek(), function_keyword_tt)) {
+        return parse_function();
+      }
     }
-    else if (match(peek(), else_keyword_tt)) {
-      return parse_else();
-    }
-    else if (match(peek(), loop_keyword_tt)) {
-      return parse_loop();
-    }
-    else if (match(peek(), while_keyword_tt)) {
-      return parse_while();
-    }
-    else if (match(peek(), for_keyword_tt)) {
-      return parse_for();
-    }
-    else if (match(peek(), continue_keyword_tt)) {
-      return parse_continue();
-    }
-    else if (match(peek(), break_keyword_tt)) {
-      return parse_break();
+
+    if (match(peek(), int8_keyword_tt)) {
+      return parse_int8();
     }
     else if (match(peek(), return_keyword_tt)) {
       return parse_return();
     }
-    else if (match(peek(), int32_keyword_tt)) {
-      pos--;
-      return parse_datatype();
-    }
-    else {
-      throw runtime_error("Can't find keyword", peek());
-    }
   }
-  
-  std::unique_ptr<ast_ifstmt> parser::parse_if() {
-    
-  }
-  
-  std::unique_ptr<ast_elseifstmt> parser::parse_elseif() {
-    
-  }
-  
-  std::unique_ptr<ast_elsestmt> parser::parse_else() {
-    
-  }
-  
-  std::unique_ptr<ast_loopstmt> parser::parse_loop() {
-    
-  }
-  
-  std::unique_ptr<ast_whilestmt> parser::parse_while() {
-    
-  }
-  
-  std::unique_ptr<ast_forstmt> parser::parse_for() {
-    
-  }
-  
-  std::unique_ptr<ast_continuestmt> parser::parse_continue() {
-    
-  }
-  
-  std::unique_ptr<ast_breakstmt> parser::parse_break() {
-    
-  }
-  
-  std::unique_ptr<ast_returnstmt> parser::parse_return() {
-    
-  }
-  
+
   std::unique_ptr<ast_root> parser::parse() {
-    while(!match(peek(), end_of_file_tt)) {
-      root->add_child(parse_function());
-      
+    while (!match(peek(), end_of_file_tt)) {
+      root->add_child(parse_keyword(true)); // not nested
+
       if (match(peek(), end_of_file_tt)) {
         break;
       }
     }
-    
+
     return std::move(root);
   }
 } // namespace occult

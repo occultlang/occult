@@ -13,16 +13,16 @@ namespace occult {
   std::unordered_map<char, token_type> operator_map_single = {
       {'>', greater_than_operator_tt},
       {'<', less_than_operator_tt},
-      {'!', not_operator_tt},
+      {'!', unary_not_operator_tt},
       {'+', add_operator_tt},
-      {'-', subtract_operator_tt},
+      {'-', subtract_operator_tt}, // we don't include unary plus and minus here
       {'*', multiply_operator_tt},
       {'/', division_operator_tt},
       {'%', modulo_operator_tt},
       {'^', xor_operator_tt},
       {'&', bitwise_and_tt},
-      {'~', bitwise_and_tt},
-      {'|', bitwise_and_tt},
+      {'~', unary_bitwise_not_tt},
+      {'|', bitwise_or_tt},
       {'=', assignment_tt}};
 
   std::unordered_map<std::string, token_type> operator_map_double = {
@@ -97,13 +97,15 @@ namespace occult {
 
       {add_operator_tt, "add_operator"},
       {subtract_operator_tt, "subtract_operator"},
+      {unary_minus_operator_tt, "unary_minus_operator"},
+      {unary_plus_operator_tt, "unary_plus_operator"},
       {multiply_operator_tt, "multiply_operator"},
       {division_operator_tt, "division_operator"},
       {modulo_operator_tt, "modulo_operator"},
       {xor_operator_tt, "xor_operator"},
       {and_operator_tt, "and_operator"},
       {or_operator_tt, "or_operator"},
-      {not_operator_tt, "not_operator"},
+      {unary_not_operator_tt, "not_operator"},
       {equals_operator_tt, "equals_operator"},
       {not_equals_operator_tt, "not_equals_operator"},
       {greater_than_operator_tt, "greater_than_operator"},
@@ -147,5 +149,6 @@ namespace occult {
       {false_keyword_tt, "false"},
       {true_keyword_tt, "true"},
       {end_of_file_tt, "end_of_file"},
-      {unkown_tt, "unknown"}};
+      {unkown_tt, "unknown"},
+      {function_call_parser_tt, "function_call_parser"}};
 } // namespace occult

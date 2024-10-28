@@ -4,15 +4,15 @@
  * TODO scientific notation, hexadecimal, octal and binary for numbers (it's not necessary right now)
  * */
 
-#define DONT_USE_WHITESPACES 1
-#define DONT_USE_COMMENTS 1
+#define DONT_USE_WHITESPACES true
+#define DONT_USE_COMMENTS true
 
 namespace occult {
   std::string token_t::get_typename(token_type tt) {
     if (token_typename_map.contains(tt))
       return token_typename_map[tt];
     else
-      throw std::runtime_error("Can't find token typename");
+      throw std::runtime_error("can't find token typename");
   }
 
   token_t lexer::get_next() {
@@ -71,9 +71,6 @@ namespace occult {
 
       return token_t(line, column, std::string(1, source[pos - 1]), whitespace_map[source[pos - 1]]);
     }
-
-    // chatgpt helped me with the string literal escape sequencing logic, credits to openai
-    // i just put it in a lambda because its simpler
 
     auto handle_escape_sequences = [this](char str_type) -> std::string {
       std::string lexeme = "";
@@ -217,7 +214,14 @@ namespace occult {
   std::vector<token_t> lexer::analyze() {
     std::vector<token_t> token_stream;
     token_t token = get_next();
-
+    token_type previous_token_type = end_of_file_tt;
+    
+    auto is_unary_context = [](token_type prev_type) {
+      return prev_type == assignment_tt || prev_type == left_paren_tt ||
+             prev_type == comma_tt || prev_type == semicolon_tt ||
+             prev_type == end_of_file_tt;
+      };
+    
     while (token.tt != end_of_file_tt) {
 #if DONT_USE_WHITESPACES
       if (token.tt == whitespace_tt) {
@@ -232,21 +236,44 @@ namespace occult {
         continue;
       }
 #endif
-
+      
+      if (token.tt == add_operator_tt || token.tt == subtract_operator_tt) {
+        if (is_unary_context(previous_token_type)) {
+          token.tt = (token.tt == add_operator_tt) ? unary_plus_operator_tt : unary_minus_operator_tt;
+        }
+        
+        if (token.tt == unary_plus_operator_tt) {
+          token.lexeme = "unary_plus";
+        }
+        else if (token.tt == unary_minus_operator_tt) {
+          token.lexeme = "unary_minus";
+        }
+      }
+      
       token_stream.push_back(token);
+      previous_token_type = token.tt;
       token = get_next();
     }
 
     token_stream.push_back(token);
-    
+
     stream = token_stream;
     
     return token_stream;
   }
   
-  void lexer::visualize() {
-    for (auto s : stream) {
-      std::println("Lexeme: {}\nType: {}\n", s.lexeme, occult::token_t::get_typename(s.tt));
+  void lexer::visualize(std::optional<std::vector<token_t>> o_s) {
+    if (!o_s.has_value()) {
+      for (auto s : stream) {
+        std::println("lexeme: {}\ntype: {}\n", s.lexeme, occult::token_t::get_typename(s.tt));
+      
+      }
+    }
+    else {
+      for (auto s : o_s.value()) {
+        std::println("lexeme: {}\ntype: {}\n", s.lexeme, occult::token_t::get_typename(s.tt));
+      
+      }
     }
   }
 } // namespace occult
