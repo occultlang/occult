@@ -149,6 +149,44 @@ namespace occult {
         break;
       }
       
+      if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) { // function call
+        token_t temp_tk1(t.line, t.column, "start_call", function_call_parser_tt);
+        rpn_output.push_back(temp_tk1);
+        
+        rpn_output.push_back(t);
+        i++;
+        
+        operator_stack.push(expr.at(i)); // (
+        
+        while (!operator_stack.empty()) {
+          i++;
+          t = expr.at(i);
+          
+          if (t.tt == right_paren_tt) {
+            while (!operator_stack.empty() && operator_stack.top().tt != left_paren_tt) {
+              rpn_output.push_back(operator_stack.top());
+              operator_stack.pop();
+            }
+            
+            operator_stack.pop();
+            
+            break;
+          }
+          else if (t.tt == comma_tt) {
+            while (!operator_stack.empty() && operator_stack.top().tt != left_paren_tt) {
+              rpn_output.push_back(operator_stack.top());
+              operator_stack.pop();
+            }
+          }
+          else {
+            rpn_output.push_back(t);
+          }
+        }
+        
+        token_t temp_tk2(t.line, t.column, "end_call", function_call_parser_tt);
+        
+        rpn_output.push_back(temp_tk2);
+      }
       else if (t.tt == number_literal_tt || t.tt == float_literal_tt || t.tt == identifier_tt) {
         rpn_output.push_back(t);
       }
@@ -198,11 +236,23 @@ namespace occult {
     return final_rpn_output;
   }
 
-  std::vector<std::unique_ptr<ast>> parser::to_vec(std::vector<token_t> expr) {
+  // converts normal expression into a vector of nodes in RPN
+  std::vector<std::unique_ptr<ast>> parser::parse_expression(std::vector<token_t> expr) {
+    auto expr_rpn = to_rpn(expr);
+    
+    for (auto t : expr_rpn) {
+      std::println("{}: {}", t.get_typename(t.tt), t.lexeme);
+    }
+    
     std::vector<std::unique_ptr<ast>> expr_ast;
-
-    for (auto t : expr) {
+    
+    for (auto t : expr_rpn) {
       switch (t.tt) {
+        case function_call_parser_tt: { // this way we can actually use function calls properly
+          auto node = ast::new_node<ast_functioncall>();
+          
+          break;
+        }
         case number_literal_tt: {
           auto node = ast::new_node<ast_numberliteral>();
           node->content = t.lexeme;
@@ -483,8 +533,7 @@ namespace occult {
       }
       
       std::vector<token_t> sub_stream = {stream.begin() + pos, stream.end()}; 
-      auto rpn_expr = to_rpn(sub_stream);  // stops at semicolon
-      auto converted_rpn = to_vec(rpn_expr);
+      auto converted_rpn = parse_expression(sub_stream);
       
       for (auto &c : converted_rpn) { // adding all the children of the converted expression into the i8_node
         i8_node->get_children().at(1)->add_child(std::move(c));
@@ -506,8 +555,7 @@ namespace occult {
     auto return_node = ast::new_node<ast_returnstmt>();
     
     std::vector<token_t> sub_stream = {stream.begin() + pos, stream.end()}; 
-    auto rpn_expr = to_rpn(sub_stream);
-    auto converted_rpn = to_vec(rpn_expr);
+    auto converted_rpn = parse_expression(sub_stream);
     
     for (auto &c : converted_rpn) { 
       return_node->add_child(std::move(c));

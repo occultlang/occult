@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) { // we're eventually going to have debug and n
   fn main() int8 {
     int8 x = (1 + 5) * 10;
     
-    return x;
+    return main(x, 1 + 3);
   }
   )"; 
   

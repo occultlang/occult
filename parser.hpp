@@ -15,7 +15,7 @@ namespace occult {
     bool match(token_t t, token_type tt);
     bool match_and_consume(token_t, token_type tt);
     std::vector<token_t> to_rpn(std::vector<token_t> expr);
-    std::vector<std::unique_ptr<ast>> to_vec(std::vector<token_t> expr);
+    std::vector<std::unique_ptr<ast>> parse_expression(std::vector<token_t> expr);
     std::unique_ptr<ast_function> parse_function();
     std::unique_ptr<ast_block> parse_block();
     std::unique_ptr<ast_assignment> parse_assignment();
