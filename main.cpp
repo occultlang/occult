@@ -3,22 +3,29 @@
 #include "ast.hpp"
 #include "parser.hpp"
 #include "codegen.hpp"
+#include <fstream>
+#include <sstream>
 
 // TODO organize files into directories
-// function calls then if statements then we gucci
 
-int main(int argc, char* argv[]) { // we're eventually going to have debug and non debug + help etc.
-  std::string source = R"(
-  fn main() int8 {
-    int8 x = (1 + 5) * 10;
+void display_help() {
+    std::println("Usage: occultc [options] <source.occ>");
     
-    return main(x, 1 + 3);
-  }
-  )"; 
+    std::println("Options:");
+    
+    std::println("  -d, --debug [verbose_option]  Enable debugging options:\n"
+    "                                 verbose_lexer | verbose_parser | verbose_codegen | verbose");
+    
+    std::println("  -h, --help                     Display this help message.");
+}
+
+int main(int argc, char* argv[]) {
+  std::string input_file;
+  std::string source_original;
   
   bool debug = false;
   bool verbose_lexer = false;
-  bool verbose_parser = false;
+  verbose_parser = false;
   bool verbose_codegen = false;
   
   for (int i = 1; i < argc; ++i) {
@@ -48,9 +55,29 @@ int main(int argc, char* argv[]) { // we're eventually going to have debug and n
         }
       }
     }
+    else if (arg == "-h" || arg == "--help") {
+      display_help();
+      
+      return 0;
+    }
+    else {
+      input_file = arg;
+    }
   }
   
-  occult::lexer lexer(source);
+  std::ifstream file(input_file);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  source_original = buffer.str();
+  
+  if (input_file.empty()) {
+      std::println("No input file specified");
+      display_help();
+      
+      return 0;
+  }
+  
+  occult::lexer lexer(source_original);
   
   std::vector<occult::token_t> stream = lexer.analyze();
   

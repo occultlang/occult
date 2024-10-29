@@ -264,16 +264,16 @@ namespace occult {
   
   void lexer::visualize(std::optional<std::vector<token_t>> o_s) {
     if (!o_s.has_value()) {
-      for (auto s : stream) {
-        std::println("lexeme: {}\ntype: {}\n", s.lexeme, occult::token_t::get_typename(s.tt));
-      
+      for (size_t i = 0; i < stream.size(); ++i) {
+        auto s = stream.at(i); 
+        std::println("lexeme: {}\ntype: {}\nposition in stream: {}\n", s.lexeme, occult::token_t::get_typename(s.tt), i);
       }
     }
     else {
-      for (auto s : o_s.value()) {
-        std::println("lexeme: {}\ntype: {}\n", s.lexeme, occult::token_t::get_typename(s.tt));
-      
+        for (size_t i = 0; i < o_s.value().size(); ++i) {
+          auto s = o_s.value().at(i);
+          std::println("lexeme: {}\ntype: {}\nposition in stream: {}\n", s.lexeme, occult::token_t::get_typename(s.tt), i);
+        }
       }
     }
-  }
 } // namespace occult

@@ -1,0 +1,5 @@
+fn main() int8 {
+  int8 x = (1 + 5) * 10;
+  
+  int8 x2 = add(add(1 * 43, 2), 1);
+}

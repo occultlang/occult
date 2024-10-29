@@ -99,6 +99,7 @@ namespace occult {
     end_of_file_tt,
     unkown_tt,
     function_call_parser_tt,
+    argument_count_tt,
   };
 
   typedef struct token_t {

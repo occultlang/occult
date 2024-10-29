@@ -58,6 +58,8 @@ namespace occult {
     less_than_or_equal,
     greater_than_or_equal_operator,
     less_than_or_equal_operator,
+    callarg,
+    comma
   };
   
   class ast {
@@ -70,6 +72,14 @@ namespace occult {
     template<typename BaseAst = ast>
     static std::unique_ptr<BaseAst> new_node() {
       return std::make_unique<BaseAst>();
+    }
+    
+    template<typename BaseAst = ast>
+    static std::unique_ptr<BaseAst> new_node(std::string content) {
+      auto node = std::make_unique<BaseAst>();
+      node->content = content;
+      
+      return node;
     }
     
     void add_child(std::unique_ptr<ast> child) {
@@ -116,6 +126,7 @@ namespace occult {
   NODE(identifier, ast_identifier)
   NODE(function, ast_function)
   NODE(functionarguments, ast_functionargs)
+  NODE(callarg, ast_callarg)
   NODE(functioncall, ast_functioncall)
   NODE(ifstmt, ast_ifstmt)
   NODE(elsestmt, ast_elsestmt)
@@ -152,4 +163,5 @@ namespace occult {
   NODE(less_than_operator, ast_less_than)
   NODE(greater_than_or_equal_operator, ast_greater_than_or_equal)
   NODE(less_than_or_equal_operator, ast_less_than_or_equal)
+  NODE(comma, ast_comma)
 } // namespace occult

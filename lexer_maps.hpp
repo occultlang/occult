@@ -150,5 +150,6 @@ namespace occult {
       {true_keyword_tt, "true"},
       {end_of_file_tt, "end_of_file"},
       {unkown_tt, "unknown"},
-      {function_call_parser_tt, "function_call_parser"}};
+      {function_call_parser_tt, "function_call_parser"},
+      {argument_count_tt, "argument_count"}};
 } // namespace occult
