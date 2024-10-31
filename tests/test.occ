@@ -1,7 +1,3 @@
 fn main() int32 {
-  print("Hello, World");
-  
-  char x = 'd';
-  
   return 0;
 }

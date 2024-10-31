@@ -5,6 +5,7 @@
 #include "codegen.hpp"
 #include <fstream>
 #include <sstream>
+#include <chrono>
 
 // TODO organize files into directories
 
@@ -77,7 +78,14 @@ int main(int argc, char* argv[]) {
       return 0;
   }
   
+  auto start = std::chrono::high_resolution_clock::now();
+  
   occult::lexer lexer(source_original);
+  
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double, std::milli> duration = end - start;
+  
+  std::cout << "[occultc] \033[1;36mcompleted lexical analysis \033[0m" << duration.count() << "ms" << std::endl;
   
   std::vector<occult::token_t> stream = lexer.analyze();
   
@@ -87,7 +95,14 @@ int main(int argc, char* argv[]) {
   
   occult::parser parser(stream);
   
+  start = std::chrono::high_resolution_clock::now();
+  
   auto root = parser.parse();
+  
+  end = std::chrono::high_resolution_clock::now();
+  duration = end - start;
+  
+  std::cout << "[occultc] \033[1;36mcompleted parsing \033[0m" << duration.count() << "ms" << std::endl;
   
   if (debug && verbose_parser) {
     root->visualize();
