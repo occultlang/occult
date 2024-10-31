@@ -1,5 +1,7 @@
-fn main() int8 {
-  int8 x = (1 + 5) * 10;
+fn main() int32 {
+  print("Hello, World");
   
-  int8 x2 = add(add(1 * 43, 2), 1);
+  char x = 'd';
+  
+  return 0;
 }

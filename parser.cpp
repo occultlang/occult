@@ -43,7 +43,7 @@ namespace occult {
     for (std::size_t i = 0; i < expr.size(); i++) {
       auto t = expr.at(i);
 
-      if (t.tt == semicolon_tt) { // stop if semicolon
+      if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt) { // stop if semicolon
         break;
       }
       
@@ -95,7 +95,7 @@ namespace occult {
         token_t end_call_token(t.line, t.column, "end_call", function_call_parser_tt);
         rpn_output.push_back(end_call_token);
       }
-      else if (t.tt == number_literal_tt || t.tt == float_literal_tt || t.tt == identifier_tt) {
+      else if (t.tt == number_literal_tt || t.tt == float_literal_tt || t.tt == identifier_tt || t.tt == string_literal_tt || t.tt == char_literal_tt || t.tt == false_keyword_tt || t.tt == true_keyword_tt) {
         rpn_output.push_back(t);
       }
       else if (is_unary(t.tt)) {
@@ -168,21 +168,37 @@ namespace occult {
     return expr_ast;
   }
   
-  std::unique_ptr<ast> parser::parse_datatype() { // add more, use map for this as well
-    if (match(peek(), int8_keyword_tt)) {
-      consume();
-      
-      auto node = ast::new_node<ast_int8>();
-      
-      if (peek().tt == identifier_tt) {
-        node->add_child(parse_identifier());
-      }
-      
-      return node;
-    }
-    else {
-      throw runtime_error("invalid datatype", peek(), pos);
-    }
+  std::unique_ptr<ast> parser::parse_datatype() { 
+    std::unordered_map<token_type, std::function<std::unique_ptr<ast>()>> datatype_map = {
+      {int8_keyword_tt, []() { return ast::new_node<ast_int8>(); }},
+      {int16_keyword_tt, []() { return ast::new_node<ast_int16>(); }},
+      {int32_keyword_tt, []() { return ast::new_node<ast_int32>(); }},
+      {int64_keyword_tt, []() { return ast::new_node<ast_int64>(); }},
+      {uint8_keyword_tt, []() { return ast::new_node<ast_uint8>(); }},
+      {uint16_keyword_tt, []() { return ast::new_node<ast_uint16>(); }},
+      {uint32_keyword_tt, []() { return ast::new_node<ast_uint32>(); }},
+      {uint64_keyword_tt, []() { return ast::new_node<ast_uint64>(); }},
+      {float32_keyword_tt, []() { return ast::new_node<ast_float32>(); }},
+      {float64_keyword_tt, []() { return ast::new_node<ast_float64>(); }},
+      {string_keyword_tt, []() { return ast::new_node<ast_string>(); }},
+      {char_keyword_tt, []() { return ast::new_node<ast_int8>(); }},
+      {boolean_keyword_tt, []() { return ast::new_node<ast_int8>(); }}};
+    
+   auto it = datatype_map.find(peek().tt);
+   
+   if (it != datatype_map.end()) {
+     consume();  
+     auto node = it->second();  // create the ast node
+     
+     if (peek().tt == identifier_tt) {
+       node->add_child(parse_identifier());
+     }
+     
+     return node;
+   }
+   else {
+     throw runtime_error("invalid datatype", peek(), pos);
+   }
   }
 
   std::unique_ptr<ast_identifier> parser::parse_identifier() {
@@ -270,42 +286,44 @@ namespace occult {
 
     return node;
   }
+  
+  template<typename IntegerAstType>
+  std::unique_ptr<IntegerAstType> parser::parse_integer_type() {
+    consume(); // consume keyword
 
-  std::unique_ptr<ast_int8> parser::parse_int8() {
-    consume(); // consume int8 keyword
-
-    auto i8_node = ast::new_node<ast_int8>();
+    auto node = ast::new_node<IntegerAstType>();
 
     if (match(peek(), identifier_tt)) {
-      i8_node->add_child(parse_identifier()); // add identifier as a child node
+      node->add_child(parse_identifier()); // add identifier as a child node
     } else {
       throw runtime_error("expected identifier", peek(), pos);
     }
 
     if (match(peek(), assignment_tt)) {
-      i8_node->add_child(parse_assignment());
+      node->add_child(parse_assignment());
       
       if (match(peek(), semicolon_tt)) {
         throw runtime_error("expected expression", peek(), pos);
       }
       
-      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.end()};
-      auto first_semicolon_pos = find_first_semicolon(stream.begin() + pos, stream.end());
-      pos += first_semicolon_pos;
-      auto converted_rpn = parse_expression(sub_stream);
+     auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+     std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos};
+     pos += first_semicolon_pos;
+     auto converted_rpn = parse_expression(sub_stream);
       
       for (auto &c : converted_rpn) { // adding all the children of the converted expression into the i8_node
-        i8_node->get_children().at(1)->add_child(std::move(c));
+        node->get_children().at(1)->add_child(std::move(c));
       }
     }
 
     if (match(peek(), semicolon_tt)) { // end of declaration
       consume();
-    } else {
+    }
+    else {
       throw runtime_error("expected semicolon", peek(), pos);
     }
 
-    return i8_node;
+    return node;
   }
   
   std::unique_ptr<ast_returnstmt> parser::parse_return() {
@@ -313,8 +331,8 @@ namespace occult {
     
     auto return_node = ast::new_node<ast_returnstmt>();
     
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.end()};
-    auto first_semicolon_pos = find_first_semicolon(stream.begin() + pos, stream.end());
+    auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos};
     pos += first_semicolon_pos;
     auto converted_rpn = parse_expression(sub_stream);
     
@@ -324,7 +342,8 @@ namespace occult {
     
     if (match(peek(), semicolon_tt)) { 
       consume();
-    } else {
+    }
+    else {
       throw runtime_error("expected semicolon", peek(), pos);
     }
     
@@ -332,7 +351,138 @@ namespace occult {
   }
   
   std::unique_ptr<ast_ifstmt> parser::parse_if() {
+    consume(); // consume if
     
+    auto if_node = ast::new_node<ast_ifstmt>();
+    
+    auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos};
+    pos += first_bracket_pos;
+    auto converted_rpn = parse_expression(sub_stream);
+    
+    for (auto &c : converted_rpn) { 
+      if_node->add_child(std::move(c));
+    }
+    
+    auto body = parse_block();  
+    if_node->add_child(std::move(body));
+    
+    return if_node;
+  }
+  
+  std::unique_ptr<ast_elseifstmt> parser::parse_elseif() {
+    consume(); 
+    
+    auto elseif_node = ast::new_node<ast_elseifstmt>();
+    
+    auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos};
+    pos += first_bracket_pos;
+    auto converted_rpn = parse_expression(sub_stream);
+    
+    for (auto &c : converted_rpn) { 
+      elseif_node->add_child(std::move(c));
+    }
+    
+    auto body = parse_block();  
+    elseif_node->add_child(std::move(body));
+    
+    return elseif_node;
+  }
+  
+  std::unique_ptr<ast_elsestmt> parser::parse_else() {
+    consume(); 
+    
+    auto else_node = ast::new_node<ast_elsestmt>();
+    
+    auto body = parse_block();  
+    else_node->add_child(std::move(body));
+    
+    return else_node;
+  }
+  
+  std::unique_ptr<ast_loopstmt> parser::parse_loop() {
+    consume(); 
+    
+    auto loop_node = ast::new_node<ast_loopstmt>();
+    
+    auto body = parse_block();  
+    loop_node->add_child(std::move(body));
+    
+    return loop_node;
+  }
+  
+  std::unique_ptr<ast_breakstmt> parser::parse_break() {
+    consume(); 
+    
+    auto break_node = ast::new_node<ast_breakstmt>();
+    
+    return break_node;
+  }
+  
+  std::unique_ptr<ast_continuestmt> parser::parse_continue() {
+    consume(); 
+    
+    auto continue_node = ast::new_node<ast_continuestmt>();
+    
+    return continue_node;
+  }
+  
+  std::unique_ptr<ast_whilestmt> parser::parse_while() {
+    consume(); 
+    
+    auto while_node = ast::new_node<ast_whilestmt>();
+    
+    auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos};
+    pos += first_bracket_pos;
+    auto converted_rpn = parse_expression(sub_stream);
+    
+    for (auto &c : converted_rpn) { 
+      while_node->add_child(std::move(c));
+    }
+    
+    auto body = parse_block();  
+    while_node->add_child(std::move(body));
+    
+    return while_node;
+  }
+  
+  std::unique_ptr<ast_string> parser::parse_string() {
+    consume(); // consume string keyword
+    
+    auto node = ast::new_node<ast_string>();
+    
+    if (match(peek(), identifier_tt)) {
+      node->add_child(parse_identifier()); // add identifier as a child node
+    } else {
+      throw runtime_error("expected identifier", peek(), pos);
+    }
+    
+    if (match(peek(), assignment_tt)) {
+      node->add_child(parse_assignment());
+      
+      if (match(peek(), semicolon_tt)) {
+        throw runtime_error("expected expression", peek(), pos);
+      }
+      
+      consume();
+      
+      auto stringliteral = ast::new_node<ast_stringliteral>();
+      
+      stringliteral->content = previous().lexeme;
+      
+      node->add_child(std::move(stringliteral));
+    }
+    
+    if (match(peek(), semicolon_tt)) { // end of declaration
+      consume();
+    }
+    else {
+      throw runtime_error("expected semicolon", peek(), pos);
+    }
+    
+    return node;
   }
 
   std::unique_ptr<ast> parser::parse_keyword(bool nested_function) {
@@ -343,14 +493,120 @@ namespace occult {
     }
 
     if (match(peek(), int8_keyword_tt)) {
-      return parse_int8();
+      return parse_integer_type<ast_int8>();
     }
-    else if (match(peek(), return_keyword_tt)) {
-      return parse_return();
+    else if (match(peek(), int16_keyword_tt)) {
+      return parse_integer_type<ast_int16>();
+    }
+    else if (match(peek(), int32_keyword_tt)) {
+      return parse_integer_type<ast_int32>();
+    }
+    else if (match(peek(), int64_keyword_tt)) {
+      return parse_integer_type<ast_int64>();
+    }
+    else if (match(peek(), uint8_keyword_tt)) {
+      return parse_integer_type<ast_uint8>();
+    }
+    else if (match(peek(), uint16_keyword_tt)) {
+      return parse_integer_type<ast_uint16>();
+    }
+    else if (match(peek(), uint32_keyword_tt)) {
+      return parse_integer_type<ast_uint32>();
+    }
+    else if (match(peek(), uint64_keyword_tt)) {
+      return parse_integer_type<ast_uint64>();
+    }
+    else if (match(peek(), float32_keyword_tt)) {
+      return parse_integer_type<ast_float32>();
+    }
+    else if (match(peek(), float64_keyword_tt)) {
+      return parse_integer_type<ast_float64>();;
+    }
+    else if (match(peek(), string_keyword_tt)) {
+      return parse_string();
+    }
+    else if (match(peek(), char_keyword_tt)) {
+      return parse_integer_type<ast_int8>();
+    }
+    else if (match(peek(), boolean_keyword_tt)) {
+      return parse_integer_type<ast_int8>();
     }
     else if (match(peek(), if_keyword_tt)) {
       return parse_if();
     }
+    else if (match(peek(), elseif_keyword_tt)) {
+      return parse_elseif();
+    }
+    else if (match(peek(), else_keyword_tt)) {
+      return parse_else();
+    }
+    else if (match(peek(), loop_keyword_tt)) {
+      return parse_loop();
+    }
+    else if (match(peek(), break_keyword_tt)) {
+      return parse_break();
+    }
+    else if (match(peek(), continue_keyword_tt)) {
+      return parse_continue();
+    }
+    else if (match(peek(), while_keyword_tt)) {
+      return parse_while();
+    }
+    else if (match(peek(), return_keyword_tt)) {
+      return parse_return();
+    }
+    else if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
+      auto fn_call = ast::new_node<ast_functioncall>("body_function_call");
+      
+      auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos};
+      pos += first_semicolon_pos;
+      auto converted_rpn = parse_expression(sub_stream);
+      
+      for (auto &c : converted_rpn) { 
+        fn_call->add_child(std::move(c));
+      }
+      
+      if (match(peek(), semicolon_tt)) { 
+        consume();
+      }
+      else {
+        throw runtime_error("expected semicolon", peek(), pos);
+      }
+      
+      return fn_call;
+    }
+    else if (match(peek(), identifier_tt)) {
+      auto id = parse_identifier();
+      
+      if (match(peek(), assignment_tt)) {
+        id->add_child(parse_assignment());
+        
+        if (match(peek(), semicolon_tt)) {
+          throw runtime_error("expected expression", peek(), pos);
+        }
+        
+        auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+        std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos};
+        pos += first_semicolon_pos;
+        auto converted_rpn = parse_expression(sub_stream);
+        
+        for (auto &c : converted_rpn) { 
+          id->add_child(std::move(c));
+        }
+        
+        if (match(peek(), semicolon_tt)) { 
+          consume();
+        }
+        else {
+          throw runtime_error("expected semicolon", peek(), pos);
+        }
+        
+        return id;
+      }
+    }
+    
+    throw runtime_error("unexpected keyword", peek(), pos);
   }
 
   std::unique_ptr<ast_root> parser::parse() {

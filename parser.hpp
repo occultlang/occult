@@ -23,7 +23,9 @@ namespace occult {
     std::unique_ptr<ast_assignment> parse_assignment();
     std::unique_ptr<ast> parse_datatype();
     std::unique_ptr<ast_identifier> parse_identifier();
-    std::unique_ptr<ast_int8> parse_int8();
+    template<typename IntegerAstType = ast>
+    std::unique_ptr<IntegerAstType> parse_integer_type();
+    std::unique_ptr<ast_string> parse_string();
     std::unique_ptr<ast> parse_keyword(bool nested_function = false);
     std::unique_ptr<ast_ifstmt> parse_if();
     std::unique_ptr<ast_elseifstmt> parse_elseif();

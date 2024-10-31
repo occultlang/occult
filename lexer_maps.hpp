@@ -69,7 +69,7 @@ namespace occult {
       {"float64", float64_keyword_tt},
       {"bool", boolean_keyword_tt},
       {"char", char_keyword_tt},
-      {"str", string_keyword_tt},
+      {"string", string_keyword_tt},
       {"false", false_keyword_tt},
       {"true", true_keyword_tt}};
 

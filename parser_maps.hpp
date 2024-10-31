@@ -1,5 +1,5 @@
 #pragma once
-#include "lexemeer.hpp"
+#include "lexer.hpp"
 #include "ast.hpp"
 #include <functional>
 
@@ -110,9 +110,9 @@ namespace occult {
   }
   
   template <typename Iterator> 
-  int find_first_semicolon(Iterator begin, Iterator end) {
-      auto it = std::find_if(begin, end, [](const token_t& t) {
-          return t.tt == semicolon_tt; 
+  int find_first_token(Iterator begin, Iterator end, token_type tt) {
+      auto it = std::find_if(begin, end, [tt](token_t t) {
+          return t.tt == tt; 
       });
   
       return (it != end) ? std::distance(begin, it) : -1;
@@ -122,8 +122,12 @@ namespace occult {
       {function_call_parser_tt, [](std::string lexeme) { return ast::new_node<ast_functioncall>(lexeme); }},
       {comma_tt, [](std::string lexeme) { return ast::new_node<ast_comma>(lexeme); }},
       {number_literal_tt, [](std::string lexeme) { return ast::new_node<ast_numberliteral>(lexeme); }},
+      {false_keyword_tt, [](std::string) { return ast::new_node<ast_numberliteral>("0"); }},
+      {true_keyword_tt, [](std::string) { return ast::new_node<ast_numberliteral>("1"); }},
+      {char_literal_tt, [](std::string lexeme) { return ast::new_node<ast_charliteral>(lexeme); }},
       {identifier_tt, [](std::string lexeme) { return ast::new_node<ast_identifier>(lexeme); }},
       {float_literal_tt, [](std::string lexeme) { return ast::new_node<ast_floatliteral>(lexeme); }},
+      {string_literal_tt, [](std::string lexeme) { return ast::new_node<ast_stringliteral>(lexeme); }},
       {add_operator_tt, [](std::string lexeme) { return ast::new_node<ast_add>(lexeme); }},
       {subtract_operator_tt, [](std::string lexeme) { return ast::new_node<ast_subtract>(lexeme); }},
       {unary_plus_operator_tt, [](std::string lexeme) { return ast::new_node<ast_unary_plus>(lexeme); }},
@@ -145,6 +149,6 @@ namespace occult {
       {greater_than_operator_tt, [](std::string lexeme) { return ast::new_node<ast_greater_than>(lexeme); }},
       {less_than_operator_tt, [](std::string lexeme) { return ast::new_node<ast_less_than>(lexeme); }},
       {greater_than_or_equal_operator_tt, [](std::string lexeme) { return ast::new_node<ast_greater_than_or_equal>(lexeme); }},
-      {less_than_or_equal_operator_tt, [](std::string lexeme) { return ast::new_node<ast_less_than_or_equal>(lexeme); }},
+      {less_than_or_equal_operator_tt, [](std::string lexeme) { return ast::new_node<ast_less_than_or_equal>(lexeme); }}
   }; // map for converting lexemes to nodes relatively easily
 }

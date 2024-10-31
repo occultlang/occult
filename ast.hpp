@@ -31,7 +31,8 @@ namespace occult {
     uint32_datatype,
     uint64_datatype,
     float32_datatype,
-    float64_datatype, 
+    float64_datatype,
+    string_datatype,
     number_literal,
     float_literal,
     add_operator,
@@ -59,7 +60,10 @@ namespace occult {
     greater_than_or_equal_operator,
     less_than_or_equal_operator,
     callarg,
-    comma
+    comma,
+    include,
+    stringliteral,
+    charliteral
   };
   
   class ast {
@@ -139,6 +143,16 @@ namespace occult {
   NODE(returnstmt, ast_returnstmt)
   NODE(assignment, ast_assignment)
   NODE(int8_datatype, ast_int8)
+  NODE(int16_datatype, ast_int16)
+  NODE(int32_datatype, ast_int32)
+  NODE(int64_datatype, ast_int64)
+  NODE(uint8_datatype, ast_uint8)
+  NODE(uint16_datatype, ast_uint16)
+  NODE(uint32_datatype, ast_uint32)
+  NODE(uint64_datatype, ast_uint64)
+  NODE(float32_datatype, ast_float32)
+  NODE(float64_datatype, ast_float64)
+  NODE(string_datatype, ast_string)
   NODE(number_literal, ast_numberliteral)
   NODE(float_literal, ast_floatliteral)
   NODE(add_operator, ast_add)
@@ -164,4 +178,7 @@ namespace occult {
   NODE(greater_than_or_equal_operator, ast_greater_than_or_equal)
   NODE(less_than_or_equal_operator, ast_less_than_or_equal)
   NODE(comma, ast_comma)
+  NODE(include, ast_includestmt)
+  NODE(stringliteral, ast_stringliteral)
+  NODE(charliteral, ast_charliteral)
 } // namespace occult
