@@ -219,7 +219,7 @@ namespace occult {
     auto is_unary_context = [](token_type prev_type) {
       return prev_type == assignment_tt || prev_type == left_paren_tt ||
              prev_type == comma_tt || prev_type == semicolon_tt ||
-             prev_type == end_of_file_tt;
+             prev_type == end_of_file_tt || prev_type == return_keyword_tt;
       };
     
     while (token.tt != end_of_file_tt) {

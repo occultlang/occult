@@ -2,7 +2,6 @@
 #include <iostream>
 #include "ast.hpp"
 #include "parser.hpp"
-#include "codegen.hpp"
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -13,8 +12,8 @@ void display_help() {
     std::println("Usage: occultc [options] <source.occ>");
     
     std::println("Options:");
-    
-    std::println("  -d, --debug [verbose_option]  Enable debugging options:\n"
+    std::println("  -t, --time                     Shows the compilation time for each stage.");
+    std::println("  -d, --debug [verbose_option]   Enable debugging options (shows time as well -t is not needed):\n"
     "                                 verbose_lexer | verbose_parser | verbose_codegen | verbose");
     
     std::println("  -h, --help                     Display this help message.");
@@ -27,7 +26,7 @@ int main(int argc, char* argv[]) {
   bool debug = false;
   bool verbose_lexer = false;
   verbose_parser = false;
-  bool verbose_codegen = false;
+  bool showtime = false;
   
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -40,21 +39,15 @@ int main(int argc, char* argv[]) {
         
         std::string debug_option = argv[i];
         
-        if (debug_option == "verbose_lexer") {
-          verbose_lexer = true;
-        }
-        else if (debug_option == "verbose_parser") {
-          verbose_parser = true;
-        }
-        else if (debug_option == "verbose_codegen") {
-          verbose_codegen = true;
-        }
-        else if (debug_option == "verbose") {
+        if (debug_option == "verbose") {
           verbose_lexer = true;
           verbose_parser = true;
-          verbose_codegen = true;
+          showtime = true;
         }
       }
+    }
+    else if (arg == "-t" || arg == "--time") {
+      showtime = true;
     }
     else if (arg == "-h" || arg == "--help") {
       display_help();
@@ -85,7 +78,8 @@ int main(int argc, char* argv[]) {
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::milli> duration = end - start;
   
-  std::cout << "[occultc] \033[1;36mcompleted lexical analysis \033[0m" << duration.count() << "ms" << std::endl;
+  if (showtime)
+    std::cout << "[occultc] \033[1;36mcompleted lexical analysis \033[0m" << duration.count() << "ms" << std::endl;
   
   std::vector<occult::token_t> stream = lexer.analyze();
   
@@ -102,16 +96,11 @@ int main(int argc, char* argv[]) {
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   
-  std::cout << "[occultc] \033[1;36mcompleted parsing \033[0m" << duration.count() << "ms" << std::endl;
+  if (showtime)
+    std::cout << "[occultc] \033[1;36mcompleted parsing \033[0m" << duration.count() << "ms" << std::endl;
   
   if (debug && verbose_parser) {
     root->visualize();
-  }
-  
-  occult::codegen codegen(std::move(root));
-  
-  if (verbose_codegen) {
-    // do stuff here for verbose logging
   }
   
   return 0;

@@ -49,7 +49,7 @@ namespace occult {
       {"fn", function_keyword_tt},
       {"if", if_keyword_tt},
       {"else", else_keyword_tt},
-      {"elif", elseif_keyword_tt},
+      {"elseif", elseif_keyword_tt},
       {"loop", loop_keyword_tt},
       {"return", return_keyword_tt},
       {"break", break_keyword_tt},

@@ -36,30 +36,41 @@ namespace occult {
     }
   }
   
+  int precedence(token_type x) {
+      if (x == left_paren_tt) {
+          return 0;
+      } else if (x == add_operator_tt || x == subtract_operator_tt) {
+          return 1;
+      } else if (x == multiply_operator_tt || x == division_operator_tt) {
+          return 2;
+      }
+      return 3;
+  }
+  
+  /* derived partially from https://github.com/kamyu104/LintCode/blob/master/C%2B%2B/convert-expression-to-reverse-polish-notation.cpp */
   std::vector<token_t> parser::to_rpn(std::vector<token_t> expr) {
     std::stack<token_t> operator_stack;
     std::vector<token_t> rpn_output;
-
+    
     for (std::size_t i = 0; i < expr.size(); i++) {
       auto t = expr.at(i);
-
+      
       if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt) { // stop if semicolon
         break;
       }
       
       if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) {
+        i++;
+        
         token_t start_call_token(t.line, t.column, "start_call", function_call_parser_tt);
         rpn_output.push_back(start_call_token);
         
         // push the function identifier/name
         rpn_output.push_back(t);
         
-        // identifier and left parenthesis
-        i += 2; 
-      
         std::vector<token_t> call_args;
         int paren_depth = 1; // track depth to handle nested calls
-      
+        
         while (i < expr.size() && paren_depth > 0) {
           if (expr.at(i).tt == left_paren_tt) {
             paren_depth++;
@@ -91,55 +102,55 @@ namespace occult {
           std::vector<token_t> parsed_arg = to_rpn(call_args);
           rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
         }
-      
+        
         token_t end_call_token(t.line, t.column, "end_call", function_call_parser_tt);
-        rpn_output.push_back(end_call_token);
+        rpn_output.push_back(end_call_token);  
       }
-      else if (t.tt == number_literal_tt || t.tt == float_literal_tt || t.tt == identifier_tt || t.tt == string_literal_tt || t.tt == char_literal_tt || t.tt == false_keyword_tt || t.tt == true_keyword_tt) {
+      else if (is_literal(t.tt)) {
         rpn_output.push_back(t);
       }
-      else if (is_unary(t.tt)) {
-        operator_stack.push(t);
-      }
-      else if (is_binary(t.tt)) {
-        while (!operator_stack.empty() && precedence_map[operator_stack.top().tt] <= precedence_map[t.tt]) {
-          rpn_output.push_back(operator_stack.top());
-          operator_stack.pop();
-        }
-
-        operator_stack.push(t);
+      else if (is_unary(t.tt)) { // if unary is broken, its something wrong with unary_context in the lexer.
+        rpn_output.push_back(t);
       }
       else if (t.tt == left_paren_tt) {
-        operator_stack.push(t);
+        operator_stack.push(t); 
       }
       else if (t.tt == right_paren_tt) {
-        while (!operator_stack.empty() && operator_stack.top().tt != left_paren_tt) {
+        while(!operator_stack.empty()) {
+          t = operator_stack.top();
+          operator_stack.pop();
+          
+          if (t.tt == left_paren_tt) {
+            break;
+          }
+          
+          rpn_output.push_back(t);
+        }
+      }
+      else {
+        while(!operator_stack.empty() && precedence_map[t.tt] >= precedence_map[operator_stack.top().tt]) {
           rpn_output.push_back(operator_stack.top());
           operator_stack.pop();
         }
-
-        if (!operator_stack.empty()) {
-          operator_stack.pop();
-        }
+        
+        operator_stack.push(t);
       }
     }
-
+    
     while (!operator_stack.empty()) {
       rpn_output.push_back(operator_stack.top());
       operator_stack.pop();
     }
-
-    std::vector<token_t> final_rpn_output;
-
-    for (std::size_t i = 0; i < rpn_output.size(); i++) {
-      auto t = rpn_output.at(i);
-
-      if (t.tt != left_paren_tt && t.tt != right_paren_tt) {
-        final_rpn_output.push_back(t);
+    
+    if (verbose_parser) {
+      for (auto t : rpn_output) {
+        std::print("{} ", t.lexeme);
       }
+      
+      std::println();
     }
-
-    return final_rpn_output;
+    
+    return rpn_output;
   }
   
   // converts normal expression into a vector of nodes in RPN
@@ -230,7 +241,9 @@ namespace occult {
         
         func_args_node->add_child(std::move(arg));
         
-        match(peek(), comma_tt);
+        if (match(peek(), comma_tt)) {
+          consume();
+        }
       }
       
       if (!match(peek(), right_paren_tt)) {
@@ -307,7 +320,7 @@ namespace occult {
       }
       
      auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-     std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos};
+     std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
      pos += first_semicolon_pos;
      auto converted_rpn = parse_expression(sub_stream);
       
@@ -332,7 +345,7 @@ namespace occult {
     auto return_node = ast::new_node<ast_returnstmt>();
     
     auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos};
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1}; 
     pos += first_semicolon_pos;
     auto converted_rpn = parse_expression(sub_stream);
     
@@ -356,7 +369,7 @@ namespace occult {
     auto if_node = ast::new_node<ast_ifstmt>();
     
     auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos};
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
     pos += first_bracket_pos;
     auto converted_rpn = parse_expression(sub_stream);
     
@@ -376,7 +389,7 @@ namespace occult {
     auto elseif_node = ast::new_node<ast_elseifstmt>();
     
     auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos};
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
     pos += first_bracket_pos;
     auto converted_rpn = parse_expression(sub_stream);
     
@@ -434,7 +447,7 @@ namespace occult {
     auto while_node = ast::new_node<ast_whilestmt>();
     
     auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos};
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
     pos += first_bracket_pos;
     auto converted_rpn = parse_expression(sub_stream);
     
@@ -559,7 +572,7 @@ namespace occult {
       auto fn_call = ast::new_node<ast_functioncall>("body_function_call");
       
       auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos};
+      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
       pos += first_semicolon_pos;
       auto converted_rpn = parse_expression(sub_stream);
       
@@ -587,7 +600,7 @@ namespace occult {
         }
         
         auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-        std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos};
+        std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
         pos += first_semicolon_pos;
         auto converted_rpn = parse_expression(sub_stream);
         

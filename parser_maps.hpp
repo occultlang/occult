@@ -41,8 +41,9 @@ namespace occult {
       {or_operator_tt, 12}, // logical
   
       {assignment_tt, 14},
-  
-      {comma_tt, 15}};
+      {left_paren_tt, 16}};
+      //{comma_tt, 15},
+      //{left_paren_tt, 16}};
   
   // true is right associative, false is left
   std::unordered_map<token_type, bool> associativity_map = {
@@ -88,6 +89,11 @@ namespace occult {
            tt == unary_bitwise_not_tt || tt == unary_not_operator_tt;
   }
   
+  bool is_literal(token_type tt) {
+    return tt == number_literal_tt || tt == float_literal_tt || tt == string_literal_tt ||
+           tt == char_literal_tt || tt == false_keyword_tt || tt == true_keyword_tt;
+  }
+  
   bool is_binary(token_type tt) {
     return tt == add_operator_tt ||
            tt == subtract_operator_tt ||
@@ -121,11 +127,11 @@ namespace occult {
   std::unordered_map<int, std::function<std::unique_ptr<ast>(std::string)>> ast_map = {
       {function_call_parser_tt, [](std::string lexeme) { return ast::new_node<ast_functioncall>(lexeme); }},
       {comma_tt, [](std::string lexeme) { return ast::new_node<ast_comma>(lexeme); }},
+      {identifier_tt, [](std::string lexeme) { return ast::new_node<ast_identifier>(lexeme); }},
       {number_literal_tt, [](std::string lexeme) { return ast::new_node<ast_numberliteral>(lexeme); }},
       {false_keyword_tt, [](std::string) { return ast::new_node<ast_numberliteral>("0"); }},
       {true_keyword_tt, [](std::string) { return ast::new_node<ast_numberliteral>("1"); }},
       {char_literal_tt, [](std::string lexeme) { return ast::new_node<ast_charliteral>(lexeme); }},
-      {identifier_tt, [](std::string lexeme) { return ast::new_node<ast_identifier>(lexeme); }},
       {float_literal_tt, [](std::string lexeme) { return ast::new_node<ast_floatliteral>(lexeme); }},
       {string_literal_tt, [](std::string lexeme) { return ast::new_node<ast_stringliteral>(lexeme); }},
       {add_operator_tt, [](std::string lexeme) { return ast::new_node<ast_add>(lexeme); }},
