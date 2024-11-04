@@ -12,7 +12,7 @@ An enigmatic programming language, how about we read the grimoire to learn some 
 # About
 A mysterious just-in-time compiled language... 
 > [!NOTE]
-> Occult is still being rewritten at this moment, the old branch has a working language. The version two changes are significant as it is a whole language rewrite and syntax overhaul. With that in mind there won't be much in the readme for awhile.
+> Occult is still being rewritten at this moment the parser and lexer are done (mostly i.e I have to do bug fixes in the future). It will compile into a custom bytecode format, then into respective machine code (e.g x86_64, Aarch64, RISCV etc.)
 
 > [!IMPORTANT]
 This project would also not be possible without generative artificial intelligence, helping me write, and learn along the way for this long project!
