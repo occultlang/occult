@@ -1,3 +1,4 @@
 fn main() int32 {
-  return 44;
+  print("Hello, World!");
+  return 0;
 }

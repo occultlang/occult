@@ -61,51 +61,44 @@ namespace occult {
       
       if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) {
         i++;
-        
-        token_t start_call_token(t.line, t.column, "start_call", function_call_parser_tt);
-        rpn_output.push_back(start_call_token);
-        
-        // push the function identifier/name
+        rpn_output.emplace_back(t.line, t.column, "start_call", function_call_parser_tt);
         rpn_output.push_back(t);
-        
-        std::vector<token_t> call_args;
-        int paren_depth = 1; // track depth to handle nested calls
-        
-        while (i < expr.size() && paren_depth > 0) {
-          if (expr.at(i).tt == left_paren_tt) {
+              
+        int paren_depth = 1;
+        std::vector<token_t> current_arg;
+              
+        while (i + 1 < expr.size() && paren_depth > 0) {
+          i++;
+          token_t current_token = expr.at(i);
+      
+          if (current_token.tt == left_paren_tt) {
             paren_depth++;
-            
-            call_args.push_back(expr.at(i));
-          }
-          else if (expr.at(i).tt == right_paren_tt) {
+            current_arg.push_back(current_token);
+          } 
+          else if (current_token.tt == right_paren_tt) {
             paren_depth--;
             if (paren_depth > 0) {
-              call_args.push_back(expr.at(i));
+              current_arg.push_back(current_token);
             }
           }
-          else if (expr.at(i).tt == comma_tt && paren_depth == 1) {
-            std::vector<token_t> parsed_arg = to_rpn(call_args);
+          else if (current_token.tt == comma_tt && paren_depth == 1) {
+            std::vector<token_t> parsed_arg = to_rpn(current_arg);
             rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
-            
-            rpn_output.push_back(expr.at(i)); // push comma to output to differentiate between arguments
-            call_args.clear(); 
-          }
+            rpn_output.emplace_back(current_token.line, current_token.column, ",", comma_tt);
+            current_arg.clear(); 
+          } 
           else {
-            call_args.push_back(expr.at(i));
+            current_arg.push_back(current_token);
           }
-          
-          i++;
         }
-        
-        // parse the final argument if there is one
-        if (!call_args.empty()) {
-          std::vector<token_t> parsed_arg = to_rpn(call_args);
+      
+        if (!current_arg.empty()) {
+          std::vector<token_t> parsed_arg = to_rpn(current_arg);
           rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
         }
-        
-        token_t end_call_token(t.line, t.column, "end_call", function_call_parser_tt);
-        rpn_output.push_back(end_call_token);  
-      }
+      
+        rpn_output.emplace_back(t.line, t.column, "end_call", function_call_parser_tt);
+      } 
       else if (is_literal(t.tt)) {
         rpn_output.push_back(t);
       }
