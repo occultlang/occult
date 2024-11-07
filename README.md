@@ -1,8 +1,9 @@
 <div align="center" style="display:grid;place-items:center;">
-<h1> The Occult Programming Language </h1>
 <p>
     <a href="https://occultlang.org/" target="_blank"><img width="120" src="occult.jpg"></a>
 </p>
+<h3>The Occult Programming Langauge</h3>
+<a href="https://occultlang.org" syle="_blank">occultlang.org</a>
 </div>
 
 # About
