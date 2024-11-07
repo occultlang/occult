@@ -8,12 +8,15 @@ An enigmatic programming language, how about we read the grimoire to learn some 
 </p>
 <a href="https://occultlang.org/" target="_blank">occultang.org</a>
 </div>
+
 # About
 A mysterious just-in-time compiled language... 
+
 # Building
 ```
 git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
 ```
+
 # Todo
 - [ ] Parser complete
 - [ ] For loops
