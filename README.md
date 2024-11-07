@@ -10,7 +10,9 @@ An enigmatic programming language, how about we read the grimoire to learn some 
 </div>
 
 # About
-A mysterious just-in-time compiled language... 
+An enigmatic stack based JIT programming language with a clean and modern syntax, targeted towards the masses.
+> [!IMPORTANT]
+> The parser is still being finalized, and bugs are still being fixed. Code generaetion will be 
 
 # Building
 ```
