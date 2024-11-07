@@ -20,3 +20,6 @@ This project would also not be possible without generative artificial intelligen
 ```
 git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
 ```
+
+# Todo
+[] Arrays
