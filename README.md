@@ -2,7 +2,7 @@
 <p>
     <a href="https://occultlang.org/" target="_blank"><img width="120" src="occult.jpg"></a>
 </p>
-<h1>The Occult Language</h1>
+<h2>The Occult Language</h2>
 <a href="https://occultlang.org/" target="_blank">occultang.org</a>
 </div>
 
