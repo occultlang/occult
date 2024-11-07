@@ -22,5 +22,8 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 ```
 
 # Todo
-[x] Arrays
-[x] For loops
+- [ ] Parser complete
+- [ ] For loops
+- [ ] Arrays
+- [x] Lexer complete
+- [ ] Code generator 
