@@ -12,7 +12,7 @@ An enigmatic programming language, how about we read the grimoire to learn some 
 # About
 An enigmatic stack based JIT programming language with a clean and modern syntax, targeted towards the masses.
 > [!IMPORTANT]
-> The parser is still being finalized, and bugs are still being fixed. Code generation will be started relatively soon.
+> As of 11/7/24, the parser is still being finalized, and bugs are still being fixed. Code generation will be started relatively soon.
 
 # Building
 ```
