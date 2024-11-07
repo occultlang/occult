@@ -5,7 +5,6 @@
 #include <fstream>
 #include <sstream>
 #include <chrono>
-#include "bytecode_generator.hpp"
 
 // TODO organize files into directories
 
@@ -104,22 +103,7 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }
   
-  occult::bytecode_generator bg;
   
-  start = std::chrono::high_resolution_clock::now();
-  
-  bg.generate_bytecode(std::move(root));
-  
-  end = std::chrono::high_resolution_clock::now();
-  duration = end - start;
-  
-  if (showtime) {
-    std::cout << "[occultc] \033[1;36mcompleted bytecode generation \033[0m" << duration.count() << "ms" << std::endl;
-    std::cout << "[occultc] \033[1;36mbytecode: \033[0m";
-    bg.visualize();
-    std::cout << "[occultc] \033[1;36mbytecode visualization: \033[0m\n";
-    bg.visualize_code();
-  }
   
   return 0;
 }

@@ -47,7 +47,7 @@ namespace occult {
       return 3;
   }
   
-  /* derived partially from https://github.com/kamyu104/LintCode/blob/master/C%2B%2B/convert-expression-to-reverse-polish-notation.cpp */
+  // derived partially from https://github.com/kamyu104/LintCode/blob/master/C%2B%2B/convert-expression-to-reverse-polish-notation.cpp
   std::vector<token_t> parser::to_rpn(std::vector<token_t> expr) {
     std::stack<token_t> operator_stack;
     std::vector<token_t> rpn_output;
@@ -146,48 +146,56 @@ namespace occult {
     return rpn_output;
   }
   
-  // converts normal expression into a vector of nodes in RPN
+  // converts normal expression into a vector of nodes in rpn
   std::vector<std::unique_ptr<ast>> parser::parse_expression(std::vector<token_t> expr) {
     auto expr_rpn = to_rpn(expr);
-    
+  
     if (verbose_parser) {
       for (auto t : expr_rpn) {
         std::println("{}: {}", t.get_typename(t.tt), t.lexeme);
       }
-      
       std::println();
     }
-    
+  
     std::vector<std::unique_ptr<ast>> expr_ast;
-    
+    std::stack<std::unique_ptr<ast>> call_stack;
+  
     for (const auto& t : expr_rpn) {
-      auto it = ast_map.find(t.tt);
-      
-      if (it != ast_map.end()) {
-        auto node = it->second(t.lexeme);
-        expr_ast.push_back(std::move(node));
+      if (t.tt == function_call_parser_tt && t.lexeme == "start_call") {
+        auto call_node = ast::new_node<ast_functioncall>("start_call"); 
+  
+        call_stack.push(std::move(call_node)); // push it to the stack as the current function call
+      }
+      else if (t.tt == function_call_parser_tt && t.lexeme == "end_call") { // finalize the current function call node
+        auto completed_call = std::move(call_stack.top());
+        call_stack.pop();
+  
+        if (!call_stack.empty()) { // if there's a parent call node, make this a child; otherwise, add to ast root
+          call_stack.top()->add_child(std::move(completed_call));
+        }
+        else {
+          expr_ast.push_back(std::move(completed_call));
+        }
+      }
+      else { // regular token handling, add arguments to the current call node if in a function call
+        auto it = ast_map.find(t.tt);
+        if (it != ast_map.end()) {
+          auto arg_node = it->second(t.lexeme);
+  
+          if (!call_stack.empty()) {
+            call_stack.top()->add_child(std::move(arg_node));
+          } else {
+            expr_ast.push_back(std::move(arg_node));
+          }
+        }
       }
     }
-
+  
     return expr_ast;
   }
   
-  std::unique_ptr<ast> parser::parse_datatype() { 
-    std::unordered_map<token_type, std::function<std::unique_ptr<ast>()>> datatype_map = {
-      {int8_keyword_tt, []() { return ast::new_node<ast_int8>(); }},
-      {int16_keyword_tt, []() { return ast::new_node<ast_int16>(); }},
-      {int32_keyword_tt, []() { return ast::new_node<ast_int32>(); }},
-      {int64_keyword_tt, []() { return ast::new_node<ast_int64>(); }},
-      {uint8_keyword_tt, []() { return ast::new_node<ast_uint8>(); }},
-      {uint16_keyword_tt, []() { return ast::new_node<ast_uint16>(); }},
-      {uint32_keyword_tt, []() { return ast::new_node<ast_uint32>(); }},
-      {uint64_keyword_tt, []() { return ast::new_node<ast_uint64>(); }},
-      {float32_keyword_tt, []() { return ast::new_node<ast_float32>(); }},
-      {float64_keyword_tt, []() { return ast::new_node<ast_float64>(); }},
-      {string_keyword_tt, []() { return ast::new_node<ast_string>(); }},
-      {char_keyword_tt, []() { return ast::new_node<ast_int8>(); }},
-      {boolean_keyword_tt, []() { return ast::new_node<ast_int8>(); }}};
-    
+  
+  std::unique_ptr<ast> parser::parse_datatype() {     
    auto it = datatype_map.find(peek().tt);
    
    if (it != datatype_map.end()) {
@@ -301,7 +309,8 @@ namespace occult {
 
     if (match(peek(), identifier_tt)) {
       node->add_child(parse_identifier()); // add identifier as a child node
-    } else {
+    }
+    else {
       throw runtime_error("expected identifier", peek(), pos);
     }
 
@@ -562,25 +571,24 @@ namespace occult {
       return parse_return();
     }
     else if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
-      auto fn_call = ast::new_node<ast_functioncall>("body_function_call");
-      
       auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
       std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
       pos += first_semicolon_pos;
       auto converted_rpn = parse_expression(sub_stream);
       
-      for (auto &c : converted_rpn) { 
-        fn_call->add_child(std::move(c));
-      }
-      
-      if (match(peek(), semicolon_tt)) { 
-        consume();
+      if (converted_rpn.size() == 1 && converted_rpn.at(0)->content == "start_call") {
+        if (match(peek(), semicolon_tt)) { 
+          consume();
+        }
+        else {
+          throw runtime_error("expected semicolon", peek(), pos);
+        }
+        
+        return std::move(converted_rpn.at(0));
       }
       else {
-        throw runtime_error("expected semicolon", peek(), pos);
+        throw runtime_error("something is wrong with the function call no idea what though :)", peek(), pos);
       }
-      
-      return fn_call;
     }
     else if (match(peek(), identifier_tt)) {
       auto id = parse_identifier();

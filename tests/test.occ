@@ -1,4 +1,7 @@
+fn add(int32 a, int32 b) int32 {
+  return a + b;
+}
+
 fn main() int32 {
-  print("Hello, World!");
-  return 0;
+  return add(4 * 2, 3);
 }
