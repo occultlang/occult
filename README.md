@@ -7,9 +7,7 @@
 </div>
 
 # About
-An enigmatic stack based JIT programming language with a clean and modern syntax, targeted towards the masses.
-> [!IMPORTANT]
-> As of 11/7/24, the parser is still being finalized, and bugs are still being fixed. Code generation will be started relatively soon.
+An enigmatic JIT programming language with a clean and modern syntax.
 
 # Building
 ```
