@@ -1,7 +1,7 @@
-#include "lexer.hpp"
+#include "lexer/lexer.hpp"
 #include <iostream>
-#include "ast.hpp"
-#include "parser.hpp"
+#include "parser/ast.hpp"
+#include "parser/parser.hpp"
 #include <fstream>
 #include <sstream>
 #include <chrono>

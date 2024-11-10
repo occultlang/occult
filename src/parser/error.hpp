@@ -1,6 +1,6 @@
 #pragma once
 #include <stdexcept>
-#include "lexer.hpp"
+#include "../lexer/lexer.hpp"
 
 namespace occult {
   class runtime_error : public std::runtime_error {

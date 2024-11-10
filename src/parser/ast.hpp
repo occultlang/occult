@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
-#include "lexer.hpp"
+#include "../lexer/lexer.hpp"
 
 namespace occult {
   enum class ast_type {

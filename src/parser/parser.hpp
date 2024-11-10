@@ -1,6 +1,6 @@
 #pragma once
 #include "ast.hpp"
-#include "lexer.hpp"
+#include "../lexer/lexer.hpp"
 #include "error.hpp"
 
 inline bool verbose_parser;
