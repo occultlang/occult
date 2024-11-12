@@ -71,7 +71,8 @@ namespace occult {
       {"char", char_keyword_tt},
       {"string", string_keyword_tt},
       {"false", false_keyword_tt},
-      {"true", true_keyword_tt}};
+      {"true", true_keyword_tt},
+      {"in", in_keyword_tt}};
 
   std::unordered_set<char> alnumeric_set = {
       'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
@@ -132,6 +133,7 @@ namespace occult {
       {continue_keyword_tt, "continue"},
       {while_keyword_tt, "while"},
       {for_keyword_tt, "for"},
+      {in_keyword_tt, "in"},
       {include_keyword_tt, "include"},
       {int64_keyword_tt, "int64"},
       {int32_keyword_tt, "int32"},

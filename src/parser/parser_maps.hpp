@@ -53,27 +53,6 @@ namespace occult {
            tt == char_literal_tt || tt == false_keyword_tt || tt == true_keyword_tt;
   }
   
-  bool is_binary(token_type tt) {
-    return tt == add_operator_tt ||
-           tt == subtract_operator_tt ||
-           tt == multiply_operator_tt ||
-           tt == division_operator_tt ||
-           tt == modulo_operator_tt ||
-           tt == bitwise_and_tt ||
-           tt == bitwise_or_tt ||
-           tt == xor_operator_tt ||
-           tt == bitwise_lshift_tt ||
-           tt == bitwise_rshift_tt ||
-           tt == greater_than_operator_tt ||
-           tt == less_than_operator_tt ||
-           tt == equals_operator_tt ||
-           tt == not_equals_operator_tt ||
-           tt == less_than_or_equal_operator_tt ||
-           tt == greater_than_or_equal_operator_tt ||
-           tt == and_operator_tt ||
-           tt == or_operator_tt;
-  }
-  
   template <typename Iterator> 
   int find_first_token(Iterator begin, Iterator end, token_type tt) {
       auto it = std::find_if(begin, end, [tt](token_t t) {

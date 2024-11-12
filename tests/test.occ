@@ -1,7 +1,13 @@
-fn add(int32 a, int32 b) int32 {
-  return a + b;
-}
-
 fn main() int32 {
-  return add(4 * 2, 3);
+  print("HI");
+  print(1);
+  print(x + 1);
+  print(x + 1.32);
+  print(12.3);
+  print(true);
+  print('a');
+  print(taa); // this didn't work
+  print(12, 1.23, taaaa); // this didn't work as well
+  
+  return 0;
 }

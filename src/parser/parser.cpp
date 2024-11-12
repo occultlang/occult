@@ -59,7 +59,10 @@ namespace occult {
         break;
       }
       
-      if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) {
+      if (t.tt == identifier_tt && expr.at(i + 1).tt != left_paren_tt) {
+        rpn_output.push_back(t);
+      }
+      else if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) {
         i++;
         rpn_output.emplace_back(t.line, t.column, "start_call", function_call_parser_tt);
         rpn_output.push_back(t);
@@ -73,32 +76,45 @@ namespace occult {
       
           if (current_token.tt == left_paren_tt) {
             paren_depth++;
+            
             current_arg.push_back(current_token);
           } 
           else if (current_token.tt == right_paren_tt) {
             paren_depth--;
+            
             if (paren_depth > 0) {
               current_arg.push_back(current_token);
             }
           }
           else if (current_token.tt == comma_tt && paren_depth == 1) {
-            std::vector<token_t> parsed_arg = to_rpn(current_arg);
-            rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
+            if (current_arg.size() == 1 && current_arg[0].tt == identifier_tt) { // check if current_arg contains only a single identifier token
+              rpn_output.push_back(current_arg[0]);
+            }
+            else { // normal rpn conversion
+              std::vector<token_t> parsed_arg = to_rpn(current_arg);
+              rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
+            }
+            
             rpn_output.emplace_back(current_token.line, current_token.column, ",", comma_tt);
-            current_arg.clear(); 
-          } 
+            current_arg.clear();
+          }
           else {
             current_arg.push_back(current_token);
           }
         }
       
         if (!current_arg.empty()) {
-          std::vector<token_t> parsed_arg = to_rpn(current_arg);
-          rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
+          if (current_arg.size() == 1 && current_arg[0].tt == identifier_tt) { // check if the last argument is a single identifier
+            rpn_output.push_back(current_arg[0]);
+          }
+          else { // normal rpn conversion
+            std::vector<token_t> parsed_arg = to_rpn(current_arg);
+            rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
+          }
         }
       
         rpn_output.emplace_back(t.line, t.column, "end_call", function_call_parser_tt);
-      } 
+      }
       else if (is_literal(t.tt)) {
         rpn_output.push_back(t);
       }
@@ -136,6 +152,7 @@ namespace occult {
     }
     
     if (verbose_parser) {
+      std::println("rpn output size: {}", rpn_output.size());
       for (auto t : rpn_output) {
         std::print("{} ", t.lexeme);
       }
@@ -499,6 +516,40 @@ namespace occult {
     
     return node;
   }
+  
+  std::unique_ptr<ast_forstmt> parser::parse_for() { // for expr; in expr; { }
+    consume();
+    
+    auto for_node = ast::new_node<ast_forstmt>();
+    
+    for_node->add_child(parse_keyword()); // first expr
+    
+    if (match(peek(), in_keyword_tt)) {
+      consume();
+      
+      if (match(peek(), identifier_tt)) {
+        for_node->add_child(parse_identifier());
+        
+        if (match(peek(), semicolon_tt)) {
+          consume();
+        }
+        else {
+          throw runtime_error("expected semicolon", peek(), pos);
+        }
+      }
+      else {
+        for_node->add_child(parse_keyword()); // 2nd expr
+      }
+      
+      auto body = parse_block();  
+      for_node->add_child(std::move(body));
+      
+      return for_node;
+    }
+    else {
+      throw runtime_error("expected in keyword", peek(), pos);
+    }
+  }
 
   std::unique_ptr<ast> parser::parse_keyword(bool nested_function) {
     if (nested_function) {
@@ -566,6 +617,9 @@ namespace occult {
     }
     else if (match(peek(), while_keyword_tt)) {
       return parse_while();
+    }
+    else if (match(peek(), for_keyword_tt)) {
+      return parse_for();
     }
     else if (match(peek(), return_keyword_tt)) {
       return parse_return();

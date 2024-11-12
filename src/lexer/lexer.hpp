@@ -79,6 +79,7 @@ namespace occult {
     continue_keyword_tt, // continue
     while_keyword_tt,    // while
     for_keyword_tt,      // for
+    in_keyword_tt,       // in
     include_keyword_tt,  // include
     int64_keyword_tt,    // int64
     int32_keyword_tt,    // int32
