@@ -449,6 +449,13 @@ namespace occult {
     
     auto break_node = ast::new_node<ast_breakstmt>();
     
+    if (match(peek(), semicolon_tt)) {
+      consume();
+    }
+    else {
+      throw runtime_error("expected semicolon", peek(), pos);
+    }
+    
     return break_node;
   }
   
@@ -456,6 +463,13 @@ namespace occult {
     consume(); 
     
     auto continue_node = ast::new_node<ast_continuestmt>();
+    
+    if (match(peek(), semicolon_tt)) {
+      consume();
+    }
+    else {
+      throw runtime_error("expected semicolon", peek(), pos);
+    }
     
     return continue_node;
   }
@@ -522,22 +536,26 @@ namespace occult {
     
     auto for_node = ast::new_node<ast_forstmt>();
     
+    auto in_pos = find_first_token(stream.begin() + pos, stream.end(), in_keyword_tt); // we're going to insert a semicolon
+    stream.insert(stream.begin() + pos + in_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
+    
+    std::cout << stream.at(pos).lexeme << std::endl;
+    std::cout << stream.at(pos + 1).lexeme << std::endl;
+    std::cout << stream.at(pos + 2).lexeme << std::endl;
+    
     for_node->add_child(parse_keyword()); // first expr
     
     if (match(peek(), in_keyword_tt)) {
       consume();
       
-      if (match(peek(), identifier_tt)) {
+      if (match(peek(), identifier_tt) && peek(1).tt != left_paren_tt) {
         for_node->add_child(parse_identifier());
-        
-        if (match(peek(), semicolon_tt)) {
-          consume();
-        }
-        else {
-          throw runtime_error("expected semicolon", peek(), pos);
-        }
       }
       else {
+        auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt); // we're going to insert a semicolon
+        std::cout << left_curly_bracket_pos << std::endl;
+        stream.insert(stream.begin() + pos + left_curly_bracket_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
+        
         for_node->add_child(parse_keyword()); // 2nd expr
       }
       
