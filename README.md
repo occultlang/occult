@@ -24,7 +24,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
   - - [ ] IR
   - - [ ] JIT
   - - [ ] Transpiler
-  - - [ ] Garbage Collection for C
+  - - [ ] Garbage collection for C
 
 # Crediting 
 [`parser::to_rpn`](https://github.com/occultlang/occult/blob/main/src/parser/parser.cpp#L51) is based on [this](https://github.com/kamyu104/LintCode/blob/master/C%2B%2B/convert-expression-to-reverse-polish-notation.cpp) <br/><br/>
