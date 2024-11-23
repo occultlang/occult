@@ -15,12 +15,12 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 ```
 
 # Todo
-- - [ ] Reformat, clean, and organize all code
 - - [x] Lexer
 - - [ ] Parser
   - - [x] For loops
   - - [ ] Arrays
   - - [ ] Pointers
+- - [ ] Reformat, clean, and organize all code      
 - - [ ] Implement/Start [Sigil](https://github.com/occultlang/sigil)
 
 # Crediting 
