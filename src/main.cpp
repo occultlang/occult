@@ -103,8 +103,6 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }
   
-  
-  
   return 0;
 }
   

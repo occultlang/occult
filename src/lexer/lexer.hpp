@@ -16,8 +16,9 @@ namespace occult {
     // whitespace + comments
     whitespace_tt,
     comment_tt,
-    multiline_comment_tt,
-
+    multiline_comment_start_tt,
+    multiline_comment_end_tt,
+    
     // literals
     number_literal_tt,
     string_literal_tt,
@@ -27,8 +28,6 @@ namespace occult {
     // arithmetic operators
     add_operator_tt,      // + 
     subtract_operator_tt, // - 
-    unary_plus_operator_tt,      // + unary
-    unary_minus_operator_tt, // - unary
     
     multiply_operator_tt, // *
     division_operator_tt, // /
@@ -94,6 +93,7 @@ namespace occult {
     boolean_keyword_tt,  // bool,
     char_keyword_tt,     // char
     string_keyword_tt,   // str
+    array_keyword_tt,    // array
     true_keyword_tt,     // true
     false_keyword_tt,    // false
 
@@ -109,9 +109,9 @@ namespace occult {
     std::string lexeme;
     token_type tt;
 
-    static std::string get_typename(token_type tt);
+    static std::string get_typename(const token_type& tt);
 
-    token_t(std::uintptr_t line, std::uintptr_t column, std::string lexeme, token_type tt) : line(line), column(column), lexeme(lexeme), tt(tt) {}
+    token_t(const std::uintptr_t& line, const std::uintptr_t& column, const std::string& lexeme, const token_type& tt) : line(line), column(column), lexeme(lexeme), tt(tt) {}
   } token_t; // token structure
 
   class lexer {
@@ -121,11 +121,20 @@ namespace occult {
     std::uintptr_t column;
     
     std::vector<token_t> stream;
-    token_t get_next();             // getting next token to put into stream
+    void increment(const std::uintptr_t& line = 0, const std::uintptr_t& pos = 0, const std::uintptr_t& column = 0);
+    void handle_comment();
+    void handle_whitespace();
+    token_t handle_string();
+    token_t handle_char();
+    token_t handle_numeric();
+    token_t handle_delimiter();
+    token_t handle_operator(const bool& is_double);
+    token_t handle_symbol();
+    token_t get_next_token();
   public:
-    lexer(std::string source) : source(source), pos(0), line(1), column(1) {}
+    lexer(const std::string& source) : source(source), pos(0), line(1), column(1) {}
     
-    std::vector<token_t> analyze(); // returns a token stream which will be put into the parser later on
-    void visualize(std::optional<std::vector<token_t>> o_s = std::nullopt); 
+    std::vector<token_t> analyze(); 
+    void visualize(const std::optional<std::vector<token_t>>& o_s = std::nullopt); 
   };
 } // namespace occult

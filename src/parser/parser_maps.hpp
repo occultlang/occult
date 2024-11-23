@@ -7,8 +7,8 @@
 
 namespace occult {
   std::unordered_map<token_type, int> precedence_map = {
-    {unary_plus_operator_tt, 2},
-    {unary_minus_operator_tt, 2},
+    //{unary_plus_operator_tt, 2},
+    //{unary_minus_operator_tt, 2},
     {unary_bitwise_not_tt, 2},
     {unary_not_operator_tt, 2}, // logical
   
@@ -44,7 +44,7 @@ namespace occult {
     {left_paren_tt, 16}};
   
   bool is_unary(token_type tt) {
-    return tt == unary_plus_operator_tt || tt == unary_minus_operator_tt ||
+    return //tt == unary_plus_operator_tt || tt == unary_minus_operator_tt ||
            tt == unary_bitwise_not_tt || tt == unary_not_operator_tt;
   }
   
@@ -74,8 +74,8 @@ namespace occult {
     {string_literal_tt, [](std::string lexeme) { return ast::new_node<ast_stringliteral>(lexeme); }},
     {add_operator_tt, [](std::string lexeme) { return ast::new_node<ast_add>(lexeme); }},
     {subtract_operator_tt, [](std::string lexeme) { return ast::new_node<ast_subtract>(lexeme); }},
-    {unary_plus_operator_tt, [](std::string lexeme) { return ast::new_node<ast_unary_plus>(lexeme); }},
-    {unary_minus_operator_tt, [](std::string lexeme) { return ast::new_node<ast_unary_minus>(lexeme); }},
+    //{unary_plus_operator_tt, [](std::string lexeme) { return ast::new_node<ast_unary_plus>(lexeme); }},
+    //{unary_minus_operator_tt, [](std::string lexeme) { return ast::new_node<ast_unary_minus>(lexeme); }},
     {multiply_operator_tt, [](std::string lexeme) { return ast::new_node<ast_multiply>(lexeme); }},
     {division_operator_tt, [](std::string lexeme) { return ast::new_node<ast_divide>(lexeme); }},
     {modulo_operator_tt, [](std::string lexeme) { return ast::new_node<ast_modulo>(lexeme); }},

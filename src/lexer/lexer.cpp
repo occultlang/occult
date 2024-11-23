@@ -1,258 +1,151 @@
 #include "lexer.hpp"
 #include "lexer_maps.hpp"
-/*
- * TODO scientific notation, hexadecimal, octal and binary for numbers (it's not necessary right now)
- * */
-
-#define DONT_USE_WHITESPACES true
-#define DONT_USE_COMMENTS true
-
+ 
 namespace occult {
-  std::string token_t::get_typename(token_type tt) {
+  std::string token_t::get_typename(const token_type& tt) {
     if (token_typename_map.contains(tt))
       return token_typename_map[tt];
     else
       throw std::runtime_error("can't find token typename");
   }
-
-  token_t lexer::get_next() {
-    if (pos >= source.length())
-      return token_t(line, column, "end of file", end_of_file_tt);
-
-    // comments go here
-
-    if (source[pos] == '/' && source[pos + 1] == '/') {
-      std::string lexeme;
-
-      pos += 2;
-      column += 2;
-
-      while (pos < source.size() && source[pos] != '\n' && source[pos] != '\r') {
-        lexeme += source[pos];
-        pos++;
-        column++;
-      }
-
-      return token_t(line, column, lexeme, comment_tt);
-    }
-
-    if (source[pos] == '/' && source[pos + 1] == '*') {
-      std::string lexeme;
-
-      pos += 2;
-      column += 2;
-
-      while (pos < source.size() && source[pos] != '*' && source[pos + 1] != '/') {
-        if (source[pos] == '\n' || source[pos] == '\r') {
-          line++;
+  
+  void lexer::increment(const std::uintptr_t& line, const std::uintptr_t& pos, const std::uintptr_t& column) {
+    this->line += line;
+    this->pos += pos;
+    this->column += column;
+  }
+  
+  void lexer::handle_comment() {
+    if (const auto& lexeme = std::string() + source[pos] + source[pos + 1]; comment_map.contains(lexeme)) {
+      increment(0, 2, 2); // beginning comment
+      
+      if (comment_map[lexeme] == comment_tt) {
+        while (pos < source.size() && source[pos] != '\n' && source[pos] != '\r') {
+          increment(0, 1, 1);
         }
-
-        lexeme += source[pos];
-
-        pos++;
-        column++;
       }
-
-      pos += 2;
-      column += 2;
-
-      return token_t(line, column, lexeme, multiline_comment_tt);
-    }
-
-    if (whitespace_map.contains(source[pos])) {         // whitespaces
-      if (source[pos] == '\n' || source[pos] == '\r') { // newlines
-        pos++;
-        line++;
-        column = 1;
-      } else {
-        pos++;
-        column++;
-      }
-
-      return token_t(line, column, std::string(1, source[pos - 1]), whitespace_map[source[pos - 1]]);
-    }
-
-    auto handle_escape_sequences = [this](char str_type) -> std::string {
-      std::string lexeme = "";
-
-      while (pos < source.length() && source[pos] != str_type) {
-        if (source[pos] == '\\') {
-          pos++;
-          column++;
-
-          if (pos < source.length()) {
-            switch (source[pos]) {
-            case 'n':
-              lexeme += '\n';
-              break;
-            case 'r':
-              lexeme += '\r';
-              break;
-            case 't':
-              lexeme += '\t';
-              break;
-            case '\\':
-              lexeme += '\\';
-              break;
-            case '\"':
-              lexeme += '\"';
-              break;
-            default:
-              lexeme += source[pos];
-              break;
-            }
+      else if (comment_map[lexeme] == multiline_comment_start_tt) {
+        while (pos < source.size() && source[pos] != '*' && source[pos + 1] != '/') {
+          if (source[pos] == '\n' || source[pos] == '\r') {
+            increment(1, 0, 0);
           }
-        } else {
-          lexeme += source[pos];
+          
+          increment(0, 1, 1);
         }
-
-        pos++;
-        column++;
+        
+        increment(0, 2, 2); // end multiline comment
       }
-
-      return lexeme;
-    };
-
-    if (source[pos] == '\"') { // string literals
-      pos++;
-      column++;
-
-      std::string lexeme = handle_escape_sequences('\"');
-
-      if (pos < source.length() && source[pos] == '\"') { // end of the string literal
-        pos++;
-        column++;
-      }
-
-      return token_t(line, column, lexeme, string_literal_tt);
     }
-
-    if (source[pos] == '\'') { // character literals
-      pos++;
-      column++;
-
-      std::string lexeme = handle_escape_sequences('\'');
-
-      if (pos < source.length() && source[pos] == '\'') { // end of the char literal
-        pos++;
-        column++;
+  }
+  
+  void lexer::handle_whitespace() {
+    if (whitespace_map.contains(source[pos])) {
+      if (source[pos] == '\n' || source[pos] == '\r') {
+        increment(1, 1, 0);
+        column = 1;
       }
-
-      return token_t(line, column, lexeme, char_literal_tt);
+      else {
+        increment(0, 1, 1);
+      }
     }
+  }
+
+  token_t lexer::handle_string() {
+    increment(0, 1, 1);
+  }
+  
+  token_t lexer::handle_char() {
     
-    if (numeric_set.contains(source[pos])) { // int literals & float literals
-      std::string lexeme = "";
+  }
+  
+  token_t lexer::handle_numeric() {
+    
+  }
+  
+  token_t lexer::handle_delimiter() {
+    increment(0, 1, 1);
+    
+    return token_t(line, column, std::string(1, source[pos - 1]), delimiter_map[source[pos - 1]]);
+  }
+  
+  token_t lexer::handle_operator(const bool& is_double) {
+    if (is_double) {
+      increment(0, 2, 2);
       
-      bool isfloat = false;
-      
-      while (pos < source.size() && numeric_set.contains(source[pos])) {
-        lexeme += source[pos];
-        pos++;
-        column++;
-      }
-      
-      if (source[pos] == '.') {
-        lexeme += source[pos];
-        pos++;
-        column++;
-        
-        isfloat = true;
-        
-        while (pos < source.size() && numeric_set.contains(source[pos])) {
-          lexeme += source[pos];
-          pos++;
-          column++;
-        }
-      }
-
-      return token_t(line, column, lexeme, (isfloat) ? float_literal_tt : number_literal_tt);
-    }
-
-    if (delimiter_map.contains(source[pos])) { // delimiters
-      pos++;
-      column++;
-
-      return token_t(line, column, std::string(1, source[pos - 1]), delimiter_map[source[pos - 1]]);
-    }
-
-    if (operator_map_double.contains(std::string() + source[pos] + source[pos + 1])) { // double operators
-      pos += 2;
-      column += 2;
-
       return token_t(line, column, std::string() + source[pos - 2] + source[pos - 1], operator_map_double[std::string() + source[pos - 2] + source[pos - 1]]);
     }
-
-    if (operator_map_single.contains(source[pos])) { // single operators
-      pos++;
-      column++;
-
+    else {
+      increment(0, 1, 1);
+      
       return token_t(line, column, std::string(1, source[pos - 1]), operator_map_single[source[pos - 1]]);
     }
-
-    if (alnumeric_set.contains(source[pos])) { // keywords & identifiers
-      std::uintptr_t start_pos = pos;
-      std::uintptr_t start_column = column;
-
-      while (pos < source.length() && alnumeric_set.contains(source[pos])) {
-        pos++;
-        column++;
-      }
-
-      std::string lexeme = source.substr(start_pos, pos - start_pos);
-
-      if (keyword_map.contains(lexeme)) {
-        return token_t(line, start_column, lexeme, keyword_map[lexeme]);
-      } else {
-        return token_t(line, start_column, lexeme, identifier_tt);
-      }
+  }
+  
+  token_t lexer::handle_symbol() {
+    const auto& start_pos = pos;
+    const auto& start_column = column;
+    
+    while (pos < source.length() && alnumeric_set.contains(source[pos])) {
+      increment(0, 1, 1);
     }
+    
+    const auto& lexeme = source.substr(start_pos, pos - start_pos);
+    
+    if (keyword_map.contains(lexeme)) {
+      return token_t(line, start_column, lexeme, keyword_map[lexeme]);
+    }
+    else {
+      return token_t(line, start_column, lexeme, identifier_tt);
+    }
+  }
 
+  token_t lexer::get_next_token() {
+    if (pos >= source.length()) {
+      return token_t(line, column, "end of file", end_of_file_tt);
+    }
+    
+    handle_comment();
+    handle_whitespace();
+    
+    if (source[pos] == '\"') {
+      return handle_string();
+    }
+    
+    if (source[pos] == '\'') {
+      return handle_char();
+    }
+    
+    if (numeric_set.contains(source[pos])) {
+      return handle_numeric();
+    }
+    
+    if (delimiter_map.contains(source[pos])) {
+      return handle_delimiter();
+    }
+    
+    if (operator_map_double.contains(std::string() + source[pos] + source[pos + 1])) {
+      return handle_operator(true);
+    }
+    
+    if (operator_map_single.contains(source[pos])) {
+      return handle_operator(false);
+    }
+    
+    if (alnumeric_set.contains(source[pos])) {
+      return handle_symbol();
+    }
+    
     return token_t(line, column, "unknown token", unkown_tt);
   }
   
   std::vector<token_t> lexer::analyze() {
     std::vector<token_t> token_stream;
-    token_t token = get_next();
-    token_type previous_token_type = end_of_file_tt;
+    token_t token = get_next_token();
     
-    auto is_unary_context = [](token_type prev_type) {
-      return prev_type == assignment_tt || prev_type == left_paren_tt ||
-             prev_type == comma_tt || prev_type == semicolon_tt ||
-             prev_type == end_of_file_tt || prev_type == return_keyword_tt;
-      };
-    
-    while (token.tt != end_of_file_tt) {
-#if DONT_USE_WHITESPACES
-      if (token.tt == whitespace_tt) {
-        token = get_next();
-        continue;
-      }
-#endif
-
-#if DONT_USE_COMMENTS
-      if (token.tt == comment_tt || token.tt == multiline_comment_tt) {
-        token = get_next();
-        continue;
-      }
-#endif
-      
-      if (token.tt == add_operator_tt || token.tt == subtract_operator_tt) {
-        if (is_unary_context(previous_token_type)) {
-          token.tt = (token.tt == add_operator_tt) ? unary_plus_operator_tt : unary_minus_operator_tt;
-        }
-        
-        if (token.tt == unary_plus_operator_tt) {
-          token.lexeme = "unary_plus";
-        }
-        else if (token.tt == unary_minus_operator_tt) {
-          token.lexeme = "unary_minus";
-        }
-      }
-      
+    while (token.tt != end_of_file_tt) {            
       token_stream.push_back(token);
-      previous_token_type = token.tt;
-      token = get_next();
+
+      token = get_next_token();
     }
 
     token_stream.push_back(token);
@@ -262,7 +155,7 @@ namespace occult {
     return token_stream;
   }
   
-  void lexer::visualize(std::optional<std::vector<token_t>> o_s) {
+  void lexer::visualize(const std::optional<std::vector<token_t>>& o_s) {
     if (!o_s.has_value()) {
       for (size_t i = 0; i < stream.size(); ++i) {
         auto s = stream.at(i); 
@@ -270,10 +163,10 @@ namespace occult {
       }
     }
     else {
-        for (size_t i = 0; i < o_s.value().size(); ++i) {
-          auto s = o_s.value().at(i);
-          std::println("lexeme: {}\ntype: {}\nposition in stream: {}\n", s.lexeme, occult::token_t::get_typename(s.tt), i);
-        }
+      for (size_t i = 0; i < o_s.value().size(); ++i) {
+        auto s = o_s.value().at(i);
+        std::println("lexeme: {}\ntype: {}\nposition in stream: {}\n", s.lexeme, occult::token_t::get_typename(s.tt), i);
       }
     }
+  }
 } // namespace occult

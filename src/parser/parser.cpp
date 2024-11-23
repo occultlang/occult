@@ -36,17 +36,6 @@ namespace occult {
     }
   }
   
-  int precedence(token_type x) {
-      if (x == left_paren_tt) {
-          return 0;
-      } else if (x == add_operator_tt || x == subtract_operator_tt) {
-          return 1;
-      } else if (x == multiply_operator_tt || x == division_operator_tt) {
-          return 2;
-      }
-      return 3;
-  }
-  
   // derived partially from https://github.com/kamyu104/LintCode/blob/master/C%2B%2B/convert-expression-to-reverse-polish-notation.cpp
   std::vector<token_t> parser::to_rpn(std::vector<token_t> expr) {
     std::stack<token_t> operator_stack;
@@ -211,6 +200,9 @@ namespace occult {
     return expr_ast;
   }
   
+  std::unique_ptr<ast_array> parser::parse_array() { 
+
+  }
   
   std::unique_ptr<ast> parser::parse_datatype() {     
    auto it = datatype_map.find(peek().tt);
@@ -570,8 +562,11 @@ namespace occult {
         return parse_function();
       }
     }
-
-    if (match(peek(), int8_keyword_tt)) {
+    
+    if (match(peek(), array_keyword_tt)) {
+      return parse_array();
+    }
+    else if (match(peek(), int8_keyword_tt)) {
       return parse_integer_type<ast_int8>();
     }
     else if (match(peek(), int16_keyword_tt)) {
