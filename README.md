@@ -20,7 +20,10 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
   - - [x] For loops
   - - [ ] Arrays
   - - [ ] Pointers
-- - [ ] Reformat, clean, and organize all code      
+- - [ ] Reformat, clean, and organize all code
+  - - [x] Lexer
+  - - [ ] Parser
+  - - [ ] AST
 - - [ ] Implement [Sigil](https://github.com/occultlang/sigil)
 
 # Crediting 
