@@ -34,7 +34,7 @@ fn main() int32 {
     print(false);
   }
   
-  float32 y = 3.14 * 2.0;
+  float32 y = 2.5e-5 * 2.0;
   
   return 0;
 }

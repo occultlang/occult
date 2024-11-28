@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
       
       return 0;
   }
-  
+
   auto start = std::chrono::high_resolution_clock::now();
   
   occult::lexer lexer(source_original);

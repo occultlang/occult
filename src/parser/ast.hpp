@@ -64,7 +64,6 @@ namespace occult {
     include,
     stringliteral,
     charliteral,
-    array_datatype
   };
   
   class ast {
@@ -153,7 +152,6 @@ namespace occult {
   NODE(uint64_datatype, ast_uint64)
   NODE(float32_datatype, ast_float32)
   NODE(float64_datatype, ast_float64)
-  NODE(array_datatype, ast_array)
   NODE(string_datatype, ast_string)
   NODE(number_literal, ast_numberliteral)
   NODE(float_literal, ast_floatliteral)

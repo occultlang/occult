@@ -9,7 +9,8 @@ namespace occult {
   token_t parser::previous() {
     if ((pos - 1) != 0) {
       return stream[pos - 1];
-    } else {
+    }
+    else {
       throw std::runtime_error("out of bounds parser::previous");
     }
   }
@@ -21,17 +22,8 @@ namespace occult {
   bool parser::match(token_t t, token_type tt) {
     if (t.tt == tt) {
       return true;
-    } else {
-      return false;
     }
-  }
-
-  bool parser::match_and_consume(token_t t, token_type tt) {
-    if (match(t, tt)) {
-      consume();
-
-      return true;
-    } else {
+    else {
       return false;
     }
   }
@@ -190,7 +182,8 @@ namespace occult {
   
           if (!call_stack.empty()) {
             call_stack.top()->add_child(std::move(arg_node));
-          } else {
+          }
+          else {
             expr_ast.push_back(std::move(arg_node));
           }
         }
@@ -198,10 +191,6 @@ namespace occult {
     }
   
     return expr_ast;
-  }
-  
-  std::unique_ptr<ast_array> parser::parse_array() { 
-
   }
   
   std::unique_ptr<ast> parser::parse_datatype() {     
@@ -563,10 +552,7 @@ namespace occult {
       }
     }
     
-    if (match(peek(), array_keyword_tt)) {
-      return parse_array();
-    }
-    else if (match(peek(), int8_keyword_tt)) {
+    if (match(peek(), int8_keyword_tt)) {
       return parse_integer_type<ast_int8>();
     }
     else if (match(peek(), int16_keyword_tt)) {

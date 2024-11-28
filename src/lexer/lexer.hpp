@@ -96,7 +96,9 @@ namespace occult {
     array_keyword_tt,    // array
     true_keyword_tt,     // true
     false_keyword_tt,    // false
-
+    unary_minus_operator_tt,
+    unary_plus_operator_tt,
+    
     end_of_file_tt,
     unkown_tt,
     function_call_parser_tt,
@@ -124,6 +126,7 @@ namespace occult {
     void increment(const std::uintptr_t& line = 0, const std::uintptr_t& pos = 0, const std::uintptr_t& column = 0);
     void handle_comment();
     void handle_whitespace();
+    std::string handle_escape_sequences(const char& type);
     token_t handle_string();
     token_t handle_char();
     token_t handle_numeric();
