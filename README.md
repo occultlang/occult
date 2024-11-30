@@ -17,9 +17,9 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 # Todo
 - - [x] Lexer
 - - [ ] Parser
-  - - [x] For loops
   - - [ ] Arrays
   - - [ ] Pointers
+- - [ ] IR Generation
 - - [ ] Reformat, clean, and organize all code
   - - [x] Lexer
   - - [ ] Parser
