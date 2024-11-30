@@ -6,8 +6,6 @@
 #include <sstream>
 #include <chrono>
 
-// TODO organize files into directories
-
 void display_help() {
     std::println("Usage: occultc [options] <source.occ>");
     

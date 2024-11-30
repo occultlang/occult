@@ -55,11 +55,11 @@ namespace occult {
   
   template <typename Iterator> 
   int find_first_token(Iterator begin, Iterator end, token_type tt) {
-      auto it = std::find_if(begin, end, [tt](token_t t) {
-          return t.tt == tt; 
-      });
-  
-      return (it != end) ? std::distance(begin, it) : -1;
+    auto it = std::find_if(begin, end, [tt](token_t t) {
+      return t.tt == tt; 
+    });
+    
+    return (it != end) ? std::distance(begin, it) : -1;
   }
   
   std::unordered_map<int, std::function<std::unique_ptr<ast>(std::string)>> ast_map = {
@@ -109,4 +109,4 @@ namespace occult {
     {string_keyword_tt, []() { return ast::new_node<ast_string>(); }},
     {char_keyword_tt, []() { return ast::new_node<ast_int8>(); }},
     {boolean_keyword_tt, []() { return ast::new_node<ast_int8>(); }}};
-}
+} // namespace occult

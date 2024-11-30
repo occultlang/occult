@@ -12,4 +12,5 @@ namespace occult {
     
     return message.c_str();
   }
-}
+} // namespace occult
+ 

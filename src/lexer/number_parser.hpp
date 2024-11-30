@@ -44,4 +44,4 @@ namespace occult {
     
     return std::to_string(value);
   }
-}
+} // namespace occult

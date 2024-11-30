@@ -12,4 +12,4 @@ namespace occult {
   
       virtual const char *what() const noexcept override;
   };
-}
+} // namespace occult

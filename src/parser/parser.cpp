@@ -15,8 +15,8 @@ namespace occult {
     }
   }
 
-  void parser::consume() {
-    pos++;
+  void parser::consume(std::uintptr_t amt) {
+    pos += amt;
   }
 
   bool parser::match(token_t t, token_type tt) {

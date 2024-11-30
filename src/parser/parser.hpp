@@ -13,7 +13,7 @@ namespace occult {
     
     token_t peek(std::uintptr_t pos = 0);
     token_t previous();
-    void consume();
+    void consume(std::uintptr_t amt = 1);
     bool match(token_t t, token_type tt);
     std::vector<token_t> to_rpn(std::vector<token_t> expr);
     std::vector<std::unique_ptr<ast>> parse_expression(std::vector<token_t> expr);
@@ -31,7 +31,7 @@ namespace occult {
     std::unique_ptr<ast_elsestmt> parse_else();
     std::unique_ptr<ast_loopstmt> parse_loop();
     std::unique_ptr<ast_whilestmt> parse_while();
-    std::unique_ptr<ast_forstmt> parse_for(); // reserved for later on
+    std::unique_ptr<ast_forstmt> parse_for(); 
     std::unique_ptr<ast_continuestmt> parse_continue();
     std::unique_ptr<ast_breakstmt> parse_break();
     std::unique_ptr<ast_returnstmt> parse_return();
