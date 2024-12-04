@@ -2,7 +2,7 @@
 #include <iostream>
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
-#include "ir_gen/ir_gen.hpp"
+#include "bytecode_gen/bytecode_gen.hpp"
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -102,17 +102,17 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }
 
-  occult::ir_generator ir(root);
+  occult::bytecode_generator bytecode(root);
   
   start = std::chrono::high_resolution_clock::now();
   
-  ir.generate();
+  bytecode.generate();
   
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   
   if (showtime)
-    std::cout << "[occultc] \033[1;36mcompleted generating ir \033[0m" << duration.count() << "ms" << std::endl;
+    std::cout << "[occultc] \033[1;36mcompleted generating bytecode \033[0m" << duration.count() << "ms" << std::endl;
   
   return 0;
 }

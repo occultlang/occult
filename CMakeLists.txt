@@ -13,6 +13,7 @@ add_executable(occultc
 ./src/parser/error.cpp
 ./src/parser/parser.hpp
 ./src/parser/parser.cpp
-./src/ir_gen/ir_gen.hpp
-./src/ir_gen/ir_gen.cpp
+./src/sigil/vm/opcode_maps.hpp
+./src/bytecode_gen/bytecode_gen.hpp
+./src/bytecode_gen/bytecode_gen.cpp
 ./src/main.cpp)
