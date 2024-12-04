@@ -72,7 +72,6 @@ namespace occult {
     ast() = default;
     
     std::string content = ""; // base class
-    bool is_array = false;
     
     template<typename BaseAst = ast>
     static std::unique_ptr<BaseAst> new_node() {
@@ -87,12 +86,22 @@ namespace occult {
       return node;
     }
     
+    template<typename BaseAst = ast>
+    static std::unique_ptr<BaseAst> cast(ast* node) {
+      if (auto casted_node = dynamic_cast<BaseAst*>(node)) {
+        return std::unique_ptr<BaseAst>(casted_node);
+      }
+      else {
+        return nullptr;
+      }
+    }
+    
     void add_child(std::unique_ptr<ast> child) {
-        children.push_back(std::move(child));
+      children.push_back(std::move(child));
     }
     
     std::vector<std::unique_ptr<ast>>& get_children() {
-        return children;
+      return children;
     }
     
     virtual ast_type get_type() = 0;
@@ -100,17 +109,19 @@ namespace occult {
     virtual std::string to_string() = 0;
     
     void visualize(int depth = 0) {
-        std::string indent(depth * 2, ' ');
-        std::print("{}", indent + to_string());
-        
-        if (!content.empty())
-          std::print(": {}\n", content);
-        else
-          std::println();
-        
-        for (const auto& child : children) {
-            child->visualize(depth + 1);
-        }
+      std::string indent(depth * 2, ' ');
+      std::print("{}", indent + to_string());
+      
+      if (!content.empty()) {
+        std::print(": {}\n", content);
+      }
+      else {
+        std::println();
+      }
+      
+      for (const auto& child : children) {
+        child->visualize(depth + 1);
+      }
     }
   };
   
