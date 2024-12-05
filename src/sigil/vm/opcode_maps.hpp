@@ -6,7 +6,6 @@
 
 namespace sigil {
   enum opcode : std::uint8_t { // add more later on
-    op_label,
     op_mov,
     op_add,
     op_sub,
@@ -14,7 +13,8 @@ namespace sigil {
     op_div,
     op_mod,
     op_call,
-    op_ret
+    op_ret,
+    op_label,
   };
   
   const std::unordered_map<std::string, opcode> opcode_map = {
@@ -46,7 +46,7 @@ namespace sigil {
     std::intptr_t operand1; // reg, mval
     std::intptr_t operand2; // reg, imm
     
-    instruction_t(opcode op, std::intptr_t operand1 = 0, std::intptr_t operand2 = 0) :
+    instruction_t(const opcode& op, const std::intptr_t& operand1 = 0, const std::intptr_t& operand2 = 0) :
       op(op), operand1(operand1), operand2(operand2) {}
   };
 } // namespace sigil

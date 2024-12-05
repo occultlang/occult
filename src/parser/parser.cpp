@@ -132,7 +132,7 @@ namespace occult {
       operator_stack.pop();
     }
     
-    if (verbose_parser) {
+    if (verbose) {
       std::println("rpn output size: {}", rpn_output.size());
       for (auto t : rpn_output) {
         std::print("{} ", t.lexeme);
@@ -148,7 +148,7 @@ namespace occult {
   std::vector<std::unique_ptr<ast>> parser::parse_expression(std::vector<token_t> expr) {
     auto expr_rpn = to_rpn(expr);
   
-    if (verbose_parser) {
+    if (verbose) {
       for (auto t : expr_rpn) {
         std::println("{}: {}", t.get_typename(t.tt), t.lexeme);
       }

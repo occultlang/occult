@@ -3,7 +3,7 @@
 #include "../lexer/lexer.hpp"
 #include "error.hpp"
 
-inline bool verbose_parser;
+inline bool verbose;
 
 namespace occult {
   class parser {

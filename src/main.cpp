@@ -23,8 +23,7 @@ int main(int argc, char* argv[]) {
   std::string source_original;
   
   bool debug = false;
-  bool verbose_lexer = false;
-  verbose_parser = false;
+  verbose = false;
   bool showtime = false;
   
   for (int i = 1; i < argc; ++i) {
@@ -39,8 +38,7 @@ int main(int argc, char* argv[]) {
         std::string debug_option = argv[i];
         
         if (debug_option == "verbose") {
-          verbose_lexer = true;
-          verbose_parser = true;
+          verbose = true;
           showtime = true;
         }
       }
@@ -82,7 +80,7 @@ int main(int argc, char* argv[]) {
   if (showtime)
     std::cout << "[occultc] \033[1;36mcompleted lexical analysis \033[0m" << duration.count() << "ms" << std::endl;
   
-  if (debug && verbose_lexer) {
+  if (debug && verbose) {
     lexer.visualize();
   }
   
@@ -98,7 +96,7 @@ int main(int argc, char* argv[]) {
   if (showtime)
     std::cout << "[occultc] \033[1;36mcompleted parsing \033[0m" << duration.count() << "ms" << std::endl;
   
-  if (debug && verbose_parser) {
+  if (debug && verbose) {
     root->visualize();
   }
 
@@ -113,6 +111,10 @@ int main(int argc, char* argv[]) {
   
   if (showtime)
     std::cout << "[occultc] \033[1;36mcompleted generating bytecode \033[0m" << duration.count() << "ms" << std::endl;
+  
+  if (debug && verbose) {
+    bytecode.visualize();
+  }
   
   return 0;
 }
