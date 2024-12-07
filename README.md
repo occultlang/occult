@@ -19,7 +19,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 - - [ ] Parser
   - - [ ] Arrays
   - - [ ] Pointers
-- - [ ] IR Generation
+- - [ ] Bytecode Generation
 - - [ ] Implement [Sigil](https://github.com/occultlang/sigil)
 - - [ ] Reformat, clean, and organize all code
   - - [x] Lexer
