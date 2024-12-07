@@ -16,7 +16,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 
 # Todo
 - - [x] Lexer
-- - [x] Parser
+- - [ ] Parser
   - - [ ] Arrays
   - - [ ] Pointers
 - - [ ] Backend (Codenamed Sigil)
