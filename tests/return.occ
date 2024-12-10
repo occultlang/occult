@@ -1,0 +1,7 @@
+fn test() int32 {
+  return 10;
+}
+
+fn main() int32 {
+  return test();
+}

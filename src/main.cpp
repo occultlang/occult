@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
   
   start = std::chrono::high_resolution_clock::now();
   
-  bytecode.generate();
+  auto code = bytecode.generate();
   
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
@@ -118,4 +118,3 @@ int main(int argc, char* argv[]) {
   
   return 0;
 }
-  

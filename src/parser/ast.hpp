@@ -64,6 +64,7 @@ namespace occult {
     include,
     stringliteral,
     charliteral,
+    functionargument
   };
   
   class ast {
@@ -142,6 +143,7 @@ namespace occult {
   NODE(identifier, ast_identifier)
   NODE(function, ast_function)
   NODE(functionarguments, ast_functionargs)
+  NODE(functionargument, ast_functionarg)
   NODE(callarg, ast_callarg)
   NODE(functioncall, ast_functioncall)
   NODE(ifstmt, ast_ifstmt)

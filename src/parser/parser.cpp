@@ -1,6 +1,8 @@
 #include "parser.hpp"
 #include "parser_maps.hpp"
 
+#define DEVELOP false
+
 namespace occult {
   token_t parser::peek(std::uintptr_t pos) {
     return stream[this->pos + pos];
@@ -28,168 +30,158 @@ namespace occult {
     }
   }
   
-  // derived partially from https://github.com/kamyu104/LintCode/blob/master/C%2B%2B/convert-expression-to-reverse-polish-notation.cpp
-  std::vector<token_t> parser::to_rpn(std::vector<token_t> expr) {
+  /*
+   * basically same logic as the original function, but goes directly into AST
+  */
+  std::vector<std::unique_ptr<ast>> parser::parse_expression(std::vector<token_t> expr) {
+    std::vector<std::unique_ptr<ast>> expr_ast;
     std::stack<token_t> operator_stack;
-    std::vector<token_t> rpn_output;
     
-    for (std::size_t i = 0; i < expr.size(); i++) {
+    auto is_end = false;
+    
+    for (std::size_t i = 0; i < expr.size() && !is_end; i++) {
       auto t = expr.at(i);
       
-      if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt) { // stop if semicolon
-        break;
-      }
-      
-      if (t.tt == identifier_tt && expr.at(i + 1).tt != left_paren_tt) {
-        rpn_output.push_back(t);
-      }
-      else if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) {
-        i++;
-        rpn_output.emplace_back(t.line, t.column, "start_call", function_call_parser_tt);
-        rpn_output.push_back(t);
-              
-        int paren_depth = 1;
-        std::vector<token_t> current_arg;
-              
-        while (i + 1 < expr.size() && paren_depth > 0) {
-          i++;
-          token_t current_token = expr.at(i);
-      
-          if (current_token.tt == left_paren_tt) {
-            paren_depth++;
-            
-            current_arg.push_back(current_token);
-          } 
-          else if (current_token.tt == right_paren_tt) {
-            paren_depth--;
-            
-            if (paren_depth > 0) {
-              current_arg.push_back(current_token);
-            }
-          }
-          else if (current_token.tt == comma_tt && paren_depth == 1) {
-            if (current_arg.size() == 1 && current_arg[0].tt == identifier_tt) { // check if current_arg contains only a single identifier token
-              rpn_output.push_back(current_arg[0]);
-            }
-            else { // normal rpn conversion
-              std::vector<token_t> parsed_arg = to_rpn(current_arg);
-              rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
-            }
-            
-            rpn_output.emplace_back(current_token.line, current_token.column, ",", comma_tt);
-            current_arg.clear();
-          }
-          else {
-            current_arg.push_back(current_token);
-          }
-        }
-      
-        if (!current_arg.empty()) {
-          if (current_arg.size() == 1 && current_arg[0].tt == identifier_tt) { // check if the last argument is a single identifier
-            rpn_output.push_back(current_arg[0]);
-          }
-          else { // normal rpn conversion
-            std::vector<token_t> parsed_arg = to_rpn(current_arg);
-            rpn_output.insert(rpn_output.end(), parsed_arg.begin(), parsed_arg.end());
-          }
-        }
-      
-        rpn_output.emplace_back(t.line, t.column, "end_call", function_call_parser_tt);
-      }
-      else if (is_literal(t.tt)) {
-        rpn_output.push_back(t);
-      }
-      else if (is_unary(t.tt)) { // if unary is broken, its something wrong with unary_context in the lexer.
-        rpn_output.push_back(t);
-      }
-      else if (t.tt == left_paren_tt) {
-        operator_stack.push(t); 
-      }
-      else if (t.tt == right_paren_tt) {
-        while(!operator_stack.empty()) {
-          t = operator_stack.top();
-          operator_stack.pop();
-          
-          if (t.tt == left_paren_tt) {
-            break;
-          }
-          
-          rpn_output.push_back(t);
-        }
-      }
-      else {
-        while(!operator_stack.empty() && precedence_map[t.tt] >= precedence_map[operator_stack.top().tt]) {
-          rpn_output.push_back(operator_stack.top());
-          operator_stack.pop();
+      switch(t.tt) {
+        case semicolon_tt:
+        case left_curly_bracket_tt: {
+          is_end = true; // marking the end of the statement
+          break;
         }
         
-        operator_stack.push(t);
+        case identifier_tt: {
+          if (expr.at(i + 1).tt == left_paren_tt) { // function calls
+            i++;
+            
+            auto start_node = ast_map[function_call_parser_tt]("start_call"); // start call
+            
+            start_node->add_child(ast_map[t.tt](t.lexeme)); // function name
+            
+            auto paren_depth = 1;
+            std::vector<token_t> current_args;
+            
+            while(i + 1 < expr.size() && 0 < paren_depth) {
+              i++;
+              
+              auto current_token = expr.at(i);
+              
+              if (current_token.tt == left_paren_tt) {
+                paren_depth++;
+                
+                current_args.push_back(current_token);
+              } 
+              else if (current_token.tt == right_paren_tt) {
+                paren_depth--;
+                if (paren_depth > 0) {
+                  current_args.push_back(current_token); 
+                }
+              }
+              else if (current_token.tt == comma_tt && paren_depth == 1) {
+                auto arg_node = ast::new_node<ast_functionarg>();
+                
+                if (current_args.size() == 1 && current_args[0].tt == identifier_tt) {
+                  arg_node->add_child(ast_map[identifier_tt](current_args.at(0).lexeme));
+                }
+                else {
+                  auto parsed_args = parse_expression(current_args);
+                  
+                  for (auto& c : parsed_args) {
+                    arg_node->add_child(std::move(c));
+                  }
+                }
+                
+                start_node->add_child(std::move(arg_node));
+                
+                current_args.clear();
+              }
+              else {
+                current_args.push_back(current_token);
+              }
+            }
+            
+            if (!current_args.empty()) {
+              auto arg_node = ast::new_node<ast_functionarg>();
+              
+              if (current_args.size() == 1 && current_args[0].tt == identifier_tt) {
+                arg_node->add_child(ast_map[identifier_tt](current_args.at(0).lexeme));
+              }
+              else {
+                auto parsed_args = parse_expression(current_args);
+                
+                for (auto& c : parsed_args) {
+                  arg_node->add_child(std::move(c));
+                }
+              }
+              
+              start_node->add_child(std::move(arg_node));
+            }
+            
+            auto end_node = ast_map[function_call_parser_tt]("end_call"); // start call
+            start_node->add_child(std::move(end_node));
+
+            expr_ast.push_back(std::move(start_node));
+          }
+          else {
+            expr_ast.push_back(ast_map[t.tt](t.lexeme));
+          }
+          
+          break;
+        }
+        
+        case number_literal_tt: 
+        case float_literal_tt: 
+        case string_literal_tt:
+        case char_literal_tt:
+        case false_keyword_tt:
+        case true_keyword_tt:
+        case unary_bitwise_not_tt:
+        case unary_minus_operator_tt:
+        case unary_plus_operator_tt:
+        case unary_not_operator_tt: {
+          expr_ast.push_back(ast_map[t.tt](t.lexeme));
+          break;
+        }
+        
+        case left_paren_tt: {
+          operator_stack.push(t);
+          break;
+        }
+        
+        case right_paren_tt: {
+          while(!operator_stack.empty()) {
+            t = operator_stack.top();
+            
+            operator_stack.pop();
+            
+            if (t.tt == left_paren_tt) {
+              break;
+            }
+            
+            expr_ast.push_back(ast_map[t.tt](t.lexeme));
+          }
+          
+          break;
+        }
+        
+        default: {
+          while(!operator_stack.empty() && precedence_map[t.tt] >= precedence_map[operator_stack.top().tt]) {
+            expr_ast.push_back(ast_map[operator_stack.top().tt](operator_stack.top().lexeme));
+            
+            operator_stack.pop();
+          }
+          
+          operator_stack.push(t);
+          
+          break;
+        }
       }
     }
     
     while (!operator_stack.empty()) {
-      rpn_output.push_back(operator_stack.top());
+      expr_ast.push_back(ast_map[operator_stack.top().tt](operator_stack.top().lexeme));
       operator_stack.pop();
     }
     
-    if (verbose) {
-      std::println("rpn output size: {}", rpn_output.size());
-      for (auto t : rpn_output) {
-        std::print("{} ", t.lexeme);
-      }
-      
-      std::println();
-    }
-    
-    return rpn_output;
-  }
-  
-  // converts normal expression into a vector of nodes in rpn
-  std::vector<std::unique_ptr<ast>> parser::parse_expression(std::vector<token_t> expr) {
-    auto expr_rpn = to_rpn(expr);
-  
-    if (verbose) {
-      for (auto t : expr_rpn) {
-        std::println("{}: {}", t.get_typename(t.tt), t.lexeme);
-      }
-      std::println();
-    }
-  
-    std::vector<std::unique_ptr<ast>> expr_ast;
-    std::stack<std::unique_ptr<ast>> call_stack;
-  
-    for (const auto& t : expr_rpn) {
-      if (t.tt == function_call_parser_tt && t.lexeme == "start_call") {
-        auto call_node = ast::new_node<ast_functioncall>("start_call"); 
-  
-        call_stack.push(std::move(call_node)); // push it to the stack as the current function call
-      }
-      else if (t.tt == function_call_parser_tt && t.lexeme == "end_call") { // finalize the current function call node
-        auto completed_call = std::move(call_stack.top());
-        call_stack.pop();
-  
-        if (!call_stack.empty()) { // if there's a parent call node, make this a child; otherwise, add to ast root
-          call_stack.top()->add_child(std::move(completed_call));
-        }
-        else {
-          expr_ast.push_back(std::move(completed_call));
-        }
-      }
-      else { // regular token handling, add arguments to the current call node if in a function call
-        auto it = ast_map.find(t.tt);
-        if (it != ast_map.end()) {
-          auto arg_node = it->second(t.lexeme);
-  
-          if (!call_stack.empty()) {
-            call_stack.top()->add_child(std::move(arg_node));
-          }
-          else {
-            expr_ast.push_back(std::move(arg_node));
-          }
-        }
-      }
-    }
-  
     return expr_ast;
   }
   

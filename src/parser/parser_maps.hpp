@@ -43,16 +43,6 @@ namespace occult {
     {assignment_tt, 14},
     {left_paren_tt, 16}};
   
-  bool is_unary(token_type tt) {
-    return tt == unary_plus_operator_tt || tt == unary_minus_operator_tt ||
-           tt == unary_bitwise_not_tt || tt == unary_not_operator_tt;
-  }
-  
-  bool is_literal(token_type tt) {
-    return tt == number_literal_tt || tt == float_literal_tt || tt == string_literal_tt ||
-           tt == char_literal_tt || tt == false_keyword_tt || tt == true_keyword_tt;
-  }
-  
   template <typename Iterator> 
   int find_first_token(Iterator begin, Iterator end, token_type tt) {
     auto it = std::find_if(begin, end, [tt](token_t t) {
