@@ -3,9 +3,10 @@
 #include <cstdint>
 #include <string>
 #include <variant>
+#include <optional>
 
 namespace sigil {
-  enum stack_opcode : std::uint8_t { // add more later on
+  enum opcode : std::uint8_t { // add more later on
     op_label = 1,
     op_add,
     op_sub,
@@ -19,10 +20,12 @@ namespace sigil {
     op_swap,
     op_push,
     op_pop,
+    op_cout,
+    op_cin,
     op_exit
   };
   
-  const std::unordered_map<std::string, stack_opcode> stack_opcode_map = {
+  const std::unordered_map<std::string, opcode> opcode_map = {
     {"label", op_label},
     {"add", op_add},
     {"sub", op_sub},
@@ -36,10 +39,12 @@ namespace sigil {
     {"swap", op_swap},
     {"push", op_push},
     {"pop", op_pop},
+    {"cout", op_cout},
+    {"cin", op_cin},
     {"exit", op_exit}
   };
   
-  const std::unordered_map<stack_opcode, std::string> reverse_stack_opcode_map = {
+  const std::unordered_map<opcode, std::string> reverse_opcode_map = {
     {op_label, "label"},
     {op_add, "add"},
     {op_sub, "sub"},
@@ -53,14 +58,19 @@ namespace sigil {
     {op_swap, "swap"},
     {op_push, "push"},
     {op_pop, "pop"},
+    {op_cout, "cout"},
+    {op_cin, "cin"},
     {op_exit, "exit"}
   };
 
-  struct stack_instruction_t {
-    stack_opcode op;
-    int64_t operand1; 
+  struct instruction_t {
+    opcode op;
+    std::variant<std::intptr_t, std::string> operand1;
     
-    stack_instruction_t(const stack_opcode& op, const int64_t& operand1 = 0) :
-      op(op), operand1(operand1) {}
+    instruction_t(const opcode& op, std::optional<std::variant<std::intptr_t, std::string>> operand1 = std::nullopt) : op(op) {
+      if (operand1.has_value()) {
+        this->operand1 = operand1.value();
+      }
+    }
   };
 } // namespace sigil

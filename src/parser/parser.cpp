@@ -31,7 +31,8 @@ namespace occult {
   }
   
   /*
-   * basically same logic as the original function, but goes directly into AST
+   * parses a given stream of tokens and turns it into reverse polish notation
+   * handles function calls as well
   */
   std::vector<std::unique_ptr<ast>> parser::parse_expression(std::vector<token_t> expr) {
     std::vector<std::unique_ptr<ast>> expr_ast;

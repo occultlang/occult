@@ -1,5 +1,5 @@
 #include "bytecode_gen.hpp"
-#include "../lexer/fast_float.hpp"
+#include "../libs/fast_float.hpp"
 
 namespace occult {
   void bytecode_generator::emit_function(std::unique_ptr<ast_function> function) {
@@ -37,14 +37,67 @@ namespace occult {
           instructions.emplace_back(sigil::op_push, val);
           break;
         }
+        default: {
+          break;
+        }
+      }
+    }
+    
+    instructions.emplace_back(sigil::op_ret);
+    
+    return_stmt.release();
+  }
+  
+  void bytecode_generator::emit_functionarg(std::unique_ptr<ast_functionarg> arg) {
+    for (const auto& c : arg->get_children()) {
+      switch(c->get_type()) {
+        case ast_type::stringliteral: {
+          auto string = c.get();
+          
+          instructions.emplace_back(sigil::op_push, string->content);
+          
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+    
+    arg.release();
+  }
+  
+  void bytecode_generator::emit_block(std::unique_ptr<ast_block> block) {
+    for (const auto& c : block->get_children()) {
+      switch(c->get_type()) {
+        case ast_type::returnstmt: {
+          auto return_node = ast::cast<ast_returnstmt>(c.get());
+          emit_return(std::move(return_node));
+          break; 
+        }
         case ast_type::functioncall: {
           const auto call_node = c.get();
+          
           const auto func_name_node = c->get_children().front().get();
           
           if (call_node->content == "start_call") {
-            const auto name = func_name_node->content;
-            
-            instructions.emplace_back(sigil::op_call, symbol_map[name]);
+            if (func_name_node->content == "println") {
+              auto i = 1; // starting after func name
+              
+              while (c->get_children().at(i)->content != "end_call") {
+                auto arg_node = ast::cast<ast_functionarg>(c->get_children().at(i).get());
+                
+                emit_functionarg(std::move(arg_node));
+                
+                i++;
+              }
+              
+              i--; // fix arguments due to end_call
+              
+              instructions.emplace_back(sigil::op_cout, i); // number of arguments to print
+              
+              break;
+            }
             
             break;
           }
@@ -57,29 +110,10 @@ namespace occult {
       }
     }
     
-    instructions.emplace_back(sigil::op_ret);
-    
-    return_stmt.release();
-  }
-  
-  void bytecode_generator::emit_block(std::unique_ptr<ast_block> block) {
-    for (const auto& c : block->get_children()) {
-      switch(c->get_type()) {
-        case ast_type::returnstmt: {
-          auto return_node = ast::cast<ast_returnstmt>(c.get());
-          emit_return(std::move(return_node));
-          break; 
-        }
-        default: {
-          break;
-        }
-      }
-    }
-    
     block.release();
   }
   
-  const std::vector<sigil::stack_instruction_t>& bytecode_generator::generate() {
+  const std::vector<sigil::instruction_t>& bytecode_generator::generate() {
     for (const auto& c : root->get_children()) {
       switch(c->get_type()) {
         case ast_type::function: {
@@ -93,16 +127,25 @@ namespace occult {
       }
     }
     
-    instructions.insert(instructions.begin(), sigil::stack_instruction_t(sigil::op_call, symbol_map["main"])); // call main
+    auto instr = sigil::instruction_t(sigil::op_call, static_cast<std::intptr_t>(symbol_map["main"])); // call main
+    
+    instructions.insert(instructions.begin(), instr); 
     
     return instructions;
   }
   
   void bytecode_generator::visualize() {
     for (const auto& instr : instructions) {
-      auto op_map = sigil::reverse_stack_opcode_map.find(instr.op);
+      auto op_map = sigil::reverse_opcode_map.find(instr.op);
       const std::string& pair = op_map->second;
-      std::cout << pair << " " << instr.operand1 << std::endl;
+      std::cout << pair << " ";
+      
+      if (std::holds_alternative<std::intptr_t>(instr.operand1)) {
+        std::cout << std::get<std::intptr_t>(instr.operand1) << std::endl;
+      }
+      else if (std::holds_alternative<std::string>(instr.operand1)) {
+        std::cout << std::get<std::string>(instr.operand1) << std::endl;
+      }
     }
   }
 } // namespace occult

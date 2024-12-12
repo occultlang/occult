@@ -5,7 +5,7 @@
 
 // this file contains helper functions as well as maps
 
-namespace occult {
+namespace occult { 
   std::unordered_map<token_type, int> precedence_map = {
     {unary_plus_operator_tt, 2},
     {unary_minus_operator_tt, 2},

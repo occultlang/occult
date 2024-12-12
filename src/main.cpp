@@ -3,6 +3,7 @@
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
 #include "bytecode_gen/bytecode_gen.hpp"
+#include "sigil/vm/vm_test.hpp"
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -115,6 +116,10 @@ int main(int argc, char* argv[]) {
   if (debug && verbose) {
     bytecode.visualize();
   }
+  
+  sigil_test::vm vm(code);
+  
+  vm.execute();
   
   return 0;
 }
