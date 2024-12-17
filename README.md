@@ -2,7 +2,7 @@
   <a href="https://occultlang.org/" target="_blank">
     <img src="occult_circle.svg" width="240" alt="Occult Logo">
   </a>
-  <h1 style="margin: 5px;">The Occult Programming Language / Occultlang</h1>
+  <h1 style="margin: 5px;">The Occult Programming Language</h1>
   <p align="center">An modern enigmatic JIT programming language <a href="https://occultlang.org" target="_blank">occultlang.org</a></p> <br><br>
 </div>
 
