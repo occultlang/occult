@@ -1,6 +1,6 @@
 <div align="center" style="display: grid; place-items: center; gap: 10px;">
   <a href="https://occultlang.org/" target="_blank">
-    <img src="occult.jpg" width="180" alt="Occult Logo">
+    <img src="occult_circle.svg" width="240" alt="Occult Logo">
   </a>
   <h3 style="margin: 5px;">The Occult Programming Language</h3>
   <a href="https://occultlang.org" target="_blank">occultlang.org</a>
