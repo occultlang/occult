@@ -11,18 +11,20 @@
 git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
 ```
 
-### Todo
+### Todo (For 2.0.0-alpha)
 - - [x] Lexer
-- - [ ] Parser
-  - - [ ] Arrays
-  - - [ ] Pointers
+- - [x] Parser
 - - [ ] Backend (Codenamed Sigil)
   - - [ ] Bytecode Generation & Interpreter
-  - - [ ] Machine code translation
+
+### Todo (After 2.0.0-alpha)
+- - [ ] Arrays
+- - [ ] Linter
+- - [ ] Backend (Codenamed Sigil)
+  - - [ ] Machine code translation from bytecode
   - - [ ] Textual Representation for modularity
-- - [ ] Reformat, clean, and organize all code
-  - - [x] Lexer
-  - - [ ] Parser
+- - [ ] Reformat, clean, and organize all code that's necessary
+
   
 ### Crediting 
 [`parser::to_rpn`](https://github.com/occultlang/occult/blob/main/src/parser/parser.cpp#L51) is based on [this](https://github.com/kamyu104/LintCode/blob/master/C%2B%2B/convert-expression-to-reverse-polish-notation.cpp) <br/><br/>
