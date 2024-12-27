@@ -21,7 +21,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 - - [ ] Arrays
 - - [ ] Linter
 - - [ ] Backend (Codenamed Sigil)
-  - - [ ] Machine code translation from bytecode
+  - - [ ] Translate bytecode to machine code
   - - [ ] Textual Representation for modularity
 - - [ ] Reformat, clean, and organize all code that's necessary
 
