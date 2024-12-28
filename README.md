@@ -17,7 +17,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 - - [ ] Backend (Codenamed Sigil)
   - - [ ] Bytecode Generation & Interpreter
 
-### Todo (After 2.0.0-alpha)
+### Todo (2.1.0-alpha)
 - - [ ] Arrays
 - - [ ] Linter
 - - [ ] Backend (Codenamed Sigil)
