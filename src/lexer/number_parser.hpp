@@ -1,5 +1,5 @@
 #pragma once
-#include "../libs/fast_float.hpp"
+#include "../libs/fast_float.hpp" // you're able to use std::from_chars from <charconv> i believe
 
 #define BINARY_BASE 2
 #define DECIMAL_BASE 10

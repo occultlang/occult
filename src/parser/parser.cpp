@@ -312,12 +312,12 @@ namespace occult {
         throw runtime_error("expected expression", peek(), pos);
       }
       
-     auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-     std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
-     pos += first_semicolon_pos;
-     auto converted_rpn = parse_expression(sub_stream);
+      auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
+      pos += first_semicolon_pos;
+      auto converted_rpn = parse_expression(sub_stream);
       
-      for (auto &c : converted_rpn) { // adding all the children of the converted expression into the i8_node
+      for (auto &c : converted_rpn) { // adding all the children of the converted expression into the integer node
         node->get_children().at(1)->add_child(std::move(c));
       }
     }
@@ -486,13 +486,14 @@ namespace occult {
         throw runtime_error("expected expression", peek(), pos);
       }
       
-      consume();
+      auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
+      pos += first_semicolon_pos;
+      auto converted_rpn = parse_expression(sub_stream);
       
-      auto stringliteral = ast::new_node<ast_stringliteral>();
-      
-      stringliteral->content = previous().lexeme;
-      
-      node->add_child(std::move(stringliteral));
+      for (auto &c : converted_rpn) { 
+        node->add_child(std::move(c));
+      }
     }
     
     if (match(peek(), semicolon_tt)) { // end of declaration
@@ -522,7 +523,7 @@ namespace occult {
         for_node->add_child(parse_identifier());
       }
       else {
-        auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt); // we're going to insert a semicolon
+        auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt); 
         stream.insert(stream.begin() + pos + left_curly_bracket_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
         
         for_node->add_child(parse_keyword()); // 2nd expr

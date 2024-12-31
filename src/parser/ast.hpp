@@ -6,7 +6,6 @@
 namespace occult {
   enum class ast_type {
     root,
-    binaryexpr,
     block,
     identifier,
     function,
@@ -138,7 +137,6 @@ namespace occult {
   };
   
   NODE(root, ast_root)
-  NODE(binaryexpr, ast_binaryexpr)
   NODE(block, ast_block)
   NODE(identifier, ast_identifier)
   NODE(function, ast_function)

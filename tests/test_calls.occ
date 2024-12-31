@@ -1,0 +1,21 @@
+// doesn't work right
+
+fn test_call() int64 {
+  println("whattt");
+  test_call2();
+  return 0;
+}
+
+fn test_call2() int64 {
+  println("aaaaaaaa");
+  
+  return 0;
+}
+
+fn main() int64 {
+  test_call();
+  
+  println("Hello, World!!"); 
+ 
+  return 0;
+}
