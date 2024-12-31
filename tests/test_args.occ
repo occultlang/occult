@@ -1,0 +1,13 @@
+fn get_str(string s) string {
+  string what = "what2"; // this is buggy right now, and prints 2 "what2"
+  println(what);
+  
+  return s;
+}
+
+fn main() int64 {
+  string s = get_str("what");
+  println(s);
+  
+  return 0;
+}

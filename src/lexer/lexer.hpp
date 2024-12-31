@@ -137,7 +137,7 @@ namespace occult {
   public:
     lexer(const std::string& source) : source(source), pos(0), line(1), column(1) {}
     
-    std::vector<token_t> analyze(); 
+    std::vector<token_t> analyze();
     void visualize(const std::optional<std::vector<token_t>>& o_s = std::nullopt); 
   };
 } // namespace occult

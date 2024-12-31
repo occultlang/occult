@@ -3,19 +3,17 @@
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
 #include "bytecode_gen/bytecode_gen.hpp"
-#include "sigil/vm/vm_test.hpp"
+#include "sigil/vm/vm.hpp"
 #include <fstream>
 #include <sstream>
 #include <chrono>
 
-void display_help() {
+void display_help() {    
     std::println("Usage: occultc [options] <source.occ>");
     
     std::println("Options:");
     std::println("  -t, --time                     Shows the compilation time for each stage.");
-    std::println("  -d, --debug [verbose_option]   Enable debugging options (shows time as well -t is not needed):\n"
-    "                                 verbose_lexer | verbose_parser | verbose_codegen | verbose");
-    
+    std::println("  -d, --debug Enable debugging options (shows time as well -t is not needed):\n");
     std::println("  -h, --help                     Display this help message.");
 }
 
@@ -32,17 +30,8 @@ int main(int argc, char* argv[]) {
     
     if (arg == "-d" || arg == "--debug") {
       debug = true;
-      
-      if (i + 1 < argc && argv[i + 1][0] != '-') {
-        ++i;
-        
-        std::string debug_option = argv[i];
-        
-        if (debug_option == "verbose") {
-          verbose = true;
-          showtime = true;
-        }
-      }
+      verbose = true;
+      showtime = true;
     }
     else if (arg == "-t" || arg == "--time") {
       showtime = true;
@@ -84,7 +73,7 @@ int main(int argc, char* argv[]) {
   if (debug && verbose) {
     lexer.visualize();
   }
-  
+
   occult::parser parser(stream);
   
   start = std::chrono::high_resolution_clock::now();
@@ -106,7 +95,7 @@ int main(int argc, char* argv[]) {
   start = std::chrono::high_resolution_clock::now();
   
   auto code = bytecode.generate();
-  
+
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   
@@ -115,11 +104,20 @@ int main(int argc, char* argv[]) {
   
   if (debug && verbose) {
     bytecode.visualize();
+    std::cout << std::endl;
   }
   
-  sigil_test::vm vm(code);
+  sigil::vm vm(code, debug);
+  
+  start = std::chrono::high_resolution_clock::now();
   
   vm.execute();
+  
+  end = std::chrono::high_resolution_clock::now();
+  duration = end - start;
+  
+  if (showtime)
+    std::cout << "[occultc] \033[1;36mcompleted executing bytecode \033[0m" << duration.count() << "ms" << std::endl;
   
   return 0;
 }
