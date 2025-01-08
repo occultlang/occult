@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 
 project(occult)
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -O3 -Wall -Wextra")
+# -O3 normally
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -O0 -Wall -Wextra")
 
 add_executable(occultc
 ./src/lexer/lexer.hpp
@@ -13,7 +13,9 @@ add_executable(occultc
 ./src/parser/error.cpp
 ./src/parser/parser.hpp
 ./src/parser/parser.cpp
-./src/sigil/vm/opcode_maps.hpp
-./src/bytecode_gen/bytecode_gen.hpp
-./src/bytecode_gen/bytecode_gen.cpp
+./src/backend/ir.hpp
+./src/backend/ir_gen.hpp
+./src/backend/ir_gen.cpp
+./src/backend/x86_writer.cpp
+./src/backend/x86_writer.hpp
 ./src/main.cpp)

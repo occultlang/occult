@@ -1,7 +1,14 @@
+/*
+
+*/
+
+// if you put htose comments in the multiline comments, it doesn't like to work right...
+
+// buggy right now
+// string what = "what2"; 
+// println(what);
+
 fn get_str(string s) string {
-  string what = "what2"; // this is buggy right now, and prints 2 "what2"
-  println(what);
-  
   return s;
 }
 
@@ -11,3 +18,4 @@ fn main() int64 {
   
   return 0;
 }
+  

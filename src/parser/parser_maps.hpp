@@ -21,27 +21,29 @@ namespace occult {
   
     {bitwise_rshift_tt, 5},
     {bitwise_lshift_tt, 5},
-  
-    {greater_than_operator_tt, 6},
-    {less_than_operator_tt, 6},
-    {less_than_or_equal_operator_tt, 6},
-    {greater_than_or_equal_operator_tt, 6},
-  
-    {equals_operator_tt, 7},
-    {not_equals_operator_tt, 7},
-  
-    {bitwise_and_tt, 8},
-  
-    {xor_operator_tt, 9}, // bitwise
-  
-    {bitwise_or_tt, 10}, // bitwise
-  
-    {and_operator_tt, 11}, // logical
-  
-    {or_operator_tt, 12}, // logical
-  
-    {assignment_tt, 14},
-    {left_paren_tt, 16}};
+    
+    // space in-between for experimentation of and and or (logical)
+    
+    {greater_than_operator_tt, 8},
+    {less_than_operator_tt, 8},
+    {less_than_or_equal_operator_tt, 8},
+    {greater_than_or_equal_operator_tt, 8},
+    
+    {equals_operator_tt, 9},
+    {not_equals_operator_tt, 9},
+    
+    {bitwise_and_tt, 10},
+    
+    {xor_operator_tt, 11}, // bitwise
+    
+    {bitwise_or_tt, 12}, // bitwise
+    
+    {and_operator_tt, 6}, // logical normally 13
+    
+    {or_operator_tt, 7}, // logical normally 14
+    
+    {assignment_tt, 15},
+    {left_paren_tt, 17}};
   
   template <typename Iterator> 
   int find_first_token(Iterator begin, Iterator end, token_type tt) {
