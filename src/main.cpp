@@ -2,8 +2,7 @@
 #include <iostream>
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
-#include "bytecode_gen/bytecode_gen.hpp"
-#include "sigil/vm/vm.hpp"
+#include "backend/ir_gen.hpp"
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -57,7 +56,7 @@ int main(int argc, char* argv[]) {
       
       return 0;
   }
-
+  
   auto start = std::chrono::high_resolution_clock::now();
   
   occult::lexer lexer(source_original);
@@ -90,11 +89,11 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }
 
-  occult::bytecode_generator bytecode(root);
+  occult::ir_generator ir(root);
   
   start = std::chrono::high_resolution_clock::now();
   
-  auto code = bytecode.generate();
+  auto code = ir.generate();
 
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
@@ -103,21 +102,9 @@ int main(int argc, char* argv[]) {
     std::cout << "[occultc] \033[1;36mcompleted generating bytecode \033[0m" << duration.count() << "ms" << std::endl;
   
   if (debug && verbose) {
-    bytecode.visualize();
+    ir.visualize();
     std::cout << std::endl;
   }
-  
-  sigil::vm vm(code, debug);
-  
-  start = std::chrono::high_resolution_clock::now();
-  
-  vm.execute();
-  
-  end = std::chrono::high_resolution_clock::now();
-  duration = end - start;
-  
-  if (showtime)
-    std::cout << "[occultc] \033[1;36mcompleted executing bytecode \033[0m" << duration.count() << "ms" << std::endl;
   
   return 0;
 }
