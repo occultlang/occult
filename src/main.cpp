@@ -8,12 +8,11 @@
 #include <chrono>
 
 void display_help() {    
-    std::println("Usage: occultc [options] <source.occ>");
-    
-    std::println("Options:");
-    std::println("  -t, --time                     Shows the compilation time for each stage.");
-    std::println("  -d, --debug Enable debugging options (shows time as well -t is not needed):\n");
-    std::println("  -h, --help                     Display this help message.");
+  std::println("Usage: occultc [options] <source.occ>");
+  std::println("Options:");
+  std::println("  -t, --time                     Shows the compilation time for each stage.");
+  std::println("  -d, --debug Enable debugging options (shows time as well -t is not needed):\n");
+  std::println("  -h, --help                     Display this help message.");
 }
 
 int main(int argc, char* argv[]) {
