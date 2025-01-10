@@ -3,11 +3,12 @@
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
 #include "backend/ir_gen.hpp"
+#include "backend/x86_writer.hpp"
 #include <fstream>
 #include <sstream>
 #include <chrono>
 
-void display_help() {    
+void display_help() {
   std::println("Usage: occultc [options] <source.occ>");
   std::println("Options:");
   std::println("  -t, --time                     Shows the compilation time for each stage.");
@@ -104,6 +105,22 @@ int main(int argc, char* argv[]) {
     ir.visualize();
     std::cout << std::endl;
   }
+  
+  occult::x86_writer writer(1024);
+  writer.push_bytes({
+      0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00,                                            // mov rax, 0x01 (sys_write)
+      0x48, 0xC7, 0xC7, 0x01, 0x00, 0x00, 0x00,                                            // mov rdi, 0x01 (stdout)
+      0x48, 0x8D, 0x35, 0x0A, 0x00, 0x00, 0x00,                                            // lea rsi, [rip + offset] (string address)
+      0x48, 0xC7, 0xC2, 0x0E, 0x00, 0x00, 0x00,                                            // mov rdx, 0x0E (string length)
+      0x0F, 0x05,                                                                          // syscall
+      0xC3,                                                                                // ret
+  });
+  
+  writer.push_bytes(writer.string_to_bytes("Hello, world!\n"));
+  
+  auto jit_function = writer.setup_function(); 
+  
+  jit_function();
   
   return 0;
 }

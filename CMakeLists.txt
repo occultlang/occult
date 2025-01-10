@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(occult)
 # -O3 normally
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -O0 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -std=c++23 -O0 -Wall -Wextra")
 
 add_executable(occultc
 ./src/lexer/lexer.hpp
