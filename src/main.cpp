@@ -4,6 +4,9 @@
 #include "parser/parser.hpp"
 #include "backend/ir_gen.hpp"
 #include "backend/x86_writer.hpp"
+
+#include "backend/elf_header.hpp"
+
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -110,17 +113,21 @@ int main(int argc, char* argv[]) {
   writer.push_bytes({
       0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00,                                            // mov rax, 0x01 (sys_write)
       0x48, 0xC7, 0xC7, 0x01, 0x00, 0x00, 0x00,                                            // mov rdi, 0x01 (stdout)
-      0x48, 0x8D, 0x35, 0x0A, 0x00, 0x00, 0x00,                                            // lea rsi, [rip + offset] (string address)
-      0x48, 0xC7, 0xC2, 0x0E, 0x00, 0x00, 0x00,                                            // mov rdx, 0x0E (string length)
+      0x48, 0x8D, 0x35, 0x14, 0x00, 0x00, 0x00,                                            // lea rsi, [rip + offset] (string address)
+      0x48, 0xC7, 0xC2, 14, 0x00, 0x00, 0x00,                                            // mov rdx, 0x0E (string length)
       0x0F, 0x05,                                                                          // syscall
-      0xC3,                                                                                // ret
+      0x31, 0xFF,                                                                          // xor edi, edi
+      0xB8, 0x3C, 0x00, 0x00, 0x00,                                                        // mov eax, 60
+      0x0F, 0x05                                                                           // syscall                                                
   });
   
-  writer.push_bytes(writer.string_to_bytes("Hello, world!\n"));
+  writer.push_bytes(writer.string_to_bytes("Hello, World!\n"));
   
   auto jit_function = writer.setup_function(); 
   
-  jit_function();
-  
+  //jit_function();
+ 
+    elf::generate_binary("program_something", writer.code);
+
   return 0;
 }
