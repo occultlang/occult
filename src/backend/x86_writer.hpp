@@ -5,6 +5,7 @@
 #include <functional>
 #include <cstring>
 #include <sstream>
+#include <cstdint>
 
 #ifdef __linux__ // only supports linux for now
 #include <unistd.h>
@@ -86,6 +87,10 @@ namespace occult {
       std::memcpy(memory, code.data(), code.size());
       
       return reinterpret_cast<jit_function>(memory);
+    }
+    
+    const std::vector<std::uint8_t>& get_code() {
+      return code;
     }
   };
 } // namespace occult

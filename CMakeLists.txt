@@ -13,9 +13,8 @@ add_executable(occultc
 ./src/parser/error.cpp
 ./src/parser/parser.hpp
 ./src/parser/parser.cpp
-./src/backend/ir.hpp
-./src/backend/ir_gen.hpp
-./src/backend/ir_gen.cpp
 ./src/backend/x86_writer.cpp
 ./src/backend/x86_writer.hpp
+./src/backend/elf_header.cpp
+./src/backend/elf_header.hpp
 ./src/main.cpp)

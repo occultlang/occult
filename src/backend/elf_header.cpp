@@ -46,7 +46,7 @@ namespace occult {
             return;
         }
 
-         // Generate and write ELF and program headers
+        // Generate and write ELF and program headers
         elf_header elf_header = generate_elf_header();
         elf_program_header program_header = generate_program_header();
 
