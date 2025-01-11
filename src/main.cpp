@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
       0x0F, 0x05                                                                           // syscall                                                
   });
   
-  writer.push_bytes(writer.string_to_bytes("Hello, World!o\n"));
+  writer.push_bytes(writer.string_to_bytes("Hello, World!\n"));
   
   auto jit_function = writer.setup_function(); 
   
