@@ -10,10 +10,12 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #endif
+#ifdef _WIN64
+#include <Windows.h>
+#endif
 
 namespace occult {
   class x86_writer {
-    public:
     std::vector<std::uint8_t> code;
     void* memory = nullptr;
     std::size_t page_size;
@@ -33,7 +35,28 @@ namespace occult {
         munmap(memory, size);
       }
     }
-    
+#endif
+#ifdef _WIN64 
+    x86_writer(const std::size_t& size) {
+        SYSTEM_INFO sys_info;
+        GetSystemInfo(&sys_info);
+        page_size = sys_info.dwPageSize;
+        this->size = ((size + page_size - 1) / page_size) * page_size;
+
+        DWORD old_protect = 0;
+        memory = VirtualAlloc(nullptr, size, PAGE_EXECUTE_READWRITE | MEM_COMMIT | MEM_RESERVE, old_protect);
+
+        if (!VirtualProtect(memory, size, PAGE_READWRITE, &old_protect)) {
+            throw std::runtime_error("memory allocation failed");
+        }
+    }
+
+    ~x86_writer() {
+        if (memory) {
+            VirtualFree(memory, 0, MEM_RELEASE);
+        }
+    }
+#endif
     void push_byte(const std::uint8_t& byte) {
       code.emplace_back(byte);
     }
@@ -64,6 +87,5 @@ namespace occult {
       
       return reinterpret_cast<jit_function>(memory);
     }
-#endif
   };
 } // namespace occult
