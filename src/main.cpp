@@ -2,7 +2,7 @@
 #include <iostream>
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
-#include "backend/x86_writer.hpp"
+#include "backend/writer.hpp"
 #include "backend/elf_header.hpp"
 
 #include <fstream>
@@ -13,7 +13,7 @@ void display_help() {
   std::println("Usage: occultc [options] <source.occ>");
   std::println("Options:");
   std::println("  -t, --time                     Shows the compilation time for each stage.");
-  std::println("  -d, --debug Enable debugging options (shows time as well -t is not needed):\n");
+  std::println("  -d, --debug                    Enable debugging options (shows time as well -t is not needed):\n");
   std::println("  -h, --help                     Display this help message.");
 }
 
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }
   
-  occult::x86_writer writer(1024);
+  occult::writer writer(1024);
   writer.push_bytes({
       0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00,                                            // mov rax, 0x01 (sys_write)
       0x48, 0xC7, 0xC7, 0x01, 0x00, 0x00, 0x00,                                            // mov rdi, 0x01 (stdout)
