@@ -59,15 +59,11 @@ namespace occult {
     }
 #endif
     void push_byte(const std::uint8_t& byte);
-    
     void push_bytes(const std::initializer_list<std::uint8_t>& bytes);
-    
-    void push_bytes(const std::vector<std::uint8_t> bytes);
-    
+    void push_bytes(const std::vector<std::uint8_t> bytes); 
     const std::vector<std::uint8_t> string_to_bytes(const std::string& str);
     
-    using jit_function = void(*)();
-    
+    using jit_function = void(*)();  
     jit_function setup_function();
     
     const std::vector<std::uint8_t>& get_code();
