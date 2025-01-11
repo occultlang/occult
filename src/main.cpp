@@ -1,20 +1,22 @@
 #include "lexer/lexer.hpp"
-#include <iostream>
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
 #include "backend/writer.hpp"
 #include "backend/elf_header.hpp"
-
+#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <chrono>
+#ifdef __linux
+#include <sys/stat.h>
+#endif
 
 void display_help() {
-  std::println("Usage: occultc [options] <source.occ>");
-  std::println("Options:");
-  std::println("  -t, --time                     Shows the compilation time for each stage.");
-  std::println("  -d, --debug                    Enable debugging options (shows time as well -t is not needed):\n");
-  std::println("  -h, --help                     Display this help message.");
+  std::cout << "Usage: occultc [options] <source.occ>\n";
+  std::cout << "Options:\n";
+  std::cout << "  -t, --time                     Shows the compilation time for each stage.\n";
+  std::cout << "  -d, --debug                    Enable debugging options (shows time as well -t is not needed)\n";
+  std::cout << "  -h, --help                     Display this help message.\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -52,7 +54,7 @@ int main(int argc, char* argv[]) {
   source_original = buffer.str();
   
   if (input_file.empty()) {
-      std::println("No input file specified");
+      std::cout << "No input file specified\n";
       display_help();
       
       return 0;
@@ -68,7 +70,7 @@ int main(int argc, char* argv[]) {
   std::chrono::duration<double, std::milli> duration = end - start;
   
   if (showtime)
-    std::cout << "[occultc] \033[1;36mcompleted lexical analysis \033[0m" << duration.count() << "ms" << std::endl;
+    std::cout << "[occultc] \033[1;36mcompleted lexical analysis \033[0m" << duration.count() << "ms\n";
   
   if (debug && verbose) {
     lexer.visualize();
@@ -84,7 +86,7 @@ int main(int argc, char* argv[]) {
   duration = end - start;
   
   if (showtime)
-    std::cout << "[occultc] \033[1;36mcompleted parsing \033[0m" << duration.count() << "ms" << std::endl;
+    std::cout << "[occultc] \033[1;36mcompleted parsing \033[0m" << duration.count() << "ms\n";
   
   if (debug && verbose) {
     root->visualize();
@@ -104,10 +106,15 @@ int main(int argc, char* argv[]) {
   
   writer.push_bytes(writer.string_to_bytes("Hello, World!\n"));
   
-  //auto jit_function = writer.setup_function(); 
- 
-  occult::elf::generate_binary("program_something", writer.get_code());
+  //auto jit_function = writer.setup_function();
+#ifdef __linux
+  occult::elf::generate_binary("a.out", writer.get_code());
   
+  if (chmod("a.out", S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
+    std::cerr << "failed to change permissions to binary" << std::endl;
+    return 1;
+  }
+#endif
   //jit_function();
   
   return 0;
