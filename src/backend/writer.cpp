@@ -1,11 +1,11 @@
 #include "writer.hpp"
 
 namespace occult {
-  void writer::push_byte(const std::uint8_t &byte) {
+  void writer::push_byte(const std::uint8_t& byte) {
     code.emplace_back(byte);
   }
   
-  void writer::push_bytes(const std::initializer_list<std::uint8_t> &bytes) {
+  void writer::push_bytes(const std::initializer_list<std::uint8_t>& bytes) {
     code.insert(code.end(), bytes);
   }
   
@@ -13,7 +13,7 @@ namespace occult {
     code.insert(code.end(), bytes.begin(), bytes.end());
   }
   
-  const std::vector<std::uint8_t> writer::string_to_bytes(const std::string &str) {
+  const std::vector<std::uint8_t> writer::string_to_bytes(const std::string& str) {
     std::vector<std::uint8_t> vectorized_data;
     vectorized_data.reserve(str.size()); // might be redundant
     
@@ -24,13 +24,25 @@ namespace occult {
     return vectorized_data;
   }
   
+  void writer::push_string(const std::string& str) {
+    if (!string_locations.contains(str)) {
+      string_locations.insert({str, code.size()});
+    }
+    
+    push_bytes(string_to_bytes(str));
+  }
+  
   writer::jit_function writer::setup_function() {
     std::memcpy(memory, code.data(), code.size());
     
     return reinterpret_cast<jit_function>(memory);
   }
   
-  const std::vector<std::uint8_t>& writer::get_code() {
+  std::vector<std::uint8_t>& writer::get_code() {
     return code;
+  }
+  
+  const std::size_t& writer::get_string_location(const std::string& str) {
+    return string_locations[str];
   }
 } // namespace occult

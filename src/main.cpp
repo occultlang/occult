@@ -1,7 +1,7 @@
 #include "lexer/lexer.hpp"
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
-#include "backend/writer.hpp"
+#include "backend/x64writer.hpp"
 #include "backend/elf_header.hpp"
 #include <iostream>
 #include <fstream>
@@ -92,30 +92,26 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }
   
-  occult::writer writer(1024);
-  writer.push_bytes({
-      0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00,                                            // mov rax, 0x01 (sys_write)
-      0x48, 0xC7, 0xC7, 0x01, 0x00, 0x00, 0x00,                                            // mov rdi, 0x01 (stdout)
-      0x48, 0x8D, 0x35, 0x12, 0x00, 0x00, 0x00,                                            // lea rsi, [rip + offset] (string address)
-      0x48, 0xC7, 0xC2, 14, 0x00, 0x00, 0x00,                                              // mov rdx, 0x0E (string length)
-      0x0F, 0x05,                                                                          // syscall
-      0x31, 0xFF,                                                                          // xor edi, edi
-      0xB8, 0x3C, 0x00, 0x00, 0x00,                                                        // mov eax, 60
-      0x0F, 0x05                                                                           // syscall                                                
-  });
+  occult::x64writer writer(1024); 
+  writer.mov_reg_imm("32", "rax", 1); // 7
+  writer.mov_reg_imm("32", "rdi", 1); // 7
+  writer.lea_from_rip(10); // [rip - 10] into rsi
+  writer.mov_reg_imm("32", "rdx", 14); // 5
+  writer.syscall(); // 2
+  writer.ret();
+
+  writer.push_string("Hello, World!\n");
+
+  writer.setup_function()();
   
-  writer.push_bytes(writer.string_to_bytes("Hello, World!\n"));
-  
-  //auto jit_function = writer.setup_function();
-#ifdef __linux
+/*#ifdef __linux
   occult::elf::generate_binary("a.out", writer.get_code());
   
   if (chmod("a.out", S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
     std::cerr << "failed to change permissions to binary" << std::endl;
     return 1;
   }
-#endif
-  //jit_function();
+#endif*/
   
   return 0;
 }

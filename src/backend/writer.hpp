@@ -21,6 +21,7 @@ namespace occult {
     void* memory = nullptr;
     std::size_t page_size;
     std::size_t size;
+    std::unordered_map<std::string, std::size_t> string_locations;
   public:
 #ifdef __linux__
     writer(const std::size_t& size) : page_size(sysconf(_SC_PAGE_SIZE)), size(((size + page_size - 1) / page_size) * page_size) {
@@ -60,12 +61,14 @@ namespace occult {
 #endif
     void push_byte(const std::uint8_t& byte);
     void push_bytes(const std::initializer_list<std::uint8_t>& bytes);
-    void push_bytes(const std::vector<std::uint8_t> bytes); 
+    void push_bytes(const std::vector<std::uint8_t> bytes);
     const std::vector<std::uint8_t> string_to_bytes(const std::string& str);
+    void push_string(const std::string &str);
     
-    using jit_function = void(*)();  
+    using jit_function = void(*)();
     jit_function setup_function();
     
-    const std::vector<std::uint8_t>& get_code();
+    std::vector<std::uint8_t>& get_code();
+    const std::size_t& get_string_location(const std::string& str);
   };
 } // namespace occult
