@@ -92,17 +92,23 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }
   
-  occult::x64writer writer(1024); 
-  writer.mov_reg_imm("32", "rax", 1); // 7
-  writer.mov_reg_imm("32", "rdi", 1); // 7
-  writer.lea_from_rip(10); // [rip - 10] into rsi
-  writer.mov_reg_imm("32", "rdx", 14); // 5
-  writer.syscall(); // 2
-  writer.ret();
+  occult::x64writer writer(1024);
+  writer.emit_mov_r_imm("rax", static_cast<std::uint64_t>(0xDEADBEEF), 64); // mov rax, 0x1000
+  writer.emit_mov_r_m("rbx", "rax", 0, 64); // mov rbx, [rax]
 
-  writer.push_string("Hello, World!\n");
-
-  writer.setup_function()();
+  auto func = writer.setup_function();
+  //func();
+  
+  /*uint64_t rbx_value;
+  
+  __asm__ volatile(
+      "mov %%rax, %0"  
+      : "=r"(rbx_value)
+      :
+      : "%rax"      
+  );
+  
+  std::cout << "value in rax: " << rbx_value << std::endl;*/
   
 /*#ifdef __linux
   occult::elf::generate_binary("a.out", writer.get_code());

@@ -6,6 +6,7 @@
 #include <cstring>
 #include <sstream>
 #include <cstdint>
+#include <iomanip>
 
 #ifdef __linux__ 
 #include <unistd.h>
