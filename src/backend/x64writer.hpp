@@ -75,8 +75,8 @@ namespace occult {
     }
   };
   
-  constexpr std::string k64bit = "64";
-  constexpr std::string k32bit = "32";
+  constexpr std::size_t k64bit = 64;
+  constexpr std::size_t k32bit = 32;
   
   struct x64writer : writer {
     x64writer(const std::size_t& size) : writer(size) {}
@@ -116,33 +116,33 @@ namespace occult {
     }
     
     // move register to register
-    void emit_mov_r_r(const std::string& dest, const std::string& src, const std::size_t& size) { // mov reg, reg
+    void emit_mov_r_r(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) { // mov reg, reg
       std::uint8_t mov = 0x89; // MOV 	r/m16/32/64 	r16/32/64
       
       check_prefix_size(size);
       
       std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, x64_register[dest], x64_register[src]);
       
-      if (size == 64) {
-        push_byte(prefix64[64]);
+      if (size == k64bit) {
+        push_byte(prefix64[k64bit]);
         push_byte(mov);
         push_byte(modrm);
       }
-      else if (size == 32) {
+      else if (size == k32bit) {
         push_byte(mov);
         push_byte(modrm);
       }
     }
     
     // move memory to register
-    void emit_mov_r_m(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size) { // mov reg, [disp/register + disp]
+    void emit_mov_r_m(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) { // mov reg, [disp/register + disp]
       std::uint8_t mov = 0x8B; // 	MOV 	r16/32/64 	r/m16/32/64 	
       std::uint8_t modrm = 0;
       
       check_prefix_size(size);
       
-      if (size == 64) {
-        push_byte(prefix64[64]);
+      if (size == k64bit) {
+        push_byte(prefix64[k64bit]);
       }
       
       push_byte(mov);
@@ -169,25 +169,27 @@ namespace occult {
     }
     
     // move register to memory
-    void emit_mov_m_r(std::optional<std::string> reg, std::int64_t disp, const std::string& src, const std::size_t& size) { // mov [disp/register + disp], reg
+    void emit_mov_m_r(std::optional<std::string> reg, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) { // mov [disp/register + disp], reg
       std::uint8_t mov = 0x89;
       
       check_prefix_size(size);
+      
+      
     }
     
     // move immediate to memory
-    void emit_mov_m_imm(std::optional<std::string> reg, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size) { // mov [disp/register + disp], imm
+    void emit_mov_m_imm(std::optional<std::string> reg, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov [disp/register + disp], imm
       std::uint8_t mov = 0xC7;
     }
     
     // move immediate to register
-    void emit_mov_r_imm(const std::string& reg, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size) { // mov reg, imm
+    void emit_mov_r_imm(const std::string& reg, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov reg, imm
       std::uint8_t mov32 = 0xB8;
       
       check_prefix_size(size);
       
-      if (size == 64) {
-        push_byte(prefix64[64]);
+      if (size == k64bit) {
+        push_byte(prefix64[k64bit]);
         
         push_byte(mov32 + x64_register[reg]);
         
@@ -198,7 +200,7 @@ namespace occult {
           emit_imm64(std::get<std::int64_t>(imm));
         }
       }
-      else if (size == 32) {
+      else if (size == k32bit) {
         push_byte(mov32 + x64_register[reg]); 
         
         if (std::holds_alternative<std::uint64_t>(imm)) {
