@@ -93,28 +93,25 @@ int main(int argc, char* argv[]) {
   }*/
   
   std::int64_t x = 123456;
+  std::cout << reinterpret_cast<std::int64_t>(&x) << std::endl;
   
   occult::x64writer writer(1024);
-  writer.emit_mov_r_imm("rax", reinterpret_cast<std::int64_t>(&x)); // mov rax, &x
-  writer.emit_mov_r_m("rbx", "rax", 0); // mov rbx, [rax]
+  writer.emit_mov_m_imm("rip", 10, 1000000);
   writer.emit_ret();
   
   auto func = writer.setup_function();
-  func();
+  /*func();
   
-  std::int64_t rax_value = 0;
   std::int64_t rbx_value = 0;
   
   __asm__ volatile(
-      "mov %%rax, %0\n"  
-      "mov %%rbx, %1\n"  
-      : "=r"(rax_value), "=r"(rbx_value)
+      "mov %%rbx, %0\n"  
+      : "=r"(rbx_value)
       : 
       : "rax", "rbx" 
   );
   
-  std::cout << "address of x (rax): " << rax_value << std::endl;
-  std::cout << "value of x (rbx): " << rbx_value << std::endl;
+  //std::cout << "address of x (rbx): " << rbx_value << std::endl;*/
   
 /*#ifdef __linux
   occult::elf::generate_binary("a.out", writer.get_code());

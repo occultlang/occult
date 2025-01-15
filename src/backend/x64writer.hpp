@@ -3,6 +3,7 @@
 
 // witchcraft at its finest... - anthony
 // a lot of this is with http://ref.x86asm.net/coder64.html & https://defuse.ca/online-x86-assembler.htm
+// quick note right now, memory support may be limited as i have not really dealt with SIB yet, so bear with me please... (no rsp support yet)
 
 namespace occult {
   std::unordered_map<std::size_t, std::uint8_t> prefix64 = {
@@ -20,7 +21,7 @@ namespace occult {
     {"rsp", 0x04},
     {"rbp", 0x05},
     {"rsi", 0x06},
-    {"rdi", 0x07}
+    {"rdi", 0x07} // don't have the other ones r8-15
   };
   
   enum addressing_modes : std::uint8_t {
@@ -121,17 +122,14 @@ namespace occult {
       
       check_prefix_size(size);
       
-      std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, x64_register[dest], x64_register[src]);
-      
       if (size == k64bit) {
         push_byte(prefix64[k64bit]);
-        push_byte(mov);
-        push_byte(modrm);
       }
-      else if (size == k32bit) {
-        push_byte(mov);
-        push_byte(modrm);
-      }
+      
+      std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, x64_register[dest], x64_register[src]);
+      
+      push_byte(mov);
+      push_byte(modrm);
     }
     
     // move memory to register
@@ -169,17 +167,76 @@ namespace occult {
     }
     
     // move register to memory
-    void emit_mov_m_r(std::optional<std::string> reg, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) { // mov [disp/register + disp], reg
-      std::uint8_t mov = 0x89;
+    void emit_mov_m_r(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) { // mov [disp/register + disp], reg
+      std::uint8_t mov = 0x89; // MOV 	r/m16/32/64 	r16/32/64
+      std::uint8_t modrm = 0;
       
       check_prefix_size(size);
       
+      if (size == k64bit) {
+        push_byte(prefix64[k64bit]);
+      }
       
+      push_byte(mov);
+      
+      if (disp != 0) { // reg + disp
+        if (dest == "rip") {
+          modrm = modrm_byte(addressing_modes::direct, x64_register[src], rm_field::alt_mem_disp32); 
+          
+          push_byte(modrm);
+          emit_imm32(disp);
+        }
+        else {
+          modrm = modrm_byte(addressing_modes::disp32, x64_register[src], x64_register[dest]);
+          
+          push_byte(modrm);
+          emit_imm32(disp);
+        }
+      }
+      else if (disp == 0) { // reg
+        modrm = modrm_byte(addressing_modes::direct, x64_register[src], x64_register[dest]);
+        
+        push_byte(modrm);
+      }
     }
     
     // move immediate to memory
-    void emit_mov_m_imm(std::optional<std::string> reg, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov [disp/register + disp], imm
+    void emit_mov_m_imm(const std::string& dest, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov [disp/register + disp], imm
       std::uint8_t mov = 0xC7;
+      std::uint8_t modrm = 0;
+      
+      if (size == k64bit) {
+        push_byte(prefix64[k64bit]);
+      }
+      
+      push_byte(mov);
+      
+      if (disp != 0) { // reg + disp
+        if (dest == "rip") {
+          modrm = modrm_byte(addressing_modes::direct, no_register, rm_field::alt_mem_disp32); 
+          
+          push_byte(modrm);
+          emit_imm32(disp);
+        }
+        else {
+          modrm = modrm_byte(addressing_modes::disp32, no_register, x64_register[dest]);
+          
+          push_byte(modrm);
+          emit_imm32(disp);
+        }
+      }
+      else if (disp == 0) { // reg
+        modrm = modrm_byte(addressing_modes::direct, no_register, x64_register[dest]);
+        
+        push_byte(modrm);
+      }
+      
+      if (std::holds_alternative<std::uint64_t>(imm)) {
+        emit_unsigned_imm64(std::get<std::uint64_t>(imm));
+      }
+      else if (std::holds_alternative<std::int64_t>(imm)) {
+        emit_imm64(std::get<std::int64_t>(imm));
+      }
     }
     
     // move immediate to register
@@ -190,25 +247,15 @@ namespace occult {
       
       if (size == k64bit) {
         push_byte(prefix64[k64bit]);
-        
-        push_byte(mov32 + x64_register[reg]);
-        
-        if (std::holds_alternative<std::uint64_t>(imm)) {
-          emit_unsigned_imm64(std::get<std::uint64_t>(imm));
-        }
-        else if (std::holds_alternative<std::int64_t>(imm)) {
-          emit_imm64(std::get<std::int64_t>(imm));
-        }
       }
-      else if (size == k32bit) {
-        push_byte(mov32 + x64_register[reg]); 
-        
-        if (std::holds_alternative<std::uint64_t>(imm)) {
-          emit_unsigned_imm32(std::get<std::uint64_t>(imm));
-        }
-        else if (std::holds_alternative<std::int64_t>(imm)) {
-          emit_imm32(std::get<std::int64_t>(imm));
-        }
+      
+      push_byte(mov32 + x64_register[reg]);
+
+      if (std::holds_alternative<std::uint64_t>(imm)) {
+        emit_unsigned_imm64(std::get<std::uint64_t>(imm));
+      }
+      else if (std::holds_alternative<std::int64_t>(imm)) {
+        emit_imm64(std::get<std::int64_t>(imm));
       }
     }
     
