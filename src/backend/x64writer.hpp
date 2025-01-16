@@ -2,9 +2,12 @@
 #include "writer.hpp"
 #include <cmath>
 
-// a lot of this is with http://ref.x86asm.net/coder64.html & https://defuse.ca/online-x86-assembler.htm
-// quick note right now, memory support may be limited as i have not really dealt with SIB yet, so bear with me please... (no rsp support yet)
+// NOTICE: this will NOT be perfect right away... I am still learning and doing my best to write this out the best I can.
 
+// a lot of this is with http://ref.x86asm.net/coder64.html & https://defuse.ca/online-x86-assembler.htm
+// another note, right now, memory support may be limited as i have not really dealt with SIB yet, so bare with me please... (no rsp support yet)
+
+// PLEASE READ IF YOU ARE TRYING TO USE THIS:
 // function naming goes as follows
 // emit_OPERATION_DEST_SRC_*SIZE*
 // some have full 64-bit to 8-bit support so it wont have anything like 32_8 at the end
