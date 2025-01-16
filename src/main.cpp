@@ -92,12 +92,7 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }*/
   
-  std::int64_t x = 123456;
-  std::cout << reinterpret_cast<std::int64_t>(&x) << std::endl;
-  
   occult::x64writer writer(1024);
-  writer.emit_mov_m_imm("rip", 10, 1000000);
-  writer.emit_ret();
   
   auto func = writer.setup_function();
   /*func();
