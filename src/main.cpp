@@ -92,15 +92,28 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }*/
   
+  const char* hello_world = "Hello, World!\n";
+  
   occult::x64writer writer(1024);
-  writer.emit_mov_reg_imm("rbx", 10); 
-  writer.emit_signed_mul_reg_reg_imm_8_32("rax", "rbx", 10);
-  writer.emit_ret(); // ret
+  writer.emit_mov_reg_imm("rbx", 10);
+  
+  auto start_label = writer.get_code().size();
+  writer.emit_mov_reg_imm("rax", 1);
+  writer.emit_mov_reg_imm("rdi", 1);
+  writer.emit_mov_reg_imm("rsi", reinterpret_cast<std::int64_t>(hello_world));
+  writer.emit_mov_reg_imm("rdx", 14);
+  writer.emit_syscall();
+  
+  writer.emit_mov_reg_imm("rax", 1);
+  writer.emit_sub_reg_reg("rbx", "rax");
+  writer.emit_jnz_short(start_label);
+  
+  writer.emit_ret();
   
   auto func = writer.setup_function();
   func();
   
-  std::int64_t rax_value = 0;
+  /*std::int64_t rax_value = 0;
   
   __asm__ volatile(
     "mov %%rax, %0\n"  
@@ -109,7 +122,7 @@ int main(int argc, char* argv[]) {
     : "rax"
   );
   
-  std::cout << "rax: " << (int)rax_value << std::endl;
+  std::cout << "rax: " << (int)rax_value << std::endl;*/
   
 /*#ifdef __linux
   occult::elf::generate_binary("a.out", writer.get_code());

@@ -124,43 +124,43 @@ namespace occult {
   struct x64writer : writer {
     x64writer(const std::size_t& size) : writer(size) {}
     
-    inline void emit_ret() {
+    void emit_ret() {
       push_byte(0xC3);
     }
     
-    inline void emit_syscall() {
+    void emit_syscall() {
       push_bytes({0x0F, 0x05});
     }
     
     template<typename IntType = std::int8_t> // template if we want to use unsigned values
-    inline void emit_imm8(IntType imm) {
+    void emit_imm8(IntType imm) {
       for (int i = 0; i < 1; ++i) {
         push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
       }
     }
     
     template<typename IntType = std::int16_t>
-    inline void emit_imm16(IntType imm) {
+    void emit_imm16(IntType imm) {
       for (int i = 0; i < 2; ++i) {
         push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
       }
     }
     
     template<typename IntType = std::int32_t>
-    inline void emit_imm32(IntType imm) {
+    void emit_imm32(IntType imm) {
       for (int i = 0; i < 4; ++i) {
         push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
       }
     }
     
     template<typename IntType = std::int64_t>
-    inline void emit_imm64(IntType imm) {
+    void emit_imm64(IntType imm) {
       for (int i = 0; i < 8; ++i) {
         push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
       }
     }
     
-    inline void emit_imm_by_size(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size) { 
+    void emit_imm_by_size(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size) { 
       switch(size) {
         case k64bit: {
           if (std::holds_alternative<std::uint64_t>(imm)) {
@@ -239,14 +239,14 @@ namespace occult {
       }
     }
     
-    inline void check_prefix_size(const std::size_t& size) {
+    void check_prefix_size(const std::size_t& size) {
       if (prefix64.find(size) == prefix64.end()) {
         throw std::invalid_argument("invalid operand size: " + std::to_string(size));
       }
     }
     
     // register to register with modrm encoding 64-bit to 8-bit opcodes as args
-    inline void emit_reg_reg_64_8(std::uint8_t opcode, std::uint8_t opcode8, const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_reg_reg_64_8(std::uint8_t opcode, std::uint8_t opcode8, const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       if (size == k64bit) {
         push_byte(prefix64[k64bit]);
       }
@@ -266,7 +266,7 @@ namespace occult {
       push_byte(modrm);
     }
     
-    inline void emit_reg_mem_64_8(std::uint8_t opcode, std::uint8_t opcode8, const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_reg_mem_64_8(std::uint8_t opcode, std::uint8_t opcode8, const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t modrm = 0;
       
       if (size == k64bit) {
@@ -312,7 +312,7 @@ namespace occult {
       }
     }
     
-    inline void emit_mem_reg_64_8(std::uint8_t opcode, std::uint8_t opcode8, const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_mem_reg_64_8(std::uint8_t opcode, std::uint8_t opcode8, const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t modrm = 0;
       
       if (size == k64bit) {
@@ -360,7 +360,7 @@ namespace occult {
     }
     
     // rAX or AL == accumulator (for logical or arithmetic in the beginning of coder64)
-    inline void emit_logical_accumulator_imm_32_8(std::uint8_t opcode, std::uint8_t opcode8, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+    void emit_logical_accumulator_imm_32_8(std::uint8_t opcode, std::uint8_t opcode8, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
       if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
@@ -379,7 +379,7 @@ namespace occult {
     }
     
     // move register to register
-    inline void emit_mov_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) { // mov reg, reg
+    void emit_mov_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) { // mov reg, reg
       std::uint8_t mov = 0x89; // MOV 	r/m16/32/64 	r16/32/64
       std::uint8_t mov8bit = 0x88;
       
@@ -389,7 +389,7 @@ namespace occult {
     }
     
     // move memory to register
-    inline void emit_mov_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) { // mov reg, [disp/register + disp]
+    void emit_mov_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) { // mov reg, [disp/register + disp]
       std::uint8_t mov = 0x8B; // 	MOV 	r16/32/64 	r/m16/32/64
       std::uint8_t mov8bit = 0x8A;
       
@@ -399,10 +399,9 @@ namespace occult {
     }
     
     // move register to memory
-    inline void emit_mov_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) { // mov [disp/register + disp], reg
+    void emit_mov_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) { // mov [disp/register + disp], reg
       std::uint8_t mov = 0x89; // MOV 	r/m16/32/64 	r16/32/64
       std::uint8_t mov8bit = 0x88;
-      std::uint8_t modrm = 0;
       
       check_prefix_size(size);
       
@@ -410,7 +409,7 @@ namespace occult {
     }
     
     // move immediate to memory
-    inline void emit_mov_mem_imm(const std::string& dest, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov [disp/register + disp], imm
+    void emit_mov_mem_imm(const std::string& dest, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov [disp/register + disp], imm
       std::uint8_t mov = 0xC7;
       std::uint8_t mov8bit = 0xC6;
       std::uint8_t modrm = 0;
@@ -462,7 +461,7 @@ namespace occult {
     }
     
     // move immediate to register
-    inline void emit_mov_reg_imm(const std::string& reg, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov reg, imm
+    void emit_mov_reg_imm(const std::string& reg, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov reg, imm
       std::uint8_t mov32 = 0xB8;
       std::uint8_t mov8bit = 0xB0;
       
@@ -485,16 +484,16 @@ namespace occult {
       emit_imm_by_size(imm, size);
     }
     
-    inline void emit_add_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_add_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x00;
       std::uint8_t add_no_8bit = 0x01;
  
       check_prefix_size(size);
       
-      emit_reg_reg_64_8(add_no_8bit, add_no_8bit, dest, src, size);
+      emit_reg_reg_64_8(add_no_8bit, add_8bit, dest, src, size);
     }
     
-    inline void emit_add_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_add_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x00;
       std::uint8_t add_no_8bit = 0x01;
       
@@ -503,7 +502,7 @@ namespace occult {
       emit_mem_reg_64_8(add_no_8bit, add_8bit, dest, disp, src, size);
     }
     
-    inline void emit_add_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_add_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x02;
       std::uint8_t add_no_8bit = 0x03;
       
@@ -512,7 +511,7 @@ namespace occult {
       emit_reg_mem_64_8(add_no_8bit, add_8bit, dest, src, disp);
     }
      
-    inline void emit_add_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+    void emit_add_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
       std::uint8_t add_no_8bit = 0x05;
       std::uint8_t add_8bit = 0x04;
       
@@ -521,16 +520,16 @@ namespace occult {
       emit_logical_accumulator_imm_32_8(add_no_8bit, add_8bit, imm, size);
     }
     
-    inline void emit_inclusive_or_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_inclusive_or_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x08;
       std::uint8_t add_no_8bit = 0x09;
     
       check_prefix_size(size);
       
-      emit_reg_reg_64_8(add_no_8bit, add_no_8bit, dest, src, size);
+      emit_reg_reg_64_8(add_no_8bit, add_8bit, dest, src, size);
     }
     
-    inline void emit_inclusive_or_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_inclusive_or_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x08;
       std::uint8_t add_no_8bit = 0x09;
       
@@ -539,7 +538,7 @@ namespace occult {
       emit_mem_reg_64_8(add_no_8bit, add_8bit, dest, disp, src, size);
     }
     
-    inline void emit_inclusive_or_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_inclusive_or_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x0A;
       std::uint8_t add_no_8bit = 0x0B;
       
@@ -548,25 +547,25 @@ namespace occult {
       emit_reg_mem_64_8(add_no_8bit, add_8bit, dest, src, disp);
     }
      
-    inline void emit_inclusive_or_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
-      std::uint8_t add_no_8bit = 0x0C;
-      std::uint8_t add_8bit = 0x0D;
+    void emit_inclusive_or_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+      std::uint8_t add_8bit = 0x0C;
+      std::uint8_t add_no_8bit = 0x0D;
       
       check_prefix_size(size);
       
       emit_logical_accumulator_imm_32_8(add_no_8bit, add_8bit, imm, size);
     }
     
-    inline void emit_add_with_carry_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_add_with_carry_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x10;
       std::uint8_t add_no_8bit = 0x11;
       
       check_prefix_size(size);
       
-      emit_reg_reg_64_8(add_no_8bit, add_no_8bit, dest, src, size);
+      emit_reg_reg_64_8(add_no_8bit, add_8bit, dest, src, size);
     }
     
-    inline void emit_add_with_carry_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_add_with_carry_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x10;
       std::uint8_t add_no_8bit = 0x11;
       
@@ -575,7 +574,7 @@ namespace occult {
       emit_mem_reg_64_8(add_no_8bit, add_8bit, dest, disp, src, size);
     }
     
-    inline void emit_add_with_carry_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_add_with_carry_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x12;
       std::uint8_t add_no_8bit = 0x13;
       
@@ -584,7 +583,7 @@ namespace occult {
       emit_reg_mem_64_8(add_no_8bit, add_8bit, dest, src, disp);
     }
     
-    inline void emit_add_with_carry_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+    void emit_add_with_carry_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
       std::uint8_t add_8bit = 0x14;
       std::uint8_t add_no_8bit = 0x15;
       
@@ -593,16 +592,16 @@ namespace occult {
       emit_logical_accumulator_imm_32_8(add_no_8bit, add_8bit, imm, size);
     }
     
-    inline void emit_sub_with_borrow_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_sub_with_borrow_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x18;
       std::uint8_t add_no_8bit = 0x19;
     
       check_prefix_size(size);
     
-      emit_reg_reg_64_8(add_no_8bit, add_no_8bit, dest, src, size);
+      emit_reg_reg_64_8(add_no_8bit, add_8bit, dest, src, size);
     }
     
-    inline void emit_sub_with_borrow_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_sub_with_borrow_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x18;
       std::uint8_t add_no_8bit = 0x19;
     
@@ -611,7 +610,7 @@ namespace occult {
       emit_mem_reg_64_8(add_no_8bit, add_8bit, dest, disp, src, size);
     }
     
-    inline void emit_sub_with_borrow_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_sub_with_borrow_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t add_8bit = 0x1A;
       std::uint8_t add_no_8bit = 0x1B;
     
@@ -620,25 +619,25 @@ namespace occult {
       emit_reg_mem_64_8(add_no_8bit, add_8bit, dest, src, disp);
     }
     
-    inline void emit_sub_with_borrow_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
-      std::uint8_t add_no_8bit = 0x1C;
-      std::uint8_t add_8bit = 0x1D;
+    void emit_sub_with_borrow_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+      std::uint8_t add_8bit = 0x1C;
+      std::uint8_t add_no_8bit = 0x1D;
     
       check_prefix_size(size);
     
       emit_logical_accumulator_imm_32_8(add_no_8bit, add_8bit, imm, size);
     }
     
-    inline void emit_logical_and_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_logical_and_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t and_8bit = 0x20;
       std::uint8_t and_no_8bit = 0x21;
     
       check_prefix_size(size);
     
-      emit_reg_reg_64_8(and_no_8bit, and_no_8bit, dest, src, size);
+      emit_reg_reg_64_8(and_no_8bit, and_8bit, dest, src, size);
     }
     
-    inline void emit_logical_and_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_logical_and_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t and_8bit = 0x20;
       std::uint8_t and_no_8bit = 0x21;
     
@@ -647,7 +646,7 @@ namespace occult {
       emit_mem_reg_64_8(and_no_8bit, and_8bit, dest, disp, src, size);
     }
     
-    inline void emit_logical_and_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_logical_and_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t and_8bit = 0x22;
       std::uint8_t and_no_8bit = 0x23;
     
@@ -656,25 +655,25 @@ namespace occult {
       emit_reg_mem_64_8(and_no_8bit, and_8bit, dest, src, disp);
     }
     
-    inline void emit_logical_and_accumulator_imm32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
-      std::uint8_t and_no_8bit = 0x24;
-      std::uint8_t and_8bit = 0x25;
+    void emit_logical_and_accumulator_imm32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+      std::uint8_t and_8bit = 0x24;
+      std::uint8_t and_no_8bit = 0x25;
     
       check_prefix_size(size);
     
       emit_logical_accumulator_imm_32_8(and_no_8bit, and_8bit, imm, size);
     }
     
-    inline void emit_sub_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_sub_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t sub_8bit = 0x28;
       std::uint8_t sub_no_8bit = 0x29;
     
       check_prefix_size(size);
     
-      emit_reg_reg_64_8(sub_no_8bit, sub_no_8bit, dest, src, size);
+      emit_reg_reg_64_8(sub_no_8bit, sub_8bit, dest, src, size);
     }
     
-    inline void emit_sub_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_sub_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t sub_8bit = 0x28;
       std::uint8_t sub_no_8bit = 0x29;
     
@@ -683,7 +682,7 @@ namespace occult {
       emit_mem_reg_64_8(sub_no_8bit, sub_8bit, dest, disp, src, size);
     }
     
-    inline void emit_sub_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_sub_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t sub_8bit = 0x2A;
       std::uint8_t sub_no_8bit = 0x2B;
     
@@ -692,25 +691,25 @@ namespace occult {
       emit_reg_mem_64_8(sub_no_8bit, sub_8bit, dest, src, disp);
     }
     
-    inline void emit_sub_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
-      std::uint8_t sub_no_8bit = 0x2C;
-      std::uint8_t sub_8bit = 0x2D;
+    void emit_sub_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+      std::uint8_t sub_8bit = 0x2C;
+      std::uint8_t sub_no_8bit = 0x2D;
     
       check_prefix_size(size);
     
       emit_logical_accumulator_imm_32_8(sub_no_8bit, sub_8bit, imm, size);
     }
     
-    inline void emit_xor_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_xor_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t xor_8bit = 0x30;
       std::uint8_t xor_no_8bit = 0x31;
     
       check_prefix_size(size);
     
-      emit_reg_reg_64_8(xor_no_8bit, xor_no_8bit, dest, src, size);
+      emit_reg_reg_64_8(xor_no_8bit, xor_8bit, dest, src, size);
     }
     
-    inline void emit_xor_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_xor_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t xor_8bit = 0x30;
       std::uint8_t xor_no_8bit = 0x31;
     
@@ -719,7 +718,7 @@ namespace occult {
       emit_mem_reg_64_8(xor_no_8bit, xor_8bit, dest, disp, src, size);
     }
     
-    inline void emit_xor_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_xor_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t xor_8bit = 0x32;
       std::uint8_t xor_no_8bit = 0x33;
     
@@ -728,25 +727,25 @@ namespace occult {
       emit_reg_mem_64_8(xor_no_8bit, xor_8bit, dest, src, disp);
     }
     
-    inline void emit_xor_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
-      std::uint8_t xor_no_8bit = 0x34;
-      std::uint8_t xor_8bit = 0x35;
+    void emit_xor_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+      std::uint8_t xor_8bit = 0x34;
+      std::uint8_t xor_no_8bit = 0x35;
     
       check_prefix_size(size);
     
       emit_logical_accumulator_imm_32_8(xor_no_8bit, xor_8bit, imm, size);
     }
     
-    inline void emit_cmp_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_cmp_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t cmp_8bit = 0x38;
       std::uint8_t cmp_no_8bit = 0x39;
     
       check_prefix_size(size);
     
-      emit_reg_reg_64_8(cmp_no_8bit, cmp_no_8bit, dest, src, size);
+      emit_reg_reg_64_8(cmp_no_8bit, cmp_8bit, dest, src, size);
     }
     
-    inline void emit_cmp_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+    void emit_cmp_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
       std::uint8_t cmp_8bit = 0x38;
       std::uint8_t cmp_no_8bit = 0x39;
     
@@ -755,7 +754,7 @@ namespace occult {
       emit_mem_reg_64_8(cmp_no_8bit, cmp_8bit, dest, disp, src, size);
     }
     
-    inline void emit_cmp_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_cmp_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t cmp_8bit = 0x3A;
       std::uint8_t cmp_no_8bit = 0x3B;
     
@@ -764,9 +763,9 @@ namespace occult {
       emit_reg_mem_64_8(cmp_no_8bit, cmp_8bit, dest, src, disp);
     }
     
-    inline void emit_cmp_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
-      std::uint8_t cmp_no_8bit = 0x3C;
-      std::uint8_t cmp_8bit = 0x3D;
+    void emit_cmp_accumulator_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+      std::uint8_t cmp_8bit = 0x3C;
+      std::uint8_t cmp_no_8bit = 0x3D;
     
       check_prefix_size(size);
     
@@ -774,7 +773,7 @@ namespace occult {
     }
     
     // mov with sign extension 32-bit to 64-bit
-    inline void emit_mov_sign_ext_reg_mem_32_64(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+    void emit_mov_sign_ext_reg_mem_32_64(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
       std::uint8_t movsxd = 0x63;
       
       if (size == k8bit || size == k16bit) {
@@ -785,7 +784,7 @@ namespace occult {
     }
     
     // registers can be 16 to 64
-    inline void emit_signed_mul_reg_reg_imm_8_32(const std::string& dest, const std::string& src, std::variant<std::uint64_t, std::int64_t> imm8_32, const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
+    void emit_signed_mul_reg_reg_imm_8_32(const std::string& dest, const std::string& src, std::variant<std::uint64_t, std::int64_t> imm8_32, const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
       std::uint8_t imul8 = 0x6B;
       std::uint8_t imul16_32 = 0x69;
       
@@ -798,16 +797,16 @@ namespace occult {
       emit_imm_by_size(imm8_32, size_imm);
     }
     
-    inline void push_reg_64(const std::string& reg) {      
+    void emit_push_reg_64(const std::string& reg) {
       push_byte(0x50 + x64_register[reg]);
     }
     
-    inline void push_reg_16(const std::string& reg) {
+    void emit_push_reg_16(const std::string& reg) {
       push_byte(prefix64[k16bit]);
       push_byte(0x50 + x64_register[reg]);
     }
     
-    inline void push_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
+    void emit_push_imm_32_8(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k32bit) {
       if (size == k64bit) {
         throw std::invalid_argument("invalid operand size for push_imm_32_8: " + std::to_string(size));
       }
@@ -826,13 +825,85 @@ namespace occult {
       emit_imm_by_size(imm, size);
     }
     
-    inline void pop_reg_64(const std::string& reg) {      
+    void emit_pop_reg_64(const std::string& reg) {      
       push_byte(0x58 + x64_register[reg]);
     }
     
-    inline void pop_reg_16(const std::string& reg) {
+    void emit_pop_reg_16(const std::string& reg) {
       push_byte(prefix64[k16bit]);
       push_byte(0x58 + x64_register[reg]);
+    }
+    
+    void emit_short_jump(std::uint8_t opcode, std::int32_t target_address) {
+      std::uint8_t current_address = get_code().size();
+      std::uint8_t rel8 = target_address - (current_address + 2);
+      
+      push_byte(opcode);
+      push_byte(rel8);
+    }
+    
+    void emit_jo_short(std::int32_t target_address) {
+      emit_short_jump(0x70, target_address);
+    }
+    
+    void emit_jno_short(std::int32_t target_address) {
+      emit_short_jump(0x71, target_address);
+    }
+    
+    void emit_jb_short(std::int32_t target_address) {
+      emit_short_jump(0x72, target_address);
+    }
+    
+    void emit_jnb_short(std::int32_t target_address) {
+      emit_short_jump(0x73, target_address);
+    }
+    
+    void emit_jz_short(std::int32_t target_address) {
+      emit_short_jump(0x74, target_address);
+    }
+    
+    void emit_jnz_short(std::int32_t target_address) {
+      emit_short_jump(0x75, target_address);
+    }
+    
+    void emit_jbe_short(std::int32_t target_address) {
+      emit_short_jump(0x76, target_address);
+    }
+    
+    void emit_jnbe_short(std::int32_t target_address) {
+      emit_short_jump(0x77, target_address);
+    }
+    
+    void emit_js_short(std::int32_t target_address) {
+      emit_short_jump(0x78, target_address);
+    }
+    
+    void emit_jns_short(std::int32_t target_address) {
+      emit_short_jump(0x79, target_address);
+    }
+    
+    void emit_jp_short(std::int32_t target_address) {
+      emit_short_jump(0x7A, target_address);
+    }
+    
+    void emit_jnp_short(std::int32_t target_address) {
+      emit_short_jump(0x7B, target_address);
+    }
+    
+    void emit_jl_short(std::int32_t target_address) {
+      emit_short_jump(0x7C, target_address);
+    }
+    
+    void emit_jnl_short(std::int32_t target_address) {
+      emit_short_jump(0x7D, target_address);
+    }
+    
+    void emit_jle_short(std::int32_t target_address) {
+      emit_short_jump(0x7E, target_address);
+    }
+    
+    void emit_jnle_short(std::int32_t target_address) {
+      emit_short_jump(0x7F, target_address);
     }
   };
 } // namespace occult
