@@ -93,20 +93,23 @@ int main(int argc, char* argv[]) {
   }*/
   
   occult::x64writer writer(1024);
+  writer.emit_mov_reg_imm("rbx", 10); 
+  writer.emit_signed_mul_reg_reg_imm_8_32("rax", "rbx", 10);
+  writer.emit_ret(); // ret
   
   auto func = writer.setup_function();
-  /*func();
+  func();
   
-  std::int64_t rbx_value = 0;
+  std::int64_t rax_value = 0;
   
   __asm__ volatile(
-      "mov %%rbx, %0\n"  
-      : "=r"(rbx_value)
-      : 
-      : "rax", "rbx" 
+    "mov %%rax, %0\n"  
+    : "=r"(rax_value)
+    : 
+    : "rax"
   );
   
-  //std::cout << "address of x (rbx): " << rbx_value << std::endl;*/
+  std::cout << "rax: " << (int)rax_value << std::endl;
   
 /*#ifdef __linux
   occult::elf::generate_binary("a.out", writer.get_code());

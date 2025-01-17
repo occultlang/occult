@@ -24,12 +24,16 @@ namespace occult {
     return vectorized_data;
   }
   
-  void writer::push_string(const std::string& str) {
+  std::size_t writer::push_string(const std::string& str) {
     if (!string_locations.contains(str)) {
       string_locations.insert({str, code.size()});
     }
     
+    auto initial = code.size();
+    
     push_bytes(string_to_bytes(str));
+    
+    return initial + 1;
   }
   
   writer::jit_function writer::setup_function() {

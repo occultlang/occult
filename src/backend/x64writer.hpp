@@ -2,18 +2,14 @@
 #include "writer.hpp"
 #include <cmath>
 
-// NOTICE: this will NOT be perfect right away... I am still learning and doing my best to write this out the best I can.
-
 // a lot of this is with http://ref.x86asm.net/coder64.html & https://defuse.ca/online-x86-assembler.htm
-// another note, right now, memory support may be limited as i have not really dealt with SIB yet, so bare with me please... (no rsp support yet)
+// quick note right now, memory support may be limited as i have not really dealt with SIB yet, so bear with me please... (no rsp support yet)
 
-// PLEASE READ IF YOU ARE TRYING TO USE THIS:
 // function naming goes as follows
 // emit_OPERATION_DEST_SRC_*SIZE*
 // some have full 64-bit to 8-bit support so it wont have anything like 32_8 at the end
 // all if not most will have the operation as follows, look it up on coder64 if you need a reference
-// DEST_SRC specifies where it is going and the source
-
+  // DEST_SRC specifies where it is going and the source
 /*
  * example: emit_add_with_carry_accumulator_imm_32_8
  * 
@@ -288,11 +284,10 @@ namespace occult {
       }
       
       if (disp != 0) { // reg + disp
-        if (dest == "rip" && size != k8bit) {
+        if (src == "rip" && size != k8bit) {
           modrm = modrm_byte(addressing_modes::direct, x64_register[dest], rm_field::alt_mem_disp32); 
           
           push_byte(modrm);
-          
           emit_imm32(disp);
         }
         else {
@@ -778,7 +773,37 @@ namespace occult {
       emit_logical_accumulator_imm_32_8(cmp_no_8bit, cmp_8bit, imm, size);
     }
     
-    inline void push(const std::string& reg) {
+    // mov with sign extension 32-bit to 64-bit
+    inline void emit_mov_sign_ext_reg_mem_32_64(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+      std::uint8_t movsxd = 0x63;
+      
+      if (size == k8bit || size == k16bit) {
+        throw std::invalid_argument("invalid operand size for emit_mov_sign_ext_reg_mem_32_64: " + std::to_string(size));
+      }
+      
+      emit_reg_mem_64_8(movsxd, 0, dest, src, disp, size); 
+    }
+    
+    // registers can be 16 to 64
+    inline void emit_signed_mul_reg_reg_imm_8_32(const std::string& dest, const std::string& src, std::variant<std::uint64_t, std::int64_t> imm8_32, const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
+      std::uint8_t imul8 = 0x6B;
+      std::uint8_t imul16_32 = 0x69;
+      
+      if (size_imm == k64bit) {
+        throw std::invalid_argument("invalid operand size_imm for emit_signed_mul_reg_reg_imm_8_32: " + std::to_string(size_imm));
+      }
+      
+      emit_reg_reg_64_8(imul16_32, imul8, src, dest, size_reg);
+      
+      emit_imm_by_size(imm8_32, size_imm);
+    }
+    
+    inline void push_reg_64(const std::string& reg) {      
+      push_byte(0x50 + x64_register[reg]);
+    }
+    
+    inline void push_reg_16(const std::string& reg) {
+      push_byte(prefix64[k16bit]);
       push_byte(0x50 + x64_register[reg]);
     }
     
@@ -801,7 +826,12 @@ namespace occult {
       emit_imm_by_size(imm, size);
     }
     
-    inline void pop(const std::string& reg) {
+    inline void pop_reg_64(const std::string& reg) {      
+      push_byte(0x58 + x64_register[reg]);
+    }
+    
+    inline void pop_reg_16(const std::string& reg) {
+      push_byte(prefix64[k16bit]);
       push_byte(0x58 + x64_register[reg]);
     }
   };
