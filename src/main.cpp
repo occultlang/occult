@@ -104,8 +104,7 @@ int main(int argc, char* argv[]) {
   writer.emit_mov_reg_imm("rdx", 14);
   writer.emit_syscall();
   
-  writer.emit_mov_reg_imm("rax", 1);
-  writer.emit_sub_reg_reg("rbx", "rax");
+  writer.emit_sub_reg8_64_imm8_32("rbx", 1);
   writer.emit_jnz_short(start_label);
   
   writer.emit_ret();

@@ -2,8 +2,11 @@
 #include "writer.hpp"
 #include <cmath>
 
+// TODO: need to do memory for emit_reg_imm16_32 and below.
+
 // a lot of this is with http://ref.x86asm.net/coder64.html & https://defuse.ca/online-x86-assembler.htm
 // quick note right now, memory support may be limited as i have not really dealt with SIB yet, so bear with me please... (no rsp support yet)
+// another note, there is no floating point operations as of now, i have yet to learn about it
 
 // function naming goes as follows
 // emit_OPERATION_DEST_SRC_*SIZE*
@@ -783,6 +786,16 @@ namespace occult {
       emit_reg_mem_64_8(movsxd, 0, dest, src, disp, size); 
     }
     
+    void emit_mov_sign_ext_reg_reg_32_64(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+      std::uint8_t movsxd = 0x63;
+      
+      if (size == k8bit || size == k16bit) {
+        throw std::invalid_argument("invalid operand size for emit_mov_sign_ext_reg_mem_32_64: " + std::to_string(size));
+      }
+      
+      emit_reg_reg_64_8(movsxd, 0, dest, src, size); 
+    }
+    
     // registers can be 16 to 64
     void emit_signed_mul_reg_reg_imm_8_32(const std::string& dest, const std::string& src, std::variant<std::uint64_t, std::int64_t> imm8_32, const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
       std::uint8_t imul8 = 0x6B;
@@ -793,6 +806,19 @@ namespace occult {
       }
       
       emit_reg_reg_64_8(imul16_32, imul8, src, dest, size_reg);
+      
+      emit_imm_by_size(imm8_32, size_imm);
+    }
+    
+    void emit_signed_mul_reg_mem_imm_8_32(const std::string& dest, const std::string& src, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm8_32, const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
+      std::uint8_t imul8 = 0x6B;
+      std::uint8_t imul16_32 = 0x69;
+      
+      if (size_imm == k64bit) {
+        throw std::invalid_argument("invalid operand size_imm for emit_signed_mul_reg_reg_imm_8_32: " + std::to_string(size_imm));
+      }
+      
+      emit_reg_mem_64_8(imul16_32, imul8, src, dest, disp, size_reg);
       
       emit_imm_by_size(imm8_32, size_imm);
     }
@@ -904,6 +930,125 @@ namespace occult {
     
     void emit_jnle_short(std::int32_t target_address) {
       emit_short_jump(0x7F, target_address);
+    }
+    
+    //	r/m16/32/64 	imm16/32 	
+    void emit_reg_imm16_32(std::uint8_t opcode, rm_field rmf, const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      push_byte(opcode);
+      
+      std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, rmf, x64_register[dest]);
+      push_byte(modrm);
+      
+      emit_imm_by_size(imm, imm_size);
+    }
+    
+    //  r/m8 	imm8
+    void emit_reg8_imm8(std::uint8_t opcode, rm_field rmf, const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm) {
+      push_byte(opcode);
+      
+      std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, rmf, x64_register[dest]);
+      push_byte(modrm);
+      
+      emit_imm_by_size(imm, k8bit);
+    }
+    
+    //	r/m16/32/64 	imm8
+    void emit_reg16_64_imm8(std::uint8_t opcode, rm_field rmf, const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit) {
+      push_byte(opcode);
+      
+      std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, rmf, x64_register[dest]);
+      push_byte(modrm);
+      
+      emit_imm_by_size(imm, k8bit);
+    }
+    
+    void emit_reg8_64_imm8_32(std::uint8_t r8_imm8_op, std::uint8_t r16_64_imm8_op, std::uint8_t r16_64_imm16_32_op, rm_field rmf, const std::string& dest,
+                              std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      if (imm_size == k64bit) {
+        throw std::invalid_argument("invalid immediate size for emit_reg8_64_imm8_32: " + std::to_string(imm_size));
+      }
+      
+      if (reg_size == k64bit) {
+        push_byte(prefix64[reg_size]);
+      }
+      else if (reg_size == k16bit) {
+        push_byte(prefix64[reg_size]);
+      }
+      
+      if (reg_size == k8bit && imm_size == k8bit) {
+        emit_reg8_imm8(r8_imm8_op, rmf, dest, imm);
+      }
+      else if (reg_size != k8bit && imm_size == k8bit) {
+        emit_reg16_64_imm8(r16_64_imm8_op, rmf, dest, imm, reg_size);
+      }
+      else {
+        emit_reg_imm16_32(r16_64_imm16_32_op, rmf, dest, imm, reg_size, imm_size);
+      }
+    }
+    
+    // add r8/16/32/64, imm8/16/32
+    void emit_add_reg8_64_imm8_32(const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      std::uint8_t add_r8_imm8 = 0x80;
+      std::uint8_t add_r16_64_imm16_32 = 0x81;
+      std::uint8_t add_r16_64_imm8 = 0x83;
+      
+      emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b000), dest, imm, reg_size, imm_size);
+    }
+    
+    void emit_or_reg8_64_imm8_32(const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      std::uint8_t add_r8_imm8 = 0x80;
+      std::uint8_t add_r16_64_imm16_32 = 0x81;
+      std::uint8_t add_r16_64_imm8 = 0x83;
+      
+      emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b001), dest, imm, reg_size, imm_size);
+    }
+    
+    void emit_adc_reg8_64_imm8_32(const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      std::uint8_t add_r8_imm8 = 0x80;
+      std::uint8_t add_r16_64_imm16_32 = 0x81;
+      std::uint8_t add_r16_64_imm8 = 0x83;
+      
+      emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b010), dest, imm, reg_size, imm_size);
+    }
+    
+    void emit_sbb_reg8_64_imm8_32(const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      std::uint8_t add_r8_imm8 = 0x80;
+      std::uint8_t add_r16_64_imm16_32 = 0x81;
+      std::uint8_t add_r16_64_imm8 = 0x83;
+      
+      emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b011), dest, imm, reg_size, imm_size);
+    }
+    
+    void emit_and_reg8_64_imm8_32(const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      std::uint8_t add_r8_imm8 = 0x80;
+      std::uint8_t add_r16_64_imm16_32 = 0x81;
+      std::uint8_t add_r16_64_imm8 = 0x83;
+      
+      emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b100), dest, imm, reg_size, imm_size);
+    }
+    
+    void emit_sub_reg8_64_imm8_32(const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      std::uint8_t add_r8_imm8 = 0x80;
+      std::uint8_t add_r16_64_imm16_32 = 0x81;
+      std::uint8_t add_r16_64_imm8 = 0x83;
+      
+      emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b101), dest, imm, reg_size, imm_size);
+    }
+    
+    void emit_xor_reg8_64_imm8_32(const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      std::uint8_t add_r8_imm8 = 0x80;
+      std::uint8_t add_r16_64_imm16_32 = 0x81;
+      std::uint8_t add_r16_64_imm8 = 0x83;
+      
+      emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b110), dest, imm, reg_size, imm_size);
+    }
+    
+    void emit_cmp_reg8_64_imm8_32(const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+      std::uint8_t add_r8_imm8 = 0x80;
+      std::uint8_t add_r16_64_imm16_32 = 0x81;
+      std::uint8_t add_r16_64_imm8 = 0x83;
+      
+      emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b111), dest, imm, reg_size, imm_size);
     }
   };
 } // namespace occult
