@@ -92,8 +92,10 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }*/
   
-  const char* hello_world = "Hello, World!\n";
+  auto start = std::chrono::high_resolution_clock::now();
   
+  const char* hello_world = "Hello, World!\n";
+    
   occult::x64writer writer(1024);
   writer.emit_mov_reg_imm("rbx", 10);
   
@@ -112,6 +114,10 @@ int main(int argc, char* argv[]) {
   auto func = writer.setup_function();
   func();
   
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double, std::milli> duration = end - start;
+  
+  std::cout << "took " << duration.count() << "ms to execute\n"; 
   /*std::int64_t rax_value = 0;
   
   __asm__ volatile(

@@ -1050,5 +1050,61 @@ namespace occult {
       
       emit_reg8_64_imm8_32(add_r8_imm8, add_r16_64_imm8, add_r16_64_imm16_32, static_cast<rm_field>(0b111), dest, imm, reg_size, imm_size);
     }
+    
+    void emit_test_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+      std::uint8_t test_8bit = 0x84;
+      std::uint8_t test = 0x85;
+      
+      check_prefix_size(size);
+      
+      emit_reg_reg_64_8(test, test_8bit, dest, src, size);
+    }
+    
+    void emit_test_mem_reg(const std::string& dest, std::int64_t disp, const std::string& src, const std::size_t& size = k64bit) {
+      std::uint8_t test_8bit = 0x84;
+      std::uint8_t test = 0x85;
+      
+      check_prefix_size(size);
+      
+      emit_mem_reg_64_8(test, test_8bit, dest, disp, src, size);
+    }
+    
+    void emit_xchg_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+      std::uint8_t xchg_8bit = 0x86;
+      std::uint8_t xchg = 0x87;
+      
+      check_prefix_size(size);
+      
+      emit_reg_reg_64_8(xchg, xchg_8bit, dest, src, size);
+    }
+    
+    void emit_xchg_reg_mem(const std::string& dest, const std::string& src, std::int64_t disp, const std::size_t& size = k64bit) {
+      std::uint8_t xchg_8bit = 0x86;
+      std::uint8_t xchg = 0x87;
+      
+      check_prefix_size(size);
+      
+      emit_reg_mem_64_8(xchg, xchg_8bit, dest, src, disp, size);
+    }
+    
+    void emit_long_jump(std::uint8_t opcode, std::int32_t target_address) {
+      std::size_t current_address = get_code().size(); 
+      std::int32_t displacement = target_address - (current_address + 5); 
+    
+      push_byte(opcode);            
+      emit_imm32(displacement); 
+    }
+    
+    void emit_call(std::int32_t addr) {
+      emit_long_jump(0xE8, addr);
+    }
+    
+    void emit_jmp(std::int32_t addr) {
+      emit_long_jump(0xE9, addr);
+    }
+    
+    void emit_short_jmp(std::uint8_t addr) {
+      emit_short_jump(0xEB, addr);
+    }
   };
 } // namespace occult
