@@ -49,14 +49,14 @@ namespace occult {
     rex_wrxb = 0x4F // rex.w, rex.r, rex.x and rex.b combination
   };
   
-  std::unordered_map<std::size_t, std::uint8_t> prefix64 = {
+  static std::unordered_map<std::size_t, std::uint8_t> prefix64 = {
     {64, rex_w}, // rex.w
     {32, 0x00}, // default
     {16, 0x66},  // operand size override
     {8, 0x00}  // default
   }; // prefixes for sizes
   
-  std::unordered_map<std::string, std::uint8_t> x64_register = {
+  static  std::unordered_map<std::string, std::uint8_t> x64_register = {
     {"rax", 0x00},
     {"rcx", 0x01},
     {"rdx", 0x02},
@@ -64,7 +64,15 @@ namespace occult {
     {"rsp", 0x04},
     {"rbp", 0x05},
     {"rsi", 0x06},
-    {"rdi", 0x07} // don't have the other ones r8-15
+    {"rdi", 0x07},
+    {"r8", 0x00},
+    {"r9", 0x01},
+    {"r10", 0x02},
+    {"r11", 0x03},
+    {"r12", 0x04},
+    {"r13", 0x05},
+    {"r14", 0x06},
+    {"r15", 0x07} 
   };
   
   enum addressing_modes : std::uint8_t {
@@ -933,7 +941,7 @@ namespace occult {
     }
     
     //	r/m16/32/64 	imm16/32 	
-    void emit_reg_imm16_32(std::uint8_t opcode, rm_field rmf, const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit, std::size_t imm_size = k32bit) {
+    void emit_reg_imm16_32(std::uint8_t opcode, rm_field rmf, const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t imm_size = k32bit) {
       push_byte(opcode);
       
       std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, rmf, x64_register[dest]);
@@ -953,7 +961,7 @@ namespace occult {
     }
     
     //	r/m16/32/64 	imm8
-    void emit_reg16_64_imm8(std::uint8_t opcode, rm_field rmf, const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t reg_size = k64bit) {
+    void emit_reg16_64_imm8(std::uint8_t opcode, rm_field rmf, const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm) {
       push_byte(opcode);
       
       std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, rmf, x64_register[dest]);
@@ -979,10 +987,10 @@ namespace occult {
         emit_reg8_imm8(r8_imm8_op, rmf, dest, imm);
       }
       else if (reg_size != k8bit && imm_size == k8bit) {
-        emit_reg16_64_imm8(r16_64_imm8_op, rmf, dest, imm, reg_size);
+        emit_reg16_64_imm8(r16_64_imm8_op, rmf, dest, imm);
       }
       else {
-        emit_reg_imm16_32(r16_64_imm16_32_op, rmf, dest, imm, reg_size, imm_size);
+        emit_reg_imm16_32(r16_64_imm16_32_op, rmf, dest, imm);
       }
     }
     

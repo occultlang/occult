@@ -36,14 +36,7 @@ namespace occult {
     return initial + 1;
   }
   
-  writer::jit_function writer::setup_function() {
-    std::cout << "machine code: ";
-    for (auto byte : code) {
-      std::cout << std::hex << std::setw(2)
-                 << std::setfill('0') << std::uppercase
-                 << static_cast<std::intptr_t>(byte) << " ";
-    }
-    
+  jit_function writer::setup_function() {
     std::cout << std::dec << std::endl;
     
     std::memcpy(memory, code.data(), code.size());

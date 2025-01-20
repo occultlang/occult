@@ -17,6 +17,8 @@
 #endif
 
 namespace occult {
+  using jit_function = int(*)();
+  
   class writer {
     std::vector<std::uint8_t> code;
     void* memory = nullptr;
@@ -66,7 +68,6 @@ namespace occult {
     const std::vector<std::uint8_t> string_to_bytes(const std::string& str);
     std::size_t push_string(const std::string &str);
     
-    using jit_function = void(*)();
     jit_function setup_function();
     
     std::vector<std::uint8_t>& get_code();

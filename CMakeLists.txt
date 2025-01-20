@@ -17,4 +17,6 @@ add_executable(occultc
 ./src/backend/writer.hpp
 ./src/backend/elf_header.cpp
 ./src/backend/elf_header.hpp
+./src/backend/jit.cpp
+./src/backend/jit.hpp
 ./src/main.cpp)
