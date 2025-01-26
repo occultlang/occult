@@ -11,7 +11,7 @@
 git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
 ```
 > [!IMPORTANT]
-> Occult 2.0.0-alpha is going to releaseon the second birthday (05/31/25) 
+> Occult 2.0.0-alpha is going to release on the second birthday (05/31/25) 
 
 ### Todo (For 2.0.0-alpha)
 - - [x] Lexer
