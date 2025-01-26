@@ -65,14 +65,6 @@ namespace occult {
     {"rbp", 0x05},
     {"rsi", 0x06},
     {"rdi", 0x07},
-    {"r8", 0x00},
-    {"r9", 0x01},
-    {"r10", 0x02},
-    {"r11", 0x03},
-    {"r12", 0x04},
-    {"r13", 0x05},
-    {"r14", 0x06},
-    {"r15", 0x07} 
   };
   
   enum addressing_modes : std::uint8_t {
@@ -131,6 +123,7 @@ namespace occult {
   constexpr std::size_t k32bit = 32;
   constexpr std::size_t k16bit = 16;
   constexpr std::size_t k8bit = 8;
+  // add extended registers later on
   
   struct x64writer : writer {
     x64writer(const std::size_t& size) : writer(size) {}
@@ -805,7 +798,8 @@ namespace occult {
     }
     
     // registers can be 16 to 64
-    void emit_signed_mul_reg_reg_imm_8_32(const std::string& dest, const std::string& src, std::variant<std::uint64_t, std::int64_t> imm8_32, const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
+    void emit_signed_mul_reg_reg_imm_8_32(const std::string& dest, const std::string& src, std::variant<std::uint64_t, std::int64_t> imm8_32,
+                                          const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
       std::uint8_t imul8 = 0x6B;
       std::uint8_t imul16_32 = 0x69;
       
@@ -818,7 +812,8 @@ namespace occult {
       emit_imm_by_size(imm8_32, size_imm);
     }
     
-    void emit_signed_mul_reg_mem_imm_8_32(const std::string& dest, const std::string& src, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm8_32, const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
+    void emit_signed_mul_reg_mem_imm_8_32(const std::string& dest, const std::string& src, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm8_32,
+                                          const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
       std::uint8_t imul8 = 0x6B;
       std::uint8_t imul16_32 = 0x69;
       

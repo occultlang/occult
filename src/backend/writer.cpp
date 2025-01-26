@@ -36,9 +36,7 @@ namespace occult {
     return initial + 1;
   }
   
-  jit_function writer::setup_function() {
-    std::cout << std::dec << std::endl;
-    
+  jit_function writer::setup_function() {    
     std::memcpy(memory, code.data(), code.size());
     
     return reinterpret_cast<jit_function>(memory);
