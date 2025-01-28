@@ -28,7 +28,5 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
   - It's working, it just simply needs to have bugs fixed and needs to be polished overall (Working)
 - Linter
   - It will be done closer to the end of the development roadmap (Not done)
-  
-<br/>
 
 ### [Credits](https://github.com/occultlang/occult/blob/main/CREDITS.md)
