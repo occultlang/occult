@@ -13,11 +13,21 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 > [!IMPORTANT]
 > Occult 2.0.0-alpha is going to release on the second birthday (05/31/25) 
 
-### Todo (For 2.0.0-alpha)
+### Roadmap for 2.0.0-alpha
 - - [x] Lexer
 - - [x] Parser
-- - [ ] x86 Backend (Sigil/Backend will split eventually)
-- - [ ] Linter (A basic one at most)
+- - [ ] Backend 
+  - - [ ] Custom IL/IR
+  - - [x] x86 JIT Runtime
+- - [ ] Linter
+ 
+### Notes about the roadmap
+- IR/IL
+  - Researching options for the project, SSA, TAC, or HLA (Not done)
+- x86 JIT Runtime
+  - It's working, it just simply needs to have bugs fixed and needs to be polished overall (Working)
+- Linter
+  - It will be done closer to the end of the development roadmap (Not done)
   
 ### Crediting 
 - [ELF Header](https://wiki.osdev.org/ELF_Tutorial) (Tysm Nisan)<br/>
