@@ -12,7 +12,7 @@
 // emit_OPERATION_DEST_SRC_*SIZE*
 // some have full 64-bit to 8-bit support so it wont have anything like 32_8 at the end
 // all if not most will have the operation as follows, look it up on coder64 if you need a reference
-  // DEST_SRC specifies where it is going and the source
+// DEST_SRC specifies where it is going and the source
 /*
  * example: emit_add_with_carry_accumulator_imm_32_8
  * 

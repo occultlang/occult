@@ -96,6 +96,16 @@ namespace occult {
       }
     }
     
+    template<typename BaseAst = ast>
+    static BaseAst* cast_raw(ast* node) {
+      if (auto casted_node = dynamic_cast<BaseAst*>(node)) {
+        return casted_node;
+      }
+      else {
+        return nullptr;
+      }
+    }
+    
     void add_child(std::unique_ptr<ast> child) {
       children.push_back(std::move(child));
     }

@@ -38,9 +38,9 @@ namespace occult {
     
     {bitwise_or_tt, 12}, // bitwise
     
-    {and_operator_tt, 6}, // logical normally 13
+    {and_operator_tt, 13}, // logical normally 13 (space in between is 6)
     
-    {or_operator_tt, 7}, // logical normally 14
+    {or_operator_tt, 14}, // logical normally 14 (space in between is 7)
     
     {assignment_tt, 15},
     {left_paren_tt, 17}};
