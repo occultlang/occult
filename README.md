@@ -23,7 +23,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
  
 ### Notes about the roadmap
 - IR/IL
-  - Researching options for the project, SSA, TAC, or HLA (Not done)
+  - Stack-based IR (In progress)
 - x86 JIT Runtime
   - It's working, it just simply needs to have bugs fixed and needs to be polished overall (Working)
 - Linter
