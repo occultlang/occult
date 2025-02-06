@@ -17,7 +17,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 - - [x] Lexer
 - - [x] Parser
 - - [ ] Backend 
-  - - [ ] Custom IL/IR
+  - - [ ] Stack-based IR (In progress)
   - - [x] x86 JIT Runtime
 - - [ ] Linter
  
