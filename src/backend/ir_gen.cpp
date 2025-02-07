@@ -56,17 +56,33 @@ namespace occult {
   void ir_gen::generate_block(ir_function& function, ast_block* block_node) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
-        case ast_type::int8_datatype: 
-        case ast_type::int16_datatype:
-        case ast_type::int32_datatype:
-        case ast_type::int64_datatype:
-        case ast_type::uint8_datatype:
-        case ast_type::uint16_datatype:
-        case ast_type::uint32_datatype:
+        case ast_type::int8_datatype:  {
+          break;
+        }
+        case ast_type::int16_datatype: {
+          break;
+        }
+        case ast_type::int32_datatype: {
+          break;
+        }
+        case ast_type::int64_datatype: {
+          break;
+        }
+        case ast_type::uint8_datatype: {
+          break;
+        }
+        case ast_type::uint16_datatype: {
+          break;
+        }
+        case ast_type::uint32_datatype: {
+          break;
+        }
         case ast_type::uint64_datatype: {
           break;
         }
-        case ast_type::float32_datatype:
+        case ast_type::float32_datatype: {
+          break;
+        }
         case ast_type::float64_datatype: {
           break;
         }
