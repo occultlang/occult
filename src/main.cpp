@@ -104,6 +104,21 @@ int main(int argc, char* argv[]) {
       std::cout << "\t" << arg.type << "\n";
       std::cout << "\t" << arg.name << "\n";
     }
+    
+    struct visitor {
+      void operator()(const float& v){ std::cout << v << "\n"; };
+      void operator()(const double& v){ std::cout << v << "\n"; };
+      void operator()(const std::int64_t& v){ std::cout << v << "\n"; };
+      void operator()(const std::uint64_t& v){ std::cout << v << "\n"; };
+      void operator()(const std::string& v){ std::cout << v << "\n"; };
+      void operator()(std::monostate){ std::cout << "\n"; };
+    };
+    
+    std::cout << "code:\n";
+    for (auto& i : func.code) {
+      std::cout << occult::to_string(i.op) << " ";
+      std::visit(visitor(), i.operand);
+    }
   }
   
 /*#ifdef __linux

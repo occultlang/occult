@@ -1,5 +1,5 @@
 fn main() int32 {
-  int32 x = 30 + 12; // life....
+  int32 x = 2 * 30 + (12 - 30) * 3;
   
   return x;
 }

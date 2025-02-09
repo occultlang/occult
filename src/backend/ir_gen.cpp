@@ -1,4 +1,5 @@
 #include "ir_gen.hpp"
+#include "../lexer/number_parser.hpp"
 
 namespace occult {
   ir_function ir_gen::generate_function(ast_function* func_node) {
@@ -53,6 +54,46 @@ namespace occult {
     }
   }
   
+  void ir_gen::generate_int32(ir_function& function, ast_assignment* assignment_node) {
+    for (const auto& c : assignment_node->get_children()) {
+      switch(c->get_type()) {
+        case ast_type::number_literal: {
+          function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(c->content));
+          
+          break;
+        }
+        case ast_type::add_operator: {
+          function.code.emplace_back(op_add);
+          
+          break;
+        }
+        case ast_type::subtract_operator: {
+          function.code.emplace_back(op_sub);
+          
+          break;
+        }
+        case ast_type::multiply_operator: {
+          function.code.emplace_back(op_mul);
+          
+          break;
+        }
+        case ast_type::division_operator: {
+          function.code.emplace_back(op_div);
+          
+          break;
+        }
+        case ast_type::modulo_operator: {
+          function.code.emplace_back(op_mod);
+          
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+  }
+  
   void ir_gen::generate_block(ir_function& function, ast_block* block_node) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
@@ -63,6 +104,15 @@ namespace occult {
           break;
         }
         case ast_type::int32_datatype: {
+          auto node = ast::cast_raw<ast_int32>(c.get());
+          
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name
+          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get()); // expression stuff
+          
+          generate_int32(function, assignment);
+          
+          function.code.emplace_back(op_store, identifier->content);
+          
           break;
         }
         case ast_type::int64_datatype: {

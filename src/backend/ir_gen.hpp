@@ -9,6 +9,7 @@ namespace occult {
     op_load,
     op_add,
     op_div,
+    op_mod,
     op_sub,
     op_mul,
     op_jmp,
@@ -24,6 +25,32 @@ namespace occult {
     op_syscall
   };
   
+  constexpr std::string to_string(ir_opcode op) {
+    switch (op) {
+      case op_push:    return "op_push";
+      case op_pop:     return "op_pop";
+      case op_mod:     return "op_mod";
+      case op_store:   return "op_store";
+      case op_load:    return "op_load";
+      case op_add:     return "op_add";
+      case op_div:     return "op_div";
+      case op_sub:     return "op_sub";
+      case op_mul:     return "op_mul";
+      case op_jmp:     return "op_jmp";
+      case op_jz:      return "op_jz";
+      case op_jnz:     return "op_jnz";
+      case op_jl:      return "op_jl";
+      case op_jle:     return "op_jle";
+      case op_jg:      return "op_jg";
+      case op_jge:     return "op_jge";
+      case op_cmp:     return "op_cmp";
+      case op_ret:     return "op_ret";
+      case op_call:    return "op_call";
+      case op_syscall: return "op_syscall";
+      default:         return "unknown_opcode";
+    }
+  }
+  
   struct ir_argument {
     std::string name;
     std::string type;
@@ -31,8 +58,18 @@ namespace occult {
     ir_argument(std::string name, std::string type) : name(name), type(type) {}
   };
   
+  using ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, float, double, std::string>;
+  
+  struct ir_instr {
+    ir_opcode op;
+    ir_operand operand;
+    
+    ir_instr(ir_opcode op, ir_operand operand) : op(op), operand(operand) {}
+    ir_instr(ir_opcode op) : op(op), operand(std::monostate()) {}
+  };
+  
   struct ir_function {
-    std::vector<ir_opcode> code;
+    std::vector<ir_instr> code;
     std::vector<ir_argument> args;
     std::string name;
     std::string type;
@@ -43,6 +80,7 @@ namespace occult {
     
     ir_function generate_function(ast_function* func_node);
     void generate_function_args(ir_function& function, ast_functionargs* func_args_node);
+    void generate_int32(ir_function& function, ast_assignment* assignment_node);
     void generate_block(ir_function& function, ast_block* block_node);
   public:
     ir_gen(ast_root* root) : root(root) {}

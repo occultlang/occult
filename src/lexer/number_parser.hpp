@@ -7,20 +7,20 @@
 #define HEX_BASE 16
 
 namespace occult {
-  bool is_octal(const char& c) {
+  constexpr bool is_octal(const char& c) {
     return (c >= '0' && c <= '7');
   }
   
-  bool is_hex(const char& c) {
+  constexpr bool is_hex(const char& c) {
     return (std::isdigit(c) || (std::tolower(c) >= 'a' && std::tolower(c) <= 'f'));
   }
 
-  bool is_binary(const char& c) {
+  constexpr bool is_binary(const char& c) {
     return (c == '0' || c == '1');
   }
   
   template<typename ValueType>
-  std::string to_parsable_type(const std::string& number, std::optional<std::uintptr_t> base = std::nullopt) {
+  constexpr std::string to_parsable_type(const std::string& number, std::optional<std::uintptr_t> base = std::nullopt) {
     ValueType value;
     
     if constexpr (std::is_floating_point_v<ValueType>) {
@@ -43,5 +43,27 @@ namespace occult {
     }
     
     return std::to_string(value);
+  }
+  
+  template<typename ValueType>
+  constexpr ValueType from_numerical_string(const std::string& number) {
+    ValueType value;
+    
+    if constexpr (std::is_floating_point_v<ValueType>) {
+      auto result = fast_float::from_chars(number.data(), number.data() + number.size(), value);
+      
+      if (result.ec != std::errc()) {
+        throw std::runtime_error("failed parsing number");
+      }
+    }
+    else if constexpr (std::is_integral_v<ValueType>) {
+      auto result = fast_float::from_chars(number.data(), number.data() + number.size(), value, 10);
+      
+      if (result.ec != std::errc()) {
+        throw std::runtime_error("failed parsing number");
+      }
+    }
+    
+    return value;
   }
 } // namespace occult
