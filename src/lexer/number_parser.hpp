@@ -1,5 +1,10 @@
 #pragma once
-#include "../libs/fast_float.hpp" // you're able to use std::from_chars from <charconv> i believe
+#include <charconv> // you're able to use std::from_chars from  i believe
+#include <cstdio>
+#include <string>
+#include <stdexcept>
+#include <optional>
+#include <cstdint>
 
 #define BINARY_BASE 2
 #define DECIMAL_BASE 10
@@ -24,7 +29,7 @@ namespace occult {
     ValueType value;
     
     if constexpr (std::is_floating_point_v<ValueType>) {
-      auto result = fast_float::from_chars(number.data(), number.data() + number.size(), value);
+      auto result = std::from_chars(number.data(), number.data() + number.size(), value);
       
       if (result.ec != std::errc()) {
         throw std::runtime_error("failed parsing number");
@@ -35,7 +40,7 @@ namespace occult {
         throw std::runtime_error("base is required parsing integers");
       }
       
-      auto result = fast_float::from_chars(number.data(), number.data() + number.size(), value, static_cast<int>(base.value()));
+      auto result = std::from_chars(number.data(), number.data() + number.size(), value, static_cast<int>(base.value()));
       
       if (result.ec != std::errc()) {
         throw std::runtime_error("failed parsing number");
@@ -50,14 +55,14 @@ namespace occult {
     ValueType value;
     
     if constexpr (std::is_floating_point_v<ValueType>) {
-      auto result = fast_float::from_chars(number.data(), number.data() + number.size(), value);
+      auto result = std::from_chars(number.data(), number.data() + number.size(), value);
       
       if (result.ec != std::errc()) {
         throw std::runtime_error("failed parsing number");
       }
     }
     else if constexpr (std::is_integral_v<ValueType>) {
-      auto result = fast_float::from_chars(number.data(), number.data() + number.size(), value, 10);
+      auto result = std::from_chars(number.data(), number.data() + number.size(), value, 10);
       
       if (result.ec != std::errc()) {
         throw std::runtime_error("failed parsing number");
