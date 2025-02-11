@@ -90,7 +90,11 @@ namespace occult {
     
     ir_function generate_function(ast_function* func_node);
     void generate_function_args(ir_function& function, ast_functionargs* func_args_node);
+    template<typename IntType>
+    void generate_arg(ir_function&, ast_functionarg* arg_node);
+    template<typename IntType>
     void generate_int(ir_function& function, ast_assignment* assignment_node);
+    void generate_return(ir_function& function, ast_returnstmt* return_node);
     void generate_block(ir_function& function, ast_block* block_node);
   public:
     ir_gen(ast_root* root) : root(root) {}
