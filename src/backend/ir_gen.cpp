@@ -54,7 +54,7 @@ namespace occult {
     }
   }
   
-  void ir_gen::generate_int32(ir_function& function, ast_assignment* assignment_node) {
+  void ir_gen::generate_int(ir_function& function, ast_assignment* assignment_node) {
     for (const auto& c : assignment_node->get_children()) {
       switch(c->get_type()) {
         case ast_type::number_literal: {
@@ -87,6 +87,71 @@ namespace occult {
           
           break;
         }
+        case ast_type::identifier: {
+          function.code.emplace_back(op_load, c->content);
+          
+          break;
+        }
+        case ast_type::functioncall: {
+          auto node = ast::cast_raw<ast_functioncall>(c.get());
+          
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
+          
+          auto arg_location = 1;
+          while (node->get_children().at(arg_location).get()->content != "end_call") {
+            
+            arg_location++;
+          }
+          
+          function.code.emplace_back(op_call, identifier->content);
+          
+          break;
+        }
+        case ast_type::bitwise_and: {
+          break;
+        }
+        case ast_type::bitwise_or: {
+          break;
+        }
+        case ast_type::xor_operator: {
+          break;
+        }
+        case ast_type::bitwise_lshift: {
+          break;
+        }
+        case ast_type::bitwise_rshift: {
+          break;
+        }
+        case ast_type::unary_plus_operator: {
+          break;
+        }
+        case ast_type::unary_minus_operator: {
+          break;
+        }
+        case ast_type::unary_bitwise_not: {
+          break;
+        }
+        case ast_type::unary_not_operator: {
+          break;
+        }
+        case ast_type::equals_operator: {
+          break;
+        }
+        case ast_type::not_equals_operator: {
+          break;
+        }
+        case ast_type::greater_than_operator: {
+          break;
+        }
+        case ast_type::less_than_operator: {
+          break;
+        }
+        case ast_type::greater_than_or_equal_operator: {
+          break;
+        }
+        case ast_type::less_than_or_equal_operator: {
+          break;
+        }
         default: {
           break;
         }
@@ -97,42 +162,26 @@ namespace occult {
   void ir_gen::generate_block(ir_function& function, ast_block* block_node) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
-        case ast_type::int8_datatype:  {
-          break;
-        }
-        case ast_type::int16_datatype: {
-          break;
-        }
-        case ast_type::int32_datatype: {
-          auto node = ast::cast_raw<ast_int32>(c.get());
+        case ast_type::int8_datatype:
+        case ast_type::int16_datatype:
+        case ast_type::int32_datatype: 
+        case ast_type::int64_datatype: 
+        case ast_type::uint8_datatype:
+        case ast_type::uint16_datatype:
+        case ast_type::uint32_datatype: 
+        case ast_type::uint64_datatype: {
+          auto node = c.get();
           
           auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name
           auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get()); // expression stuff
           
-          generate_int32(function, assignment);
+          generate_int(function, assignment);
           
           function.code.emplace_back(op_store, identifier->content);
           
           break;
         }
-        case ast_type::int64_datatype: {
-          break;
-        }
-        case ast_type::uint8_datatype: {
-          break;
-        }
-        case ast_type::uint16_datatype: {
-          break;
-        }
-        case ast_type::uint32_datatype: {
-          break;
-        }
-        case ast_type::uint64_datatype: {
-          break;
-        }
-        case ast_type::float32_datatype: {
-          break;
-        }
+        case ast_type::float32_datatype: 
         case ast_type::float64_datatype: {
           break;
         }

@@ -1,5 +1,6 @@
 fn main() int32 {
-  int32 x = 2 * 30 + (12 - 30) * 3;
+  int32 y = test(1, 2, "what") + cool(2);
+  int32 x = 2 * 30 + (y - 30) * 3;
   
   return x;
 }

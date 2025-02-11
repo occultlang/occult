@@ -22,10 +22,15 @@ namespace occult {
     op_cmp,
     op_ret,
     op_call,
-    op_syscall
+    op_syscall,
+    op_fadd,
+    op_fdiv,
+    op_fsub,
+    op_fmul,
+    op_fmod,
   };
   
-  constexpr std::string to_string(ir_opcode op) {
+  constexpr std::string opcode_to_string(ir_opcode op) {
     switch (op) {
       case op_push:    return "op_push";
       case op_pop:     return "op_pop";
@@ -36,6 +41,11 @@ namespace occult {
       case op_div:     return "op_div";
       case op_sub:     return "op_sub";
       case op_mul:     return "op_mul";
+      case op_fadd:    return "op_fadd";
+      case op_fdiv:    return "op_fdiv";
+      case op_fsub:    return "op_fsub";
+      case op_fmul:    return "op_fmul";
+      case op_fmod:    return "op_fmod";
       case op_jmp:     return "op_jmp";
       case op_jz:      return "op_jz";
       case op_jnz:     return "op_jnz";
@@ -80,7 +90,7 @@ namespace occult {
     
     ir_function generate_function(ast_function* func_node);
     void generate_function_args(ir_function& function, ast_functionargs* func_args_node);
-    void generate_int32(ir_function& function, ast_assignment* assignment_node);
+    void generate_int(ir_function& function, ast_assignment* assignment_node);
     void generate_block(ir_function& function, ast_block* block_node);
   public:
     ir_gen(ast_root* root) : root(root) {}

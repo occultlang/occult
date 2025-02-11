@@ -92,32 +92,42 @@ int main(int argc, char* argv[]) {
     root->visualize();
   }
   
+  start = std::chrono::high_resolution_clock::now();
+  
   occult::ir_gen ir_gen(root.get());
   auto ir_funcs = ir_gen.generate();
   
-  for (auto& func : ir_funcs) {
-    std::cout << func.type << "\n";
-    std::cout << func.name << "\n";
-    
-    std::cout << "args:\n";
-    for (auto& arg : func.args) {
-      std::cout << "\t" << arg.type << "\n";
-      std::cout << "\t" << arg.name << "\n";
-    }
-    
-    struct visitor {
-      void operator()(const float& v){ std::cout << v << "\n"; };
-      void operator()(const double& v){ std::cout << v << "\n"; };
-      void operator()(const std::int64_t& v){ std::cout << v << "\n"; };
-      void operator()(const std::uint64_t& v){ std::cout << v << "\n"; };
-      void operator()(const std::string& v){ std::cout << v << "\n"; };
-      void operator()(std::monostate){ std::cout << "\n"; };
-    };
-    
-    std::cout << "code:\n";
-    for (auto& i : func.code) {
-      std::cout << occult::to_string(i.op) << " ";
-      std::visit(visitor(), i.operand);
+  end = std::chrono::high_resolution_clock::now();
+  duration = end - start;
+  
+  if (showtime)
+    std::cout << "\n[occultc] \033[1;36mcompleted generating ir \033[0m" << duration.count() << "ms\n";
+  
+  if (debug && verbose) {
+    for (auto& func : ir_funcs) {
+      std::cout << func.type << "\n";
+      std::cout << func.name << "\n";
+      
+      std::cout << "args:\n";
+      for (auto& arg : func.args) {
+        std::cout << "\t" << arg.type << "\n";
+        std::cout << "\t" << arg.name << "\n";
+      }
+      
+      struct visitor {
+        void operator()(const float& v){ std::cout << v << "\n"; };
+        void operator()(const double& v){ std::cout << v << "\n"; };
+        void operator()(const std::int64_t& v){ std::cout << v << "\n"; };
+        void operator()(const std::uint64_t& v){ std::cout << v << "\n"; };
+        void operator()(const std::string& v){ std::cout << v << "\n"; };
+        void operator()(std::monostate){ std::cout << "\n"; };
+      };
+      
+      std::cout << "code:\n";
+      for (auto& i : func.code) {
+        std::cout << occult::opcode_to_string(i.op) << " ";
+        std::visit(visitor(), i.operand);
+      }
     }
   }
   
