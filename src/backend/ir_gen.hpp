@@ -122,6 +122,9 @@ namespace occult {
     void generate_int(ir_function& function, ast_assignment* assignment_node);
     void generate_return(ir_function& function, ast_returnstmt* return_node, std::string type);
     void generate_if(ir_function& function, ast_ifstmt* if_node);
+    void generate_elseif(ir_function& function, ast_elseifstmt* elseif_node);
+    void generate_else(ir_function& function, ast_elsestmt* else_node);
+    void generate_loop(ir_function& function, ast_loopstmt* loop_node);
     void generate_block(ir_function& function, ast_block* block_node);
   public:
     ir_gen(ast_root* root) : root(root), label_count(0) {}

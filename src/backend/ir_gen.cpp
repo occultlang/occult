@@ -616,6 +616,218 @@ namespace occult {
     }
   }
   
+  void ir_gen::generate_elseif(ir_function& function, ast_elseifstmt* elseif_node) {
+    for (const auto& c : elseif_node->get_children()) {
+      switch(c->get_type()) {
+        case ast_type::block: {
+          generate_block(function, ast::cast_raw<ast_block>(c.get()));
+          
+          break;
+        }
+        case ast_type::number_literal: {
+          auto it = ir_typemap.find(function.type);
+          
+          if (it != ir_typemap.end()) {
+            switch (it->second) {
+              case signed_int:{
+                function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(c->content));
+                
+                break;
+              }
+              case unsigned_int:{
+                function.code.emplace_back(op_push, from_numerical_string<std::uint64_t>(c->content));
+                
+                break;
+              }
+              case floating_point: {
+                function.code.emplace_back(op_push, from_numerical_string<double>(c->content));
+                
+                break;
+              }
+              case string: {
+                function.code.emplace_back(op_push, from_numerical_string<std::string>(c->content));
+                
+                break;
+              }
+            }
+          }
+          
+          break;
+        }
+        case ast_type::add_operator: {
+          function.code.emplace_back(op_add);
+          
+          break;
+        }
+        case ast_type::subtract_operator: {
+          function.code.emplace_back(op_sub);
+          
+          break;
+        }
+        case ast_type::multiply_operator: {
+          function.code.emplace_back(op_mul);
+          
+          break;
+        }
+        case ast_type::division_operator: {
+          function.code.emplace_back(op_div);
+          
+          break;
+        }
+        case ast_type::modulo_operator: {
+          function.code.emplace_back(op_mod);
+          
+          break;
+        }
+        case ast_type::identifier: {
+          function.code.emplace_back(op_load, c->content);
+          
+          break;
+        }
+        case ast_type::functioncall: {
+          auto node = ast::cast_raw<ast_functioncall>(c.get());
+          
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
+          
+          auto arg_location = 1;
+          while (node->get_children().at(arg_location).get()->content != "end_call") {
+            auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
+            
+            auto it = ir_typemap.find(function.type);
+            
+            if (it != ir_typemap.end()) {
+              switch (it->second) {
+                case signed_int:{
+                  generate_arg<std::int64_t>(function, arg_node);
+                  
+                  break;
+                }
+                case unsigned_int:{
+                  generate_arg<std::uint64_t>(function, arg_node);
+                  
+                  break;
+                }
+                case floating_point: {
+                  generate_arg<double>(function, arg_node);
+                  
+                  break;
+                }
+                case string: {
+                  generate_arg<std::string>(function, arg_node);
+                  
+                  break;
+                }
+              }
+            }
+            
+            arg_location++;
+          }
+          
+          function.code.emplace_back(op_call, identifier->content);
+          function.code.emplace_back(op_cmp);
+          
+          break;
+        }
+        case ast_type::bitwise_and: {
+          break;
+        }
+        case ast_type::bitwise_or: {
+          break;
+        }
+        case ast_type::xor_operator: {
+          break;
+        }
+        case ast_type::bitwise_lshift: {
+          break;
+        }
+        case ast_type::bitwise_rshift: {
+          break;
+        }
+        case ast_type::unary_plus_operator: {
+          break;
+        }
+        case ast_type::unary_minus_operator: {
+          break;
+        }
+        case ast_type::unary_bitwise_not: {
+          break;
+        }
+        case ast_type::unary_not_operator: {
+          break;
+        }
+        case ast_type::equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jnz, "label_" + std::to_string(label_count));
+          
+          break;
+        }
+        case ast_type::not_equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jz, "label_" + std::to_string(label_count));
+          
+          break;
+        }
+        case ast_type::greater_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jl, "label_" + std::to_string(label_count));
+          
+          break;
+        }
+        case ast_type::less_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jg, "label_" + std::to_string(label_count));
+          
+          break;
+        }
+        case ast_type::greater_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jle, "label_" + std::to_string(label_count));
+          
+          break;
+        }
+        case ast_type::less_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jge, "label_" + std::to_string(label_count));
+          
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+  }
+  
+  void ir_gen::generate_else(ir_function& function, ast_elsestmt* else_node) {
+    for (const auto& c : else_node->get_children()) {
+      switch(c->get_type()) {
+        case ast_type::block: {
+          generate_block(function, ast::cast_raw<ast_block>(c.get()));
+          
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+  }
+  
+  void ir_gen::generate_loop(ir_function& function, ast_loopstmt* loop_node) {
+    for (const auto& c : loop_node->get_children()) {
+      switch(c->get_type()) {
+        case ast_type::block: {
+          generate_block(function, ast::cast_raw<ast_block>(c.get()));
+          
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+  }
+  
   void ir_gen::generate_block(ir_function& function, ast_block* block_node) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
@@ -711,12 +923,26 @@ namespace occult {
           break;
         }
         case ast_type::elseifstmt: {
+          generate_elseif(function, ast::cast_raw<ast_elseifstmt>(c.get()));
+          
+          function.code.emplace_back(label, "label_" + std::to_string(label_count++));
+          label_map.insert({"label_" + std::to_string(label_count), label_count});
+          
           break;
         }
         case ast_type::elsestmt: {
+          generate_else(function, ast::cast_raw<ast_elsestmt>(c.get()));
+
           break;
         }
         case ast_type::loopstmt: {
+          function.code.emplace_back(label, "label_" + std::to_string(label_count));
+          label_map.insert({"label_" + std::to_string(label_count), label_count});
+          
+          generate_loop(function, ast::cast_raw<ast_loopstmt>(c.get()));
+          
+          function.code.emplace_back(op_jmp, "label_" + std::to_string(label_count));
+          
           break;
         }
         case ast_type::whilestmt: {
