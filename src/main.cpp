@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
   duration = end - start;
   
   if (showtime)
-    std::cout << "\n[occultc] \033[1;36mcompleted generating ir \033[0m" << duration.count() << "ms\n";
+    std::cout << "[occultc] \033[1;36mcompleted generating ir \033[0m" << duration.count() << "ms\n";
   
   if (debug && verbose) {
     for (auto& func : ir_funcs) {

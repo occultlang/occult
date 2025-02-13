@@ -68,7 +68,7 @@ namespace occult {
     ir_argument(std::string name, std::string type) : name(name), type(type) {}
   };
   
-  using ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, float, double, std::string>;
+  using ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, double, std::string>;
   
   struct ir_instr {
     ir_opcode op;
@@ -85,6 +85,28 @@ namespace occult {
     std::string type;
   };
   
+  enum ir_typename {
+    signed_int,
+    unsigned_int,
+    floating_point,
+    string
+  };
+  
+  const std::unordered_map<std::string, ir_typename> ir_typemap = {
+    {"int64", signed_int},
+    {"int32", signed_int},
+    {"int16", signed_int},
+    {"int8", signed_int},
+    {"uint64", unsigned_int},
+    {"uint32", unsigned_int},
+    {"uint16", unsigned_int},
+    {"uint8", unsigned_int},
+    {"float32", floating_point},
+    {"float64", floating_point},
+    {"bool", unsigned_int}, 
+    {"char", unsigned_int}, 
+    {"str", string}};
+  
   class ir_gen { // conversion into a linear IR
     ast_root* root;
     
@@ -94,7 +116,7 @@ namespace occult {
     void generate_arg(ir_function&, ast_functionarg* arg_node);
     template<typename IntType>
     void generate_int(ir_function& function, ast_assignment* assignment_node);
-    void generate_return(ir_function& function, ast_returnstmt* return_node);
+    void generate_return(ir_function& function, ast_returnstmt* return_node, std::string type);
     void generate_block(ir_function& function, ast_block* block_node);
   public:
     ir_gen(ast_root* root) : root(root) {}

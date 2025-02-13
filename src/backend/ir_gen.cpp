@@ -275,12 +275,155 @@ namespace occult {
     }
   }
   
-  void ir_gen::generate_return(ir_function& function, ast_returnstmt* return_node) {
+  void ir_gen::generate_return(ir_function& function, ast_returnstmt* return_node, std::string type) {
     for (const auto& c : return_node->get_children()) {
       switch(c->get_type()) {
+        case ast_type::number_literal: {
+          auto it = ir_typemap.find(type);
+          
+          if (it != ir_typemap.end()) {
+            switch (it->second) {
+              case signed_int:{
+                function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(c->content));
+                
+                break;
+              }
+              case unsigned_int:{
+                function.code.emplace_back(op_push, from_numerical_string<std::uint64_t>(c->content));
+                
+                break;
+              }
+              case floating_point: {
+                function.code.emplace_back(op_push, from_numerical_string<double>(c->content));
+                
+                break;
+              }
+              case string: {
+                function.code.emplace_back(op_push, from_numerical_string<std::string>(c->content));
+                
+                break;
+              }
+            }
+          }
+          
+          break;
+        }
+        case ast_type::add_operator: {
+          function.code.emplace_back(op_add);
+          
+          break;
+        }
+        case ast_type::subtract_operator: {
+          function.code.emplace_back(op_sub);
+          
+          break;
+        }
+        case ast_type::multiply_operator: {
+          function.code.emplace_back(op_mul);
+          
+          break;
+        }
+        case ast_type::division_operator: {
+          function.code.emplace_back(op_div);
+          
+          break;
+        }
+        case ast_type::modulo_operator: {
+          function.code.emplace_back(op_mod);
+          
+          break;
+        }
         case ast_type::identifier: {
           function.code.emplace_back(op_load, c->content);
           
+          break;
+        }
+        case ast_type::functioncall: {
+          auto node = ast::cast_raw<ast_functioncall>(c.get());
+          
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
+          
+          auto arg_location = 1;
+          while (node->get_children().at(arg_location).get()->content != "end_call") {
+            auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
+            
+            auto it = ir_typemap.find(type);
+            
+            if (it != ir_typemap.end()) {
+              switch (it->second) {
+                case signed_int:{
+                  generate_arg<std::int64_t>(function, arg_node);
+                  
+                  break;
+                }
+                case unsigned_int:{
+                  generate_arg<std::uint64_t>(function, arg_node);
+                  
+                  break;
+                }
+                case floating_point: {
+                  generate_arg<double>(function, arg_node);
+                  
+                  break;
+                }
+                case string: {
+                  generate_arg<std::string>(function, arg_node);
+                  
+                  break;
+                }
+              }
+            }
+            
+            arg_location++;
+          }
+          
+          function.code.emplace_back(op_call, identifier->content);
+          
+          break;
+        }
+        case ast_type::bitwise_and: {
+          break;
+        }
+        case ast_type::bitwise_or: {
+          break;
+        }
+        case ast_type::xor_operator: {
+          break;
+        }
+        case ast_type::bitwise_lshift: {
+          break;
+        }
+        case ast_type::bitwise_rshift: {
+          break;
+        }
+        case ast_type::unary_plus_operator: {
+          break;
+        }
+        case ast_type::unary_minus_operator: {
+          break;
+        }
+        case ast_type::unary_bitwise_not: {
+          break;
+        }
+        case ast_type::unary_not_operator: {
+          break;
+        }
+        case ast_type::equals_operator: {
+          break;
+        }
+        case ast_type::not_equals_operator: {
+          break;
+        }
+        case ast_type::greater_than_operator: {
+          break;
+        }
+        case ast_type::less_than_operator: {
+          break;
+        }
+        case ast_type::greater_than_or_equal_operator: {
+          break;
+        }
+        case ast_type::less_than_or_equal_operator: {
           break;
         }
         default: {
@@ -355,7 +498,7 @@ namespace occult {
           break;
         }
         case ast_type::returnstmt: {
-          generate_return(function, ast::cast_raw<ast_returnstmt>(c.get()));
+          generate_return(function, ast::cast_raw<ast_returnstmt>(c.get()), function.type);
           
           function.code.emplace_back(op_ret);
           
