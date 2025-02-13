@@ -143,6 +143,12 @@ namespace occult {
         case ast_type::unary_not_operator: {
           break;
         }
+        case ast_type::or_operator: {
+          break;
+        }
+        case ast_type::and_operator: {
+          break;
+        }
         case ast_type::equals_operator: {
           break;
         }
@@ -250,6 +256,12 @@ namespace occult {
           break;
         }
         case ast_type::unary_not_operator: {
+          break;
+        }
+        case ast_type::or_operator: {
+          break;
+        }
+        case ast_type::and_operator: {
           break;
         }
         case ast_type::equals_operator: {
@@ -408,6 +420,12 @@ namespace occult {
           break;
         }
         case ast_type::unary_not_operator: {
+          break;
+        }
+        case ast_type::or_operator: {
+          break;
+        }
+        case ast_type::and_operator: {
           break;
         }
         case ast_type::equals_operator: {
@@ -571,6 +589,12 @@ namespace occult {
           break;
         }
         case ast_type::unary_not_operator: {
+          break;
+        }
+        case ast_type::or_operator: {
+          break;
+        }
+        case ast_type::and_operator: {
           break;
         }
         case ast_type::equals_operator: {
@@ -753,6 +777,12 @@ namespace occult {
           break;
         }
         case ast_type::unary_not_operator: {
+          break;
+        }
+        case ast_type::or_operator: {
+          break;
+        }
+        case ast_type::and_operator: {
           break;
         }
         case ast_type::equals_operator: {
