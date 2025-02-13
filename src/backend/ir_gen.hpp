@@ -28,6 +28,7 @@ namespace occult {
     op_fsub,
     op_fmul,
     op_fmod,
+    label
   };
   
   constexpr std::string opcode_to_string(ir_opcode op) {
@@ -56,7 +57,8 @@ namespace occult {
       case op_cmp:     return "op_cmp";
       case op_ret:     return "op_ret";
       case op_call:    return "op_call";
-      case op_syscall: return "op_syscall";
+      case op_syscall: return "op_syscall"; 
+      case label:      return "label";
       default:         return "unknown_opcode";
     }
   }
@@ -109,6 +111,8 @@ namespace occult {
   
   class ir_gen { // conversion into a linear IR
     ast_root* root;
+    int label_count;
+    std::unordered_map<std::string, int> label_map;
     
     ir_function generate_function(ast_function* func_node);
     void generate_function_args(ir_function& function, ast_functionargs* func_args_node);
@@ -117,9 +121,10 @@ namespace occult {
     template<typename IntType>
     void generate_int(ir_function& function, ast_assignment* assignment_node);
     void generate_return(ir_function& function, ast_returnstmt* return_node, std::string type);
+    void generate_if(ir_function& function, ast_ifstmt* if_node);
     void generate_block(ir_function& function, ast_block* block_node);
   public:
-    ir_gen(ast_root* root) : root(root) {}
+    ir_gen(ast_root* root) : root(root), label_count(0) {}
     
     std::vector<ir_function> generate();
   };

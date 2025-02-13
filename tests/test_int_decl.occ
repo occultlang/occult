@@ -1,6 +1,16 @@
 fn main() int64 {
-  int64 y = test(1, 2) + cool(2);
-  int64 x = 2 * 30 + (y - 30) * 3;
+  int64 y = 5;
+  int64 x = 5;
   
-  return x;
+  if x > y {
+    print("x greater than y");
+  }
+  /*elseif x < y {
+    print("x less than y");
+  }
+  else {
+    print("probably same lol");
+  }*/
+  
+  return 0;
 }
