@@ -19,6 +19,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 - - [ ] Backend 
   - - [ ] Stack-based IR (In progress)
   - - [x] x86 JIT Runtime
+  - - [ ] IR Translation -> x86 JIT
 - - [ ] Linter
  
 ### Notes about the roadmap
