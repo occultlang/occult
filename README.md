@@ -3,7 +3,8 @@
     <img src="occult_circle.svg" width="240" alt="Occult Logo">
   </a>
   <h1 style="margin: 5px;">The Occult Programming Language</h1>
-  <p align="center">A modern enigmatic JIT programming language <a href="https://occultlang.org" target="_blank">occultlang.org</a></p> <br><br>
+  <p align="center">A modern enigmatic JIT programming language <a href="https://occultlang.org" target="_blank">occultlang.org</a></p> <br>
+  <a href="https://discord.gg/ptUACmpg3Z" target="_blank">Official Discord</a> <br><br>
 </div>
 
 ### Building
