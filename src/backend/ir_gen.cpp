@@ -1,6 +1,12 @@
 #include "ir_gen.hpp"
 #include "../lexer/number_parser.hpp"
 
+/*
+ * This IR generation is really crappy and disorganized, I will make it organized later on, and I'll probably move to SSA or TAC
+ * later on as well, but this is what I can do for now, as I want to make actual progress on the language, but we can still do some stack optimisations
+ * we can use this paper (http://www.rigwit.co.uk/thesis/chap-5.pdf) as an example, and other theories too.
+*/
+
 namespace occult {
   ir_function ir_gen::generate_function(ast_function* func_node) {
     ir_function function;
