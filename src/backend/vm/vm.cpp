@@ -64,16 +64,22 @@ namespace occult {
                 vm::call(std::get<long int>(instr.operand));
                 break;
             case op_syscall:
+                // ... 
                 break;
             case op_fadd:
+                // ... 
                 break;
             case op_fdiv:
+                // ... 
                 break;
             case op_fsub:
+                // ...  
                 break;
             case op_fmul:
+                // ... 
                 break;
             case op_fmod:
+                // ... 
                 break;
             case op_label:
                 break;
