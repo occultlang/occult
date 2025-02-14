@@ -37,7 +37,7 @@ namespace occult {
                 vm::jmp(std::get<long int>(instr.operand));
                 break;
             case op_jz:
-                vm::jz(std::get<long int>(instr.operand));
+                vm::jz(std::get<long int>(instr.operand)); // jizz
                 break;
             case op_jnz:
                 vm::jnz(std::get<long int>(instr.operand));
