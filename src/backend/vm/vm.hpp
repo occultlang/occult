@@ -9,6 +9,11 @@
 namespace occult {
     class vm {
         public:
+            vm(std::vector<ir_instr>& program, size_t memory_size = 1024) : 
+            program_counter(0), bytecode(program), memory(memory_size, 0) {
+                stack.reserve(128);
+                call_stack.reserve(64);
+            }
             void run();
         private:
             size_t program_counter = 0;
