@@ -17,30 +17,30 @@ namespace occult {
             std::vector<int> memory;        
             std::vector<int> call_stack; // lord have mercy    
 
-            void push(int value);
-            void pop();
-            void mod();
-            void store(int addr);
-            void load(int addr);
-            void add();
-            void div();
-            void sub();
-            void mul();
-            void fadd();
-            void fsub();
-            void fmul();
-            void fmod();
-            void jmp(int addr);
-            void jz(int addr); // haha jizz
-            void jnz(int addr);
-            void jl(int addr);
-            void jle(int addr);
-            void jg(int addr);
-            void jge(int addr);
-            void cmp();
-            void ret();
-            void call(int addr);
-            void syscall();
-            void label();
+            inline void push(int value);
+            inline void pop();
+            inline void mod();
+            inline void store(int addr);
+            inline void load(int addr);
+            inline void add();
+            inline void div();
+            inline void sub();
+            inline void mul();
+            inline void fadd();
+            inline void fsub();
+            inline void fmul();
+            inline void fmod();
+            inline void jmp(int addr);
+            inline void jz(int addr); // haha jizz
+            inline void jnz(int addr);
+            inline void jl(int addr);
+            inline void jle(int addr);
+            inline void jg(int addr);
+            inline void jge(int addr);
+            inline void cmp();
+            inline void ret();
+            inline void call(int addr);
+            inline void syscall();
+            inline void label();
     };
 }; 
