@@ -2,6 +2,8 @@
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
 #include "backend/ir_gen.hpp"
+#include "backend/vm/vm.hpp"
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -102,7 +104,11 @@ int main(int argc, char* argv[]) {
   
   if (showtime)
     std::cout << "[occultc] \033[1;36mcompleted generating ir \033[0m" << duration.count() << "ms\n";
-  
+    
+    std::vector<occult::ir_instr> program = {};
+    occult::vm virtual_machine(program, 1024); // program, memory size
+    virtual_machine.run();
+
   if (debug && verbose) {
     for (auto& func : ir_funcs) {
       std::cout << func.type << "\n";
