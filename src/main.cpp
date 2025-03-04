@@ -2,7 +2,8 @@
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
 #include "backend/ir_gen.hpp"
-#include "backend/vm/vm.hpp"
+#include "backend/x64writer.hpp"
+#include "backend/jit.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -104,14 +105,10 @@ int main(int argc, char* argv[]) {
   
   if (showtime)
     std::cout << "[occultc] \033[1;36mcompleted generating ir \033[0m" << duration.count() << "ms\n";
-    
-    std::vector<occult::ir_instr> program = {};
-    occult::vm virtual_machine(program, 1024); // program, memory size
-    virtual_machine.run();
 
   if (debug && verbose) {
     for (auto& func : ir_funcs) {
-      std::cout << func.type << "\n";
+      std::cout << "\n" << func.type << "\n";
       std::cout << func.name << "\n";
       
       std::cout << "args:\n";
@@ -135,6 +132,13 @@ int main(int argc, char* argv[]) {
         std::visit(visitor(), i.operand);
       }
     }
+  }
+  
+  occult::jit jit(ir_funcs);
+  jit.convert_ir();
+  
+  if (jit.function_map.find("main") != jit.function_map.end()) {
+    jit.function_map["main"]();
   }
   
 /*#ifdef __linux

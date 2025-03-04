@@ -11,10 +11,6 @@ fn main() int64 {
   else {
     print("probably same lol");
   }
-  
-  loop {
-    print("loop forever!!"); // just while true ehheheheh
-  }
-  
+
   return 0;
 }

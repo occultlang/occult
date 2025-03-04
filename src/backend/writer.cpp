@@ -46,6 +46,13 @@ namespace occult {
     return code;
   }
   
+  void writer::print_bytes() {
+    for (auto& c : code) {
+      std::cout << std::setw(2) << std::setfill('0') << std::uppercase << std::hex << static_cast<int>(c) << " " << std::dec;
+    }
+    std::cout << "\n";
+  }
+  
   const std::size_t& writer::get_string_location(const std::string& str) {
     return string_locations[str];
   }

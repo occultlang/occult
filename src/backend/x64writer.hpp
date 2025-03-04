@@ -126,7 +126,7 @@ namespace occult {
   // add extended registers later on
   
   struct x64writer : writer {
-    x64writer(const std::size_t& size) : writer(size) {}
+    x64writer(const std::size_t& size = 1024) : writer(size) {}
     
     void emit_ret() {
       push_byte(0xC3);
@@ -1108,6 +1108,23 @@ namespace occult {
     
     void emit_short_jmp(std::uint8_t addr) {
       emit_short_jump(0xEB, addr);
+    }
+    
+    void emit_function_prologue(std::int64_t stack_size) {
+      emit_push_reg_64("rbp");
+      emit_mov_reg_reg("rbp", "rsp");
+      emit_sub_reg8_64_imm8_32("rsp", stack_size);
+    }
+    
+    void emit_function_epilogue() {
+      emit_mov_reg_reg("rsp", "rbp");
+      emit_pop_reg_64("rbp");
+    }
+    
+    void emit_call_reg64(const std::string& dest) {
+      push_byte(0xFF);
+      
+      push_byte(modrm_byte(addressing_modes::direct, 0b010, x64_register[dest]));
     }
   };
 } // namespace occult

@@ -71,6 +71,7 @@ namespace occult {
     jit_function setup_function();
     
     std::vector<std::uint8_t>& get_code();
+    void print_bytes();
     const std::size_t& get_string_location(const std::string& str);
   };
 } // namespace occult

@@ -19,4 +19,6 @@ add_executable(occultc
 ./src/backend/elf_header.hpp
 ./src/backend/ir_gen.cpp
 ./src/backend/ir_gen.hpp
+./src/backend/jit.cpp
+./src/backend/jit.hpp
 ./src/main.cpp)

@@ -1,1 +1,15 @@
-// will do soon
+fn factorial(int64 n) int64 {
+  if n == 0 || n == 1 {
+    return 1;
+  }
+  
+  return n * factorial(n - 1);
+}
+
+fn main() int64 {
+  int64 n = factorial(5);
+  
+  print(n + '0'); // get actual character to print...
+  
+  return 0;
+}
