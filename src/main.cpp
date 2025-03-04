@@ -23,6 +23,8 @@ void display_help() {
 }
 
 int main(int argc, char* argv[]) {
+  std::vector<double> times;
+  
   std::string input_file;
   std::string source_original;
   
@@ -72,6 +74,8 @@ int main(int argc, char* argv[]) {
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::milli> duration = end - start;
   
+  times.push_back(duration.count());
+  
   if (showtime)
     std::cout << "[occultc] \033[1;36mcompleted lexical analysis \033[0m" << duration.count() << "ms\n";
   
@@ -88,6 +92,8 @@ int main(int argc, char* argv[]) {
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   
+  times.push_back(duration.count());
+  
   if (showtime)
     std::cout << "[occultc] \033[1;36mcompleted parsing \033[0m" << duration.count() << "ms\n";
   
@@ -102,6 +108,8 @@ int main(int argc, char* argv[]) {
   
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
+  
+  times.push_back(duration.count());
   
   if (showtime)
     std::cout << "[occultc] \033[1;36mcompleted generating ir \033[0m" << duration.count() << "ms\n";
@@ -134,13 +142,50 @@ int main(int argc, char* argv[]) {
     }
   }
   
-  occult::jit jit(ir_funcs);
+  start = std::chrono::high_resolution_clock::now();
+  
+  occult::jit jit(ir_funcs, debug);
   jit.convert_ir();
   
-  if (jit.function_map.find("main") != jit.function_map.end()) {
-    jit.function_map["main"]();
+  end = std::chrono::high_resolution_clock::now();
+  duration = end - start;
+  
+  times.push_back(duration.count());
+  
+  if (showtime)
+    std::cout << "[occultc] \033[1;36mcompleted converting ir to machine code \033[0m" << duration.count() << "ms\n";
+  
+  if (debug) {
+    for (const auto& pair : jit.function_map) {
+      std::cout << pair.first << std::endl;
+      std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
+    }
   }
   
+  if (jit.function_map.find("main") != jit.function_map.end()) {
+    start = std::chrono::high_resolution_clock::now();
+    
+    int ret = jit.function_map["main"]();
+    
+    end = std::chrono::high_resolution_clock::now();
+    duration = end - start;
+    
+    times.push_back(duration.count());
+    
+    if (showtime)
+      std::cout << "[occultc] \033[1;36mcompleted execution \033[0m" << duration.count() << "ms\n";
+    
+    if (debug) {
+      std::cout << "main return value: " << ret << std::endl;
+    }
+  }
+  
+  double ms_total = 0;
+  for (auto& d : times) {
+    ms_total += d;
+  }
+  
+  std::cout << "[occultc] \033[1;36mtotal time took \033[0m" << ms_total << "ms\n";
 /*#ifdef __linux
   occult::elf::generate_binary("a.out", writer.get_code());
   

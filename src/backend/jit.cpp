@@ -5,17 +5,30 @@
 namespace occult {
   void jit::convert_ir() {
     for (auto& func : ir_funcs) {
-      auto w = std::make_unique<x64writer>(); 
-      w->emit_function_prologue(0); // will be more than 0 later
-      generate_code(func.code, w.get());
-      //w->print_bytes();
-      auto f = w->setup_function();
-      
-      function_map.insert({func.name, f});
-      writers.push_back(std::move(w)); 
+      compile_function(func);
     }
   }
-  
+
+  void jit::compile_function(const ir_function& func) {
+    if (function_map.contains(func.name)) {
+      return;
+    }
+
+    auto w = std::make_unique<x64writer>();
+    w->emit_function_prologue(0); // future stack size
+
+    generate_code(func.code, w.get());
+
+    if (debug) {
+      w->print_bytes();
+    }
+
+    auto f = w->setup_function();
+
+    function_map.insert({func.name, f});
+    writers.push_back(std::move(w));
+  }
+
   void jit::generate_code(std::vector<ir_instr> ir_code, x64writer* w) {
     for (auto& instr : ir_code) {
       switch (instr.op) {
@@ -40,11 +53,30 @@ namespace occult {
           break;
         }
         case ir_opcode::op_call: {
-          w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map[std::get<std::string>(instr.operand)]));
+          std::string func_name = std::get<std::string>(instr.operand);
+          
+          if (debug) {
+            std::cout << "calling: " << func_name << "\n";
+          }
+          
+          auto it = std::find_if(ir_funcs.begin(), ir_funcs.end(), [&](const ir_function& f) {
+            return f.name == func_name;
+          });
+
+          if (it != ir_funcs.end()) {
+            compile_function(*it); 
+          }
+
+          if (!function_map.contains(func_name)) {
+            throw std::runtime_error("undefined function: " + func_name);
+          }
+
+          w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map[func_name]));
           w->emit_call_reg64("rax");
           
           break;
         }
+
         default: {
           break;
         }

@@ -1,19 +1,23 @@
-fn test_call() int64 {
-  println("whattt");
-  test_call2();
-  return 0;
-}
-
-fn test_call2() int64 {
-  print("aaaaaaaa\n");
-  
-  return 0;
-}
+// calling anywhere :cool:
 
 fn main() int64 {
   test_call();
   
-  print("Hello, World!!\n"); 
+  print("Hello, World!\n", 14); 
  
+  return 0;
+}
+
+fn test_call() int64 {
+  print("aaaaaaaa\n", 9);
+  
+  test_call2();
+  
+  return 0;
+}
+
+fn test_call2() int64 {
+  print("whaatt\n", 7);
+  
   return 0;
 }
