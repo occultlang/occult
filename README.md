@@ -24,11 +24,11 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 - - [ ] Linter
  
 ### Notes about the roadmap
-- IR/IL
-  - Stack-based IR (In progress)
+- IR/IL + Translation
+  - Stack-based IR, works with translation to native JIT x86_64, in the very early stages
 - x86 JIT Runtime
-  - It's working, it just simply needs to have bugs fixed and needs to be polished overall (Working)
+  - It's working, it just simply needs to have bugs fixed and needs to be polished overall
 - Linter
-  - It will be done closer to the end of the development roadmap (Not done)
+  - It will be done closer to the end of the development roadmap (Not started)
 
 ### [Credits](https://github.com/occultlang/occult/blob/main/CREDITS.md)
