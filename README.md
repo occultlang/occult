@@ -27,7 +27,7 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 - IR/IL + Translation
   - Stack-based IR, works with translation to native JIT x86_64, in the very early stages
 - x86 JIT Runtime
-  - It's working, it just simply needs to have bugs fixed and needs to be polished overall
+  - It's working, it isn't fully finished for the full functionality either, needs polishing, also in the early stages
 - Linter
   - It will be done closer to the end of the development roadmap (Not started)
 
