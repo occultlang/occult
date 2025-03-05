@@ -2,25 +2,24 @@
 #include "ir_gen.hpp"
 #include "x64writer.hpp"
 
-namespace occult {
-  const std::unordered_map<std::string, std::size_t> type_sizes = {
-    {"int64", 8},
-    {"int32", 4},
-    {"int16", 2},
-    {"int8", 1},
-    {"uint64", 8},
-    {"uint32", 3},
-    {"uint16", 2},
-    {"uint8", 1},
-    {"float32", 4},
-    {"float64", 8},
-    {"bool", 1}, 
-    {"char", 1}};
-    
+namespace occult {  
   class jit {
     std::vector<ir_function> ir_funcs;
     std::vector<std::unique_ptr<x64writer>> writers;
     bool debug;
+    std::unordered_map<std::string, std::size_t> type_sizes = {
+      {"int64", 8},
+      {"int32", 4},
+      {"int16", 2},
+      {"int8", 1},
+      {"uint64", 8},
+      {"uint32", 3},
+      {"uint16", 2},
+      {"uint8", 1},
+      {"float32", 4},
+      {"float64", 8},
+      {"bool", 1}, 
+      {"char", 1}};
   public:
     jit(std::vector<ir_function> ir_funcs, bool debug = false) : ir_funcs(ir_funcs), debug(debug) {
       auto w = std::make_unique<x64writer>(); 

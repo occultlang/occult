@@ -72,11 +72,13 @@ namespace occult {
   
   using ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, double, std::string>;
   
-  struct ir_instr { // add type
+  struct ir_instr { 
     ir_opcode op;
     ir_operand operand;
+    std::string type;
     
-    ir_instr(ir_opcode op, ir_operand operand) : op(op), operand(operand) {}
+    ir_instr(ir_opcode op, ir_operand operand) : op(op), operand(operand), type("") {}
+    ir_instr(ir_opcode op, ir_operand operand, std::string type) : op(op), operand(operand), type(type) {}
     ir_instr(ir_opcode op) : op(op), operand(std::monostate()) {}
   };
   

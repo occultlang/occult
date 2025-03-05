@@ -1,0 +1,10 @@
+fn ret_int() int64 {
+  return 100;
+}
+
+fn main() int64 {
+  int64 x1 = ret_int();
+  int64 x2 = 10 - x1;
+  
+  return x2;
+}

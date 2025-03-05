@@ -878,7 +878,7 @@ namespace occult {
           
           generate_int<std::int64_t>(function, assignment);
           
-          function.code.emplace_back(op_store, identifier->content);
+          function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
           
           break;
         }
@@ -893,7 +893,7 @@ namespace occult {
           
           generate_int<std::uint64_t>(function, assignment);
           
-          function.code.emplace_back(op_store, identifier->content);
+          function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
           
           break;
         }

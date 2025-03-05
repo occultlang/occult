@@ -50,6 +50,7 @@ namespace occult {
     for (auto& c : code) {
       std::cout << std::setw(2) << std::setfill('0') << std::uppercase << std::hex << static_cast<int>(c) << " " << std::dec;
     }
+    
     std::cout << "\n";
   }
   

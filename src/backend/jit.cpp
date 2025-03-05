@@ -30,6 +30,9 @@ namespace occult {
   }
 
   void jit::generate_code(std::vector<ir_instr> ir_code, x64writer* w) {
+    std::unordered_map<std::string, std::size_t> local_variable_map;
+    std::size_t totalsizes = 0;
+    
     for (auto& instr : ir_code) {
       switch (instr.op) {
         case ir_opcode::op_push: {
@@ -45,10 +48,52 @@ namespace occult {
           
           break;
         }
+        case ir_opcode::op_store: { // not done
+          totalsizes += type_sizes[instr.type];
+          
+          if (instr.type != "string") {
+            w->emit_sub_reg8_64_imm8_32("rsp", totalsizes);
+            w->emit_mov_mem_reg("rbp", -totalsizes, "rax");
+          }
+          
+          if (debug) {
+            std::cout << "sizes in store: " << totalsizes << "\nlocal: " << type_sizes[instr.type] << "\n";
+          }
+          
+          local_variable_map.insert({std::get<std::string>(instr.operand), totalsizes});
+          
+          break;
+        }
+        case ir_opcode::op_load: { // not done 
+          if (instr.type != "string") {
+            w->emit_mov_reg_mem("rax", "rbp", -local_variable_map[std::get<std::string>(instr.operand)]);
+            w->emit_push_reg_64("rax");
+          }
+          
+          break;
+        }
         case ir_opcode::op_ret: {
           w->emit_pop_reg_64("rax");
           w->emit_function_epilogue();
           w->emit_ret();
+          
+          break;
+        }
+        case ir_opcode::op_add: {
+          w->emit_pop_reg_64("rax");
+          w->emit_mov_reg_reg("rbx", "rax");
+          w->emit_pop_reg_64("rax");
+          w->emit_add_reg_reg("rax", "rbx");
+          w->emit_push_reg_64("rax");
+          
+          break;
+        }
+        case ir_opcode::op_sub: {
+          w->emit_pop_reg_64("rax");
+          w->emit_mov_reg_reg("rbx", "rax");
+          w->emit_pop_reg_64("rax");
+          w->emit_sub_reg_reg("rax", "rbx");
+          w->emit_push_reg_64("rax");
           
           break;
         }
