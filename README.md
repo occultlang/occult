@@ -17,10 +17,10 @@ git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh &
 ### Roadmap for 2.0.0-alpha
 - - [x] Lexer
 - - [x] Parser
-- - [ ] Backend 
-  - - [ ] Stack-based IR (Not fully finished / In progress)
+- - [x] Backend (Not fully finished / In progress)
+  - - [x] Stack-based IR 
   - - [x] x86 JIT Runtime
-  - - [ ] IR Translation -> x86 JIT (Not fully finished / In progress)
+  - - [x] IR Translation -> x86 JIT 
 - - [ ] Linter
  
 ### Notes about the roadmap
