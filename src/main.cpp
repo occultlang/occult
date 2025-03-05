@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
   times.push_back(duration.count());
   
   if (showtime)
-    std::cout << "[occultc] \033[1;36mcompleted lexical analysis \033[0m" << duration.count() << "ms\n";
+    std::cout << "[occultc] \033[1;35mcompleted lexical analysis \033[0m" << duration.count() << "ms\n";
   
   if (debug && verbose) {
     lexer.visualize();
@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
   times.push_back(duration.count());
   
   if (showtime)
-    std::cout << "[occultc] \033[1;36mcompleted parsing \033[0m" << duration.count() << "ms\n";
+    std::cout << "[occultc] \033[1;35mcompleted parsing \033[0m" << duration.count() << "ms\n";
   
   if (debug && verbose) {
     root->visualize();
@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
   times.push_back(duration.count());
   
   if (showtime)
-    std::cout << "[occultc] \033[1;36mcompleted generating ir \033[0m" << duration.count() << "ms\n";
+    std::cout << "[occultc] \033[1;35mcompleted generating ir \033[0m" << duration.count() << "ms\n";
 
   if (debug && verbose) {
     for (auto& func : ir_funcs) {
@@ -153,7 +153,7 @@ int main(int argc, char* argv[]) {
   times.push_back(duration.count());
   
   if (showtime)
-    std::cout << "[occultc] \033[1;36mcompleted converting ir to machine code \033[0m" << duration.count() << "ms\n";
+    std::cout << "[occultc] \033[1;35mcompleted converting ir to machine code \033[0m" << duration.count() << "ms\n";
   
   if (debug) {
     for (const auto& pair : jit.function_map) {
@@ -172,20 +172,12 @@ int main(int argc, char* argv[]) {
     
     times.push_back(duration.count());
     
-    if (showtime)
-      std::cout << "[occultc] \033[1;36mcompleted execution \033[0m" << duration.count() << "ms\n";
+    if (showtime) 
     
     if (debug) {
       std::cout << "main return value: " << ret << std::endl;
     }
   }
-  
-  double ms_total = 0;
-  for (auto& d : times) {
-    ms_total += d;
-  }
-  
-  std::cout << "[occultc] \033[1;36mtotal time took \033[0m" << ms_total << "ms\n";
 /*#ifdef __linux
   occult::elf::generate_binary("a.out", writer.get_code());
   

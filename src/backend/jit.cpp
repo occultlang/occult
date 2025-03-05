@@ -115,9 +115,13 @@ namespace occult {
           if (!function_map.contains(func_name)) {
             throw std::runtime_error("undefined function: " + func_name);
           }
-
+          
           w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map[func_name]));
           w->emit_call_reg64("rax");
+          
+          if (func_name != "print") {
+            w->emit_push_reg_64("rax"); // push return value onto stack if not print
+          }
           
           break;
         }

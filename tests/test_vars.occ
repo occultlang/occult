@@ -1,10 +1,11 @@
 fn ret_int() int64 {
+  print("returning 100\n");
+  
   return 100;
 }
 
 fn main() int64 {
-  int64 x1 = ret_int();
-  int64 x2 = 10 - x1;
+  int64 x = ret_int() + 10;
   
-  return x2;
+  return x;
 }
