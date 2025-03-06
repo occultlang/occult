@@ -1,11 +1,19 @@
 fn ret_int() int64 {
-  print("returning 100\n");
-  
   return 100;
 }
 
 fn main() int64 {
   int64 x = ret_int() + 10;
+  
+  if x == 110 {
+    print("is 110\n");
+  }
+  /*elseif x == 100 {
+    print("is 100\n");
+  }
+  else {
+    print("is either 100 or 110\n");
+  }*/
   
   return x;
 }

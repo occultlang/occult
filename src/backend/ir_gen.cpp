@@ -968,7 +968,7 @@ namespace occult {
         }
         case ast_type::elsestmt: {
           generate_else(function, ast::cast_raw<ast_elsestmt>(c.get()));
-
+          
           break;
         }
         case ast_type::loopstmt: {
@@ -1001,7 +1001,35 @@ namespace occult {
     }
   }
   
-  std::vector<ir_function> ir_gen::generate() {
+  struct visitor {
+    void operator()(const float& v){ std::cout << v << "\n"; };
+    void operator()(const double& v){ std::cout << v << "\n"; };
+    void operator()(const std::int64_t& v){ std::cout << v << "\n"; };
+    void operator()(const std::uint64_t& v){ std::cout << v << "\n"; };
+    void operator()(const std::string& v){ std::cout << v << "\n"; };
+    void operator()(std::monostate){ std::cout << "\n"; };
+  };
+  
+  void ir_gen::visualize(std::vector<ir_function> funcs) {
+    for (auto& func : funcs) {
+      std::cout << "\n" << func.type << "\n";
+      std::cout << func.name << "\n";
+      
+      std::cout << "args:\n";
+      for (auto& arg : func.args) {
+        std::cout << "\t" << arg.type << "\n";
+        std::cout << "\t" << arg.name << "\n";
+      }
+      
+      std::cout << "code:\n";
+      for (auto& i : func.code) {
+        std::cout << occult::opcode_to_string(i.op) << " ";
+        std::visit(visitor(), i.operand);
+      }
+    }
+  }
+  
+  std::vector<ir_function> ir_gen::lower() {
     std::vector<ir_function> functions;
     
     for (const auto& c : root->get_children()) {

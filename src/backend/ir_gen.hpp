@@ -130,7 +130,7 @@ namespace occult {
     void generate_block(ir_function& function, ast_block* block_node);
   public:
     ir_gen(ast_root* root) : root(root), label_count(0) {}
-    
-    std::vector<ir_function> generate();
+    void visualize(std::vector<ir_function> funcs);
+    std::vector<ir_function> lower();
   };
 } // namespace occult

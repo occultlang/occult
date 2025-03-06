@@ -1,5 +1,5 @@
 fn main() int64 {
-  print("Hello, World!\n"); // length
+  print("Hello, World!\n"); 
   
   return 0;
 }

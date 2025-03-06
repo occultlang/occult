@@ -863,7 +863,7 @@ namespace occult {
       push_byte(0x58 + x64_register[reg]);
     }
     
-    void emit_short_jump(std::uint8_t opcode, std::int32_t target_address) {
+    void emit_short_jump(std::uint8_t opcode, std::uint8_t target_address) {
       std::uint8_t current_address = get_code().size();
       std::uint8_t rel8 = target_address - (current_address + 2);
       
@@ -871,67 +871,67 @@ namespace occult {
       push_byte(rel8);
     }
     
-    void emit_jo_short(std::int32_t target_address) {
+    void emit_jo_short(std::uint8_t target_address) {
       emit_short_jump(0x70, target_address);
     }
     
-    void emit_jno_short(std::int32_t target_address) {
+    void emit_jno_short(std::uint8_t target_address) {
       emit_short_jump(0x71, target_address);
     }
     
-    void emit_jb_short(std::int32_t target_address) {
+    void emit_jb_short(std::uint8_t target_address) {
       emit_short_jump(0x72, target_address);
     }
     
-    void emit_jnb_short(std::int32_t target_address) {
+    void emit_jnb_short(std::uint8_t target_address) {
       emit_short_jump(0x73, target_address);
     }
     
-    void emit_jz_short(std::int32_t target_address) {
+    void emit_jz_short(std::uint8_t target_address) {
       emit_short_jump(0x74, target_address);
     }
     
-    void emit_jnz_short(std::int32_t target_address) {
+    void emit_jnz_short(std::uint8_t target_address) {
       emit_short_jump(0x75, target_address);
     }
     
-    void emit_jbe_short(std::int32_t target_address) {
+    void emit_jbe_short(std::uint8_t target_address) {
       emit_short_jump(0x76, target_address);
     }
     
-    void emit_jnbe_short(std::int32_t target_address) {
+    void emit_jnbe_short(std::uint8_t target_address) {
       emit_short_jump(0x77, target_address);
     }
     
-    void emit_js_short(std::int32_t target_address) {
+    void emit_js_short(std::uint8_t target_address) {
       emit_short_jump(0x78, target_address);
     }
     
-    void emit_jns_short(std::int32_t target_address) {
+    void emit_jns_short(std::uint8_t target_address) {
       emit_short_jump(0x79, target_address);
     }
     
-    void emit_jp_short(std::int32_t target_address) {
+    void emit_jp_short(std::uint8_t target_address) {
       emit_short_jump(0x7A, target_address);
     }
     
-    void emit_jnp_short(std::int32_t target_address) {
+    void emit_jnp_short(std::uint8_t target_address) {
       emit_short_jump(0x7B, target_address);
     }
     
-    void emit_jl_short(std::int32_t target_address) {
+    void emit_jl_short(std::uint8_t target_address) {
       emit_short_jump(0x7C, target_address);
     }
     
-    void emit_jnl_short(std::int32_t target_address) {
+    void emit_jnl_short(std::uint8_t target_address) {
       emit_short_jump(0x7D, target_address);
     }
     
-    void emit_jle_short(std::int32_t target_address) {
+    void emit_jle_short(std::uint8_t target_address) {
       emit_short_jump(0x7E, target_address);
     }
     
-    void emit_jnle_short(std::int32_t target_address) {
+    void emit_jnle_short(std::uint8_t target_address) {
       emit_short_jump(0x7F, target_address);
     }
     

@@ -3,7 +3,7 @@
 #include "x64writer.hpp"
 
 namespace occult {  
-  class jit {
+  class jit_runtime {
     std::vector<ir_function> ir_funcs;
     std::vector<std::unique_ptr<x64writer>> writers;
     bool debug;
@@ -24,8 +24,9 @@ namespace occult {
       
       void generate_code(std::vector<ir_instr> ir_code, x64writer* w);
       void compile_function(const ir_function& func);
+      void backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x64writer* w);
   public:
-    jit(std::vector<ir_function> ir_funcs, bool debug) : ir_funcs(ir_funcs), debug(debug) {
+    jit_runtime(std::vector<ir_function> ir_funcs, bool debug = false) : ir_funcs(ir_funcs), debug(debug) {
       auto w1 = std::make_unique<x64writer>();
       w1->emit_function_prologue(0);
       w1->emit_mov_reg_mem("rdi", "rbp", 16); // first arg
@@ -72,13 +73,13 @@ namespace occult {
       writers.push_back(std::move(w)); 
     }
     
-    ~jit() {
+    ~jit_runtime() {
       function_map.clear();
       string_map.clear();
       writers.clear();
     }
     
     void convert_ir();
-    std::unordered_map<std::string, jit_function> function_map = {};
+    std::unordered_map<std::string, jit_function> function_map;
   };
 } // namespace occult
