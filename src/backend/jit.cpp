@@ -16,7 +16,7 @@ namespace occult {
     }
 
     auto w = std::make_unique<x64writer>();
-    w->emit_function_prologue(0); // future stack size
+    w->emit_function_prologue(0); 
 
     generate_code(func.code, w.get());
 
@@ -38,26 +38,19 @@ namespace occult {
     switch (op) {
       case ir_opcode::op_jnz: {
         w->get_code().at(location) = 0x75;
-        w->get_code().at(location + 1) = label_location;
+        w->get_code().at(location + 1) = label_location - (location + 2);
+        
+        break;
+      }
+      case ir_opcode::op_jz: {
+        w->get_code().at(location) = 0x74;
+        w->get_code().at(location + 1) = label_location - (location + 2);
         
         break;
       }
       case ir_opcode::op_jmp: {
-        w->push_bytes({0xE8, static_cast<std::uint8_t>(label_location)});
-        auto code_start = w->get_code().begin() + w->get_code().size() - 2;
-        std::vector<std::uint8_t> sub(code_start, w->get_code().end());
-        
-        if (debug) {
-          for (auto& c : sub) {
-            std::cout << std::setw(2) << std::setfill('0') << std::uppercase << std::hex << static_cast<int>(c) << " " << std::dec;
-          }
-          
-          std::cout << "\n";
-        }
-        
-        w->get_code().erase(code_start, w->get_code().end());
-        w->get_code().at(location) = sub.at(0);
-        w->get_code().at(location + 1) = sub.at(1);
+       w->get_code().at(location) = 0xEB;
+       w->get_code().at(location + 1) = label_location - (location + 2);
         
         break;
       }
@@ -158,9 +151,9 @@ namespace occult {
           jump_instr.operand = std::get<std::string>(instr.operand);
           
           w->push_bytes({0x90, 0x90});
-          
-          // Save the jump instruction for backpatching later
+
           jump_instructions.push_back({jump_instr, w->get_code().size() - 2});
+          
           break;
         }
         case ir_opcode::op_cmp: {

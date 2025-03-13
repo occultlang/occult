@@ -119,9 +119,8 @@ namespace occult {
     ir_function generate_function(ast_function* func_node);
     void generate_function_args(ir_function& function, ast_functionargs* func_args_node);
     template<typename IntType>
-    void generate_arg(ir_function&, ast_functionarg* arg_node);
-    template<typename IntType>
-    void generate_int(ir_function& function, ast_assignment* assignment_node);
+    void generate_common(ir_function& function, ast* assignment_node);
+    void handle_push_types(ir_function& function, ast* c, std::string type = "");
     void generate_return(ir_function& function, ast_returnstmt* return_node, std::string type);
     void generate_if(ir_function& function, ast_ifstmt* if_node);
     void generate_elseif(ir_function& function, ast_elseifstmt* elseif_node);

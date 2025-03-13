@@ -126,7 +126,5 @@ int main(int argc, char* argv[]) {
     std::cerr << "main function not found!" << std::endl;
   }
   
-  
-  
   return 0;
 }

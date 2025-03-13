@@ -13,17 +13,7 @@ namespace occult {
     
     for (const auto& c : func_node->get_children()) {
       switch(c->get_type()) {
-        case ast_type::int8_datatype: 
-        case ast_type::int16_datatype:
-        case ast_type::int32_datatype:
-        case ast_type::int64_datatype:
-        case ast_type::uint8_datatype:
-        case ast_type::uint16_datatype:
-        case ast_type::uint32_datatype:
-        case ast_type::uint64_datatype:
-        case ast_type::float32_datatype:
-        case ast_type::float64_datatype:
-        case ast_type::string_datatype: {
+        case ast_type::int8_datatype...ast_type::string_datatype: {
           function.type = c->to_string().substr(4, c->to_string().size());
 
           break;
@@ -61,8 +51,8 @@ namespace occult {
   }
   
   template<typename IntType>
-  void ir_gen::generate_arg(ir_function& function, ast_functionarg* arg_node) {
-    for (const auto& c : arg_node->get_children()) {
+  void ir_gen::generate_common(ir_function& function, ast* node) {
+    for (const auto& c : node->get_children()) {
       switch(c->get_type()) {
         case ast_type::number_literal: {
           function.code.emplace_back(op_push, from_numerical_string<IntType>(c->content));
@@ -113,122 +103,7 @@ namespace occult {
           while (node->get_children().at(arg_location).get()->content != "end_call") {
             auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
             
-            generate_arg<IntType>(function, arg_node);
-            
-            arg_location++;
-          }
-          
-          function.code.emplace_back(op_call, identifier->content);
-          
-          break;
-        }
-        case ast_type::bitwise_and: {
-          break;
-        }
-        case ast_type::bitwise_or: {
-          break;
-        }
-        case ast_type::xor_operator: {
-          break;
-        }
-        case ast_type::bitwise_lshift: {
-          break;
-        }
-        case ast_type::bitwise_rshift: {
-          break;
-        }
-        case ast_type::unary_plus_operator: {
-          break;
-        }
-        case ast_type::unary_minus_operator: {
-          break;
-        }
-        case ast_type::unary_bitwise_not: {
-          break;
-        }
-        case ast_type::unary_not_operator: {
-          break;
-        }
-        case ast_type::or_operator: {
-          break;
-        }
-        case ast_type::and_operator: {
-          break;
-        }
-        case ast_type::equals_operator: {
-          break;
-        }
-        case ast_type::not_equals_operator: {
-          break;
-        }
-        case ast_type::greater_than_operator: {
-          break;
-        }
-        case ast_type::less_than_operator: {
-          break;
-        }
-        case ast_type::greater_than_or_equal_operator: {
-          break;
-        }
-        case ast_type::less_than_or_equal_operator: {
-          break;
-        }
-        default: {
-          break;
-        }
-      }
-    }
-  } 
-  
-  template<typename IntType>
-  void ir_gen::generate_int(ir_function& function, ast_assignment* assignment_node) {
-    for (const auto& c : assignment_node->get_children()) {
-      switch(c->get_type()) {
-        case ast_type::number_literal: {
-          function.code.emplace_back(op_push, from_numerical_string<IntType>(c->content));
-          
-          break;
-        }
-        case ast_type::add_operator: {
-          function.code.emplace_back(op_add);
-          
-          break;
-        }
-        case ast_type::subtract_operator: {
-          function.code.emplace_back(op_sub);
-          
-          break;
-        }
-        case ast_type::multiply_operator: {
-          function.code.emplace_back(op_mul);
-          
-          break;
-        }
-        case ast_type::division_operator: {
-          function.code.emplace_back(op_div);
-          
-          break;
-        }
-        case ast_type::modulo_operator: {
-          function.code.emplace_back(op_mod);
-          
-          break;
-        }
-        case ast_type::identifier: {
-          function.code.emplace_back(op_load, c->content);
-          
-          break;
-        }
-        case ast_type::functioncall: {
-          auto node = ast::cast_raw<ast_functioncall>(c.get());
-          
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
-          
-          auto arg_location = 1;
-          while (node->get_children().at(arg_location).get()->content != "end_call") {
-            auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
-            
-            generate_arg<IntType>(function, arg_node);
+            generate_common<IntType>(function, arg_node);
             
             arg_location++;
           }
@@ -295,36 +170,44 @@ namespace occult {
     }
   }
   
+  void ir_gen::handle_push_types(ir_function& function, ast* c, std::string type) {
+    if (type.empty()) {
+      type = function.type;  
+    }
+    
+    auto it = ir_typemap.find(type);
+    
+    if (it != ir_typemap.end()) {
+      switch (it->second) {
+        case signed_int:{
+          function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(c->content));
+          
+          break;
+        }
+        case unsigned_int:{
+          function.code.emplace_back(op_push, from_numerical_string<std::uint64_t>(c->content));
+          
+          break;
+        }
+        case floating_point: {
+          function.code.emplace_back(op_push, from_numerical_string<double>(c->content));
+          
+          break;
+        }
+        case string: {
+          function.code.emplace_back(op_push, from_numerical_string<std::string>(c->content));
+          
+          break;
+        }
+      }
+    }
+  }
+  
   void ir_gen::generate_return(ir_function& function, ast_returnstmt* return_node, std::string type) {
     for (const auto& c : return_node->get_children()) {
       switch(c->get_type()) {
         case ast_type::number_literal: {
-          auto it = ir_typemap.find(type);
-          
-          if (it != ir_typemap.end()) {
-            switch (it->second) {
-              case signed_int:{
-                function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(c->content));
-                
-                break;
-              }
-              case unsigned_int:{
-                function.code.emplace_back(op_push, from_numerical_string<std::uint64_t>(c->content));
-                
-                break;
-              }
-              case floating_point: {
-                function.code.emplace_back(op_push, from_numerical_string<double>(c->content));
-                
-                break;
-              }
-              case string: {
-                function.code.emplace_back(op_push, from_numerical_string<std::string>(c->content));
-                
-                break;
-              }
-            }
-          }
+          handle_push_types(function, c.get(), type);
           
           break;
         }
@@ -367,32 +250,7 @@ namespace occult {
           while (node->get_children().at(arg_location).get()->content != "end_call") {
             auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
             
-            auto it = ir_typemap.find(type);
-            
-            if (it != ir_typemap.end()) {
-              switch (it->second) {
-                case signed_int:{
-                  generate_arg<std::int64_t>(function, arg_node);
-                  
-                  break;
-                }
-                case unsigned_int:{
-                  generate_arg<std::uint64_t>(function, arg_node);
-                  
-                  break;
-                }
-                case floating_point: {
-                  generate_arg<double>(function, arg_node);
-                  
-                  break;
-                }
-                case string: {
-                  generate_arg<std::string>(function, arg_node);
-                  
-                  break;
-                }
-              }
-            }
+            handle_push_types(function, arg_node, type);
             
             arg_location++;
           }
@@ -468,32 +326,7 @@ namespace occult {
           break;
         }
         case ast_type::number_literal: {
-          auto it = ir_typemap.find(function.type);
-          
-          if (it != ir_typemap.end()) {
-            switch (it->second) {
-              case signed_int:{
-                function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(c->content));
-                
-                break;
-              }
-              case unsigned_int:{
-                function.code.emplace_back(op_push, from_numerical_string<std::uint64_t>(c->content));
-                
-                break;
-              }
-              case floating_point: {
-                function.code.emplace_back(op_push, from_numerical_string<double>(c->content));
-                
-                break;
-              }
-              case string: {
-                function.code.emplace_back(op_push, from_numerical_string<std::string>(c->content));
-                
-                break;
-              }
-            }
-          }
+          handle_push_types(function, c.get());
           
           break;
         }
@@ -536,32 +369,7 @@ namespace occult {
           while (node->get_children().at(arg_location).get()->content != "end_call") {
             auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
             
-            auto it = ir_typemap.find(function.type);
-            
-            if (it != ir_typemap.end()) {
-              switch (it->second) {
-                case signed_int:{
-                  generate_arg<std::int64_t>(function, arg_node);
-                  
-                  break;
-                }
-                case unsigned_int:{
-                  generate_arg<std::uint64_t>(function, arg_node);
-                  
-                  break;
-                }
-                case floating_point: {
-                  generate_arg<double>(function, arg_node);
-                  
-                  break;
-                }
-                case string: {
-                  generate_arg<std::string>(function, arg_node);
-                  
-                  break;
-                }
-              }
-            }
+            handle_push_types(function, arg_node);
             
             arg_location++;
           }
@@ -655,32 +463,7 @@ namespace occult {
           break;
         }
         case ast_type::number_literal: {
-          auto it = ir_typemap.find(function.type);
-          
-          if (it != ir_typemap.end()) {
-            switch (it->second) {
-              case signed_int:{
-                function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(c->content));
-                
-                break;
-              }
-              case unsigned_int:{
-                function.code.emplace_back(op_push, from_numerical_string<std::uint64_t>(c->content));
-                
-                break;
-              }
-              case floating_point: {
-                function.code.emplace_back(op_push, from_numerical_string<double>(c->content));
-                
-                break;
-              }
-              case string: {
-                function.code.emplace_back(op_push, from_numerical_string<std::string>(c->content));
-                
-                break;
-              }
-            }
-          }
+          handle_push_types(function, c.get());
           
           break;
         }
@@ -723,32 +506,7 @@ namespace occult {
           while (node->get_children().at(arg_location).get()->content != "end_call") {
             auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
             
-            auto it = ir_typemap.find(function.type);
-            
-            if (it != ir_typemap.end()) {
-              switch (it->second) {
-                case signed_int:{
-                  generate_arg<std::int64_t>(function, arg_node);
-                  
-                  break;
-                }
-                case unsigned_int:{
-                  generate_arg<std::uint64_t>(function, arg_node);
-                  
-                  break;
-                }
-                case floating_point: {
-                  generate_arg<double>(function, arg_node);
-                  
-                  break;
-                }
-                case string: {
-                  generate_arg<std::string>(function, arg_node);
-                  
-                  break;
-                }
-              }
-            }
+            handle_push_types(function, arg_node);
             
             arg_location++;
           }
@@ -867,31 +625,25 @@ namespace occult {
   void ir_gen::generate_block(ir_function& function, ast_block* block_node) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
-        case ast_type::int8_datatype:
-        case ast_type::int16_datatype:
-        case ast_type::int32_datatype: 
-        case ast_type::int64_datatype: {
+        case ast_type::int8_datatype...ast_type::int64_datatype: {
           auto node = c.get();
           
           auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name
           auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get()); // expression stuff
           
-          generate_int<std::int64_t>(function, assignment);
+          generate_common<std::int64_t>(function, assignment);
           
           function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
           
           break;
         }
-        case ast_type::uint8_datatype:
-        case ast_type::uint16_datatype:
-        case ast_type::uint32_datatype: 
-        case ast_type::uint64_datatype: {
+        case ast_type::uint8_datatype...ast_type::uint64_datatype: {
           auto node = c.get();
           
           auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); 
           auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get()); 
           
-          generate_int<std::uint64_t>(function, assignment);
+          generate_common<std::uint64_t>(function, assignment);
           
           function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
           
@@ -916,32 +668,7 @@ namespace occult {
           while (node->get_children().at(arg_location).get()->content != "end_call") {
             auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
             
-            auto it = ir_typemap.find(function.type);
-            
-            if (it != ir_typemap.end()) {
-              switch (it->second) {
-                case signed_int:{
-                  generate_arg<std::int64_t>(function, arg_node);
-                  
-                  break;
-                }
-                case unsigned_int:{
-                  generate_arg<std::uint64_t>(function, arg_node);
-                  
-                  break;
-                }
-                case floating_point: {
-                  generate_arg<double>(function, arg_node);
-                  
-                  break;
-                }
-                case string: {
-                  generate_arg<std::string>(function, arg_node);
-                  
-                  break;
-                }
-              }
-            }
+            handle_push_types(function, arg_node);
             
             arg_location++;
           }
