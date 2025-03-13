@@ -170,12 +170,8 @@ namespace occult {
     }
   }
   
-  void ir_gen::handle_push_types(ir_function& function, ast* c, std::string type) {
-    if (type.empty()) {
-      type = function.type;  
-    }
-    
-    auto it = ir_typemap.find(type);
+  void ir_gen::handle_push_types(ir_function& function, ast* c) {    
+    auto it = ir_typemap.find(function.type);
     
     if (it != ir_typemap.end()) {
       switch (it->second) {
@@ -184,7 +180,7 @@ namespace occult {
           
           break;
         }
-        case unsigned_int:{
+        case unsigned_int: {
           function.code.emplace_back(op_push, from_numerical_string<std::uint64_t>(c->content));
           
           break;
@@ -203,11 +199,57 @@ namespace occult {
     }
   }
   
-  void ir_gen::generate_return(ir_function& function, ast_returnstmt* return_node, std::string type) {
+  void ir_gen::handle_push_types_common(ir_function& function, ast* c) {    
+    auto it = ir_typemap.find(function.type);
+    
+    if (it != ir_typemap.end()) {
+      switch (it->second) {
+        case signed_int: {
+          generate_common<std::int64_t>(function, c);
+          
+          break;
+        }
+        case unsigned_int: {
+          generate_common<std::uint64_t>(function, c);
+          
+          break;
+        }
+        case floating_point: {
+          generate_common<double>(function, c);
+          
+          break;
+        }
+        case string: {
+          generate_common<std::string>(function, c);
+          
+          break;
+        }
+      }
+    }
+  }
+  
+  void ir_gen::generate_function_call(ir_function& function, ast* c) {
+    auto node = ast::cast_raw<ast_functioncall>(c);
+    
+    auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
+    
+    auto arg_location = 1;
+    while (node->get_children().at(arg_location).get()->content != "end_call") {
+      auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
+      
+      handle_push_types_common(function, arg_node);
+      
+      arg_location++;
+    }
+    
+    function.code.emplace_back(op_call, identifier->content);
+  }
+  
+  void ir_gen::generate_return(ir_function& function, ast_returnstmt* return_node) {
     for (const auto& c : return_node->get_children()) {
       switch(c->get_type()) {
         case ast_type::number_literal: {
-          handle_push_types(function, c.get(), type);
+          handle_push_types(function, c.get());
           
           break;
         }
@@ -242,20 +284,7 @@ namespace occult {
           break;
         }
         case ast_type::functioncall: {
-          auto node = ast::cast_raw<ast_functioncall>(c.get());
-          
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
-          
-          auto arg_location = 1;
-          while (node->get_children().at(arg_location).get()->content != "end_call") {
-            auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
-            
-            handle_push_types(function, arg_node, type);
-            
-            arg_location++;
-          }
-          
-          function.code.emplace_back(op_call, identifier->content);
+          generate_function_call(function, c.get());
           
           break;
         }
@@ -361,20 +390,7 @@ namespace occult {
           break;
         }
         case ast_type::functioncall: {
-          auto node = ast::cast_raw<ast_functioncall>(c.get());
-          
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
-          
-          auto arg_location = 1;
-          while (node->get_children().at(arg_location).get()->content != "end_call") {
-            auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
-            
-            handle_push_types(function, arg_node);
-            
-            arg_location++;
-          }
-          
-          function.code.emplace_back(op_call, identifier->content);
+          generate_function_call(function, c.get());
           
           break;
         }
@@ -498,20 +514,7 @@ namespace occult {
           break;
         }
         case ast_type::functioncall: {
-          auto node = ast::cast_raw<ast_functioncall>(c.get());
-          
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
-          
-          auto arg_location = 1;
-          while (node->get_children().at(arg_location).get()->content != "end_call") {
-            auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
-            
-            handle_push_types(function, arg_node);
-            
-            arg_location++;
-          }
-          
-          function.code.emplace_back(op_call, identifier->content);
+          generate_function_call(function, c.get());
           function.code.emplace_back(op_cmp);
           
           break;
@@ -660,20 +663,7 @@ namespace occult {
           break;
         }
         case ast_type::functioncall: {
-          auto node = ast::cast_raw<ast_functioncall>(c.get());
-          
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
-          
-          auto arg_location = 1;
-          while (node->get_children().at(arg_location).get()->content != "end_call") {
-            auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
-            
-            handle_push_types(function, arg_node);
-            
-            arg_location++;
-          }
-          
-          function.code.emplace_back(op_call, identifier->content);
+          generate_function_call(function, c.get());
           
           break;
         }
@@ -715,7 +705,7 @@ namespace occult {
           break;
         }
         case ast_type::returnstmt: {
-          generate_return(function, ast::cast_raw<ast_returnstmt>(c.get()), function.type);
+          generate_return(function, ast::cast_raw<ast_returnstmt>(c.get()));
           
           function.code.emplace_back(op_ret);
           

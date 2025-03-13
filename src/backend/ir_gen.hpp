@@ -28,7 +28,8 @@ namespace occult {
     op_fsub,
     op_fmul,
     op_fmod,
-    label
+    label,
+    end_branch
   };
   
   constexpr std::string opcode_to_string(ir_opcode op) {
@@ -120,8 +121,10 @@ namespace occult {
     void generate_function_args(ir_function& function, ast_functionargs* func_args_node);
     template<typename IntType>
     void generate_common(ir_function& function, ast* assignment_node);
-    void handle_push_types(ir_function& function, ast* c, std::string type = "");
-    void generate_return(ir_function& function, ast_returnstmt* return_node, std::string type);
+    void handle_push_types(ir_function& function, ast* c);
+    void handle_push_types_common(ir_function& function, ast* c);
+    void generate_function_call(ir_function& function, ast* c);
+    void generate_return(ir_function& function, ast_returnstmt* return_node);
     void generate_if(ir_function& function, ast_ifstmt* if_node);
     void generate_elseif(ir_function& function, ast_elseifstmt* elseif_node);
     void generate_else(ir_function& function, ast_elsestmt* else_node);
