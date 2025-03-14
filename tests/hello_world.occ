@@ -1,5 +1,12 @@
 fn main() int64 {
-  print("Hello, World!\n"); 
+  print("a"); print("b"); print("c"); print("d"); print("e"); // corrupted
+  
+  print("f"); print("g"); print("h"); print("i"); print("j"); // fine
+  print("k"); print("l"); print("m"); print("n"); print("o");
+  print("p"); print("q"); print("r"); print("s"); print("t");
+  print("u"); print("v"); print("w"); print("x"); print("y");
+  print("z"); print("\n");
+  
   
   return 0;
 }

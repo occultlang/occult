@@ -50,37 +50,74 @@ namespace occult {
     }
   }
   
+  void ir_gen::generate_arith_and_bitwise_operators(ir_function& function, ast* c) {
+    switch (c->get_type()) {
+      case ast_type::add_operator: {
+        function.code.emplace_back(op_add);
+        
+        break;
+      }
+      case ast_type::subtract_operator: {
+        function.code.emplace_back(op_sub);
+        
+        break;
+      }
+      case ast_type::multiply_operator: {
+        function.code.emplace_back(op_mul);
+        
+        break;
+      }
+      case ast_type::division_operator: {
+        function.code.emplace_back(op_div);
+        
+        break;
+      }
+      case ast_type::modulo_operator: {
+        function.code.emplace_back(op_mod);
+        
+        break;
+      }
+      case ast_type::bitwise_and: {
+        break;
+      }
+      case ast_type::bitwise_or: {
+        break;
+      }
+      case ast_type::xor_operator: {
+        break;
+      }
+      case ast_type::bitwise_lshift: {
+        break;
+      }
+      case ast_type::bitwise_rshift: {
+        break;
+      }
+      case ast_type::unary_plus_operator: {
+        break;
+      }
+      case ast_type::unary_minus_operator: {
+        break;
+      }
+      case ast_type::unary_bitwise_not: {
+        break;
+      }
+      case ast_type::unary_not_operator: {
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+  }
+  
   template<typename IntType>
   void ir_gen::generate_common(ir_function& function, ast* node) {
     for (const auto& c : node->get_children()) {
+      generate_arith_and_bitwise_operators(function, c.get());
+      
       switch(c->get_type()) {
         case ast_type::number_literal: {
           function.code.emplace_back(op_push, from_numerical_string<IntType>(c->content));
-          
-          break;
-        }
-        case ast_type::add_operator: {
-          function.code.emplace_back(op_add);
-          
-          break;
-        }
-        case ast_type::subtract_operator: {
-          function.code.emplace_back(op_sub);
-          
-          break;
-        }
-        case ast_type::multiply_operator: {
-          function.code.emplace_back(op_mul);
-          
-          break;
-        }
-        case ast_type::division_operator: {
-          function.code.emplace_back(op_div);
-          
-          break;
-        }
-        case ast_type::modulo_operator: {
-          function.code.emplace_back(op_mod);
           
           break;
         }
@@ -95,48 +132,8 @@ namespace occult {
           break;
         }
         case ast_type::functioncall: {
-          auto node = ast::cast_raw<ast_functioncall>(c.get());
+         generate_function_call(function, c.get());
           
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
-          
-          auto arg_location = 1;
-          while (node->get_children().at(arg_location).get()->content != "end_call") {
-            auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
-            
-            generate_common<IntType>(function, arg_node);
-            
-            arg_location++;
-          }
-          
-          function.code.emplace_back(op_call, identifier->content);
-          
-          break;
-        }
-        case ast_type::bitwise_and: {
-          break;
-        }
-        case ast_type::bitwise_or: {
-          break;
-        }
-        case ast_type::xor_operator: {
-          break;
-        }
-        case ast_type::bitwise_lshift: {
-          break;
-        }
-        case ast_type::bitwise_rshift: {
-          break;
-        }
-        case ast_type::unary_plus_operator: {
-          break;
-        }
-        case ast_type::unary_minus_operator: {
-          break;
-        }
-        case ast_type::unary_bitwise_not: {
-          break;
-        }
-        case ast_type::unary_not_operator: {
           break;
         }
         case ast_type::or_operator: {
@@ -247,34 +244,11 @@ namespace occult {
   
   void ir_gen::generate_return(ir_function& function, ast_returnstmt* return_node) {
     for (const auto& c : return_node->get_children()) {
+      generate_arith_and_bitwise_operators(function, c.get());
+      
       switch(c->get_type()) {
         case ast_type::number_literal: {
           handle_push_types(function, c.get());
-          
-          break;
-        }
-        case ast_type::add_operator: {
-          function.code.emplace_back(op_add);
-          
-          break;
-        }
-        case ast_type::subtract_operator: {
-          function.code.emplace_back(op_sub);
-          
-          break;
-        }
-        case ast_type::multiply_operator: {
-          function.code.emplace_back(op_mul);
-          
-          break;
-        }
-        case ast_type::division_operator: {
-          function.code.emplace_back(op_div);
-          
-          break;
-        }
-        case ast_type::modulo_operator: {
-          function.code.emplace_back(op_mod);
           
           break;
         }
@@ -286,33 +260,6 @@ namespace occult {
         case ast_type::functioncall: {
           generate_function_call(function, c.get());
           
-          break;
-        }
-        case ast_type::bitwise_and: {
-          break;
-        }
-        case ast_type::bitwise_or: {
-          break;
-        }
-        case ast_type::xor_operator: {
-          break;
-        }
-        case ast_type::bitwise_lshift: {
-          break;
-        }
-        case ast_type::bitwise_rshift: {
-          break;
-        }
-        case ast_type::unary_plus_operator: {
-          break;
-        }
-        case ast_type::unary_minus_operator: {
-          break;
-        }
-        case ast_type::unary_bitwise_not: {
-          break;
-        }
-        case ast_type::unary_not_operator: {
           break;
         }
         case ast_type::or_operator: {
@@ -348,6 +295,8 @@ namespace occult {
   
   void ir_gen::generate_if(ir_function& function, ast_ifstmt* if_node) {
     for (const auto& c : if_node->get_children()) {
+      generate_arith_and_bitwise_operators(function, c.get());
+      
       switch(c->get_type()) {
         case ast_type::block: {
           generate_block(function, ast::cast_raw<ast_block>(c.get()));
@@ -359,31 +308,6 @@ namespace occult {
           
           break;
         }
-        case ast_type::add_operator: {
-          function.code.emplace_back(op_add);
-          
-          break;
-        }
-        case ast_type::subtract_operator: {
-          function.code.emplace_back(op_sub);
-          
-          break;
-        }
-        case ast_type::multiply_operator: {
-          function.code.emplace_back(op_mul);
-          
-          break;
-        }
-        case ast_type::division_operator: {
-          function.code.emplace_back(op_div);
-          
-          break;
-        }
-        case ast_type::modulo_operator: {
-          function.code.emplace_back(op_mod);
-          
-          break;
-        }
         case ast_type::identifier: {
           function.code.emplace_back(op_load, c->content);
           
@@ -392,33 +316,6 @@ namespace occult {
         case ast_type::functioncall: {
           generate_function_call(function, c.get());
           
-          break;
-        }
-        case ast_type::bitwise_and: {
-          break;
-        }
-        case ast_type::bitwise_or: {
-          break;
-        }
-        case ast_type::xor_operator: {
-          break;
-        }
-        case ast_type::bitwise_lshift: {
-          break;
-        }
-        case ast_type::bitwise_rshift: {
-          break;
-        }
-        case ast_type::unary_plus_operator: {
-          break;
-        }
-        case ast_type::unary_minus_operator: {
-          break;
-        }
-        case ast_type::unary_bitwise_not: {
-          break;
-        }
-        case ast_type::unary_not_operator: {
           break;
         }
         case ast_type::or_operator: {
@@ -472,6 +369,8 @@ namespace occult {
   
   void ir_gen::generate_elseif(ir_function& function, ast_elseifstmt* elseif_node) {
     for (const auto& c : elseif_node->get_children()) {
+      generate_arith_and_bitwise_operators(function, c.get());
+      
       switch(c->get_type()) {
         case ast_type::block: {
           generate_block(function, ast::cast_raw<ast_block>(c.get()));
@@ -480,31 +379,6 @@ namespace occult {
         }
         case ast_type::number_literal: {
           handle_push_types(function, c.get());
-          
-          break;
-        }
-        case ast_type::add_operator: {
-          function.code.emplace_back(op_add);
-          
-          break;
-        }
-        case ast_type::subtract_operator: {
-          function.code.emplace_back(op_sub);
-          
-          break;
-        }
-        case ast_type::multiply_operator: {
-          function.code.emplace_back(op_mul);
-          
-          break;
-        }
-        case ast_type::division_operator: {
-          function.code.emplace_back(op_div);
-          
-          break;
-        }
-        case ast_type::modulo_operator: {
-          function.code.emplace_back(op_mod);
           
           break;
         }
@@ -517,33 +391,6 @@ namespace occult {
           generate_function_call(function, c.get());
           function.code.emplace_back(op_cmp);
           
-          break;
-        }
-        case ast_type::bitwise_and: {
-          break;
-        }
-        case ast_type::bitwise_or: {
-          break;
-        }
-        case ast_type::xor_operator: {
-          break;
-        }
-        case ast_type::bitwise_lshift: {
-          break;
-        }
-        case ast_type::bitwise_rshift: {
-          break;
-        }
-        case ast_type::unary_plus_operator: {
-          break;
-        }
-        case ast_type::unary_minus_operator: {
-          break;
-        }
-        case ast_type::unary_bitwise_not: {
-          break;
-        }
-        case ast_type::unary_not_operator: {
           break;
         }
         case ast_type::or_operator: {

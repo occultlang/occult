@@ -16,9 +16,17 @@ namespace occult {
     }
 
     auto w = std::make_unique<x64writer>();
-    w->emit_function_prologue(0); 
-
+    w->emit_function_prologue(0);
     generate_code(func.code, w.get());
+
+    for (auto& [key, pair] : this->string_map) {
+      if (key == "\n") {
+        std::cout << "Key: " << "newline" << "\n" << "Pair: " << "0x" << std::hex << reinterpret_cast<std::int64_t>(pair) << "\n";
+      }
+      else {
+        std::cout << "Key: " << key << "\n" << "Pair: " << "0x" << std::hex << reinterpret_cast<std::int64_t>(pair) << "\n";
+      }
+    }
 
     if (debug) {
       w->print_bytes();
@@ -73,6 +81,7 @@ namespace occult {
             if (!string_map.contains(std::get<std::string>(instr.operand))) {
               string_map.insert({std::get<std::string>(instr.operand), reinterpret_cast<std::int64_t>(std::get<std::string>(instr.operand).c_str())});
             }
+            
             w->emit_mov_reg_imm("rax", string_map[std::get<std::string>(instr.operand)]);
             w->emit_push_reg_64("rax");
           }
@@ -186,6 +195,7 @@ namespace occult {
           
           w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map[func_name]));
           w->emit_call_reg64("rax");
+          w->emit_add_reg8_64_imm8_32("rsp", 8);
           
           if (func_name != "print") {
             w->emit_push_reg_64("rax"); // push return value onto stack if not print

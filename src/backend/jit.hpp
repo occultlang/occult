@@ -52,11 +52,11 @@ namespace occult {
       auto w = std::make_unique<x64writer>(); 
       w->emit_function_prologue(0);
       w->emit_mov_reg_mem("rsi", "rbp", 16);
-      w->emit_mov_reg_reg("rdx", "rsi");
-      w->emit_push_reg_64("rdx");
-      w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map["strlen"]));
-      w->emit_call_reg64("rax");
-      w->emit_mov_reg_reg("rdx", "rax");
+      //w->emit_push_reg_64("rsi");
+      //w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map["strlen"]));
+      //w->emit_call_reg64("rax");
+      //w->emit_mov_reg_reg("rdx", "rax");
+      w->emit_mov_reg_imm("rdx", 1);
       w->emit_mov_reg_imm("rax", 1);
       w->emit_mov_reg_imm("rdi", 1);
       w->emit_syscall();
