@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
   if (debug && verbose) {
     ast->visualize();
   }
-  
+
   start = std::chrono::high_resolution_clock::now();
   occult::ir_gen ir_gen(ast.get());
   auto ir = ir_gen.lower();
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
   if (debug) {
     ir_gen.visualize(ir);
   }
-  
+
   start = std::chrono::high_resolution_clock::now();
   occult::jit_runtime jit_runtime(ir, debug);
   jit_runtime.convert_ir();
@@ -116,10 +116,19 @@ int main(int argc, char* argv[]) {
   
   auto it = jit_runtime.function_map.find("main");
   if (it != jit_runtime.function_map.end()) {
+    start = std::chrono::high_resolution_clock::now();
+    
     auto res = it->second();
+    
+    end = std::chrono::high_resolution_clock::now();
+    duration = end - start;
     
     if (debug) {
       std::cout << "JIT main returned: " << res << std::endl;
+    }
+    
+    if (showtime) {
+      std::cout << "[occultc] \033[1;35mcompleted executing jit code \033[0m" << duration.count() << "ms\n";
     }
   }
   else {

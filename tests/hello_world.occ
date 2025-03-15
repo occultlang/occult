@@ -1,5 +1,11 @@
 fn main() int64 {
-  print("Hello, World!\n"); 
+  print("abcdefghijklmnopqrstuvwxyz\n");
+  print("abcdefghijklmnopqrstuvwxyz\n");
+  print("abcdefghijklmnopqrstuvwxyz\n");
+  print("abcdefghijklmnopqrstuvwxyz\n");
+  print("abcdefghijklmnopqrstuvwxyz\n");
   
+  print("Hello, World\n");
+
   return 0;
 }

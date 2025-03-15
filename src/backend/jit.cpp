@@ -16,9 +16,19 @@ namespace occult {
     }
 
     auto w = std::make_unique<x64writer>();
-    w->emit_function_prologue(0); 
-
+    w->emit_function_prologue(0);
     generate_code(func.code, w.get());
+
+    if (debug) {
+       for (auto& [key, pair] : this->string_map) {
+        if (key == "\n") {
+          std::cout << "Key: " << "newline" << "\n" << "Pair: " << "0x" << std::hex << reinterpret_cast<std::int64_t>(pair) << "\n";
+        }
+        else {
+          std::cout << "Key: " << key << "\n" << "Pair: " << "0x" << std::hex << reinterpret_cast<std::int64_t>(pair) << "\n";
+        }
+      }
+    }
 
     if (debug) {
       w->print_bytes();
@@ -66,14 +76,25 @@ namespace occult {
     std::unordered_map<std::string, std::size_t> local_variable_map;
     std::size_t totalsizes = 0;
     
-    for (auto& instr : ir_code) {
+    for (const auto& instr : ir_code) {
       switch (instr.op) {
         case ir_opcode::op_push: {
-          if (std::holds_alternative<std::string>(instr.operand)) {
-            if (!string_map.contains(std::get<std::string>(instr.operand))) {
-              string_map.insert({std::get<std::string>(instr.operand), reinterpret_cast<std::int64_t>(std::get<std::string>(instr.operand).c_str())});
+          if (std::holds_alternative<std::string>(instr.operand)) { // generate strings dynamically BUT we need to fix the efficiency of this, and especially the size LOL but thats a later issue
+            const auto& str = std::get<std::string>(instr.operand);
+            
+            w->emit_mov_reg_imm("rdi", str.length());
+            w->emit_mov_reg_imm("rbx", reinterpret_cast<std::int64_t>(&function_map["__stralloc"]));
+            w->emit_call_reg64("rbx");
+            
+            for (const auto& b : str) {
+              w->emit_mov_mem_imm("rax", 0, b, k8bit);
+              w->emit_inc_reg("rax");
             }
-            w->emit_mov_reg_imm("rax", string_map[std::get<std::string>(instr.operand)]);
+            
+            w->emit_mov_mem_imm("rax", 0, '\0', k8bit);
+            
+            w->emit_sub_reg8_64_imm8_32("rax", str.length());
+            
             w->emit_push_reg_64("rax");
           }
           else if (std::holds_alternative<std::int64_t>(instr.operand)) {
@@ -167,6 +188,10 @@ namespace occult {
         case ir_opcode::op_call: { // recursion is iffy, TODO: find a way around lazy function compilation to handle recursion well
           std::string func_name = std::get<std::string>(instr.operand);
           
+          if (func_name == "__stralloc") {
+            throw std::runtime_error("cannot call internal function: " + func_name);
+          }
+          
           if (debug) {
             std::cout << "calling: " << func_name << "\n";
           }
@@ -186,6 +211,7 @@ namespace occult {
           
           w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map[func_name]));
           w->emit_call_reg64("rax");
+          w->emit_add_reg8_64_imm8_32("rsp", 8);
           
           if (func_name != "print") {
             w->emit_push_reg_64("rax"); // push return value onto stack if not print

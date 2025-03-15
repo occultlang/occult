@@ -126,7 +126,7 @@ namespace occult {
   // add extended registers later on
   
   struct x64writer : writer {
-    x64writer(const std::size_t& size = 1024) : writer(size) {}
+    x64writer() : writer() {}
     
     void emit_ret() {
       push_byte(0xC3);
@@ -1124,7 +1124,53 @@ namespace occult {
     void emit_call_reg64(const std::string& dest) {
       push_byte(0xFF);
       
-      push_byte(modrm_byte(addressing_modes::direct, 0b010, x64_register[dest]));
+      push_byte(modrm_byte(addressing_modes::direct, mem_disp32, x64_register[dest]));
+    }
+    
+    void emit_inc_reg(const std::string& dest, const std::size_t& size = k64bit) {
+      std::uint8_t inc_8bit = 0xFE;
+      std::uint8_t inc = 0xFF;
+      
+      std::uint8_t modrm = modrm_byte(reg_to_reg, reg, x64_register[dest]); // 00 is for inc
+
+      if (size == k64bit) {
+        push_byte(prefix64[k64bit]);
+      }
+      else if (size == k16bit) {
+        push_byte(prefix64[k16bit]);
+      }
+      
+      if (size == k8bit) {
+        push_byte(inc_8bit);
+      }
+      else {
+        push_byte(inc);
+      }
+      
+      push_byte(modrm);
+    }
+    
+    void emit_dec_reg(const std::string& dest, const std::size_t& size = k64bit) {
+      std::uint8_t dec_8bit = 0xFE;
+      std::uint8_t dec = 0xFF;
+      
+      std::uint8_t modrm = modrm_byte(reg_to_reg, reg, x64_register[dest]); // 01 is for dec
+      
+      if (size == k64bit) {
+        push_byte(prefix64[k64bit]);
+      }
+      else if (size == k16bit) {
+        push_byte(prefix64[k16bit]);
+      }
+      
+      if (size == k8bit) {
+        push_byte(dec_8bit);
+      }
+      else {
+        push_byte(dec);
+      }
+      
+      push_byte(modrm);
     }
   };
 } // namespace occult
