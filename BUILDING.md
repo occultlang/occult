@@ -1,5 +1,5 @@
 
-==========================================================
+====================================================================================
 ### Building for Visual Studio on Windows
 ```bash
 git clone https://github.com/occultlang/occult.git
