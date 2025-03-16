@@ -57,6 +57,7 @@ namespace occult {
       return reinterpret_cast<jit_function>(memory);
 }
 #endif
+#ifdef _WIN64
   jit_function writer::setup_function() {
       if (code.size() > allocated_size) {
           size_t new_size = ((code.size() / page_size) + 1) * page_size;
@@ -78,7 +79,7 @@ namespace occult {
       std::memcpy(memory, code.data(), code.size());
       return reinterpret_cast<jit_function>(memory);
   }
-
+#endif
   std::vector<std::uint8_t>& writer::get_code() {
     return code;
   }

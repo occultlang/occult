@@ -1,6 +1,7 @@
 #pragma once
 #include "writer.hpp"
 #include <cmath>
+#include <cstdint>
 
 // TODO: need to do memory for emit_reg_imm16_32 and below.
 
@@ -177,6 +178,7 @@ namespace occult {
     
     void emit_imm_by_size(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size) { 
       switch(size) {
+        case k64bit_extended:
         case k64bit: {
           if (std::holds_alternative<std::uint64_t>(imm)) {
             emit_imm64<std::uint64_t>(std::get<std::uint64_t>(imm));
