@@ -11,6 +11,13 @@
 ```bash
 git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
 ```
+
+### Building as solution for Windows
+```bash
+git clone https://github.com/occultlang/occult.git
+cmake -G "Visual Studio 17 2022"
+```
+
 > [!IMPORTANT]
 > Occult 2.0.0-alpha is going to release on the second birthday (05/31/25) 
 
