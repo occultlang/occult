@@ -1,3 +1,4 @@
+_____________________________________________________________________________
 ### Building for Linux / MacOS
 ```bash
 git clone https://github.com/occultlang/occult.git && cd occult
@@ -19,3 +20,4 @@ Next, go into C/C++ -> Command Line, and then remove all the contents of the "Ad
 ![image](https://github.com/user-attachments/assets/69c506aa-b649-45aa-a21f-0388ad7b55b0)
 
 Afterwards, you should be good to go
+_____________________________________________________________________________
