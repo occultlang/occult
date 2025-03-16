@@ -12,7 +12,7 @@
 git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
 ```
 
-### Building as solution for Windows
+### Building for Visual Studio on Windows
 ```bash
 git clone https://github.com/occultlang/occult.git
 cmake -G "Visual Studio 17 2022"
