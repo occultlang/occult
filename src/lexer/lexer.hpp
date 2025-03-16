@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <vector>
 #include <stack>
+#include <optional>
 
 namespace occult {
   enum token_type {

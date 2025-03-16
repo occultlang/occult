@@ -42,23 +42,25 @@ namespace occult {
     }
 #endif
 #ifdef _WIN64 
-    writer(const std::size_t& size) {
-      SYSTEM_INFO sys_info;
-      GetSystemInfo(&sys_info);
-      page_size = sys_info.dwPageSize;
+    writer()
+        : page_size([] {
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        return si.dwPageSize;
+            }()), allocated_size(page_size) {
 
-      DWORD old_protect = 0;
-      memory = VirtualAlloc(nullptr, page_size, PAGE_EXECUTE_READWRITE | MEM_COMMIT | MEM_RESERVE, old_protect);
-      
-      if (!VirtualProtect(memory, page_size, PAGE_READWRITE, &old_protect)) {
-        throw std::runtime_error("memory allocation failed");
-      }
+        // Equivalent to mmap with PROT_READ | PROT_WRITE | PROT_EXEC
+        memory = VirtualAlloc(nullptr, page_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+
+        if (!memory) {
+            throw std::runtime_error("memory allocation failed");
+        }
     }
 
     ~writer() {
-      if (memory) {
-        VirtualFree(memory, 0, MEM_RELEASE);
-      }
+        if (memory) {
+            VirtualFree(memory, 0, MEM_RELEASE);
+        }
     }
 #endif
     void push_byte(const std::uint8_t& byte);

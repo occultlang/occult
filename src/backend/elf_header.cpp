@@ -31,7 +31,7 @@ namespace occult {
     program_header.p_offset = 0; // Offset in file
     program_header.p_vaddr = 0x400000; // Virtual address in memory
     program_header.p_paddr = 0x400000; // Physical address
-    program_header.p_filesz = 0x1000; // File size
+    program_header.p_filesz = 0x1000; // File size, TODO: add argument for file size in the future
     program_header.p_memsz = 0x1000; // Memory size
     program_header.p_align = 0x1000; // Alignment
     

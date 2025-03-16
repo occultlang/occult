@@ -12,15 +12,15 @@
 #define HEX_BASE 16
 
 namespace occult {
-  constexpr bool is_octal(const char& c) {
+    inline bool is_octal(const char& c) {
     return (c >= '0' && c <= '7');
   }
   
-  constexpr bool is_hex(const char& c) {
+    inline bool is_hex(const char& c) {
     return (std::isdigit(c) || (std::tolower(c) >= 'a' && std::tolower(c) <= 'f'));
   }
 
-  constexpr bool is_binary(const char& c) {
+    inline bool is_binary(const char& c) {
     return (c == '0' || c == '1');
   }
   

@@ -31,7 +31,7 @@ namespace occult {
     label,
   };
   
-  constexpr std::string opcode_to_string(ir_opcode op) {
+  inline std::string opcode_to_string(ir_opcode op) {
     switch (op) {
       case op_push:    return "op_push";
       case op_pop:     return "op_pop";

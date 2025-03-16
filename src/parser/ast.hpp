@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <variant>
+
 #include "../lexer/lexer.hpp"
 
 namespace occult {
