@@ -1,3 +1,3 @@
-cmake -S occult/ -B occult/build
-cd occult/build
+cmake -S ./-B ./build
+cd ./build
 make
