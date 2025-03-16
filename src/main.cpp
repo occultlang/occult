@@ -57,8 +57,6 @@ int main(int argc, char* argv[]) {
   std::stringstream buffer;
   buffer << file.rdbuf();
   source_original = buffer.str();
-  
-  occult::generate_pe_header();
 
   if (input_file.empty()) {
     std::cout << "No input file specified" << std::endl;
