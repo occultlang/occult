@@ -9,7 +9,9 @@
 
 ### Building
 ```bash
-git clone https://github.com/occultlang/occult.git && chmod +x occult/build.sh && ./occult/build.sh
+git clone https://github.com/occultlang/occult.git && cd occult
+chmod +x build.sh
+./build.sh
 ```
 
 ### Building for Visual Studio on Windows
