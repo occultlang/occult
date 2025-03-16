@@ -1,5 +1,10 @@
-
-====================================================================================
+### Building for Linux / MacOS
+```bash
+git clone https://github.com/occultlang/occult.git && cd occult
+chmod +x build.sh
+./build.sh
+```
+_____________________________________________________________________________
 ### Building for Visual Studio on Windows
 ```bash
 git clone https://github.com/occultlang/occult.git
