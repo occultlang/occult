@@ -7,13 +7,6 @@
   <a href="https://discord.gg/ptUACmpg3Z" target="_blank">Official Discord</a> <br><br>
 </div>
 
-### Building
-```bash
-git clone https://github.com/occultlang/occult.git && cd occult
-chmod +x build.sh
-./build.sh
-```
-
 > [!IMPORTANT]
 > Occult 2.0.0-alpha is going to be released on the second birthday (05/31/25) 
 
