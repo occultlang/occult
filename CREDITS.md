@@ -5,7 +5,7 @@
 - [Assembly Functions](https://github.com/simon-whitehead/assembly-fun/blob/master/linux-x64/7.malloc/7.malloc.s) <br/>
 - [Coder64](http://ref.x86asm.net/coder64.html) <br/>
 - [Defuse](https://defuse.ca/online-x86-assembler.htm) <br/>
-- [PE Header](https://wiki.osdev.org/PE)
+- [PE Header](https://wiki.osdev.org/PE) (Tysm Nisan)
 - [Microsoft Image File Machine Constants](https://learn.microsoft.com/en-us/windows/win32/sysinfo/image-file-machine-constants)
 - [PE Format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#file-headers)
 <br/>
