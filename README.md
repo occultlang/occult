@@ -19,9 +19,16 @@ chmod +x build.sh
 git clone https://github.com/occultlang/occult.git
 cmake -G "Visual Studio 17 2022"
 ```
+Change the C++ Language Standard to the latest version
+![image](https://github.com/user-attachments/assets/74a4819b-b49c-44be-a508-384795c20f20)
+
+Next, go into C/C++ -> Command Line, and then remove all the contents of Additional Options
+![image](https://github.com/user-attachments/assets/69c506aa-b649-45aa-a21f-0388ad7b55b0)
+
+Afterwards, you should be good to go
 
 > [!IMPORTANT]
-> Occult 2.0.0-alpha is going to release on the second birthday (05/31/25) 
+> Occult 2.0.0-alpha is going to be released on the second birthday (05/31/25) 
 
 ### Roadmap for 2.0.0-alpha
 - - [x] Lexer
@@ -37,7 +44,7 @@ cmake -G "Visual Studio 17 2022"
 - IR/IL + Translation
   - Stack-based IR, works with translation to native JIT x86_64, in the very early stages
 - x86 JIT Runtime
-  - It's working, it isn't fully finished for the full functionality either, needs polishing, also in the early stages
+  - It's working, but it isn't fully finished for the full functionality either, and needs polishing, also in the early stages
 - Linter
   - It will be done closer to the end of the development roadmap (Not started)
 
