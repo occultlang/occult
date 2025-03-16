@@ -12,6 +12,8 @@
 #ifdef __linux
 #include <sys/stat.h>
 #include "backend/elf_header.hpp"
+#elif _WIN64
+#include "backend/pe_header.hpp"
 #endif
 
 void display_help() {
@@ -56,6 +58,8 @@ int main(int argc, char* argv[]) {
   buffer << file.rdbuf();
   source_original = buffer.str();
   
+  occult::generate_pe_header();
+
   if (input_file.empty()) {
     std::cout << "No input file specified" << std::endl;
     display_help();
