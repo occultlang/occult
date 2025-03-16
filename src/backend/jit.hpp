@@ -7,7 +7,6 @@ namespace occult {
     std::vector<ir_function> ir_funcs;
     std::vector<std::unique_ptr<x64writer>> writers;
     bool debug;
-    std::unordered_map<std::string, std::int64_t> string_map = {};
     std::unordered_map<std::string, std::size_t> type_sizes = {
       {"int64", 8},
       {"int32", 4},
@@ -89,7 +88,6 @@ namespace occult {
     
     ~jit_runtime() {
       function_map.clear();
-      string_map.clear();
       writers.clear();
     }
     

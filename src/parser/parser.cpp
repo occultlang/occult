@@ -1,8 +1,6 @@
 #include "parser.hpp"
 #include "parser_maps.hpp"
 
-#define DEVELOP false
-
 namespace occult {
   token_t parser::peek(std::uintptr_t pos) {
     return stream[this->pos + pos];
@@ -475,7 +473,8 @@ namespace occult {
     
     if (match(peek(), identifier_tt)) {
       node->add_child(parse_identifier()); // add identifier as a child node
-    } else {
+    }
+    else {
       throw runtime_error("expected identifier", peek(), pos);
     }
     

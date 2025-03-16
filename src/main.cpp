@@ -27,7 +27,6 @@ int main(int argc, char* argv[]) {
   std::string source_original;
   
   bool debug = false;
-  verbose = false;
   bool showtime = false;
   
   for (int i = 1; i < argc; ++i) {
@@ -35,7 +34,6 @@ int main(int argc, char* argv[]) {
     
     if (arg == "-d" || arg == "--debug") {
       debug = true;
-      verbose = true;
       showtime = true;
     }
     else if (arg == "-t" || arg == "--time") {
@@ -71,7 +69,7 @@ int main(int argc, char* argv[]) {
   if (showtime) {
     std::cout << "[occultc] \033[1;35mcompleted lexical analysis \033[0m" << duration.count() << "ms\n";
   }
-  if (debug && verbose) {
+  if (debug) {
     lexer.visualize();
   }
   
@@ -83,7 +81,7 @@ int main(int argc, char* argv[]) {
   if (showtime) {
      std::cout << "[occultc] \033[1;35mcompleted parsing \033[0m" << duration.count() << "ms\n";
   }
-  if (debug && verbose) {
+  if (debug) {
     ast->visualize();
   }
 

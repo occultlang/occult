@@ -3,8 +3,6 @@
 #include "../lexer/lexer.hpp"
 #include "error.hpp"
 
-inline bool verbose = false;
-
 namespace occult {
   class parser {
     std::unique_ptr<ast_root> root;

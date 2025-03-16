@@ -13,7 +13,15 @@ namespace occult {
     
     for (const auto& c : func_node->get_children()) {
       switch(c->get_type()) {
-        case ast_type::int8_datatype...ast_type::string_datatype: {
+        case ast_type::int8_datatype:
+        case ast_type::int16_datatype:
+        case ast_type::int32_datatype:
+        case ast_type::int64_datatype:
+        case ast_type::uint8_datatype:
+        case ast_type::uint16_datatype:
+        case ast_type::uint32_datatype:
+        case ast_type::uint64_datatype:
+        case ast_type::string_datatype: {
           function.type = c->to_string().substr(4, c->to_string().size());
 
           break;
@@ -475,7 +483,10 @@ namespace occult {
   void ir_gen::generate_block(ir_function& function, ast_block* block_node) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
-        case ast_type::int8_datatype...ast_type::int64_datatype: {
+        case ast_type::int8_datatype:
+        case ast_type::int16_datatype:
+        case ast_type::int32_datatype:
+        case ast_type::int64_datatype: {
           auto node = c.get();
           
           auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name
@@ -487,7 +498,10 @@ namespace occult {
           
           break;
         }
-        case ast_type::uint8_datatype...ast_type::uint64_datatype: {
+        case ast_type::uint8_datatype:
+        case ast_type::uint16_datatype:
+        case ast_type::uint32_datatype:
+        case ast_type::uint64_datatype: {
           auto node = c.get();
           
           auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); 

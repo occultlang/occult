@@ -1,8 +1,6 @@
 #include "jit.hpp"
 #include <fstream>
 
-// just testing JIT functionality and viability
-
 namespace occult {
   void jit_runtime::convert_ir() {
     for (auto& func : ir_funcs) {
@@ -18,18 +16,7 @@ namespace occult {
     auto w = std::make_unique<x64writer>();
     w->emit_function_prologue(0);
     generate_code(func.code, w.get());
-
-    if (debug) {
-       for (auto& [key, pair] : this->string_map) {
-        if (key == "\n") {
-          std::cout << "Key: " << "newline" << "\n" << "Pair: " << "0x" << std::hex << reinterpret_cast<std::int64_t>(pair) << "\n";
-        }
-        else {
-          std::cout << "Key: " << key << "\n" << "Pair: " << "0x" << std::hex << reinterpret_cast<std::int64_t>(pair) << "\n";
-        }
-      }
-    }
-
+    
     if (debug) {
       w->print_bytes();
       
