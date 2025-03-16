@@ -50,13 +50,14 @@ namespace occult {
   };
   
   static std::unordered_map<std::size_t, std::uint8_t> prefix64 = {
-    {64, rex_w}, // rex.w
-    {32, 0x00}, // default
-    {16, 0x66},  // operand size override
-    {8, 0x00}  // default
+    {128, rex_wb},  // rex.wb, 64-bit extended registers (r8 - 15)
+    {64, rex_w},    // rex.w
+    {32, 0x00},     // default
+    {16, 0x66},     // operand size override
+    {8, 0x00},      // default
   }; // prefixes for sizes
   
-  static  std::unordered_map<std::string, std::uint8_t> x64_register = {
+  static std::unordered_map<std::string, std::uint8_t> x64_register = {
     {"rax", 0x00},
     {"rcx", 0x01},
     {"rdx", 0x02},
@@ -65,6 +66,15 @@ namespace occult {
     {"rbp", 0x05},
     {"rsi", 0x06},
     {"rdi", 0x07},
+    // extended registers
+    {"r8", 0x00},
+    {"r9", 0x01},
+    {"r10", 0x02},
+    {"r11", 0x03},
+    {"r12", 0x04},
+    {"r13", 0x05},
+    {"r14", 0x06},
+    {"r15", 0x07},
   };
   
   enum addressing_modes : std::uint8_t {
@@ -119,11 +129,12 @@ namespace occult {
     }
   };
   
+  constexpr std::size_t k64bit_extended = 128; // TODO: fix later (?)
   constexpr std::size_t k64bit = 64;
   constexpr std::size_t k32bit = 32;
   constexpr std::size_t k16bit = 16;
   constexpr std::size_t k8bit = 8;
-  // add extended registers later on
+  // add extended registers later on k
   
   struct x64writer : writer {
     x64writer() : writer() {}
@@ -214,13 +225,13 @@ namespace occult {
     
     inline std::size_t get_bit_size(std::variant<std::uint64_t, std::int64_t> v) {
       if (std::holds_alternative<std::uint64_t>(v)) {
-        if (std::get<std::uint64_t>(v) <= std::numeric_limits<std::uint8_t>::max()) {
+        if (std::get<std::uint64_t>(v) <= UCHAR_MAX) {
           return 8; 
         }
-        else if (std::get<std::uint64_t>(v) <= std::numeric_limits<std::uint16_t>::max()) {
+        else if (std::get<std::uint64_t>(v) <= USHRT_MAX) {
           return 16;  
         }
-        else if (std::get<std::uint64_t>(v) <= std::numeric_limits<std::uint32_t>::max()) {
+        else if (std::get<std::uint64_t>(v) <= UINT_MAX) {
           return 32; 
         }
         else {
@@ -228,13 +239,13 @@ namespace occult {
         }
       }
       else {
-        if (std::get<std::int64_t>(v) <= std::numeric_limits<std::int8_t>::max()) {
+        if (std::get<std::int64_t>(v) <= CHAR_MAX) {
           return 8; 
         }
-        else if (std::get<std::int64_t>(v) <= std::numeric_limits<std::int16_t>::max()) {
+        else if (std::get<std::int64_t>(v) <= SHRT_MAX) {
           return 16;  
         }
-        else if (std::get<std::int64_t>(v) <= std::numeric_limits<std::int32_t>::max()) {
+        else if (std::get<std::int64_t>(v) <= INT_MAX) {
           return 32; 
         }
         else {
@@ -257,6 +268,9 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
+      else if (size == k64bit_extended) {
+          push_byte(prefix64[k64bit_extended]);
+      }
       
       std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, x64_register[src], x64_register[dest]);
       
@@ -278,6 +292,9 @@ namespace occult {
       }
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
+      }
+      else if (size == k64bit_extended) {
+          push_byte(prefix64[k64bit_extended]);
       }
       
       if (size == k8bit) {
@@ -324,6 +341,9 @@ namespace occult {
       }
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
+      }
+      else if (size == k64bit_extended) {
+          push_byte(prefix64[k64bit_extended]);
       }
       
       if (size == k8bit) {
@@ -424,6 +444,9 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
+      else if (size == k64bit_extended) {
+          push_byte(prefix64[k64bit_extended]);
+      }
       
       if (size == k8bit) {
         push_byte(mov8bit);
@@ -476,6 +499,9 @@ namespace occult {
       }
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
+      }
+      else if (size == k64bit_extended) {
+          push_byte(prefix64[k64bit_extended]);
       }
       
       if (size == k8bit) {
@@ -842,7 +868,7 @@ namespace occult {
       
       if (size == k16bit) {
         push_byte(prefix64[k16bit]);
-      }
+      } 
       
       if (size == k8bit) {
         push_byte(0x6A);
@@ -976,6 +1002,9 @@ namespace occult {
       }
       else if (reg_size == k16bit) {
         push_byte(prefix64[reg_size]);
+      }
+      else if (reg_size == k64bit_extended) {
+          push_byte(prefix64[reg_size]);
       }
       
       if (reg_size == k8bit && imm_size == k8bit) {
@@ -1139,6 +1168,9 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
+      else if (size == k64bit_extended) {
+          push_byte(prefix64[k64bit_extended]);
+      }
       
       if (size == k8bit) {
         push_byte(inc_8bit);
@@ -1161,6 +1193,9 @@ namespace occult {
       }
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
+      }
+      else if (size == k64bit_extended) {
+          push_byte(prefix64[k64bit_extended]);
       }
       
       if (size == k8bit) {
