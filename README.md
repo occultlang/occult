@@ -7,6 +7,8 @@
   <a href="https://discord.gg/ptUACmpg3Z" target="_blank">Official Discord</a> <br><br>
 </div>
 
+### [Building](https://github.com/occultlang/occult/blob/main/BUILDING.md)
+
 > [!IMPORTANT]
 > Occult 2.0.0-alpha is going to be released on the second birthday (05/31/25) 
 
