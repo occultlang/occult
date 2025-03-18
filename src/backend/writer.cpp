@@ -70,7 +70,7 @@ namespace occult {
 
           std::memcpy(new_memory, memory, allocated_size);
 
-          VirtualFree(new_memory, allocated_size, MEM_RELEASE);
+          VirtualFree(new_memory, 0, MEM_RELEASE);
 
           memory = new_memory;
           allocated_size = new_size;

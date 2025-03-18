@@ -76,6 +76,15 @@ namespace occult {
     {"r13", 0x05},
     {"r14", 0x06},
     {"r15", 0x07},
+    // to make it easier to tell if 32 bit
+    {"eax", 0x00},
+    {"ecx", 0x01},
+    {"edx", 0x02},
+    {"ebx", 0x03},
+    {"esp", 0x04},
+    {"ebp", 0x05},
+    {"esi", 0x06},
+    {"edi", 0x07},
   };
   
   enum addressing_modes : std::uint8_t {

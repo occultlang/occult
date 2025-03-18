@@ -14,7 +14,88 @@
 #include "backend/elf_header.hpp"
 #elif _WIN64
 #include "backend/pe_header.hpp"
+#include <winnt.h>
+#include <winternl.h>
 #endif
+
+/*
+    TODO: 
+    
+    add a map for posix syscalls
+    move the nt dumping syscalls into a seperate file
+
+    add sib byte to x64writer
+    and other things if remembered
+*/
+
+std::unordered_map<std::string, std::int64_t> DumpAllSyscalls() {
+    HMODULE hNtdll = GetModuleHandleA("ntdll.dll");
+
+    if (!hNtdll) {
+        std::cerr << "Failed to get ntdll.dll handle." << std::endl;
+        return {};
+    }
+
+    PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)hNtdll;
+    PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((BYTE*)hNtdll + dosHeader->e_lfanew);
+    PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((BYTE*)hNtdll + ntHeaders->OptionalHeader.DataDirectory[0].VirtualAddress);
+
+    DWORD* functionNames = (DWORD*)((BYTE*)hNtdll + exportDir->AddressOfNames);
+    DWORD* functionAddresses = (DWORD*)((BYTE*)hNtdll + exportDir->AddressOfFunctions);
+    PWORD nameOrdinals = (PWORD)((BYTE*)hNtdll + exportDir->AddressOfNameOrdinals);
+
+    std::unordered_map<std::string, std::int64_t> syscall_map;
+
+    for (size_t i = 0; i < exportDir->NumberOfNames; ++i) {
+        std::string currentFunctionName = (char*)((BYTE*)hNtdll + functionNames[i]);
+
+        if ((currentFunctionName.substr(0, 2).find("Nt") != std::string::npos)) {
+            WORD ordinal = nameOrdinals[i];
+            void* func_address = (void*)((BYTE*)hNtdll + functionAddresses[ordinal]);
+
+            auto syscallNumber = (reinterpret_cast<std::uint8_t*>(func_address)[7] << 24) |
+                (reinterpret_cast<std::uint8_t*>(func_address)[6] << 16) |
+                (reinterpret_cast<std::uint8_t*>(func_address)[5] << 8) |
+                reinterpret_cast<std::uint8_t*>(func_address)[4];
+
+            syscall_map[currentFunctionName] = syscallNumber;
+        }
+    }
+
+    return syscall_map;
+}
+
+std::unordered_map<std::string, std::uint64_t> DumpAllNtFunctions() {
+    HMODULE hNtdll = GetModuleHandleA("ntdll.dll");
+
+    if (!hNtdll) {
+        std::cerr << "Failed to get ntdll.dll handle." << std::endl;
+        return {};
+    }
+
+    PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)hNtdll;
+    PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((BYTE*)hNtdll + dosHeader->e_lfanew);
+    PIMAGE_EXPORT_DIRECTORY exportDir = (PIMAGE_EXPORT_DIRECTORY)((BYTE*)hNtdll + ntHeaders->OptionalHeader.DataDirectory[0].VirtualAddress);
+
+    DWORD* functionNames = (DWORD*)((BYTE*)hNtdll + exportDir->AddressOfNames);
+    DWORD* functionAddresses = (DWORD*)((BYTE*)hNtdll + exportDir->AddressOfFunctions);
+    PWORD nameOrdinals = (PWORD)((BYTE*)hNtdll + exportDir->AddressOfNameOrdinals);
+
+    std::unordered_map<std::string, std::uint64_t> func_map;
+
+    for (size_t i = 0; i < exportDir->NumberOfNames; ++i) {
+        std::string currentFunctionName = (char*)((BYTE*)hNtdll + functionNames[i]);
+
+        if ((currentFunctionName.substr(0, 2).find("Nt") != std::string::npos)) {
+            WORD ordinal = nameOrdinals[i];
+            void* func_address = (void*)((BYTE*)hNtdll + functionAddresses[ordinal]);
+
+            func_map[currentFunctionName] = reinterpret_cast<std::uint64_t>(func_address);
+        }
+    }
+
+    return func_map;
+}
 
 void display_help() {
   std::cout << "Usage: occultc [options] <source.occ>\n";
@@ -62,7 +143,7 @@ int main(int argc, char* argv[]) {
     std::cout << "No input file specified" << std::endl;
     display_help();
     
-    return 0;
+    //return 0;
   }
   
   auto start = std::chrono::high_resolution_clock::now();
@@ -136,6 +217,40 @@ int main(int argc, char* argv[]) {
   else {
     std::cerr << "main function not found!" << std::endl;
   }
+
+  system("cls");
+
+  auto nt_syscall_map = DumpAllSyscalls();
+
+  const char* str = "Hello, World!";
+  IO_STATUS_BLOCK IoStatusBlock;
+
+  occult::x64writer print;
+  print.emit_function_prologue(0);
+  print.emit_mov_reg_imm("r10", reinterpret_cast<std::int64_t>(GetStdHandle(STD_OUTPUT_HANDLE)), occult::k64bit_extended);
+  print.emit_mov_reg_imm("rdx", NULL);
+  print.emit_mov_reg_imm("r8", NULL, occult::k64bit_extended);
+  print.emit_mov_reg_imm("r9", NULL, occult::k64bit_extended);
+
+  print.emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&IoStatusBlock));
+  print.push_bytes({ 0x48, 0x89, 0x44, 0x24, 40 }); // mov    QWORD PTR [rsp+40],rax 
   
+  print.emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(str));
+  print.push_bytes({ 0x48, 0x89, 0x44, 0x24, 48 }); // mov    QWORD PTR [rsp+48],rax 
+
+  print.emit_mov_reg_imm("rax", 14);
+  print.push_bytes({ 0x48, 0x89, 0x44, 0x24, 56 }); // mov    QWORD PTR [rsp+56],rax 
+
+  print.emit_mov_reg_imm("rax", 0);
+  print.push_bytes({ 0x48, 0x89, 0x44, 0x24, 64 }); // mov    QWORD PTR [rsp+64],rax 
+  print.push_bytes({ 0x48, 0x89, 0x44, 0x24, 72 }); // mov    QWORD PTR [rsp+72],rax 
+
+  print.emit_mov_reg_imm("rax", nt_syscall_map["NtWriteFile"]);
+  print.emit_syscall();
+  print.emit_function_epilogue();
+  print.emit_ret();
+
+  print.setup_function()();
+
   return 0;
 }
