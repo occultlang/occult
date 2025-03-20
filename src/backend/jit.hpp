@@ -5,6 +5,7 @@
 namespace occult {  
   class jit_runtime {
     std::vector<ir_function> ir_funcs;
+    std::unordered_map<std::string, std::size_t> cleanup_size_map;
     std::vector<std::unique_ptr<x64writer>> writers;
     bool debug;
     std::unordered_map<std::string, std::size_t> type_sizes = {
@@ -21,7 +22,7 @@ namespace occult {
       {"bool", 1}, 
       {"char", 1}};
       
-      void generate_code(std::vector<ir_instr> ir_code, x64writer* w);
+      void generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map);
       void compile_function(const ir_function& func);
       void backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x64writer* w);
   public:

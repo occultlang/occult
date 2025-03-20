@@ -15,9 +15,36 @@ namespace occult {
       return;
     }
 
+    std::unordered_map<std::string, std::size_t> local_variable_map;
+
     auto w = std::make_unique<x64writer>();
     w->emit_function_prologue(0);
-    generate_code(func.code, w.get());
+    
+    auto totalsizes = 0;
+    auto count = 8; // first arg - 8
+    
+    for (auto& arg : func.args) {
+      totalsizes += type_sizes[arg.type];
+      count += 8;
+      
+      if (arg.type != "string") {
+        w->emit_mov_reg_mem("rax", "rbp", count); // load first arg into rax
+        w->emit_sub_reg8_64_imm8_32("rsp", totalsizes); // allocate size on stack
+        w->emit_mov_mem_reg("rbp", -totalsizes, "rax"); // store
+      }
+      
+      if (debug) {
+        std::cout << "ARGS sizes in store: " << totalsizes << "\nlocal: " << type_sizes[arg.type] << "\n";
+      }
+      
+      local_variable_map.insert({arg.name, totalsizes});
+    }
+    
+    cleanup_size_map[func.name] = count - 8; // adjust for stack args weird placement
+    
+    function_map.insert({func.name, reinterpret_cast<jit_function>(w->memory)});
+    
+    generate_code(func.code, w.get(), local_variable_map);
 
     if (debug) {
       w->print_bytes();
@@ -27,29 +54,65 @@ namespace occult {
       output_file.close();
     }
 
-    auto f = w->setup_function();
-
-    function_map.insert({func.name, f});
+    w->setup_function();
     writers.push_back(std::move(w));
   }
   
   void jit_runtime::backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x64writer* w) {
     switch (op) {
       case ir_opcode::op_jnz: {
-        w->get_code().at(location) = 0x75;
-        w->get_code().at(location + 1) = label_location - (location + 2);
+      // Assuming `w->get_code()` is your bytecode vector or buffer
+      w->get_code().at(location) = 0x0F;              // Prefix byte for extended opcodes
+      w->get_code().at(location + 1) = 0x85;           // Conditional jump opcode (je, jne, etc.)
+      std::int32_t offset = label_location - (location + 5);  // Calculate 32-bit signed offset
+      
+      // Write the 32-bit signed offset in little-endian order
+      w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         // Lowest byte
+      w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  // 2nd byte
+      w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); // 3rd byte
+      w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); // Highest byte
+        
+        break;
+      }
+      case ir_opcode::op_jge: {
+      // Assuming `w->get_code()` is your bytecode vector or buffer
+      w->get_code().at(location) = 0x0F;              // Prefix byte for extended opcodes
+      w->get_code().at(location + 1) = 0x8D;           // Conditional jump opcode (je, jne, etc.)
+      std::int32_t offset = label_location - (location + 5);  // Calculate 32-bit signed offset
+      
+      // Write the 32-bit signed offset in little-endian order
+      w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         // Lowest byte
+      w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  // 2nd byte
+      w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); // 3rd byte
+      w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); // Highest byte
         
         break;
       }
       case ir_opcode::op_jz: {
-        w->get_code().at(location) = 0x74;
-        w->get_code().at(location + 1) = label_location - (location + 2);
+       // Assuming `w->get_code()` is your bytecode vector or buffer
+       w->get_code().at(location) = 0x0F;              // Prefix byte for extended opcodes
+       w->get_code().at(location + 1) = 0x84;           // Conditional jump opcode (je, jne, etc.)
+       std::int32_t offset = label_location - (location + 5);  // Calculate 32-bit signed offset
+       
+       // Write the 32-bit signed offset in little-endian order
+       w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         // Lowest byte
+       w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  // 2nd byte
+       w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); // 3rd byte
+       w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); // Highest byte
         
         break;
       }
       case ir_opcode::op_jmp: {
-       w->get_code().at(location) = 0xEB;
-       w->get_code().at(location + 1) = label_location - (location + 2);
+       // Assuming `w->get_code()` is your bytecode vector or buffer
+       //w->get_code().at(location) = 0x0F;              // Prefix byte for extended opcodes
+       w->get_code().at(location) = 0xE9;           // Conditional jump opcode (je, jne, etc.)
+       std::int32_t offset = label_location - (location + 5);  // Calculate 32-bit signed offset
+       
+       // Write the 32-bit signed offset in little-endian order
+       w->get_code().at(location + 1) = static_cast<std::uint8_t>(offset & 0xFF);         // Lowest byte
+       w->get_code().at(location + 2) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  // 2nd byte
+       w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); // 3rd byte
+       w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); // Highest byte
         
         break;
       }
@@ -59,10 +122,9 @@ namespace occult {
     }
   }
 
-  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w) {
+  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map) {
     std::unordered_map<std::string, std::size_t> label_map;
     std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
-    std::unordered_map<std::string, std::size_t> local_variable_map;
     std::size_t totalsizes = 0;
     
     for (const auto& instr : ir_code) {
@@ -155,14 +217,24 @@ namespace occult {
           
           break;
         }
-        case ir_opcode::op_jmp:
+        case ir_opcode::op_jmp: {
+          auto jump_instr = instr;
+          jump_instr.operand = std::get<std::string>(instr.operand);
+          
+          w->push_bytes({0x90, 0x90, 0x90, 0x90, 0x90});
+          
+          jump_instructions.push_back({jump_instr, w->get_code().size() - 5});
+          
+          break;
+        }
+        case ir_opcode::op_jge:
         case ir_opcode::op_jnz: {
           auto jump_instr = instr;
           jump_instr.operand = std::get<std::string>(instr.operand);
           
-          w->push_bytes({0x90, 0x90});
+          w->push_bytes({0x90, 0x90, 0x90, 0x90, 0x90, 0x90});
 
-          jump_instructions.push_back({jump_instr, w->get_code().size() - 2});
+          jump_instructions.push_back({jump_instr, w->get_code().size() - 6});
           
           break;
         }
@@ -200,7 +272,7 @@ namespace occult {
           
           w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map[func_name]));
           w->emit_call_reg64("rax");
-          w->emit_add_reg8_64_imm8_32("rsp", 8);
+          w->emit_add_reg8_64_imm8_32("rsp", cleanup_size_map[func_name]);
           
           if (func_name != "print") {
             w->emit_push_reg_64("rax"); // push return value onto stack if not print

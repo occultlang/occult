@@ -1,0 +1,12 @@
+fn fib(int64 n) int64 {
+  if n <= 1 {
+    return n;
+  }
+  else {
+    return fib(n - 1) + fib(n - 2);
+  }
+}
+
+fn main() int64 {
+  return fib(12);
+}

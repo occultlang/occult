@@ -521,6 +521,10 @@ namespace occult {
           break;
         }
         case ast_type::identifier: {
+          generate_common<std::int64_t>(function, c.get());
+          
+          function.code.emplace_back(op_store, c->content, c->to_string().substr(4, c->to_string().size()));
+          
           break;
         }
         case ast_type::functioncall: {
@@ -531,6 +535,8 @@ namespace occult {
         case ast_type::ifstmt: {
           generate_if(function, ast::cast_raw<ast_ifstmt>(c.get()));
           
+          function.code.emplace_back(op_jmp, "label_" + std::to_string(label_count + 2));
+          
           function.code.emplace_back(label, "label_" + std::to_string(label_count++));
           label_map.insert({"label_" + std::to_string(label_count), label_count});
           
@@ -538,6 +544,8 @@ namespace occult {
         }
         case ast_type::elseifstmt: {
           generate_elseif(function, ast::cast_raw<ast_elseifstmt>(c.get()));
+          
+          function.code.emplace_back(op_jmp, "label_" + std::to_string(label_count + 1));
           
           function.code.emplace_back(label, "label_" + std::to_string(label_count++));
           label_map.insert({"label_" + std::to_string(label_count), label_count});
@@ -547,6 +555,15 @@ namespace occult {
         case ast_type::elsestmt: {
           generate_else(function, ast::cast_raw<ast_elsestmt>(c.get()));
           
+          function.code.emplace_back(label, "label_" + std::to_string(label_count++));
+          label_map.insert({"label_" + std::to_string(label_count), label_count}); // END LABEL
+          
+          break;
+        }
+        case ast_type::continuestmt: {
+          break;
+        }
+        case ast_type::breakstmt: {
           break;
         }
         case ast_type::loopstmt: {
