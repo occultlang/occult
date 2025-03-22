@@ -3,15 +3,29 @@ fn add(int64 a, int64 b) int64 {
 }
 
 fn main() int64 {
-  int64 x = 1;
+  int64 x = 64;
   
-  if x == 64 {    
+  if x == 64 {
+    x = 0;
+    
+    if x != 0 { // nested statements
+      print("x aint 0\n");
+    }
+    
     print("x is 64\n");
   }
   elseif x == 128 {
+    if x != 0 {
+      print("x aint 0\n");
+    }
+    
     print("x is 128\n");
   }
   else {
+    if x != 0 { 
+      print("x aint 0\n");
+    }
+    
     print("neither\n");
   }
   

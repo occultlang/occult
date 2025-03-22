@@ -65,7 +65,8 @@ namespace occult {
     include,
     stringliteral,
     charliteral,
-    functionargument
+    functionargument,
+    label,
   };
   
   class ast {
@@ -205,4 +206,5 @@ namespace occult {
   NODE(include, ast_includestmt)
   NODE(stringliteral, ast_stringliteral)
   NODE(charliteral, ast_charliteral)
+  NODE(label, ast_label)
 } // namespace occult

@@ -61,58 +61,49 @@ namespace occult {
   void jit_runtime::backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x64writer* w) {
     switch (op) {
       case ir_opcode::op_jnz: {
-      // Assuming `w->get_code()` is your bytecode vector or buffer
-      w->get_code().at(location) = 0x0F;              // Prefix byte for extended opcodes
-      w->get_code().at(location + 1) = 0x85;           // Conditional jump opcode (je, jne, etc.)
-      std::int32_t offset = label_location - (location + 5);  // Calculate 32-bit signed offset
+      w->get_code().at(location) = 0x0F;             
+      w->get_code().at(location + 1) = 0x85;          
+      std::int32_t offset = label_location - (location + 5); 
       
-      // Write the 32-bit signed offset in little-endian order
-      w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         // Lowest byte
-      w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  // 2nd byte
-      w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); // 3rd byte
-      w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); // Highest byte
+      w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         
+      w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF); 
+      w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+      w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF);
         
         break;
       }
       case ir_opcode::op_jge: {
-      // Assuming `w->get_code()` is your bytecode vector or buffer
-      w->get_code().at(location) = 0x0F;              // Prefix byte for extended opcodes
-      w->get_code().at(location + 1) = 0x8D;           // Conditional jump opcode (je, jne, etc.)
-      std::int32_t offset = label_location - (location + 5);  // Calculate 32-bit signed offset
+      w->get_code().at(location) = 0x0F;             
+      w->get_code().at(location + 1) = 0x8D;          
+      std::int32_t offset = label_location - (location + 5);
       
-      // Write the 32-bit signed offset in little-endian order
-      w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         // Lowest byte
-      w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  // 2nd byte
-      w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); // 3rd byte
-      w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); // Highest byte
+      w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);        
+      w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
+      w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+      w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
         
         break;
       }
       case ir_opcode::op_jz: {
-       // Assuming `w->get_code()` is your bytecode vector or buffer
-       w->get_code().at(location) = 0x0F;              // Prefix byte for extended opcodes
-       w->get_code().at(location + 1) = 0x84;           // Conditional jump opcode (je, jne, etc.)
-       std::int32_t offset = label_location - (location + 5);  // Calculate 32-bit signed offset
+       w->get_code().at(location) = 0x0F;              
+       w->get_code().at(location + 1) = 0x84;          
+       std::int32_t offset = label_location - (location + 5);  
        
-       // Write the 32-bit signed offset in little-endian order
-       w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         // Lowest byte
-       w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  // 2nd byte
-       w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); // 3rd byte
-       w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); // Highest byte
+       w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         
+       w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF); 
+       w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF);
+       w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
         
         break;
       }
       case ir_opcode::op_jmp: {
-       // Assuming `w->get_code()` is your bytecode vector or buffer
-       //w->get_code().at(location) = 0x0F;              // Prefix byte for extended opcodes
-       w->get_code().at(location) = 0xE9;           // Conditional jump opcode (je, jne, etc.)
-       std::int32_t offset = label_location - (location + 5);  // Calculate 32-bit signed offset
+       w->get_code().at(location) = 0xE9;          
+       std::int32_t offset = label_location - (location + 5);  
        
-       // Write the 32-bit signed offset in little-endian order
-       w->get_code().at(location + 1) = static_cast<std::uint8_t>(offset & 0xFF);         // Lowest byte
-       w->get_code().at(location + 2) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  // 2nd byte
-       w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); // 3rd byte
-       w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); // Highest byte
+       w->get_code().at(location + 1) = static_cast<std::uint8_t>(offset & 0xFF);        
+       w->get_code().at(location + 2) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
+       w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+       w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
         
         break;
       }
@@ -272,7 +263,13 @@ namespace occult {
           
           w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map[func_name]));
           w->emit_call_reg64("rax");
-          w->emit_add_reg8_64_imm8_32("rsp", cleanup_size_map[func_name]);
+          
+          if (func_name == "print") {
+            w->emit_add_reg8_64_imm8_32("rsp", 8);
+          }
+          else {
+            w->emit_add_reg8_64_imm8_32("rsp", cleanup_size_map[func_name]);
+          }
           
           if (func_name != "print") {
             w->emit_push_reg_64("rax"); // push return value onto stack if not print

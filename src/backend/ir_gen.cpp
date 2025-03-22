@@ -335,36 +335,42 @@ namespace occult {
         case ast_type::equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jnz, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::not_equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jz, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::greater_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jl, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::less_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jg, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::greater_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jle, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::less_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jge, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
@@ -410,36 +416,42 @@ namespace occult {
         case ast_type::equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jnz, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::not_equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jz, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::greater_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jl, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::less_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jg, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::greater_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jle, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::less_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jge, "label_" + std::to_string(label_count));
+          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
@@ -463,6 +475,11 @@ namespace occult {
         }
       }
     }
+    
+    if (!label_stack.empty()) {
+      function.code.emplace_back(label, label_stack.top());
+      label_stack.pop();
+    }
   }
   
   void ir_gen::generate_loop(ir_function& function, ast_loopstmt* loop_node) {
@@ -483,36 +500,35 @@ namespace occult {
   void ir_gen::generate_block(ir_function& function, ast_block* block_node) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
-          case ast_type::int8_datatype:
-          case ast_type::int16_datatype:
-          case ast_type::int32_datatype:
-          case ast_type::int64_datatype: {
-              auto node = c.get();
-
-              auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name
-              auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get()); // expression stuff
-
-              generate_common<std::int64_t>(function, assignment);
-
-              function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
-
-              break;
-          }
-          case ast_type::uint8_datatype:
-          case ast_type::uint16_datatype:
-          case ast_type::uint32_datatype:
-          case ast_type::uint64_datatype: {
-              auto node = c.get();
-
-              auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
-              auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
-
-              generate_common<std::uint64_t>(function, assignment);
-
-              function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
-
-              break;
-          }
+        case ast_type::int8_datatype:
+        case ast_type::int16_datatype:
+        case ast_type::int32_datatype:
+        case ast_type::int64_datatype: {
+          auto node = c.get();
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name
+          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get()); // expression stuff
+          
+          generate_common<std::int64_t>(function, assignment);
+          
+          function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
+          
+          break;
+        }
+        case ast_type::uint8_datatype:
+        case ast_type::uint16_datatype:
+        case ast_type::uint32_datatype:
+        case ast_type::uint64_datatype: {
+          auto node = c.get();
+          
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
+          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
+          
+          generate_common<std::uint64_t>(function, assignment);
+          
+          function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
+          
+          break;
+        }
         case ast_type::float32_datatype: 
         case ast_type::float64_datatype: {
           break;
@@ -535,20 +551,16 @@ namespace occult {
         case ast_type::ifstmt: {
           generate_if(function, ast::cast_raw<ast_ifstmt>(c.get()));
           
-          function.code.emplace_back(op_jmp, "label_" + std::to_string(label_count + 2));
-          
           function.code.emplace_back(label, "label_" + std::to_string(label_count++));
-          label_map.insert({"label_" + std::to_string(label_count), label_count});
+          label_map["label_" + std::to_string(label_count)] = label_count;
           
           break;
         }
         case ast_type::elseifstmt: {
           generate_elseif(function, ast::cast_raw<ast_elseifstmt>(c.get()));
           
-          function.code.emplace_back(op_jmp, "label_" + std::to_string(label_count + 1));
-          
           function.code.emplace_back(label, "label_" + std::to_string(label_count++));
-          label_map.insert({"label_" + std::to_string(label_count), label_count});
+          label_map["label_" + std::to_string(label_count)] = label_count;
           
           break;
         }
@@ -556,7 +568,7 @@ namespace occult {
           generate_else(function, ast::cast_raw<ast_elsestmt>(c.get()));
           
           function.code.emplace_back(label, "label_" + std::to_string(label_count++));
-          label_map.insert({"label_" + std::to_string(label_count), label_count}); // END LABEL
+          label_map["label_" + std::to_string(label_count)] = label_count;
           
           break;
         }
@@ -567,8 +579,8 @@ namespace occult {
           break;
         }
         case ast_type::loopstmt: {
-          function.code.emplace_back(label, "label_" + std::to_string(label_count));
-          label_map.insert({"label_" + std::to_string(label_count), label_count});
+          function.code.emplace_back(label, "label_" + std::to_string(label_count++));
+          label_map["label_" + std::to_string(label_count)] = label_count;
           
           generate_loop(function, ast::cast_raw<ast_loopstmt>(c.get()));
           

@@ -114,6 +114,7 @@ namespace occult {
   class ir_gen { // conversion into a linear IR
     ast_root* root;
     int label_count;
+    std::stack<std::string> label_stack;
     std::unordered_map<std::string, int> label_map;
     
     ir_function generate_function(ast_function* func_node);
