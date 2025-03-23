@@ -1,15 +1,22 @@
+/*
+full nesting works in occult 
+*/
+
 fn add(int64 a, int64 b) int64 {
   return a + b;
 }
 
 fn main() int64 {
-  int64 x = 12;
+  int64 x = 64;
   
   if x == 64 {
     x = 0;
     
     if x != 0 { 
       print("x aint 0\n");
+    }
+    else {
+      print("WHAAA\n");
     }
     
     print("x is 64\n");
@@ -20,6 +27,9 @@ fn main() int64 {
     }
     
     print("x is 128\n");
+  }
+  elseif x == 100 {
+    print("x is 100\n");
   }
   else {
     if x != 0 { 
