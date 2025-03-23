@@ -1,3 +1,3 @@
-fn main() int64 {
+fn main() i64 {
   return 13 - 10 + 10 + 10 - 23;
 }

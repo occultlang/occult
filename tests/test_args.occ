@@ -12,7 +12,7 @@ fn get_str(string s) string {
   return s;
 }
 
-fn main() int64 {
+fn main() i64 {
   string s = get_str("what");
   println(s);
   

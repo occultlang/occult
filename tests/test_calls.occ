@@ -1,23 +1,23 @@
 // calling anywhere :cool:
 
-fn main() int64 {
+fn main() i64 {
   test_call();
   
-  print("Hello, World!\n", 14); 
+  print("Hello, World!\n"); 
  
   return 0;
 }
 
-fn test_call() int64 {
-  print("aaaaaaaa\n", 9);
+fn test_call() i64 {
+  print("aaaaaaaa\n");
   
   test_call2();
   
   return 0;
 }
 
-fn test_call2() int64 {
-  print("whaatt\n", 7);
+fn test_call2() i64 {
+  print("whaatt\n");
   
   return 0;
 }

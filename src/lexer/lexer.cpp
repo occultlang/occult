@@ -224,8 +224,21 @@ namespace occult {
       increment(0, 1, 1);
     }
     
-    const auto lexeme = source.substr(start_pos, pos - start_pos);
-    
+    auto lexeme = source.substr(start_pos, pos - start_pos);
+  
+    if (lexeme == "else" && pos < source.length() && source[pos] == ' ') {
+      auto next_pos = pos + 1;
+      while (next_pos < source.length() && source[next_pos] == ' ') {
+        ++next_pos; 
+      }
+      
+      if (next_pos < source.length() && source.substr(next_pos, 2) == "if") {
+        pos = next_pos + 2;
+        column += (pos - start_pos);
+        lexeme = "elseif"; 
+      }
+    }
+  
     if (keyword_map.contains(lexeme)) {
       return token_t(line, start_column, lexeme, keyword_map[lexeme]);
     }
@@ -233,6 +246,8 @@ namespace occult {
       return token_t(line, start_column, lexeme, identifier_tt);
     }
   }
+  
+  
 
   token_t lexer::get_next_token() {
     if (pos >= source.length()) {

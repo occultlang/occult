@@ -1,4 +1,4 @@
-fn fib(int64 n) int64 {
+fn fib(i64 n) i64 {
   if n <= 1 {
     return n;
   }
@@ -7,6 +7,6 @@ fn fib(int64 n) int64 {
   }
 }
 
-fn main() int64 {
+fn main() i64 {
   return fib(12);
 }

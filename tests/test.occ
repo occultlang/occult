@@ -1,3 +1,5 @@
+// this is just testing the parser to make sure it can parse everything correctly, this file is not supposed to be ran
+
 fn main() int32 {
   print("HI");
   print(1);
@@ -9,7 +11,7 @@ fn main() int32 {
   print(taa); 
   print(12, 1.23, taaaa);
   
-  for int32 x in range(1, 10) {
+  for i32 x in range(1, 10) {
     print(x);
   }
   
@@ -18,7 +20,7 @@ fn main() int32 {
     break;
   }
   
-  int32 x = 0;
+  i32 x = 0;
   while x < 10 {
     print(x);
     
@@ -28,14 +30,14 @@ fn main() int32 {
   if x == 10 {
     print(true);
   }
-  elseif x < 10 {
+  else if x < 10 {
     print("less than 10");
   }
   else {
     print(false);
   }
   
-  float32 y = 2.5e-5 * 2.0;
+  f32 y = 2.5e-5 * 2.0;
   
   print(y);
   

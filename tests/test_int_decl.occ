@@ -1,11 +1,11 @@
-fn main() int64 {
-  int64 y = 5;
-  int64 x = 5;
+fn main() i64 {
+  i64 y = 5;
+  i64 x = 5;
   
   if x > y {
     print("x greater than y\n");
   }
-  elseif x < y {
+  else if x < y {
     print("x less than y\n");
   }
   else {

@@ -1,8 +1,6 @@
 fn main() int32 {
-  float64 a = 2.5e-5 + 40.11;
-  int32 x = 0;
-  
-  println(a, x);
+  f64 a = 2.5e-5 + 40.11;
+  i32 x = 0;
   
   return 0;
 }
