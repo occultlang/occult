@@ -3,13 +3,13 @@ fn main() int64 {
   int64 x = 5;
   
   if x > y {
-    print("x greater than y");
+    print("x greater than y\n");
   }
   elseif x < y {
-    print("x less than y");
+    print("x less than y\n");
   }
   else {
-    print("probably same lol");
+    print("probably same lol\n");
   }
 
   return 0;

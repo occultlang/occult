@@ -7,6 +7,8 @@
  * we can use this paper (http://www.rigwit.co.uk/thesis/chap-5.pdf) as an example, and other theories too.
 */
 
+// use string(s) to determine the current exit, entry, etc labels
+
 namespace occult {
   ir_function ir_gen::generate_function(ast_function* func_node) {
     ir_function function;
@@ -302,15 +304,16 @@ namespace occult {
   }
   
   void ir_gen::generate_if(ir_function& function, ast_ifstmt* if_node) {
-    for (const auto& c : if_node->get_children()) {
+    std::string L1 = create_label();
+    std::string L2 = create_label();
+    
+    // expression
+    for (const auto& c : if_node->get_children()) { 
       generate_arith_and_bitwise_operators(function, c.get());
-      
-      switch(c->get_type()) {
-        case ast_type::block: {
-          generate_block(function, ast::cast_raw<ast_block>(c.get()));
-          
-          break;
-        }
+    }
+    
+    for (const auto& c : if_node->get_children()) { 
+      switch (c->get_type()) {
         case ast_type::number_literal: {
           handle_push_types(function, c.get());
           
@@ -334,43 +337,37 @@ namespace occult {
         }
         case ast_type::equals_operator: {
           function.code.emplace_back(op_cmp);
-          function.code.emplace_back(op_jnz, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
+          function.code.emplace_back(op_jnz, L2);
           
           break;
         }
         case ast_type::not_equals_operator: {
           function.code.emplace_back(op_cmp);
-          function.code.emplace_back(op_jz, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
-          
+          function.code.emplace_back(op_jz, L2);
+         
           break;
         }
         case ast_type::greater_than_operator: {
           function.code.emplace_back(op_cmp);
-          function.code.emplace_back(op_jl, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
+          function.code.emplace_back(op_jl, L2);
           
           break;
         }
         case ast_type::less_than_operator: {
           function.code.emplace_back(op_cmp);
-          function.code.emplace_back(op_jg, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
+          function.code.emplace_back(op_jg, L2);
           
           break;
         }
         case ast_type::greater_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
-          function.code.emplace_back(op_jle, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
+          function.code.emplace_back(op_jle, L2);
           
           break;
         }
         case ast_type::less_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
-          function.code.emplace_back(op_jge, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
+          function.code.emplace_back(op_jge, L2);
           
           break;
         }
@@ -379,6 +376,116 @@ namespace occult {
         }
       }
     }
+    
+    // block
+    for (const auto& c : if_node->get_children()) {
+      if (c->get_type() == ast_type::block) {
+        generate_block(function, ast::cast_raw<ast_block>(c.get()));
+      }
+    }
+    
+    function.code.emplace_back(op_jmp, L1);
+    
+    // label for if block
+    place_label(function, L2);
+    
+    // process other blocks / ifelse, else etc.
+    for (const auto& c1 : if_node->get_children()) {
+      if (c1->get_type() == ast_type::elseifstmt) {
+        L2 = create_label();
+        
+        for (const auto& c : c1->get_children()) { 
+          generate_arith_and_bitwise_operators(function, c.get());
+        }
+        
+        for (const auto& c : c1->get_children()) { 
+          switch (c->get_type()) {
+            case ast_type::number_literal: {
+              handle_push_types(function, c.get());
+              
+              break;
+            }
+            case ast_type::identifier: {
+              function.code.emplace_back(op_load, c->content);
+              
+              break;
+            }
+            case ast_type::functioncall: {
+              generate_function_call(function, c.get());
+              
+              break;
+            }
+            case ast_type::or_operator: {
+              break;
+            }
+            case ast_type::and_operator: {
+              break;
+            }
+            case ast_type::equals_operator: {
+              function.code.emplace_back(op_cmp);
+              function.code.emplace_back(op_jnz, L2);
+              
+              break;
+            }
+            case ast_type::not_equals_operator: {
+              function.code.emplace_back(op_cmp);
+              function.code.emplace_back(op_jz, L2);
+             
+              break;
+            }
+            case ast_type::greater_than_operator: {
+              function.code.emplace_back(op_cmp);
+              function.code.emplace_back(op_jl, L2);
+              
+              break;
+            }
+            case ast_type::less_than_operator: {
+              function.code.emplace_back(op_cmp);
+              function.code.emplace_back(op_jg, L2);
+              
+              break;
+            }
+            case ast_type::greater_than_or_equal_operator: {
+              function.code.emplace_back(op_cmp);
+              function.code.emplace_back(op_jle, L2);
+              
+              break;
+            }
+            case ast_type::less_than_or_equal_operator: {
+              function.code.emplace_back(op_cmp);
+              function.code.emplace_back(op_jge, L2);
+              
+              break;
+            }
+            default: {
+              break;
+            }
+          }
+        }
+        
+        for (const auto& c : c1->get_children()) {
+          if (c->get_type() == ast_type::block) {
+            generate_block(function, ast::cast_raw<ast_block>(c.get()));
+          }
+        }
+        
+        function.code.emplace_back(op_jmp, L1);
+        
+        place_label(function, L2);
+      }
+      else if (c1->get_type() == ast_type::elsestmt) {
+        for (const auto& c : c1->get_children()) {
+          if (c->get_type() == ast_type::block) {
+            generate_block(function, ast::cast_raw<ast_block>(c.get()));
+          }
+        }
+        
+        function.code.emplace_back(op_jmp, L1);
+      }
+    }
+    
+    // last label for all the blocks
+    place_label(function, L1); 
   }
   
   void ir_gen::generate_elseif(ir_function& function, ast_elseifstmt* elseif_node) {
@@ -416,42 +523,36 @@ namespace occult {
         case ast_type::equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jnz, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
-          
+     
           break;
         }
         case ast_type::not_equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jz, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
-          
+     
           break;
         }
         case ast_type::greater_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jl, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::less_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jg, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
-          
+
           break;
         }
         case ast_type::greater_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jle, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
         case ast_type::less_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jge, "label_" + std::to_string(label_count));
-          label_stack.push("label_" + std::to_string(label_count));
           
           break;
         }
@@ -474,11 +575,6 @@ namespace occult {
           break;
         }
       }
-    }
-    
-    if (!label_stack.empty()) {
-      function.code.emplace_back(label, label_stack.top());
-      label_stack.pop();
     }
   }
   
@@ -551,25 +647,6 @@ namespace occult {
         case ast_type::ifstmt: {
           generate_if(function, ast::cast_raw<ast_ifstmt>(c.get()));
           
-          function.code.emplace_back(label, "label_" + std::to_string(label_count++));
-          label_map["label_" + std::to_string(label_count)] = label_count;
-          
-          break;
-        }
-        case ast_type::elseifstmt: {
-          generate_elseif(function, ast::cast_raw<ast_elseifstmt>(c.get()));
-          
-          function.code.emplace_back(label, "label_" + std::to_string(label_count++));
-          label_map["label_" + std::to_string(label_count)] = label_count;
-          
-          break;
-        }
-        case ast_type::elsestmt: {
-          generate_else(function, ast::cast_raw<ast_elsestmt>(c.get()));
-          
-          function.code.emplace_back(label, "label_" + std::to_string(label_count++));
-          label_map["label_" + std::to_string(label_count)] = label_count;
-          
           break;
         }
         case ast_type::continuestmt: {
@@ -579,9 +656,6 @@ namespace occult {
           break;
         }
         case ast_type::loopstmt: {
-          function.code.emplace_back(label, "label_" + std::to_string(label_count++));
-          label_map["label_" + std::to_string(label_count)] = label_count;
-          
           generate_loop(function, ast::cast_raw<ast_loopstmt>(c.get()));
           
           function.code.emplace_back(op_jmp, "label_" + std::to_string(label_count));
@@ -606,6 +680,17 @@ namespace occult {
         }
       }
     }
+  }
+  
+  std::string ir_gen::create_label() {
+    std::string label_name = "label_" + std::to_string(label_count++);
+    label_map[label_name] = label_count;
+    
+    return label_name;
+  }
+  
+  void ir_gen::place_label(ir_function& function, std::string label_name) {
+    function.code.emplace_back(label, label_name);
   }
   
   struct visitor {

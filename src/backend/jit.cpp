@@ -61,49 +61,49 @@ namespace occult {
   void jit_runtime::backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x64writer* w) {
     switch (op) {
       case ir_opcode::op_jnz: {
-      w->get_code().at(location) = 0x0F;             
-      w->get_code().at(location + 1) = 0x85;          
-      std::int32_t offset = label_location - (location + 5); 
-      
-      w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         
-      w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF); 
-      w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
-      w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF);
+        w->get_code().at(location) = 0x0F;             
+        w->get_code().at(location + 1) = 0x85;          
+        std::int32_t offset = label_location - (location + 6); 
+        
+        w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         
+        w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF); 
+        w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+        w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF);
         
         break;
       }
       case ir_opcode::op_jge: {
-      w->get_code().at(location) = 0x0F;             
-      w->get_code().at(location + 1) = 0x8D;          
-      std::int32_t offset = label_location - (location + 5);
-      
-      w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);        
-      w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
-      w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
-      w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
+        w->get_code().at(location) = 0x0F;             
+        w->get_code().at(location + 1) = 0x8D;          
+        std::int32_t offset = label_location - (location + 6);
+        
+        w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);        
+        w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
+        w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+        w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
         
         break;
       }
       case ir_opcode::op_jz: {
-       w->get_code().at(location) = 0x0F;              
-       w->get_code().at(location + 1) = 0x84;          
-       std::int32_t offset = label_location - (location + 5);  
+        w->get_code().at(location) = 0x0F;              
+        w->get_code().at(location + 1) = 0x84;          
+        std::int32_t offset = label_location - (location + 6);  
        
-       w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         
-       w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF); 
-       w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF);
-       w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
+        w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);         
+        w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF); 
+        w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF);
+        w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
         
         break;
       }
       case ir_opcode::op_jmp: {
-       w->get_code().at(location) = 0xE9;          
-       std::int32_t offset = label_location - (location + 5);  
+        w->get_code().at(location) = 0xE9;          
+        std::int32_t offset = label_location - (location + 5);  
        
-       w->get_code().at(location + 1) = static_cast<std::uint8_t>(offset & 0xFF);        
-       w->get_code().at(location + 2) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
-       w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
-       w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
+        w->get_code().at(location + 1) = static_cast<std::uint8_t>(offset & 0xFF);        
+        w->get_code().at(location + 2) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
+        w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+        w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
         
         break;
       }
@@ -195,16 +195,11 @@ namespace occult {
           
           break;
         }
-        case ir_opcode::label: { // we realloc the label in here
+        case ir_opcode::label: { // we realloc the label location in here
           auto current_location = w->get_code().size();
           auto label_name = std::get<std::string>(instr.operand);
           
-          if (label_map.contains(label_name)) {
-            label_map[label_name] = current_location; // update label location
-          }
-          else {
-            label_map.insert({label_name, current_location}); // if not, create new one
-          }
+          label_map[label_name] = current_location; // update label location
           
           break;
         }
@@ -218,6 +213,7 @@ namespace occult {
           
           break;
         }
+        case ir_opcode::op_jz:
         case ir_opcode::op_jge:
         case ir_opcode::op_jnz: {
           auto jump_instr = instr;
@@ -299,8 +295,7 @@ namespace occult {
       }
       
       if (label_map.contains(label_name)) {
-        std::size_t label_location = label_map[label_name];
-        backpatch_jump(jump_type, jump.second, label_location, w); 
+        backpatch_jump(jump_type, jump.second, label_map[label_name], w); 
       }
       else {
         throw std::runtime_error("label not found: " + label_name);

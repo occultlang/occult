@@ -3,12 +3,12 @@ fn add(int64 a, int64 b) int64 {
 }
 
 fn main() int64 {
-  int64 x = 64;
+  int64 x = 12;
   
   if x == 64 {
     x = 0;
     
-    if x != 0 { // nested statements
+    if x != 0 { 
       print("x aint 0\n");
     }
     

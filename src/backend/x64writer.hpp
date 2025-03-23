@@ -901,73 +901,73 @@ namespace occult {
     
     void emit_near_jump(std::uint8_t opcode, std::uint32_t target_address) {
       std::uint32_t current_address = get_code().size();
-      std::int32_t rel32 = target_address - (current_address + 5);
+      std::int32_t rel32 = target_address - (current_address + 6);
       
       push_bytes({0x0F, opcode});
       emit_imm_by_size(rel32, k32bit);
     }
     
-    void emit_jo_near(std::uint8_t target_address) {
+    void emit_jo_near(std::uint32_t target_address) {
       emit_near_jump(0x80, target_address);
     }
     
-    void emit_jno_near(std::uint8_t target_address) {
+    void emit_jno_near(std::uint32_t target_address) {
       emit_near_jump(0x81, target_address);
     }
     
-    void emit_jb_near(std::uint8_t target_address) {
+    void emit_jb_near(std::uint32_t target_address) {
       emit_near_jump(0x82, target_address);
     }
     
-    void emit_jnb_near(std::uint8_t target_address) {
+    void emit_jnb_near(std::uint32_t target_address) {
       emit_near_jump(0x83, target_address);
     }
     
-    void emit_jz_near(std::uint8_t target_address) {
+    void emit_jz_near(std::uint32_t target_address) {
       emit_near_jump(0x84, target_address);
     }
     
-    void emit_jnz_near(std::uint8_t target_address) {
+    void emit_jnz_near(std::uint32_t target_address) {
       emit_near_jump(0x85, target_address);
     }
     
-    void emit_jbe_near(std::uint8_t target_address) {
+    void emit_jbe_near(std::uint32_t target_address) {
       emit_near_jump(0x86, target_address);
     }
     
-    void emit_jnbe_near(std::uint8_t target_address) {
+    void emit_jnbe_near(std::uint32_t target_address) {
       emit_near_jump(0x87, target_address);
     }
     
-    void emit_js_near(std::uint8_t target_address) {
+    void emit_js_near(std::uint32_t target_address) {
       emit_near_jump(0x88, target_address);
     }
     
-    void emit_jns_near(std::uint8_t target_address) {
+    void emit_jns_near(std::uint32_t target_address) {
       emit_near_jump(0x89, target_address);
     }
     
-    void emit_jp_near(std::uint8_t target_address) {
+    void emit_jp_near(std::uint32_t target_address) {
       emit_near_jump(0x8A, target_address);
     }
     
-    void emit_jnp_near(std::uint8_t target_address) {
+    void emit_jnp_near(std::uint32_t target_address) {
       emit_near_jump(0x8B, target_address);
     }
     
-    void emit_jl_near(std::uint8_t target_address) {
+    void emit_jl_near(std::uint32_t target_address) {
       emit_near_jump(0x8C, target_address);
     }
     
-    void emit_jnl_near(std::uint8_t target_address) {
+    void emit_jnl_near(std::uint32_t target_address) {
       emit_near_jump(0x8D, target_address);
     }
     
-    void emit_jle_near(std::uint8_t target_address) {
+    void emit_jle_near(std::uint32_t target_address) {
       emit_near_jump(0x8E, target_address);
     }
     
-    void emit_jnle_near(std::uint8_t target_address) {
+    void emit_jnle_near(std::uint32_t target_address) {
       emit_near_jump(0x8F, target_address);
     }
     

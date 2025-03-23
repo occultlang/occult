@@ -360,7 +360,7 @@ namespace occult {
     consume(); // consume if
     
     auto if_node = ast::new_node<ast_ifstmt>();
-    
+ 
     auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
     std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
     pos += first_bracket_pos;
@@ -373,7 +373,13 @@ namespace occult {
     auto body = parse_block();  
     if_node->add_child(std::move(body));
     
-    if_node->add_child(std::make_unique<ast_label>());
+    while (match(peek(), elseif_keyword_tt)) {
+      if_node->add_child(parse_elseif());
+    }
+    
+    if (match(peek(), else_keyword_tt)) {
+      if_node->add_child(parse_else());
+    }
     
     return if_node;
   }
@@ -382,7 +388,7 @@ namespace occult {
     consume(); 
     
     auto elseif_node = ast::new_node<ast_elseifstmt>();
-    
+
     auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
     std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
     pos += first_bracket_pos;
@@ -395,8 +401,6 @@ namespace occult {
     auto body = parse_block();  
     elseif_node->add_child(std::move(body));
     
-    elseif_node->add_child(std::make_unique<ast_label>());
-    
     return elseif_node;
   }
   
@@ -408,8 +412,6 @@ namespace occult {
     auto body = parse_block();  
     else_node->add_child(std::move(body));
     
-    else_node->add_child(std::make_unique<ast_label>());
-    
     return else_node;
   }
   
@@ -418,12 +420,8 @@ namespace occult {
     
     auto loop_node = ast::new_node<ast_loopstmt>();
     
-    loop_node->add_child(std::make_unique<ast_label>());
-    
     auto body = parse_block();  
     loop_node->add_child(std::move(body));
-    
-    loop_node->add_child(std::make_unique<ast_label>());
     
     return loop_node;
   }
@@ -463,8 +461,6 @@ namespace occult {
     
     auto while_node = ast::new_node<ast_whilestmt>();
     
-    while_node->add_child(std::make_unique<ast_label>());
-    
     auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
     std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
     pos += first_bracket_pos;
@@ -477,8 +473,6 @@ namespace occult {
     auto body = parse_block();  
     while_node->add_child(std::move(body));
     
-    while_node->add_child(std::make_unique<ast_label>());
-    
     return while_node;
   }
   
@@ -489,7 +483,8 @@ namespace occult {
     
     if (match(peek(), identifier_tt)) {
       node->add_child(parse_identifier()); // add identifier as a child node
-    } else {
+    }
+    else {
       throw runtime_error("expected identifier", peek(), pos);
     }
     
@@ -524,9 +519,7 @@ namespace occult {
     consume();
     
     auto for_node = ast::new_node<ast_forstmt>();
-    
-    for_node->add_child(std::make_unique<ast_label>());
-    
+
     auto in_pos = find_first_token(stream.begin() + pos, stream.end(), in_keyword_tt); // we're going to insert a semicolon
     stream.insert(stream.begin() + pos + in_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
     
@@ -547,8 +540,6 @@ namespace occult {
       
       auto body = parse_block();  
       for_node->add_child(std::move(body));
-      
-      for_node->add_child(std::make_unique<ast_label>());
       
       return for_node;
     }
@@ -605,12 +596,6 @@ namespace occult {
     }
     else if (match(peek(), if_keyword_tt)) {
       return parse_if();
-    }
-    else if (match(peek(), elseif_keyword_tt)) {
-      return parse_elseif();
-    }
-    else if (match(peek(), else_keyword_tt)) {
-      return parse_else();
     }
     else if (match(peek(), loop_keyword_tt)) {
       return parse_loop();
