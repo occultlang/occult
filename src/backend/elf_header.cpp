@@ -23,7 +23,7 @@ namespace occult {
     return elf_header;
   }
 
-  elf_program_header elf::generate_program_header() {
+  elf_program_header elf::generate_program_header(std::uint64_t program_size) {
     //make a macro later for different architecture
     elf_program_header program_header = {};
     program_header.p_type = 1; // Loadable segment
@@ -31,14 +31,14 @@ namespace occult {
     program_header.p_offset = 0; // Offset in file
     program_header.p_vaddr = 0x400000; // Virtual address in memory
     program_header.p_paddr = 0x400000; // Physical address
-    program_header.p_filesz = 0x1000; // File size, TODO: add argument for file size in the future
+    program_header.p_filesz = program_size; // File size, TODO: add argument for file size in the future
     program_header.p_memsz = 0x1000; // Memory size
     program_header.p_align = 0x1000; // Alignment
     
     return program_header;
   }
 
-  void elf::generate_binary(const std::string& binary_name, const std::vector<std::uint8_t>& code) {
+  void elf::generate_binary(const std::string& binary_name, std::uint64_t program_size, const std::vector<std::uint8_t>& code) {
     std::ofstream file(binary_name, std::ios::binary);
 
     if (!file) {
@@ -48,7 +48,7 @@ namespace occult {
 
     // Generate and write ELF and program headers
     elf_header elf_header = generate_elf_header();
-    elf_program_header program_header = generate_program_header();
+    elf_program_header program_header = generate_program_header(program_size);
     
     file.write(reinterpret_cast<const char*>(&elf_header), sizeof(elf_header));
     file.write(reinterpret_cast<const char*>(&program_header), sizeof(program_header));
