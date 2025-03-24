@@ -1,6 +1,7 @@
 #pragma once
 #include "ir_gen.hpp"
 #include "x64writer.hpp"
+#include "elf_header.hpp"
 
 namespace occult {  
   class jit_runtime {
@@ -137,6 +138,7 @@ namespace occult {
     }
     
     void convert_ir();
+    void compile_to_binary(const std::string& binary_name);
     std::unordered_map<std::string, jit_function> function_map;
   };
 } // namespace occult
