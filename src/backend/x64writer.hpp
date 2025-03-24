@@ -4,6 +4,7 @@
 #include <cstdint>
 
 // TODO: need to do memory for emit_reg_imm16_32 and below.
+// TODO: add bitshifting
 
 // a lot of this is with http://ref.x86asm.net/coder64.html & https://defuse.ca/online-x86-assembler.htm
 // quick note right now, memory support may be limited as i have not really dealt with SIB yet, so bear with me please... (no rsp support yet)
@@ -51,7 +52,8 @@ namespace occult {
   };
   
   static std::unordered_map<std::size_t, std::uint8_t> prefix64 = {
-    {128, rex_wb},  // rex.wb, 64-bit extended registers (r8 - 15)
+    {256, rex_wr},  // rex.wr 64-bit extended register for sources (r8 - 15)
+    {128, rex_wb},  // rex.wb, 64-bit extended registers for targets (r8 - 15)
     {64, rex_w},    // rex.w
     {32, 0x00},     // default
     {16, 0x66},     // operand size override
@@ -130,7 +132,8 @@ namespace occult {
     }
   };
   
-  constexpr std::size_t k64bit_extended = 128; // TODO: fix later (?)
+  constexpr std::size_t k64bit_ext_target = 128; // target registers would be extended 64 bit registers r8-15
+  constexpr std::size_t k64bit_ext_src = 256; // src registers would be extended 64 bit registers r8-15
   constexpr std::size_t k64bit = 64;
   constexpr std::size_t k32bit = 32;
   constexpr std::size_t k16bit = 16;
@@ -178,7 +181,8 @@ namespace occult {
     
     void emit_imm_by_size(std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size) { 
       switch(size) {
-        case k64bit_extended:
+        case k64bit_ext_target:
+        case k64bit_ext_src:
         case k64bit: {
           if (std::holds_alternative<std::uint64_t>(imm)) {
             emit_imm64<std::uint64_t>(std::get<std::uint64_t>(imm));
@@ -270,8 +274,11 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
-      else if (size == k64bit_extended) {
-          push_byte(prefix64[k64bit_extended]);
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[k64bit_ext_src]);
+      }
+      else if (size == k64bit_ext_target) {
+        push_byte(prefix64[k64bit_ext_target]);
       }
       
       std::uint8_t modrm = modrm_byte(addressing_modes::reg_to_reg, x64_register[src], x64_register[dest]);
@@ -295,8 +302,11 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
-      else if (size == k64bit_extended) {
-          push_byte(prefix64[k64bit_extended]);
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[k64bit_ext_src]);
+      }
+      else if (size == k64bit_ext_target) {
+        push_byte(prefix64[k64bit_ext_target]);
       }
       
       if (size == k8bit) {
@@ -344,8 +354,11 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
-      else if (size == k64bit_extended) {
-          push_byte(prefix64[k64bit_extended]);
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[k64bit_ext_src]);
+      }
+      else if (size == k64bit_ext_target) {
+        push_byte(prefix64[k64bit_ext_target]);
       }
       
       if (size == k8bit) {
@@ -446,8 +459,11 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
-      else if (size == k64bit_extended) {
-          push_byte(prefix64[k64bit_extended]);
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[k64bit_ext_src]);
+      }
+      else if (size == k64bit_ext_target) {
+        push_byte(prefix64[k64bit_ext_target]);
       }
       
       if (size == k8bit) {
@@ -502,8 +518,11 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
-      else if (size == k64bit_extended) {
-          push_byte(prefix64[k64bit_extended]);
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[k64bit_ext_src]);
+      }
+      else if (size == k64bit_ext_target) {
+        push_byte(prefix64[k64bit_ext_target]);
       }
       
       if (size == k8bit) {
@@ -1037,6 +1056,8 @@ namespace occult {
       emit_short_jump(0x7F, target_address);
     }
     
+    // ADD MEMORY START
+    
     //	r/m16/32/64 	imm16/32 	
     void emit_reg_imm16_32(std::uint8_t opcode, rm_field rmf, const std::string& dest, std::variant<std::uint64_t, std::int64_t> imm, std::size_t imm_size = k32bit) {
       push_byte(opcode);
@@ -1079,8 +1100,11 @@ namespace occult {
       else if (reg_size == k16bit) {
         push_byte(prefix64[reg_size]);
       }
-      else if (reg_size == k64bit_extended) {
-          push_byte(prefix64[reg_size]);
+      else if (reg_size == k64bit_ext_src) {
+        push_byte(prefix64[reg_size]);
+      }
+      else if (reg_size == k64bit_ext_target) {
+        push_byte(prefix64[reg_size]);
       }
       
       if (reg_size == k8bit && imm_size == k8bit) {
@@ -1195,6 +1219,8 @@ namespace occult {
       emit_reg_mem_64_8(xchg, xchg_8bit, dest, src, disp, size);
     }
     
+    // ADD MEMORY END 
+    
     void emit_long_jump(std::uint8_t opcode, std::int32_t target_address) {
       std::size_t current_address = get_code().size(); 
       std::int32_t displacement = target_address - (current_address + 5); 
@@ -1244,8 +1270,11 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
-      else if (size == k64bit_extended) {
-          push_byte(prefix64[k64bit_extended]);
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[k64bit_ext_src]);
+      }
+      else if (size == k64bit_ext_target) {
+        push_byte(prefix64[k64bit_ext_target]);
       }
       
       if (size == k8bit) {
@@ -1270,8 +1299,11 @@ namespace occult {
       else if (size == k16bit) {
         push_byte(prefix64[k16bit]);
       }
-      else if (size == k64bit_extended) {
-          push_byte(prefix64[k64bit_extended]);
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[k64bit_ext_src]);
+      }
+      else if (size == k64bit_ext_target) {
+        push_byte(prefix64[k64bit_ext_target]);
       }
       
       if (size == k8bit) {
@@ -1283,5 +1315,7 @@ namespace occult {
       
       push_byte(modrm);
     }
+    
+    
   };
 } // namespace occult

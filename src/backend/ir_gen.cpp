@@ -15,37 +15,33 @@ namespace occult {
     
     for (const auto& c : func_node->get_children()) {
       switch(c->get_type()) {
-      case ast_type::int8_datatype:
-      case ast_type::int16_datatype:
-      case ast_type::int32_datatype:
-      case ast_type::int64_datatype:
-      case ast_type::uint8_datatype:
-      case ast_type::uint16_datatype:
-      case ast_type::uint32_datatype:
-      case ast_type::uint64_datatype:
-      case ast_type::string_datatype: {
-          function.type = c->to_string().substr(4, c->to_string().size());
-          break;
-      }
-
-      case ast_type::functionarguments: {
-          generate_function_args(function, ast::cast_raw<ast_functionargs>(c.get()));
-          break;
-      }
-
-      case ast_type::identifier: {
-          function.name = c->content;
-          break;
-      }
-
-      case ast_type::block: {
-          generate_block(function, ast::cast_raw<ast_block>(c.get()));
-          break;
-      }
-
-      default: {
-          break;
-      }
+        case ast_type::int8_datatype:
+        case ast_type::int16_datatype:
+        case ast_type::int32_datatype:
+        case ast_type::int64_datatype:
+        case ast_type::uint8_datatype:
+        case ast_type::uint16_datatype:
+        case ast_type::uint32_datatype:
+        case ast_type::uint64_datatype:
+        case ast_type::string_datatype: {
+            function.type = c->to_string().substr(4, c->to_string().size());
+            break;
+        }
+        case ast_type::functionarguments: {
+            generate_function_args(function, ast::cast_raw<ast_functionargs>(c.get()));
+            break;
+        }
+        case ast_type::identifier: {
+            function.name = c->content;
+            break;
+        }
+        case ast_type::block: {
+            generate_block(function, ast::cast_raw<ast_block>(c.get()));
+            break;
+        }
+        default: {
+            break;
+        }
       }
     }
     
@@ -303,7 +299,7 @@ namespace occult {
     }
   }
   
-  void ir_gen::generate_if(ir_function& function, ast_ifstmt* if_node) {
+  void ir_gen::generate_if(ir_function& function, ast_ifstmt* if_node, std::string current_break_label, std::string current_loop_start) {
     std::string L1 = create_label();
     std::string L2 = create_label();
     
@@ -380,7 +376,7 @@ namespace occult {
     // block
     for (const auto& c : if_node->get_children()) {
       if (c->get_type() == ast_type::block) {
-        generate_block(function, ast::cast_raw<ast_block>(c.get()));
+        generate_block(function, ast::cast_raw<ast_block>(c.get()), current_break_label, current_loop_start);
       }
     }
     
@@ -465,7 +461,7 @@ namespace occult {
         
         for (const auto& c : c1->get_children()) {
           if (c->get_type() == ast_type::block) {
-            generate_block(function, ast::cast_raw<ast_block>(c.get()));
+            generate_block(function, ast::cast_raw<ast_block>(c.get()), current_break_label, current_loop_start);
           }
         }
         
@@ -476,7 +472,7 @@ namespace occult {
       else if (c1->get_type() == ast_type::elsestmt) {
         for (const auto& c : c1->get_children()) {
           if (c->get_type() == ast_type::block) {
-            generate_block(function, ast::cast_raw<ast_block>(c.get()));
+            generate_block(function, ast::cast_raw<ast_block>(c.get()), current_break_label, current_loop_start);
           }
         }
         
@@ -489,21 +485,23 @@ namespace occult {
   }
   
   void ir_gen::generate_loop(ir_function& function, ast_loopstmt* loop_node) {
+    auto L1 = create_label();
+    auto B1 = create_label();
+    
+    place_label(function, L1);
+    
     for (const auto& c : loop_node->get_children()) {
-      switch(c->get_type()) {
-        case ast_type::block: {
-          generate_block(function, ast::cast_raw<ast_block>(c.get()));
-          
-          break;
-        }
-        default: {
-          break;
-        }
+      if (c->get_type() == ast_type::block) {
+        generate_block(function, ast::cast_raw<ast_block>(c.get()), B1, L1);
       }
     }
+    
+    function.code.emplace_back(op_jmp, L1);
+    
+    place_label(function, B1);
   }
   
-  void ir_gen::generate_block(ir_function& function, ast_block* block_node) {
+  void ir_gen::generate_block(ir_function& function, ast_block* block_node, std::string current_break_label, std::string current_loop_start) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
         case ast_type::int8_datatype:
@@ -555,20 +553,22 @@ namespace occult {
           break;
         }
         case ast_type::ifstmt: {
-          generate_if(function, ast::cast_raw<ast_ifstmt>(c.get()));
+          generate_if(function, ast::cast_raw<ast_ifstmt>(c.get()), current_break_label, current_loop_start);
           
           break;
         }
         case ast_type::continuestmt: {
+          function.code.emplace_back(op_jmp, current_loop_start);
+          
           break;
         }
         case ast_type::breakstmt: {
+          function.code.emplace_back(op_jmp, current_break_label);
+          
           break;
         }
         case ast_type::loopstmt: {
           generate_loop(function, ast::cast_raw<ast_loopstmt>(c.get()));
-          
-          function.code.emplace_back(op_jmp, "label_" + std::to_string(label_count));
           
           break;
         }

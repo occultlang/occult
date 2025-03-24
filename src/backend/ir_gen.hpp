@@ -126,9 +126,9 @@ namespace occult {
     void handle_push_types_common(ir_function& function, ast* c);
     void generate_function_call(ir_function& function, ast* c);
     void generate_return(ir_function& function, ast_returnstmt* return_node);
-    void generate_if(ir_function& function, ast_ifstmt* if_node);
+    void generate_if(ir_function& function, ast_ifstmt* if_node, std::string current_break_label = "", std::string current_loop_start = "");
     void generate_loop(ir_function& function, ast_loopstmt* loop_node);
-    void generate_block(ir_function& function, ast_block* block_node);
+    void generate_block(ir_function& function, ast_block* block_node, std::string current_break_label = "", std::string current_loop_start = "");
     std::string create_label();
     void place_label(ir_function& function, std::string label_name);
   public:
