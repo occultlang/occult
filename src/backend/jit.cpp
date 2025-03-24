@@ -302,4 +302,15 @@ namespace occult {
       }
     }
   }
+
+  void jit_runtime::compile_to_binary(const std::string& binary_name) {
+    std::vector<std::uint8_t> full_code;
+
+    for (const auto& w : writers) {
+      const auto& code = w->get_code();
+      full_code.insert(full_code.end(), code.begin(), code.end());
+    }
+
+    elf::generate_binary(binary_name, full_code.size(), full_code);
+  }
 } // namespace occult
