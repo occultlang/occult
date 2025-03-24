@@ -41,7 +41,7 @@ namespace occult { // https://wiki.osdev.org/ELF_Tutorial
 
   struct elf {
     static elf_header generate_elf_header();
-    static elf_program_header generate_program_header();
-    static void generate_binary(const std::string& binary_name, const std::vector<std::uint8_t>& code);
+    static elf_program_header generate_program_header(std::uint64_t program_size);
+    static void generate_binary(const std::string& binary_name, std::uint64_t program_size, const std::vector<std::uint8_t>& code);
   };
 } // namespace occult
