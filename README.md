@@ -27,6 +27,16 @@
   - It's working, but it isn't fully finished for the full functionality either, and needs polishing, also in the early stages
 - Linter
   - It will be done closer to the end of the development roadmap (Not started)
+
+### Things left to do before testing thouroughly
+- - [x] If statements
+- - [x] Loop statements
+- - [x] Continue statement
+- - [x] Break statement
+- - [ ] While loops
+- - [ ] For loops
+- - [ ] Floating point variables
+- - [ ] String variables (immutable)
 _____________________________________________________________________________
 
 ### [Building](https://github.com/occultlang/occult/blob/main/BUILDING.md)
