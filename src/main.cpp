@@ -132,6 +132,8 @@ int main(int argc, char* argv[]) {
     if (showtime) {
       std::cout << "[occultc] \033[1;35mcompleted executing jit code \033[0m" << duration.count() << "ms\n";
     }
+
+    jit_runtime.compile_to_binary("sup");
   }
   else {
     std::cerr << "main function not found!" << std::endl;
