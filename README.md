@@ -27,7 +27,7 @@
 - Linter
   - It will be done closer to the end of the development roadmap (Not started)
 
-### Things left to do before testing thouroughly
+### Things left to do before testing
 - - [x] If statements
 - - [x] Loop statements
 - - [x] Continue statement
