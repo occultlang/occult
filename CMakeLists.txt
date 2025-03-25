@@ -21,4 +21,6 @@ add_executable(occultc
 ./src/backend/ir_gen.hpp
 ./src/backend/jit.cpp
 ./src/backend/jit.hpp
+./src/backend/linker/linker.cpp
+./src/backend/linker/linker.hpp
 ./src/main.cpp)
