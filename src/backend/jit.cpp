@@ -1,4 +1,5 @@
 #include "jit.hpp"
+#include "writer.hpp"
 #include <fstream>
 
 // just testing JIT functionality and viability
@@ -115,66 +116,57 @@ namespace occult {
 
   void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map) {
     std::unordered_map<std::string, std::size_t> label_map;
-    std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
+    // We no longer need jump_instructions because every branch now records a relocation.
     std::size_t totalsizes = 0;
-    
+
     for (const auto& instr : ir_code) {
       switch (instr.op) {
         case ir_opcode::op_push: {
-          if (std::holds_alternative<std::string>(instr.operand)) { // generate strings dynamically BUT we need to fix the efficiency of this, and especially the size LOL but thats a later issue
+          if (std::holds_alternative<std::string>(instr.operand)) { // For strings
             const auto& str = std::get<std::string>(instr.operand);
-            
+
             w->emit_mov_reg_imm("rdi", str.length());
             w->emit_mov_reg_imm("rbx", reinterpret_cast<std::int64_t>(&function_map["__stralloc"]));
             w->emit_call_reg64("rbx");
-            
+
             for (const auto& b : str) {
               w->emit_mov_mem_imm("rax", 0, b, k8bit);
               w->emit_inc_reg("rax");
             }
-            
+
             w->emit_mov_mem_imm("rax", 0, '\0', k8bit);
-            
             w->emit_sub_reg8_64_imm8_32("rax", str.length());
-            
             w->emit_push_reg_64("rax");
           }
           else if (std::holds_alternative<std::int64_t>(instr.operand)) {
             w->emit_mov_reg_imm("rax", std::get<std::int64_t>(instr.operand));
             w->emit_push_reg_64("rax");
-          } // more and fix stuff later on
-          
+          }
           break;
         }
-        case ir_opcode::op_store: { // not done
+        case ir_opcode::op_store: {
           totalsizes += type_sizes[instr.type];
-          
           if (instr.type != "string") {
             w->emit_sub_reg8_64_imm8_32("rsp", totalsizes);
             w->emit_mov_mem_reg("rbp", -totalsizes, "rax");
           }
-          
           if (debug) {
             std::cout << "sizes in store: " << totalsizes << "\nlocal: " << type_sizes[instr.type] << "\n";
           }
-          
           local_variable_map.insert({std::get<std::string>(instr.operand), totalsizes});
-          
           break;
         }
-        case ir_opcode::op_load: { // not done 
+        case ir_opcode::op_load: {
           if (instr.type != "string") {
             w->emit_mov_reg_mem("rax", "rbp", -local_variable_map[std::get<std::string>(instr.operand)]);
             w->emit_push_reg_64("rax");
           }
-          
           break;
         }
         case ir_opcode::op_ret: {
           w->emit_pop_reg_64("rax");
           w->emit_function_epilogue();
           w->emit_ret();
-          
           break;
         }
         case ir_opcode::op_add: {
@@ -183,7 +175,6 @@ namespace occult {
           w->emit_pop_reg_64("rax");
           w->emit_add_reg_reg("rax", "rbx");
           w->emit_push_reg_64("rax");
-          
           break;
         }
         case ir_opcode::op_sub: {
@@ -192,37 +183,39 @@ namespace occult {
           w->emit_pop_reg_64("rax");
           w->emit_sub_reg_reg("rax", "rbx");
           w->emit_push_reg_64("rax");
-          
           break;
         }
-        case ir_opcode::label: { // we realloc the label location in here
+        case ir_opcode::label: {
           auto current_location = w->get_code().size();
           auto label_name = std::get<std::string>(instr.operand);
-          
-          label_map[label_name] = current_location; // update label location
-          
+          label_map[label_name] = current_location;
           break;
         }
         case ir_opcode::op_jmp: {
-          auto jump_instr = instr;
-          jump_instr.operand = std::get<std::string>(instr.operand);
-          
-          w->push_bytes({0x90, 0x90, 0x90, 0x90, 0x90});
-          
-          jump_instructions.push_back({jump_instr, w->get_code().size() - 5});
-          
+          std::string label = std::get<std::string>(instr.operand);
+          std::size_t patch_location = w->get_code().size();
+          // Emit JMP opcode (0xE9) with 4-byte placeholder
+          w->push_bytes({0xE9, 0x00, 0x00, 0x00, 0x00});
+          // Record relocation: offset starts at patch_location + 1
+          relocation_entry rel;
+          rel.symbol = label;
+          rel.patch_location = patch_location + 1;
+          rel.instruction_length = 4;
+          relocations.push_back(rel);
           break;
         }
         case ir_opcode::op_jz:
         case ir_opcode::op_jge:
         case ir_opcode::op_jnz: {
-          auto jump_instr = instr;
-          jump_instr.operand = std::get<std::string>(instr.operand);
-          
-          w->push_bytes({0x90, 0x90, 0x90, 0x90, 0x90, 0x90});
-
-          jump_instructions.push_back({jump_instr, w->get_code().size() - 6});
-          
+          std::string label = std::get<std::string>(instr.operand);
+          std::size_t patch_location = w->get_code().size();
+          // Emit conditional jump opcode: e.g., for JNZ: 0x0F 0x85 followed by a 4-byte offset
+          w->push_bytes({0x0F, 0x85, 0x00, 0x00, 0x00, 0x00});
+          relocation_entry rel;
+          rel.symbol = label;
+          rel.patch_location = patch_location + 2; // offset field begins after two opcode bytes
+          rel.instruction_length = 4;
+          relocations.push_back(rel);
           break;
         }
         case ir_opcode::op_cmp: {
@@ -230,87 +223,63 @@ namespace occult {
           w->emit_mov_reg_reg("rbx", "rax");
           w->emit_pop_reg_64("rax");
           w->emit_cmp_reg_reg("rax", "rbx");
-          
           break;
         }
-        case ir_opcode::op_call: { // recursion is iffy, TODO: find a way around lazy function compilation to handle recursion well
+        case ir_opcode::op_call: {
           std::string func_name = std::get<std::string>(instr.operand);
-          
           if (func_name == "__stralloc") {
             throw std::runtime_error("cannot call internal function: " + func_name);
           }
-          
           if (debug) {
             std::cout << "calling: " << func_name << "\n";
           }
-          
-          // somewhere around here needs to be fixed i think
+          // Compile function if not already compiled
           auto it = std::find_if(ir_funcs.begin(), ir_funcs.end(), [&](const ir_function& f) {
             return f.name == func_name;
           });
-
           if (it != ir_funcs.end()) {
-            compile_function(*it); 
+            compile_function(*it);
           }
-
           if (!function_map.contains(func_name)) {
             throw std::runtime_error("undefined function: " + func_name);
           }
-          
+          // Using register call approach (no relocation needed):
           w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map[func_name]));
           w->emit_call_reg64("rax");
-          
           if (func_name == "print") {
             w->emit_add_reg8_64_imm8_32("rsp", 8);
-          }
-          else {
+          } else {
             w->emit_add_reg8_64_imm8_32("rsp", cleanup_size_map[func_name]);
           }
-          
           if (func_name != "print") {
-            w->emit_push_reg_64("rax"); // push return value onto stack if not print
+            w->emit_push_reg_64("rax");
           }
-          
           break;
         }
-
         default: {
           break;
         }
       }
     }
-    
-    for (auto& jump : jump_instructions) {
-      if (debug) {
-        std::cout << "jump backpatching:\n";
-      }
-      
-      auto& instr = jump.first;
-      auto jump_type = instr.op;
-      auto label_name = std::get<std::string>(instr.operand);
-      
-      if (debug) {
-        std::cout << "\topcode: " << opcode_to_string(jump_type) << std::endl;
-        std::cout << "\tlocation: " << std::hex << label_map[label_name] << std::dec << std::endl;
-      }
-      
-      if (label_map.contains(label_name)) {
-        backpatch_jump(jump_type, jump.second, label_map[label_name], w); 
-      }
-      else {
-        throw std::runtime_error("label not found: " + label_name);
-      }
-    }
+    // Remove any separate jump_instructions patching loop since relocations handle branches.
   }
 
   void jit_runtime::compile_to_binary(const std::string& binary_name) {
-    std::vector<std::uint8_t> full_code;
+    std::vector<std::vector<std::uint8_t>> fragments;
 
     for (const auto& w : writers) {
-      const auto& code = w->get_code();
-      full_code.insert(full_code.end(), code.begin(), code.end());
+      fragments.push_back(w->get_code());
     }
 
-    elf::generate_binary(binary_name, full_code.size(), full_code);
+    std::unordered_map<std::string, jit_function> global_symbols = function_map;
+
+   // std::vector<occult::relocation_entry> relocations; //placeholder
+
+    occult::linker linker;
+    auto final_code = linker.link(fragments, global_symbols, relocations);
+
+    linker.create_elf_binary(binary_name, final_code);
+
+    //elf::generate_binary(binary_name, full_code.size(), full_code);
   }
 } // namespace occult
