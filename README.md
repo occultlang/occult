@@ -37,7 +37,7 @@
 - - [ ] Floating point variables
 - - [ ] String variables (immutable)
  
-### Things planned for v2.1
+### Things planned
 - Arrays
 - Pointers
 - Static Analysis
