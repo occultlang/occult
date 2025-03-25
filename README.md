@@ -24,8 +24,6 @@
   - Stack-based IR, works with translation to native JIT x86_64, in the very early stages
 - x86 JIT Runtime
   - It's working, but it isn't fully finished for the full functionality either, and needs polishing, also in the early stages
-- Linter
-  - It will be done closer to the end of the development roadmap (Not started)
 
 ### Things left to do before testing
 - - [x] If statements
