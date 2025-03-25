@@ -40,6 +40,7 @@
 ### Things planned
 - Arrays
 - Pointers
+- Match statement
 - Static Analysis
 - An intermediate in between bytecode and AST, in TAC form for further optimisation later on
 _____________________________________________________________________________
