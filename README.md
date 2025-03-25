@@ -18,7 +18,6 @@
   - - [x] x86 JIT Runtime
   - - [x] IR Translation -> x86 JIT
   - - [ ] Windows Support 
-- - [ ] Linter
  
 ### Notes about the roadmap
 - IR/IL + Translation
@@ -37,6 +36,12 @@
 - - [ ] For loops
 - - [ ] Floating point variables
 - - [ ] String variables (immutable)
+ 
+### Things planned for v2.1
+- Arrays
+- Pointers
+- Static Analysis
+- An intermediate in between bytecode and AST, in TAC form for further optimisation later on
 _____________________________________________________________________________
 
 ### [Building](https://github.com/occultlang/occult/blob/main/BUILDING.md)
