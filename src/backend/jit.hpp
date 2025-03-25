@@ -2,12 +2,15 @@
 #include "ir_gen.hpp"
 #include "x64writer.hpp"
 #include "elf_header.hpp"
+#include "linker/linker.hpp"
 
 namespace occult {  
   class jit_runtime {
     std::vector<ir_function> ir_funcs;
     std::unordered_map<std::string, std::size_t> cleanup_size_map;
     std::vector<std::unique_ptr<x64writer>> writers;
+    std::vector<relocation_entry> relocations;
+
     bool debug;
     std::unordered_map<std::string, std::size_t> type_sizes = {
       {"int64", 8},
