@@ -44,7 +44,12 @@ namespace occult {
     
     function_map.insert({func.name, reinterpret_cast<jit_function>(w->memory)});
     
-    generate_code(func.code, w.get(), local_variable_map);
+    bool ismain = false;
+    if (func.name == "main") {
+      ismain = true;
+    }
+    
+    generate_code(func.code, w.get(), local_variable_map, ismain);
 
     if (debug) {
       w->print_bytes();
@@ -53,7 +58,9 @@ namespace occult {
       output_file.write(reinterpret_cast<const char*>(w->get_code().data()), w->get_code().size());
       output_file.close();
     }
-
+    
+    function_raw_code_map.insert({func.name, w->get_code()});
+    
     w->setup_function();
     writers.push_back(std::move(w));
   }
@@ -113,7 +120,7 @@ namespace occult {
     }
   }
 
-  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map) {
+  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map, bool ismain) {
     std::unordered_map<std::string, std::size_t> label_map;
     std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
     std::size_t totalsizes = 0;
@@ -171,9 +178,18 @@ namespace occult {
           break;
         }
         case ir_opcode::op_ret: {
-          w->emit_pop_reg_64("rax");
-          w->emit_function_epilogue();
-          w->emit_ret();
+          if (!isjit && ismain) {
+            w->emit_pop_reg_64("rax");
+            w->emit_function_epilogue();
+            w->emit_mov_reg_reg("rdi", "rax");
+            w->emit_mov_reg_imm("rax", 60);
+            w->emit_syscall();
+          }
+          else {
+            w->emit_pop_reg_64("rax");
+            w->emit_function_epilogue();
+            w->emit_ret();
+          }
           
           break;
         }
@@ -301,16 +317,5 @@ namespace occult {
         throw std::runtime_error("label not found: " + label_name);
       }
     }
-  }
-
-  void jit_runtime::compile_to_binary(const std::string& binary_name) {
-    std::vector<std::uint8_t> full_code;
-
-    for (const auto& w : writers) {
-      const auto& code = w->get_code();
-      full_code.insert(full_code.end(), code.begin(), code.end());
-    }
-
-    elf::generate_binary(binary_name, full_code.size(), full_code);
   }
 } // namespace occult

@@ -1,5 +1,5 @@
 #pragma once
-#include "../parser/ast.hpp"
+#include "../../parser/ast.hpp"
 
 namespace occult {
   enum ir_opcode {

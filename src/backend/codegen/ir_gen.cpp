@@ -1,5 +1,5 @@
 #include "ir_gen.hpp"
-#include "../lexer/number_parser.hpp"
+#include "../../lexer/number_parser.hpp"
 
 /*
  * This IR generation is really crappy and disorganized, I will make it organized later on, and I'll probably move to SSA or TAC

@@ -10,6 +10,13 @@
 #include <cstring>
 #include <vector>
 
+#define GREEN   "\033[32m"
+#define BLUE    "\033[34m"
+#define YELLOW  "\033[33m"
+#define RED     "\033[31m"
+#define CYAN    "\033[36m"
+#define RESET   "\033[0m"
+
 namespace occult { // https://wiki.osdev.org/ELF_Tutorial
   struct elf_header {
     unsigned char e_ident[16]; // Magic number and other info
@@ -40,8 +47,9 @@ namespace occult { // https://wiki.osdev.org/ELF_Tutorial
   };
 
   struct elf {
-    static elf_header generate_elf_header();
-    static elf_program_header generate_program_header(std::uint64_t program_size);
-    static void generate_binary(const std::string& binary_name, std::uint64_t program_size, const std::vector<std::uint8_t>& code);
+    static elf_header generate_elf_header(std::uint64_t entry_addr);
+    static elf_program_header generate_program_header(std::uint64_t program_size, std::uint64_t vaddr, std::uint64_t paddr, std::uint64_t memsz);
+    static void generate_binary(const std::string& binary_name, const std::vector<std::uint8_t>& code, std::uint64_t program_size,
+                                std::uint64_t entry_addr = 0x400078, std::uint64_t vaddr = 0x400000, std::uint64_t paddr = 0x400000, std::uint64_t memsz = 0x1000);
   };
 } // namespace occult

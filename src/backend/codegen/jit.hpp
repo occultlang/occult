@@ -1,14 +1,16 @@
 #pragma once
 #include "ir_gen.hpp"
 #include "x64writer.hpp"
-#include "elf_header.hpp"
+#include <map>
 
 namespace occult {  
   class jit_runtime {
     std::vector<ir_function> ir_funcs;
     std::unordered_map<std::string, std::size_t> cleanup_size_map;
     std::vector<std::unique_ptr<x64writer>> writers;
+    
     bool debug;
+    bool isjit;
     std::unordered_map<std::string, std::size_t> type_sizes = {
       {"int64", 8},
       {"int32", 4},
@@ -23,11 +25,11 @@ namespace occult {
       {"bool", 1}, 
       {"char", 1}};
       
-      void generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map);
+      void generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map, bool ismain = false);
       void compile_function(const ir_function& func);
       void backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x64writer* w);
   public:
-    jit_runtime(std::vector<ir_function> ir_funcs, bool debug = false) : ir_funcs(ir_funcs), debug(debug) {
+    jit_runtime(std::vector<ir_function> ir_funcs, bool debug = false, bool isjit = false) : ir_funcs(ir_funcs), debug(debug), isjit(isjit) {
       auto w1 = std::make_unique<x64writer>();
       w1->emit_function_prologue(0);
       w1->emit_mov_reg_mem("rdi", "rbp", 16); // first arg
@@ -48,6 +50,7 @@ namespace occult {
       auto jit_strlen = w1->setup_function();
       
       function_map.insert({"strlen", jit_strlen});
+      function_raw_code_map.insert({"strlen", w1->get_code()});
       writers.push_back(std::move(w1)); 
 
 #ifdef __linux__
@@ -71,7 +74,8 @@ namespace occult {
 
       auto jit_print = w->setup_function();
 
-      function_map.insert({ "print", jit_print });
+      function_map.insert({"print", jit_print });
+      function_raw_code_map.insert({"print", w->get_code()});
       writers.push_back(std::move(w));
       //end
 #elif _WIN64
@@ -129,6 +133,7 @@ namespace occult {
       auto jit_stralloc = w2->setup_function();
       
       function_map.insert({"__stralloc", jit_stralloc});
+      function_raw_code_map.insert({"__stralloc", w2->get_code()});
       writers.push_back(std::move(w2));
     }
     
@@ -138,7 +143,7 @@ namespace occult {
     }
     
     void convert_ir();
-    void compile_to_binary(const std::string& binary_name);
     std::unordered_map<std::string, jit_function> function_map;
+    std::map<std::string, std::vector<std::uint8_t>> function_raw_code_map;
   };
 } // namespace occult

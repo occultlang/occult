@@ -1,10 +1,4 @@
 fn main() i64 {
-  print("abcdefghijklmnopqrstuvwxyz\n");
-  print("abcdefghijklmnopqrstuvwxyz\n");
-  print("abcdefghijklmnopqrstuvwxyz\n");
-  print("abcdefghijklmnopqrstuvwxyz\n");
-  print("abcdefghijklmnopqrstuvwxyz\n");
-  
   print("Hello, World\n");
 
   return 0;
