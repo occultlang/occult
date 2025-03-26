@@ -43,7 +43,7 @@ namespace occult {
     std::ofstream file(binary_name, std::ios::binary);
 
     if (!file) {
-      std::cerr << "[-] Failed to create binary\n";
+      std::cerr << RED << "[-] Failed to create binary\n" << RESET;
       return;
     }
 
@@ -58,6 +58,6 @@ namespace occult {
     file.write(reinterpret_cast<const char*>(code.data()), code.size());
     
     file.close();
-    std::cout << "[+] ELF binary created: " << binary_name << "\n";
+    std::cout << GREEN << "[+] ELF binary created: " <<  binary_name << "\n" << RESET;
   }
 };
