@@ -1,9 +1,9 @@
 #include "lexer/lexer.hpp"
 #include "parser/ast.hpp"
 #include "parser/parser.hpp"
-#include "backend/ir_gen.hpp"
-#include "backend/x64writer.hpp"
-#include "backend/jit.hpp"
+#include "backend/codegen/ir_gen.hpp"
+#include "backend/codegen/x64writer.hpp"
+#include "backend/codegen/jit.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -11,7 +11,7 @@
 #include <chrono>
 #ifdef __linux
 #include <sys/stat.h>
-#include "backend/elf_header.hpp"
+#include "backend/linker/linker.hpp"
 #elif _WIN64
 #include "backend/pe_header.hpp"
 #endif
@@ -132,8 +132,8 @@ int main(int argc, char* argv[]) {
     if (showtime) {
       std::cout << "[occultc] \033[1;35mcompleted executing jit code \033[0m" << duration.count() << "ms\n";
     }
-
-    jit_runtime.compile_to_binary("sup");
+    
+    occult::linker::link_and_create_binary("a.out", jit_runtime.function_map, jit_runtime.function_raw_code_map);
   }
   else {
     std::cerr << "main function not found!" << std::endl;
@@ -141,3 +141,4 @@ int main(int argc, char* argv[]) {
   
   return 0;
 }
+  
