@@ -58,7 +58,7 @@ namespace occult {
       w->emit_function_prologue(0);
       w->emit_mov_reg_mem("rcx", "rbp", 16);
       w->emit_push_reg_64("rcx");
-      w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map["strlen"]));
+      w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map["__stralloc"]));
       w->emit_call_reg64("rax");
       w->emit_mov_reg_reg("rdx", "rax");
       w->emit_mov_reg_imm("rax", 4);
