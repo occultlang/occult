@@ -21,6 +21,8 @@ void display_help() {
   std::cout << "Options:\n";
   std::cout << "  -t, --time                     Shows the compilation time for each stage.\n";
   std::cout << "  -d, --debug                    Enable debugging options (shows time as well -t is not needed)\n";
+  std::cout << "  -o, --output <filename>        Output a native binary\n";
+  std::cout << "  -j, --jit                      Compile code as just-in-time (in memory)\n";
   std::cout << "  -h, --help                     Display this help message." << std::endl;
 }
 
@@ -31,6 +33,8 @@ int main(int argc, char* argv[]) {
   bool debug = false;
   bool verbose = false;
   bool showtime = false;
+  bool jit = false;
+  std::string filenameout;
   
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -42,6 +46,20 @@ int main(int argc, char* argv[]) {
     }
     else if (arg == "-t" || arg == "--time") {
       showtime = true;
+    }
+    else if (arg == "-o" || arg == "--output") {
+      jit = false;
+      
+      if (i + 1 < argc) {  
+        jit = false;
+        filenameout = argv[++i]; 
+      }
+      else {
+        filenameout = "a.out";
+      }
+    }
+    else if (arg == "-j" || arg == "--jit") {
+      jit = true;
     }
     else if (arg == "-h" || arg == "--help") {
       display_help();
@@ -102,7 +120,7 @@ int main(int argc, char* argv[]) {
   }
 
   start = std::chrono::high_resolution_clock::now();
-  occult::jit_runtime jit_runtime(ir, debug);
+  occult::jit_runtime jit_runtime(ir, debug, jit);
   jit_runtime.convert_ir();
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
@@ -116,27 +134,30 @@ int main(int argc, char* argv[]) {
     }
   }
   
-  auto it = jit_runtime.function_map.find("main");
-  if (it != jit_runtime.function_map.end()) {
-    start = std::chrono::high_resolution_clock::now();
-    
-    auto res = it->second();
-    
-    end = std::chrono::high_resolution_clock::now();
-    duration = end - start;
-    
-    if (debug) {
-      std::cout << "JIT main returned: " << res << std::endl;
+  if (jit) {
+    auto it = jit_runtime.function_map.find("main");
+    if (it != jit_runtime.function_map.end()) {
+      start = std::chrono::high_resolution_clock::now();
+      
+      auto res = it->second();
+      
+      end = std::chrono::high_resolution_clock::now();
+      duration = end - start;
+      
+      if (debug) {
+        std::cout << "JIT main returned: " << res << std::endl;
+      }
+      
+      if (showtime) {
+        std::cout << "[occultc] \033[1;35mcompleted executing jit code \033[0m" << duration.count() << "ms\n";
+      }
     }
-    
-    if (showtime) {
-      std::cout << "[occultc] \033[1;35mcompleted executing jit code \033[0m" << duration.count() << "ms\n";
+    else {
+      std::cerr << "main function not found!" << std::endl;
     }
-    
-    occult::linker::link_and_create_binary("a.out", jit_runtime.function_map, jit_runtime.function_raw_code_map);
   }
-  else {
-    std::cerr << "main function not found!" << std::endl;
+  else if (!jit) {
+    occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map);
   }
   
   return 0;

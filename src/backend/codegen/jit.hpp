@@ -10,6 +10,7 @@ namespace occult {
     std::vector<std::unique_ptr<x64writer>> writers;
     
     bool debug;
+    bool isjit;
     std::unordered_map<std::string, std::size_t> type_sizes = {
       {"int64", 8},
       {"int32", 4},
@@ -24,11 +25,11 @@ namespace occult {
       {"bool", 1}, 
       {"char", 1}};
       
-      void generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map);
+      void generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map, bool ismain = false);
       void compile_function(const ir_function& func);
       void backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x64writer* w);
   public:
-    jit_runtime(std::vector<ir_function> ir_funcs, bool debug = false) : ir_funcs(ir_funcs), debug(debug) {
+    jit_runtime(std::vector<ir_function> ir_funcs, bool debug = false, bool isjit = false) : ir_funcs(ir_funcs), debug(debug), isjit(isjit) {
       auto w1 = std::make_unique<x64writer>();
       w1->emit_function_prologue(0);
       w1->emit_mov_reg_mem("rdi", "rbp", 16); // first arg
@@ -58,7 +59,7 @@ namespace occult {
       w->emit_function_prologue(0);
       w->emit_mov_reg_mem("rcx", "rbp", 16);
       w->emit_push_reg_64("rcx");
-      w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map["__stralloc"]));
+      w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map["strlen"]));
       w->emit_call_reg64("rax");
       w->emit_mov_reg_reg("rdx", "rax");
       w->emit_mov_reg_imm("rax", 4);

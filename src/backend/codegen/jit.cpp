@@ -44,7 +44,12 @@ namespace occult {
     
     function_map.insert({func.name, reinterpret_cast<jit_function>(w->memory)});
     
-    generate_code(func.code, w.get(), local_variable_map);
+    bool ismain = false;
+    if (func.name == "main") {
+      ismain = true;
+    }
+    
+    generate_code(func.code, w.get(), local_variable_map, ismain);
 
     if (debug) {
       w->print_bytes();
@@ -115,7 +120,7 @@ namespace occult {
     }
   }
 
-  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map) {
+  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map, bool ismain) {
     std::unordered_map<std::string, std::size_t> label_map;
     std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
     std::size_t totalsizes = 0;
@@ -173,9 +178,18 @@ namespace occult {
           break;
         }
         case ir_opcode::op_ret: {
-          w->emit_pop_reg_64("rax");
-          w->emit_function_epilogue();
-          w->emit_ret();
+          if (!isjit && ismain) {
+            w->emit_pop_reg_64("rax");
+            w->emit_function_epilogue();
+            w->emit_mov_reg_reg("rdi", "rax");
+            w->emit_mov_reg_imm("rax", 60);
+            w->emit_syscall();
+          }
+          else {
+            w->emit_pop_reg_64("rax");
+            w->emit_function_epilogue();
+            w->emit_ret();
+          }
           
           break;
         }

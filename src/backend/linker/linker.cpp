@@ -64,6 +64,13 @@ namespace occult {
             final_code.at(i + 2 + j) = static_cast<std::uint8_t>((new_address >> (j * 8)) & 0xFF);
           }
           
+          if (last_byte == 0x10) { // fix calls to not call to memory, but rather an absolute address
+            final_code.at(i + 11) = 0xd0;
+          }
+          else if (last_byte == 0x13) {
+            final_code.at(i + 11) = 0xd3;
+          }
+          
           std::cout << CYAN << "    New byte sequence: ";
           for (std::size_t j = 0; j <= 11; j++) {
             std::cout << std::setw(2) << std::setfill('0') << std::uppercase << std::hex << static_cast<int>(final_code.at(i + j)) << " ";
