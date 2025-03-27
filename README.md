@@ -8,7 +8,8 @@
 </div>
 
 > [!IMPORTANT]
-> Occult 2.0.0-alpha is going to be released on the second birthday (05/31/25) 
+> Occult 2.0.0-alpha is going to be released on the second birthday (05/31/25), maybe earlier <br/><br/>
+> Stay tuned! 
 
 ### Roadmap for 2.0.0-alpha
 - - [x] Lexer
