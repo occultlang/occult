@@ -21,9 +21,9 @@
  
 ### Notes about the roadmap
 - IR/IL + Translation
-  - Stack-based IR, works with translation to native JIT x86_64, in the very early stages
+  - Stack-based IR, works with translation to native JIT x86_64
 - x86 JIT Runtime
-  - It's working, but it isn't fully finished for the full functionality either, and needs polishing, also in the early stages
+  - Isn't fully finished for the full functionality either, needs polishing
 
 ### Things left to do before testing
 - - [x] If statements
