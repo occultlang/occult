@@ -1,8 +1,9 @@
 fn main() i64 {
   i64 i = 0;
   
-  while i < 5 {
+  while 5 > i {
     print("hi world\n");
+    
     i = i + 1;
   }
   

@@ -501,6 +501,93 @@ namespace occult {
     place_label(function, B1);
   }
   
+  void ir_gen::generate_while(ir_function& function, ast_whilestmt* while_node) {
+    auto L1 = create_label();
+    auto B1 = create_label();
+    
+    place_label(function, L1); // L1 START
+    
+    // expression
+    for (const auto& c : while_node->get_children()) { 
+      generate_arith_and_bitwise_operators(function, c.get());
+    }
+    
+    for (const auto& c : while_node->get_children()) { 
+      switch (c->get_type()) {
+        case ast_type::number_literal: {
+          handle_push_types(function, c.get());
+          
+          break;
+        }
+        case ast_type::identifier: {
+          function.code.emplace_back(op_load, c->content);
+          
+          break;
+        }
+        case ast_type::functioncall: {
+          generate_function_call(function, c.get());
+          
+          break;
+        }
+        case ast_type::or_operator: {
+          break;
+        }
+        case ast_type::and_operator: {
+          break;
+        }
+        case ast_type::equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jnz, B1); // havent tested
+          
+          break;
+        }
+        case ast_type::not_equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jz, B1); // havent tested
+         
+          break;
+        }
+        case ast_type::greater_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jle, B1);
+          
+          break;
+        }
+        case ast_type::less_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jge, B1);
+          
+          break;
+        }
+        case ast_type::greater_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jl, B1);
+          
+          break;
+        }
+        case ast_type::less_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jg, B1);
+          
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+    
+    for (const auto& c : while_node->get_children()) {
+      if (c->get_type() == ast_type::block) {
+        generate_block(function, ast::cast_raw<ast_block>(c.get()), B1, L1);
+      }
+    }
+    
+    function.code.emplace_back(op_jmp, L1);
+    
+    place_label(function, B1);
+  }
+  
   void ir_gen::generate_block(ir_function& function, ast_block* block_node, std::string current_break_label, std::string current_loop_start) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
@@ -535,6 +622,15 @@ namespace occult {
         }
         case ast_type::float32_datatype: 
         case ast_type::float64_datatype: {
+          auto node = c.get();
+          
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
+          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
+          
+          generate_common<double>(function, assignment);
+          
+          function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
+          
           break;
         }
         case ast_type::string_datatype: {
@@ -582,6 +678,8 @@ namespace occult {
           break;
         }
         case ast_type::whilestmt: {
+          generate_while(function, ast::cast_raw<ast_whilestmt>(c.get()));
+          
           break;
         }
         case ast_type::forstmt: { // changing to c syntax cuz its superior :)

@@ -91,6 +91,42 @@ namespace occult {
         
         break;
       }
+      case ir_opcode::op_jle: {
+        w->get_code().at(location) = 0x0F;             
+        w->get_code().at(location + 1) = 0x8E;          
+        std::int32_t offset = label_location - (location + 6);
+        
+        w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);        
+        w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
+        w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+        w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
+        
+        break;
+      }
+      case ir_opcode::op_jl: {
+        w->get_code().at(location) = 0x0F;             
+        w->get_code().at(location + 1) = 0x8C;          
+        std::int32_t offset = label_location - (location + 6);
+        
+        w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);        
+        w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
+        w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+        w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
+        
+        break;
+      }
+      case ir_opcode::op_jg: {
+        w->get_code().at(location) = 0x0F;             
+        w->get_code().at(location + 1) = 0x8F;          
+        std::int32_t offset = label_location - (location + 6);
+        
+        w->get_code().at(location + 2) = static_cast<std::uint8_t>(offset & 0xFF);        
+        w->get_code().at(location + 3) = static_cast<std::uint8_t>((offset >> 8) & 0xFF);  
+        w->get_code().at(location + 4) = static_cast<std::uint8_t>((offset >> 16) & 0xFF); 
+        w->get_code().at(location + 5) = static_cast<std::uint8_t>((offset >> 24) & 0xFF); 
+        
+        break;
+      }
       case ir_opcode::op_jz: {
         w->get_code().at(location) = 0x0F;              
         w->get_code().at(location + 1) = 0x84;          
@@ -225,6 +261,9 @@ namespace occult {
           
           break;
         }
+        case ir_opcode::op_jle:
+        case ir_opcode::op_jl:
+        case ir_opcode::op_jg:
         case ir_opcode::op_jz:
         case ir_opcode::op_jge:
         case ir_opcode::op_jnz: {
