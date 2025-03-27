@@ -489,7 +489,7 @@ namespace occult {
     }
     
     if (match(peek(), assignment_tt)) {
-      node->add_child(parse_assignment());
+      auto assignment = parse_assignment();
       
       if (match(peek(), semicolon_tt)) {
         throw runtime_error("expected expression", peek(), pos);
@@ -501,8 +501,10 @@ namespace occult {
       auto converted_rpn = parse_expression(sub_stream);
       
       for (auto &c : converted_rpn) { 
-        node->add_child(std::move(c));
+        assignment->add_child(std::move(c));
       }
+      
+      node->add_child(std::move(assignment));
     }
     
     if (match(peek(), semicolon_tt)) { // end of declaration

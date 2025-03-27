@@ -538,6 +538,15 @@ namespace occult {
           break;
         }
         case ast_type::string_datatype: {
+          auto node = c.get();
+          
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
+          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
+          
+          generate_common<std::string>(function, assignment);
+          
+          function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
+          
           break;
         }
         case ast_type::identifier: {
@@ -575,7 +584,7 @@ namespace occult {
         case ast_type::whilestmt: {
           break;
         }
-        case ast_type::forstmt: {
+        case ast_type::forstmt: { // changing to c syntax cuz its superior :)
           break;
         }
         case ast_type::returnstmt: {

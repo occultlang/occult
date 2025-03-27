@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
   bool debug = false;
   bool verbose = false;
   bool showtime = false;
-  bool jit = false;
+  bool jit = true; // we will default to JIT but still have the arg if anyone wants to use it /shrug
   std::string filenameout;
   
   for (int i = 1; i < argc; ++i) {
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
     }
   }
   else if (!jit) {
-    occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map);
+    occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, debug);
 #ifdef __linux
     chmod(filenameout.c_str(), S_IRWXU);
 #endif

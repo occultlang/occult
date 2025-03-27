@@ -23,7 +23,8 @@ namespace occult {
       {"float32", 4},
       {"float64", 8},
       {"bool", 1}, 
-      {"char", 1}};
+      {"char", 1},
+      {"string", 8}};
       
       void generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map, bool ismain = false);
       void compile_function(const ir_function& func);

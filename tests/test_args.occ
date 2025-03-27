@@ -1,20 +1,10 @@
-/*
-
-*/
-
-// if you put htose comments in the multiline comments, it doesn't like to work right...
-
-// buggy right now
-// string what = "what2"; 
-// println(what);
-
 fn get_str(string s) string {
   return s;
 }
 
 fn main() i64 {
-  string s = get_str("what");
-  println(s);
+  string s = get_str("what\n");
+  print(s);
   
   return 0;
 }

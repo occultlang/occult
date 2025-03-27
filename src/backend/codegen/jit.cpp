@@ -1,7 +1,7 @@
 #include "jit.hpp"
 #include <fstream>
 
-// just testing JIT functionality and viability
+// print isn't printing strings returned from functions, i wonder why... it might just be an issue with print
 
 namespace occult {
   void jit_runtime::convert_ir() {
@@ -156,10 +156,8 @@ namespace occult {
         case ir_opcode::op_store: { // not done
           totalsizes += type_sizes[instr.type];
           
-          if (instr.type != "string") {
-            w->emit_sub_reg8_64_imm8_32("rsp", totalsizes);
-            w->emit_mov_mem_reg("rbp", -totalsizes, "rax");
-          }
+          w->emit_sub_reg8_64_imm8_32("rsp", totalsizes);
+          w->emit_mov_mem_reg("rbp", -totalsizes, "rax");
           
           if (debug) {
             std::cout << "sizes in store: " << totalsizes << "\nlocal: " << type_sizes[instr.type] << "\n";
@@ -170,10 +168,8 @@ namespace occult {
           break;
         }
         case ir_opcode::op_load: { // not done 
-          if (instr.type != "string") {
-            w->emit_mov_reg_mem("rax", "rbp", -local_variable_map[std::get<std::string>(instr.operand)]);
-            w->emit_push_reg_64("rax");
-          }
+          w->emit_mov_reg_mem("rax", "rbp", -local_variable_map[std::get<std::string>(instr.operand)]);
+          w->emit_push_reg_64("rax");
           
           break;
         }
