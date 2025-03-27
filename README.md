@@ -30,10 +30,10 @@
 - - [x] Loop statements
 - - [x] Continue statement
 - - [x] Break statement
-- - [ ] While loops
+- - [x] While loops
 - - [ ] For loops
 - - [ ] Floating point variables
-- - [ ] String variables (immutable)
+- - [x] String variables, somewhat working (immutable)
  
 ### Things planned
 - Arrays
