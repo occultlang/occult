@@ -158,6 +158,7 @@ int main(int argc, char* argv[]) {
   }
   else if (!jit) {
     occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map);
+    chmod(filenameout.c_str(), S_IRWXU);
   }
   
   return 0;
