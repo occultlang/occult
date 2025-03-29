@@ -34,7 +34,7 @@
 - - [x] While loops
 - - [ ] For loops
 - - [ ] Floating point variables
-- - [x] String variables, somewhat working (immutable)
+- - [x] String variables (immutable)
  
 ### Things planned
 - Arrays
