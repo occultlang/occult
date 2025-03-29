@@ -1316,6 +1316,6 @@ namespace occult {
       push_byte(modrm);
     }
     
-    
+    //x87 fpu here
   };
 } // namespace occult

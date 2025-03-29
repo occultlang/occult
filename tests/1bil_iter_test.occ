@@ -1,0 +1,13 @@
+fn test() i64 {
+  i64 i = 0;
+  
+  while i < 1000000000 {
+    i = i + 1;
+  }
+  
+  return i;
+}
+
+fn main() i64 {
+  return test();
+}

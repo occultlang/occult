@@ -1,11 +1,15 @@
-fn main() i64 {
+fn whilefunc(i64 n) i64 {
   i64 i = 0;
   
-  while 5 > i {
+  while n > i {
     print("hi world\n");
     
     i = i + 1;
   }
   
-  return 0;
+  return n;
+}
+
+fn main() i64 {
+  return whilefunc(10);
 }

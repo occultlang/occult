@@ -1,12 +1,31 @@
-fn fib(i64 n) i64 {
-  if n <= 1 {
+/*fn fib_recursion(i64 n) i64 {
+  if n == 0 {
+    return n;
+  }
+  else if n == 1 {
     return n;
   }
   else {
-    return fib(n - 1) + fib(n - 2);
+    return fib_recursion(n - 1) + fib_recursion(n - 2);
   }
+}*/
+
+fn fib_while(i64 n) i64 {
+  i64 n1 = 0;
+  i64 n2 = 1;
+  
+  i64 i = 0;
+  while i < n {
+    i64 next = n1 + n2;
+    n1 = n2;
+    n2 = next;
+    
+    i = i + 1;
+  }
+  
+  return n1;
 }
 
 fn main() i64 {
-  return fib(12);
+  return fib_while(12);
 }

@@ -15,12 +15,12 @@ namespace occult {
       return;
     }
 
-    std::unordered_map<std::string, std::size_t> local_variable_map;
+    std::unordered_map<std::string, std::int64_t> local_variable_map;
 
     auto w = std::make_unique<x64writer>();
     w->emit_function_prologue(0);
     
-    auto totalsizes = 0;
+    std::size_t totalsizes = 0;
     auto count = 8; // first arg - 8
     
     for (auto& arg : func.args) {
@@ -49,7 +49,7 @@ namespace occult {
       ismain = true;
     }
     
-    generate_code(func.code, w.get(), local_variable_map, ismain);
+    generate_code(func.code, w.get(), local_variable_map, totalsizes, ismain);
 
     if (debug) {
       w->print_bytes();
@@ -156,10 +156,9 @@ namespace occult {
     }
   }
 
-  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::size_t>& local_variable_map, bool ismain) {
+  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::int64_t>& local_variable_map, std::size_t totalsizes, bool ismain) {
     std::unordered_map<std::string, std::size_t> label_map;
     std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
-    std::size_t totalsizes = 0;
     
     for (const auto& instr : ir_code) {
       switch (instr.op) {
@@ -203,7 +202,12 @@ namespace occult {
           
           break;
         }
-        case ir_opcode::op_load: { // not done 
+        case ir_opcode::op_load: { // not done
+          if (debug) {
+            std::cout << "loading: " << std::get<std::string>(instr.operand) << "\nlocation: "
+                      << -local_variable_map[std::get<std::string>(instr.operand)] << std::endl;
+          }
+          
           w->emit_mov_reg_mem("rax", "rbp", -local_variable_map[std::get<std::string>(instr.operand)]);
           w->emit_push_reg_64("rax");
           
