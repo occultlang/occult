@@ -1317,5 +1317,15 @@ namespace occult {
     }
     
     //x87 fpu here
+    
+    std::uint32_t get_raw_float32_val(float& f) {
+      return *reinterpret_cast<std::uint32_t*>(&f);
+    }
+    
+    std::uint64_t get_raw_float64_val(double& f) {
+      return *reinterpret_cast<std::uint64_t*>(&f);
+    }
+    
+    
   };
 } // namespace occult

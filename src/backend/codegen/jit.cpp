@@ -365,8 +365,8 @@ namespace occult {
       auto label_name = std::get<std::string>(instr.operand);
       
       if (debug) {
-        std::cout << "\topcode: " << opcode_to_string(jump_type) << std::endl;
-        std::cout << "\tlocation: " << label_map[label_name] << std::endl;
+        std::cout << "\tOpcode: " << opcode_to_string(jump_type) << std::endl;
+        std::cout << "\tLocation: " << label_map[label_name] << std::endl;
       }
       
       if (label_map.contains(label_name)) {
