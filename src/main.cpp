@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::milli> duration = end - start;
   if (showtime) {
-    std::cout << "[occultc] \033[1;35mcompleted lexical analysis \033[0m" << duration.count() << "ms\n";
+    std::cout << GREEN << "[OCCULTC] Completed lexical analysis \033[0m" << duration.count() << "ms\n";
   }
   if (debug && verbose) {
     lexer.visualize();
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
-     std::cout << "[occultc] \033[1;35mcompleted parsing \033[0m" << duration.count() << "ms\n";
+     std::cout << GREEN << "[OCCULTC] Completed parsing \033[0m" << duration.count() << "ms\n";
   }
   if (debug && verbose) {
     ast->visualize();
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
-     std::cout << "[occultc] \033[1;35mcompleted generating ir \033[0m" << duration.count() << "ms\n";
+     std::cout << GREEN << "[OCCULTC] Completed generating IR \033[0m" << duration.count() << "ms\n";
   }
   if (debug) {
     ir_gen.visualize(ir);
@@ -125,7 +125,7 @@ int main(int argc, char* argv[]) {
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
-    std::cout << "[occultc] \033[1;35mcompleted converting ir to machine code \033[0m" << duration.count() << "ms\n";
+    std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m" << duration.count() << "ms\n";
   }
   if (debug) {
     for (const auto& pair : jit_runtime.function_map) {
@@ -149,7 +149,7 @@ int main(int argc, char* argv[]) {
       }
       
       if (showtime) {
-        std::cout << "[occultc] \033[1;35mcompleted executing jit code \033[0m" << duration.count() << "ms\n";
+        std::cout << GREEN << "[OCCULTC] Completed executing jit code " << RESET << duration.count() << "ms\n";
       }
     }
     else {
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
     }
   }
   else if (!jit) {
-    occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, debug);
+    occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, debug, showtime);
 #ifdef __linux
     chmod(filenameout.c_str(), S_IRWXU);
 #endif

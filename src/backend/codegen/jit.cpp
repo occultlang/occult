@@ -27,11 +27,9 @@ namespace occult {
       totalsizes += type_sizes[arg.type];
       count += 8;
       
-      if (arg.type != "string") {
-        w->emit_mov_reg_mem("rax", "rbp", count); // load first arg into rax
-        w->emit_sub_reg8_64_imm8_32("rsp", totalsizes); // allocate size on stack
-        w->emit_mov_mem_reg("rbp", -totalsizes, "rax"); // store
-      }
+      w->emit_mov_reg_mem("rax", "rbp", count); // load first arg into rax
+      w->emit_sub_reg8_64_imm8_32("rsp", totalsizes); // allocate size on stack
+      w->emit_mov_mem_reg("rbp", -totalsizes, "rax"); // store
       
       if (debug) {
         std::cout << "ARGS sizes in store: " << totalsizes << "\nlocal: " << type_sizes[arg.type] << "\n";
@@ -188,31 +186,53 @@ namespace occult {
           
           break;
         }
-        case ir_opcode::op_store: { // not done
-          totalsizes += type_sizes[instr.type];
-          
-          w->emit_sub_reg8_64_imm8_32("rsp", totalsizes);
-          w->emit_mov_mem_reg("rbp", -totalsizes, "rax");
-          
-          if (debug) {
-            std::cout << "sizes in store: " << totalsizes << "\nlocal: " << type_sizes[instr.type] << "\n";
+        case ir_opcode::op_store: { // now handles existing variables
+          auto var_name = std::get<std::string>(instr.operand);
+          auto it = local_variable_map.find(var_name);
+        
+          if (it == local_variable_map.end()) { // Variable doesn't exist yet
+            totalsizes += type_sizes[instr.type];
+            
+            w->emit_pop_reg_64("rax");
+            w->emit_sub_reg8_64_imm8_32("rsp", totalsizes);
+            w->emit_mov_mem_reg("rbp", -totalsizes, "rax");
+        
+            local_variable_map.insert({var_name, totalsizes});
           }
-          
-          local_variable_map.insert({std::get<std::string>(instr.operand), totalsizes});
-          
+          else { // variable already exists, reuse stack location
+            w->emit_pop_reg_64("rax");
+            w->emit_mov_mem_reg("rbp", -it->second, "rax");
+          }
+        
+          if (debug) {
+            std::cout << "sizes in store: " << totalsizes
+                      << "\nlocal: " << type_sizes[instr.type]
+                      << "\nvariable " << var_name << " at " << local_variable_map[var_name] << "\n";
+          }
+        
           break;
         }
-        case ir_opcode::op_load: { // not done
-          if (debug) {
-            std::cout << "loading: " << std::get<std::string>(instr.operand) << "\nlocation: "
-                      << -local_variable_map[std::get<std::string>(instr.operand)] << std::endl;
-          }
+        case ir_opcode::op_load: { 
+          const auto& var_name = std::get<std::string>(instr.operand);
+        
+          auto it = local_variable_map.find(var_name);
           
-          w->emit_mov_reg_mem("rax", "rbp", -local_variable_map[std::get<std::string>(instr.operand)]);
+          if (it == local_variable_map.end()) {
+            std::cerr << "attempted to load undeclared variable '" << var_name << "'\n";
+          }
+        
+          int offset = -it->second;
+        
+          if (debug) {
+            std::cout << "loading: " << var_name << "\nlocation: " << offset << std::endl;
+          }
+        
+          w->emit_mov_reg_mem("rax", "rbp", offset);
           w->emit_push_reg_64("rax");
-          
+        
           break;
         }
+        
         case ir_opcode::op_ret: {
           if (!isjit && ismain) {
             w->emit_pop_reg_64("rax");
@@ -337,7 +357,7 @@ namespace occult {
     
     for (auto& jump : jump_instructions) {
       if (debug) {
-        std::cout << "jump backpatching:\n";
+        std::cout << "Jump Backpatching:\n";
       }
       
       auto& instr = jump.first;
@@ -346,7 +366,7 @@ namespace occult {
       
       if (debug) {
         std::cout << "\topcode: " << opcode_to_string(jump_type) << std::endl;
-        std::cout << "\tlocation: " << std::hex << label_map[label_name] << std::dec << std::endl;
+        std::cout << "\tlocation: " << label_map[label_name] << std::endl;
       }
       
       if (label_map.contains(label_name)) {

@@ -1,8 +1,11 @@
 #include "linker.hpp"
+#include <chrono>
 
 namespace occult {
   void linker::link_and_create_binary(const std::string& binary_name, std::unordered_map<std::string, jit_function>& function_map,
-                                      const std::map<std::string, std::vector<std::uint8_t>>& function_raw_code_map, bool debug) {
+                                      const std::map<std::string, std::vector<std::uint8_t>>& function_raw_code_map, bool debug, bool showtime) {
+    auto start = std::chrono::high_resolution_clock::now();
+    
     std::unordered_map<std::uint64_t, std::string> func_addr_map; 
     
     if (debug)
@@ -89,7 +92,14 @@ namespace occult {
         }
       }
     }
+    
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - start;
   
+    if (showtime) {
+      std::cout << GREEN << "[OCCULTC] Completed linking functions \033[0m" << duration.count() << "ms\n";
+    }
+    
     // Generate the final binary
     elf::generate_binary(binary_name, final_code, final_code.size() * 2, entry_addr);
   }

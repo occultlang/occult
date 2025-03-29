@@ -1,8 +1,10 @@
 fn test() i64 {
   i64 i = 0;
+  i64 test = 0;
   
   while i < 1000000000 {
     i = i + 1;
+    test = test + 1;
   }
   
   return i;

@@ -10,6 +10,7 @@
 #include <vector>
 #include <stack>
 #include <optional>
+#include "../util/color_defs.hpp"
 
 namespace occult {
   enum token_type {
