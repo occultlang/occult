@@ -1,7 +1,5 @@
-  #include "parser.hpp"
+#include "parser.hpp"
 #include "parser_maps.hpp"
-
-#define DEVELOP false
 
 namespace occult {
   token_t parser::peek(std::uintptr_t pos) {
