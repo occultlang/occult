@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
     if (it != jit_runtime.function_map.end()) {
       start = std::chrono::high_resolution_clock::now();
       
-      auto res = it->second();
+      auto res = reinterpret_cast<int(*)()>(it->second)();
       
       end = std::chrono::high_resolution_clock::now();
       duration = end - start;

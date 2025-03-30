@@ -17,7 +17,7 @@
 #endif
 
 namespace occult {
-  using jit_function = int(*)();
+  using jit_function = void(*)();
   
   class writer {
     std::vector<std::uint8_t> code;

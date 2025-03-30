@@ -1,0 +1,11 @@
+fn main() i64 {
+  for i64 i = 0 in arr { // foreach i guess
+    print(i);  
+ }
+  
+ for i64 i = 0 when i < 10 do i = i + 1 { // regular for 
+   print(i);
+ }
+  
+  return 0;
+}

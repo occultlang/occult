@@ -845,7 +845,7 @@ namespace occult {
     }
     
     // registers can be 16 to 64
-    void emit_signed_mul_reg_reg_imm_8_32(const std::string& dest, const std::string& src, std::variant<std::uint64_t, std::int64_t> imm8_32,
+    void emit_imul_reg_reg_imm_8_32(const std::string& dest, const std::string& src, std::variant<std::uint64_t, std::int64_t> imm8_32,
                                           const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
       std::uint8_t imul8 = 0x6B;
       std::uint8_t imul16_32 = 0x69;
@@ -859,7 +859,7 @@ namespace occult {
       emit_imm_by_size(imm8_32, size_imm);
     }
     
-    void emit_signed_mul_reg_mem_imm_8_32(const std::string& dest, const std::string& src, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm8_32,
+    void emit_imul_reg_mem_imm_8_32(const std::string& dest, const std::string& src, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm8_32,
                                           const std::size_t& size_reg = k64bit, const std::size_t& size_imm = k32bit) {
       std::uint8_t imul8 = 0x6B;
       std::uint8_t imul16_32 = 0x69;

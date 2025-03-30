@@ -5,6 +5,10 @@ fn test() i64 {
   while i < 1000000000 {
     i = i + 1;
     test = test + 1;
+    
+    if i == 500000000 {
+      print("500million\n");
+    }
   }
   
   return i;

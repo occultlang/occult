@@ -64,6 +64,8 @@ namespace occult {
     comma,
     include,
     stringliteral,
+    forcondition, // only used in for loops, special condition
+    foriterexpr, // only used in for loops, special for only iteration of integers
     charliteral,
     functionargument,
     label,
@@ -158,6 +160,8 @@ namespace occult {
   NODE(block, ast_block)
   NODE(identifier, ast_identifier)
   NODE(function, ast_function)
+  NODE(forcondition, ast_forcondition)
+  NODE(foriterexpr, ast_foriterexpr)
   NODE(functionarguments, ast_functionargs)
   NODE(functionargument, ast_functionarg)
   NODE(callarg, ast_callarg)

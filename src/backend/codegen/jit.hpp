@@ -54,7 +54,6 @@ namespace occult {
       function_raw_code_map.insert({"strlen", w1->get_code()});
       writers.push_back(std::move(w1)); 
 
-#ifdef __linux__
       //start
       auto w = std::make_unique<x64writer>();
       w->emit_function_prologue(0);
@@ -79,48 +78,7 @@ namespace occult {
       function_raw_code_map.insert({"print", w->get_code()});
       writers.push_back(std::move(w));
       //end
-#elif _WIN64
-      //start
-      std::int64_t stdout_handle;
-      std::int64_t iostatus_address;
-      std::int64_t NtWriteFile_syscall = 0x3F; //fuck
-
-      const char* sample_string = "Hello, JIT!\n";
-      std::int64_t buffer_ptr = reinterpret_cast<std::int64_t>(sample_string);
-
-      auto w = std::make_unique<x64writer>();
-      w->emit_function_prologue(0);
-      w->emit_mov_reg_mem("rcx", "rbp", 16);
-      w->emit_push_reg_64("rcx");
-      w->emit_mov_reg_imm("rax", reinterpret_cast<std::int64_t>(&function_map["strlen"]));
-      w->emit_call_reg64("rax");
-      w->emit_mov_reg_reg("rdx", "rax");
-      w->emit_mov_reg_imm("rax", iostatus_address);
-      w->emit_push_reg_64("rax");
-      w->emit_mov_reg_imm("rax", buffer_ptr);
-      w->emit_push_reg_64("rax");
-      w->emit_mov_reg_imm("rax", 4);
-      w->emit_mov_reg_imm("rbx", 1);
-      w->emit_mov_reg_imm("rcx", stdout_handle);
-      w->emit_mov_reg_imm("rdx", 0);
-      w->emit_mov_reg_imm("r8", 0, k64bit_extended);
-      w->emit_mov_reg_imm("r9", 0, k64bit_extended);
-      w->emit_push_reg_64("rdx");
-      w->emit_push_imm_32_8(0);
-      w->emit_push_imm_32_8(0);
-      w->emit_mov_reg_reg("r10", "rcx");
-      w->emit_mov_reg_imm("rax", NtWriteFile_syscall);
-      w->emit_syscall();
-      w->emit_function_epilogue();
-      w->emit_ret();
-      if (debug)
-          w->print_bytes();
-      auto jit_print = w->setup_function();
-      function_map.insert({ "print", jit_print });
-      writers.push_back(std::move(w));
-      //end
-#endif
-     
+    
       auto w2 = std::make_unique<x64writer>();
       w2->emit_function_prologue(0);
       w2->push_bytes({0x48, 0xC7, 0xC0, 0x2D, 0x00, 0x00, 0x00, 0x48, 0x31, 0xDB, 0xCD, 0x80, 0x48, 0x01, 0xF8, 0x48, 0x89, 0xC3, 0x48, 0xC7, 0xC0, 0x2D, 0x00, 0x00, 0x00, 0xCD, 0x80, 0x48, 0x29, 0xF8});
@@ -136,6 +94,39 @@ namespace occult {
       function_map.insert({"__stralloc", jit_stralloc});
       function_raw_code_map.insert({"__stralloc", w2->get_code()});
       writers.push_back(std::move(w2));
+      
+      auto w3 = std::make_unique<x64writer>();
+      w3->emit_function_prologue(0);
+      w3->emit_mov_reg_mem("rsi", "rbp", +16);
+      w3->emit_xor_reg_reg("rax", "rax");
+      w3->emit_xor_reg_reg("rcx", "rcx");
+      auto atoi_loop_start = w3->get_code().size();
+      w3->emit_xor_reg_reg("rdx", "rdx");
+      w3->emit_mov_reg_mem("rdx", "rsi", 0, k8bit);
+      w3->emit_test_reg_reg("rdx", "rdx");
+      w3->emit_jz_short(76 + 7); // end loop
+      w3->emit_cmp_reg8_64_imm8_32("rdx", '0');
+      w3->emit_jl_short(76+ 7); // end loop
+      w3->emit_cmp_reg8_64_imm8_32("rdx", '9');
+      w3->emit_jnl_short(76 + 7); // end loop
+      w3->emit_mov_reg_imm("rbx", '0');
+      w3->emit_sub_reg_reg("rdx", "rbx");
+      w3->emit_imul_reg_reg_imm_8_32("rax", "rax", 10);
+      w3->emit_add_reg_reg("rax", "rdx");
+      w3->emit_inc_reg("rsi");
+      w3->emit_jmp(atoi_loop_start);
+      w3->emit_function_epilogue();
+      w3->emit_ret();
+      
+      if (debug) {
+        w3->print_bytes();
+      }
+      
+      auto jit_atoi = w3->setup_function();
+      
+      function_map.insert({"atoi", jit_atoi});
+      function_raw_code_map.insert({"atoi", w3->get_code()});
+      writers.push_back(std::move(w3));
     }
     
     ~jit_runtime() {
