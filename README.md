@@ -32,7 +32,7 @@
 - - [x] Continue statement
 - - [x] Break statement
 - - [x] While loops
-- - [ ] For loops
+- - [x] For loops (foreach will be done when arrays are added)
 - - [ ] Floating point variables
 - - [x] String variables (immutable)
  
