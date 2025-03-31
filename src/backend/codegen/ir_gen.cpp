@@ -588,6 +588,132 @@ namespace occult {
     place_label(function, B1);
   }
   
+  void ir_gen::generate_for(ir_function& function, ast_forstmt* for_node) {
+    auto first_node = for_node->get_children().front().get(); 
+    auto condition = for_node->get_children().at(1).get();
+    auto body = for_node->get_children().back().get();
+    
+    switch (for_node->get_children().front()->get_type()) {
+      case ast_type::int8_datatype:
+      case ast_type::int16_datatype:
+      case ast_type::int32_datatype:
+      case ast_type::int64_datatype: {
+        auto identifier = ast::cast_raw<ast_identifier>(first_node->get_children().front().get()); // name
+        auto assignment = ast::cast_raw<ast_assignment>(first_node->get_children().back().get()); // expression stuff
+        
+        generate_common<std::int64_t>(function, assignment);
+        
+        function.code.emplace_back(op_store, identifier->content, first_node->to_string().substr(4, first_node->to_string().size()));
+        
+        break;
+      }
+      case ast_type::uint8_datatype:
+      case ast_type::uint16_datatype:
+      case ast_type::uint32_datatype:
+      case ast_type::uint64_datatype: {
+        auto identifier = ast::cast_raw<ast_identifier>(first_node->get_children().front().get());
+        auto assignment = ast::cast_raw<ast_assignment>(first_node->get_children().back().get());
+        
+        generate_common<std::uint64_t>(function, assignment);
+        
+        function.code.emplace_back(op_store, identifier->content, first_node->to_string().substr(4, first_node->to_string().size()));
+        
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+    
+    auto L1 = create_label();
+    auto B1 = create_label();
+    
+    place_label(function, L1); // L1 START
+    
+    // expression
+    for (const auto& c : condition->get_children()) { 
+      generate_arith_and_bitwise_operators(function, c.get());
+    }
+    
+    for (const auto& c : condition->get_children()) { 
+      switch (c->get_type()) {
+        case ast_type::number_literal: {
+          handle_push_types(function, c.get());
+          
+          break;
+        }
+        case ast_type::identifier: {
+          function.code.emplace_back(op_load, c->content);
+          
+          break;
+        }
+        case ast_type::functioncall: {
+          generate_function_call(function, c.get());
+          
+          break;
+        }
+        case ast_type::or_operator: {
+          break;
+        }
+        case ast_type::and_operator: {
+          break;
+        }
+        case ast_type::equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jnz, B1); // havent tested
+          
+          break;
+        }
+        case ast_type::not_equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jz, B1); // havent tested
+         
+          break;
+        }
+        case ast_type::greater_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jle, B1);
+          
+          break;
+        }
+        case ast_type::less_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jge, B1);
+          
+          break;
+        }
+        case ast_type::greater_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jl, B1);
+          
+          break;
+        }
+        case ast_type::less_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_jg, B1);
+          
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+    
+    generate_block(function, ast::cast_raw<ast_block>(body), B1, L1);
+    
+    auto new_block = ast::new_node<ast_block>(); // swapping parent
+    for (auto& c : for_node->get_children().at(2)->get_children()) {
+      new_block->add_child(std::move(c));
+    }
+    
+    generate_block(function, new_block.get()); // iterator
+    
+    function.code.emplace_back(op_jmp, L1);
+    
+    place_label(function, B1);
+  }
+  
   void ir_gen::generate_block(ir_function& function, ast_block* block_node, std::string current_break_label, std::string current_loop_start) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
@@ -682,7 +808,9 @@ namespace occult {
           
           break;
         }
-        case ast_type::forstmt: { // changing to c syntax cuz its superior :)
+        case ast_type::forstmt: { // only supporting the normal for loop for now, not foreach
+          generate_for(function, ast::cast_raw<ast_forstmt>(c.get()));
+          
           break;
         }
         case ast_type::returnstmt: {

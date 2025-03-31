@@ -515,16 +515,65 @@ namespace occult {
     return node;
   }
   
-  std::unique_ptr<ast_forstmt> parser::parse_for() { // for expr; in expr; { } or for expr when condition do expr {}
+  std::unique_ptr<ast_forstmt> parser::parse_regular_for(std::unique_ptr<ast_forstmt> existing_for_node) { // for expr when condition do expr {}
+    auto when_pos = find_first_token(stream.begin() + pos, stream.end(), when_keyword_tt);
+    stream.insert(stream.begin() + pos + when_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
+    
+    existing_for_node->add_child(parse_keyword());
+    
+    if (match(peek(), when_keyword_tt)) {      
+      consume(); // consume when
+      
+      auto do_pos = find_first_token(stream.begin() + pos, stream.end(), do_keyword_tt);
+      stream.insert(stream.begin() + pos + do_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
+      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + do_pos + 2};
+      pos += do_pos + 1;
+      auto converted_rpn = parse_expression(sub_stream);
+      
+      auto forcond_node = ast::new_node<ast_forcondition>();
+      
+      for (auto &c : converted_rpn) { 
+        forcond_node->add_child(std::move(c));
+      }
+      
+      existing_for_node->add_child(std::move(forcond_node));
+      
+      if (match(peek(), do_keyword_tt)) {
+        consume(); // consume do
+        
+        auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt); 
+        stream.insert(stream.begin() + pos + left_curly_bracket_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
+        
+        auto foriter_node = ast::new_node<ast_foriterexpr>();
+        
+        foriter_node->add_child(parse_keyword());
+        
+        existing_for_node->add_child(std::move(foriter_node));
+      }
+      else {
+        throw runtime_error("expected do keyword", peek(), pos);
+      }
+      
+      auto body = parse_block();  
+      existing_for_node->add_child(std::move(body));
+      
+      return existing_for_node;
+    }
+    else {
+      throw runtime_error("expected when keyword", peek(), pos);
+    }
+  }
+  
+  std::unique_ptr<ast_forstmt> parser::parse_for() { // for expr; in expr; { }
     consume();
     
     auto for_node = ast::new_node<ast_forstmt>();
-
-    auto in_pos = find_first_token(stream.begin() + pos, stream.end(), in_keyword_tt); // we're going to insert a semicolon
-    
-    if (in_pos == -1) {
-      in_pos = find_first_token(stream.begin() + pos, stream.end(), when_keyword_tt);
+  
+    if (find_first_token(stream.begin() + pos, stream.end(), when_keyword_tt) != -1) {
+      return parse_regular_for(std::move(for_node));
     }
+    
+    auto in_pos = find_first_token(stream.begin() + pos, stream.end(), in_keyword_tt); // we're going to insert a semicolon
     
     stream.insert(stream.begin() + pos + in_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
     
@@ -533,61 +582,24 @@ namespace occult {
     if (match(peek(), in_keyword_tt)) {
       consume();
       
-      if (match(peek(), identifier_tt) && peek(1).tt != left_paren_tt) { // not function call, just identifier
+      if (match(peek(), identifier_tt) && peek(1).tt != left_paren_tt) {
         for_node->add_child(parse_identifier());
       }
-      else { // anything else
+      else {
         auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt); 
         stream.insert(stream.begin() + pos + left_curly_bracket_pos, token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
         
         for_node->add_child(parse_keyword()); // 2nd expr
       }
-    }
-    else if (match(peek(), when_keyword_tt)) {
-      consume();
       
-      auto do_pos = find_first_token(stream.begin() + pos, stream.end(), do_keyword_tt); 
-      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + do_pos + 1};
-      pos += do_pos;
-      auto converted_rpn = parse_expression(sub_stream);
+      auto body = parse_block();  
+      for_node->add_child(std::move(body));
       
-      auto forcondition_node = ast::new_node<ast_forcondition>();
-      
-      for (auto &c : converted_rpn) { 
-        forcondition_node->add_child(std::move(c));
-      }
-      
-      for_node->add_child(std::move(forcondition_node));
-      
-      if (match(peek(), do_keyword_tt)) {
-        consume();
-        
-        auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
-        
-        std::vector<token_t> sub_stream2 = {stream.begin() + pos, stream.begin() + pos + left_curly_bracket_pos + 1};
-        pos += left_curly_bracket_pos;
-        auto converted_rpn2 = parse_expression(sub_stream2);
-        
-        auto foriterexpr_node = ast::new_node<ast_foriterexpr>();
-        
-        for (auto &c : converted_rpn2) { 
-          foriterexpr_node->add_child(std::move(c));
-        }
-        
-        for_node->add_child(std::move(foriterexpr_node));
-      }
-      else {
-        throw runtime_error("expected do keyword", peek(), pos);
-      }
+      return for_node;
     }
     else {
-      throw runtime_error("expected in or when keyword", peek(), pos);
+      throw runtime_error("expected in keyword", peek(), pos);
     }
-    
-    auto body = parse_block();  
-    for_node->add_child(std::move(body));
-    
-    return for_node;
   }
 
   std::unique_ptr<ast> parser::parse_keyword(bool nested_function) {

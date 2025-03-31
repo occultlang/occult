@@ -1,11 +1,12 @@
-fn main() i64 {
-  for i64 i = 0 in arr { // foreach i guess
-    print(i);  
- }
+fn main() i64 {  
+  for i64 i = 0 when i < 10 do i = i + 1 { // works
+    print("hello\n");
+  }
   
- for i64 i = 0 when i < 10 do i = i + 1 { // regular for 
-   print(i);
- }
+  // this one is not going to be implemented until arrays are done
+  /*for i64 i = 0 in arr { 
+    print(i);
+  }*/
   
   return 0;
 }

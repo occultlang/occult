@@ -30,6 +30,7 @@ namespace occult {
     std::unique_ptr<ast_elsestmt> parse_else();
     std::unique_ptr<ast_loopstmt> parse_loop();
     std::unique_ptr<ast_whilestmt> parse_while();
+    std::unique_ptr<ast_forstmt> parse_regular_for(std::unique_ptr<ast_forstmt> existing_for_node);
     std::unique_ptr<ast_forstmt> parse_for(); 
     std::unique_ptr<ast_continuestmt> parse_continue();
     std::unique_ptr<ast_breakstmt> parse_break();
