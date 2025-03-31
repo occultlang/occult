@@ -78,6 +78,16 @@ namespace occult {
     {"r13", 0x05},
     {"r14", 0x06},
     {"r15", 0x07},
+    
+    //xmm
+    {"xmm0", 0x00},
+    {"xmm1", 0x01},
+    {"xmm2", 0x02},
+    {"xmm3", 0x03},
+    {"xmm4", 0x04},
+    {"xmm5", 0x05},
+    {"xmm6", 0x06},
+    {"xmm7", 0x07},
   };
   
   enum addressing_modes : std::uint8_t {
@@ -1318,14 +1328,68 @@ namespace occult {
     
     //x87 fpu here
     
-    std::uint32_t get_raw_float32_val(float& f) {
-      return *reinterpret_cast<std::uint32_t*>(&f);
+    std::uint32_t get_raw_float32_val(float f) {
+      std::uint32_t result;
+      std::memcpy(&result, &f, sizeof(f));
+      return result;
     }
     
-    std::uint64_t get_raw_float64_val(double& f) {
-      return *reinterpret_cast<std::uint64_t*>(&f);
+    std::uint64_t get_raw_float64_val(double f) {
+      std::uint64_t result;
+      std::memcpy(&result, &f, sizeof(f));
+      return result;
     }
     
+    // converts integer to floating point value
+    void emit_cvtsi2ss_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k32bit) {
+      push_byte(0xF3);
+      
+      if (size == k8bit || size == k16bit || size == k64bit_ext_src || size == k64bit) {
+        throw std::invalid_argument("invalid size for emit_cvtsi2ss_reg_reg: " + std::to_string(size));
+      }
+      
+      push_byte(0x0F);
+      push_byte(0x2A);
+      
+      std::uint8_t modrm = modrm_byte(reg_to_reg, x64_register[dest], x64_register[src]);
+      
+      push_byte(modrm);
+    }
     
+    void emit_cvtsi2sd_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+      push_byte(0xF2);
+      
+      if (size == k64bit) {
+        push_byte(prefix64[size]);
+      }
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[size]);
+      }
+      else if (size == k8bit || size == k16bit || size == k32bit) {
+        throw std::invalid_argument("invalid size for emit_cvtsi2sd_reg_reg: " + std::to_string(size));
+      }
+      
+      push_byte(0x0F);
+      push_byte(0x2A);
+      
+      std::uint8_t modrm = modrm_byte(reg_to_reg, x64_register[dest], x64_register[src]);
+      
+      push_byte(modrm);
+    }
+    
+    // wrapper function to move float immediate to register USE THIS INSTEAD OF MANUALLY DOING IT (for now)
+    void emit_mov_xmm_float_imm(const std::string& dest, std::variant<float, double> fd) {
+      if (std::holds_alternative<float>(fd)) {
+        push_byte(0xB8 + x64_register["rdx"]); // 32 bits no prefix
+        emit_imm32<std::uint32_t>(get_raw_float32_val(std::get<float>(fd)));
+        emit_cvtsi2ss_reg_reg(dest, "rdx", k32bit);
+      }
+      else if (std::holds_alternative<double>(fd)) {
+        push_byte(prefix64[k64bit]);
+        push_byte(0xB8 + x64_register["rdx"]); // just use this i guess lol
+        emit_imm64<std::uint64_t>(get_raw_float64_val(std::get<double>(fd)));
+        emit_cvtsi2sd_reg_reg(dest, "rdx");
+      }
+    }
   };
 } // namespace occult
