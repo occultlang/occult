@@ -41,6 +41,7 @@
 - Pointers
 - Match statement
 - Static Analysis
+- Foreach
 - An intermediate in between bytecode and AST, in TAC form for further optimisation later on
 _____________________________________________________________________________
 
