@@ -16,7 +16,8 @@ namespace occult {
     }
 
     std::unordered_map<std::string, std::int64_t> local_variable_map;
-
+    std::unordered_map<std::string, std::size_t> local_variable_size_map;
+    
     auto w = std::make_unique<x64writer>();
     w->emit_function_prologue(0);
     
@@ -36,6 +37,7 @@ namespace occult {
       }
       
       local_variable_map.insert({arg.name, totalsizes});
+      local_variable_size_map.insert({arg.name, type_sizes[arg.type]});
     }
     
     cleanup_size_map[func.name] = count - 8; // adjust for stack args weird placement
@@ -47,7 +49,7 @@ namespace occult {
       ismain = true;
     }
     
-    generate_code(func.code, w.get(), local_variable_map, totalsizes, ismain);
+    generate_code(func.code, w.get(), local_variable_map, local_variable_size_map, totalsizes, ismain);
 
     if (debug) {
       w->print_bytes();
@@ -154,7 +156,8 @@ namespace occult {
     }
   }
 
-  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::int64_t>& local_variable_map, std::size_t totalsizes, bool ismain) {
+  void jit_runtime::generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                                  std::unordered_map<std::string, std::size_t>& local_variable_size_map, std::size_t totalsizes, bool ismain) {
     std::unordered_map<std::string, std::size_t> label_map;
     std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
     
@@ -182,7 +185,11 @@ namespace occult {
           else if (std::holds_alternative<std::int64_t>(instr.operand)) {
             w->emit_mov_reg_imm("rax", std::get<std::int64_t>(instr.operand));
             w->emit_push_reg_64("rax");
-          } // more and fix stuff later on
+          }
+          else if (std::holds_alternative<std::uint64_t>(instr.operand)) {
+            w->emit_mov_reg_imm("rax", std::get<std::uint64_t>(instr.operand));
+            w->emit_push_reg_64("rax");
+          }// more and fix stuff later on
           
           break;
         }
@@ -190,24 +197,69 @@ namespace occult {
           auto var_name = std::get<std::string>(instr.operand);
           auto it = local_variable_map.find(var_name);
         
-          if (it == local_variable_map.end()) { // Variable doesn't exist yet
+          if (it == local_variable_map.end()) { // variable doesn't exist yet
             totalsizes += type_sizes[instr.type];
             
             w->emit_pop_reg_64("rax");
             w->emit_sub_reg8_64_imm8_32("rsp", totalsizes);
-            w->emit_mov_mem_reg("rbp", -totalsizes, "rax");
+            
+            switch (type_sizes[instr.type]) { // this seems to work...?
+              case 1: {
+                w->emit_mov_mem_reg("rbp", -totalsizes, "rax", k8bit);
+                break;
+              }
+              case 2: {
+                w->emit_mov_mem_reg("rbp", -totalsizes, "rax", k16bit);
+                break;
+              }
+              case 4: {
+                w->emit_mov_mem_reg("rbp", -totalsizes, "rax", k32bit);
+                break;
+              }
+              case 8: {
+                w->emit_mov_mem_reg("rbp", -totalsizes, "rax");
+                break;
+              }
+              default: {
+                break;
+              }
+            }
         
             local_variable_map.insert({var_name, totalsizes});
+            local_variable_size_map.insert({var_name, type_sizes[instr.type]});
           }
           else { // variable already exists, reuse stack location
             w->emit_pop_reg_64("rax");
-            w->emit_mov_mem_reg("rbp", -it->second, "rax");
+            
+            switch (type_sizes[instr.type]) {
+              case 1: {
+                w->emit_mov_mem_reg("rbp", -it->second, "rax", k8bit);
+                break;
+              }
+              case 2: {
+                w->emit_mov_mem_reg("rbp", -it->second, "rax", k16bit);
+                break;
+              }
+              case 4: {
+                w->emit_mov_mem_reg("rbp", -it->second, "rax", k32bit);
+                break;
+              }
+              case 8: {
+                w->emit_mov_mem_reg("rbp", -it->second, "rax");
+                break;
+              }
+              default: {
+                break;
+              }
+            }
           }
         
           if (debug) {
             std::cout << "sizes in store: " << totalsizes
                       << "\nlocal: " << type_sizes[instr.type]
                       << "\nvariable " << var_name << " at " << local_variable_map[var_name] << "\n";
+            
+            std::cout << BLUE << "CURRENT STORE SIZE IN VAR: " << local_variable_size_map[var_name] << RESET << std::endl;
           }
         
           break;
@@ -225,11 +277,35 @@ namespace occult {
         
           if (debug) {
             std::cout << "loading: " << var_name << "\nlocation: " << offset << std::endl;
+            std::cout << BLUE << "CURRENT LOAD SIZE: " << local_variable_size_map[var_name] << RESET << std::endl;
           }
-        
-          w->emit_mov_reg_mem("rax", "rbp", offset);
-          w->emit_push_reg_64("rax");
-        
+          
+          switch (local_variable_size_map[var_name]) {
+            case 1: {
+              w->emit_mov_reg_mem("rax", "rbp", offset, k8bit);
+              w->emit_push_reg_64("rax");
+              break;
+            }
+            case 2: {
+              w->emit_mov_reg_mem("rax", "rbp", offset, k16bit);
+              w->emit_push_reg_64("rax");
+              break;
+            }
+            case 4: {
+              w->emit_mov_reg_mem("rax", "rbp", offset, k32bit);
+              w->emit_push_reg_64("rax");
+              break;
+            }
+            case 8: {
+              w->emit_mov_reg_mem("rax", "rbp", offset);
+              w->emit_push_reg_64("rax");
+              break;
+            }
+            default: {
+              break;
+            }
+          }
+          
           break;
         }
         case ir_opcode::op_pushf: { // pushing float values

@@ -26,7 +26,8 @@ namespace occult {
       {"char", 1},
       {"string", 8}};
       
-      void generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::int64_t>& local_variable_map, std::size_t totalsizes, bool ismain = false);
+      void generate_code(std::vector<ir_instr> ir_code, x64writer* w, std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                         std::unordered_map<std::string, std::size_t>& local_variable_size_map, std::size_t totalsizes, bool ismain = false);
       void compile_function(const ir_function& func);
       void backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x64writer* w);
   public:
