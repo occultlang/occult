@@ -232,7 +232,22 @@ namespace occult {
         
           break;
         }
-        
+        case ir_opcode::op_pushf: { // pushing float values
+          if (std::holds_alternative<float>(instr.operand)) {
+            
+          }
+          else if (std::holds_alternative<double>(instr.operand)) {
+            
+          }
+          
+          break;
+        }
+        case ir_opcode::op_storef: { // store floats
+          break;
+        }
+        case ir_opcode::op_loadf: { // load floats 
+          break;
+        }
         case ir_opcode::op_ret: {
           if (!isjit && ismain) {
             w->emit_pop_reg_64("rax");
@@ -308,7 +323,7 @@ namespace occult {
           
           break;
         }
-        case ir_opcode::op_call: { // recursion is iffy, TODO: find a way around lazy function compilation to handle recursion well
+        case ir_opcode::op_call: { // recursion is iffy, TODO: find a way around lazy function compilation to handle recursion well ( i think i fixed this already )
           std::string func_name = std::get<std::string>(instr.operand);
           
           if (func_name == "__stralloc") {

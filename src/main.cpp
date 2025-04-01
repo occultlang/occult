@@ -163,20 +163,6 @@ int main(int argc, char* argv[]) {
 #endif
   }
   
-  float f = 0.0;
-  occult::x64writer w;
-  w.emit_function_prologue(0);
-  w.emit_mov_xmm_float_imm("xmm0", 3.14f); // custom wrapper function
-  w.push_bytes({ 0xF3, 0x0F, 0x11, 0x05 });
-  w.emit_imm64<std::uint64_t>(reinterpret_cast<std::uint64_t>(&f));
-  
-  w.emit_function_epilogue();
-  w.emit_ret();
-  
-  w.print_bytes();
-  
-  w.setup_function()();
-  
   return 0;
 }
   

@@ -127,6 +127,11 @@ namespace occult {
           
           break;
         }
+        case ast_type::float_literal: {
+          function.code.emplace_back(op_pushf, from_numerical_string<IntType>(c->content));
+          
+          break;
+        }
         case ast_type::identifier: {
           function.code.emplace_back(op_load, c->content);
           
@@ -188,8 +193,13 @@ namespace occult {
           
           break;
         }
-        case floating_point: {
-          function.code.emplace_back(op_push, from_numerical_string<double>(c->content));
+        case floating_point64: {
+          function.code.emplace_back(op_pushf, from_numerical_string<double>(c->content));
+          
+          break;
+        }
+        case floating_point32: {
+          function.code.emplace_back(op_pushf, from_numerical_string<float>(c->content));
           
           break;
         }
@@ -217,8 +227,14 @@ namespace occult {
           
           break;
         }
-        case floating_point: {
+        case floating_point64: {
           generate_common<double>(function, c);
+          
+          break;
+        }
+        
+        case floating_point32: {
+          generate_common<float>(function, c);
           
           break;
         }
@@ -746,7 +762,6 @@ namespace occult {
           
           break;
         }
-        case ast_type::float32_datatype: 
         case ast_type::float64_datatype: {
           auto node = c.get();
           
@@ -755,7 +770,19 @@ namespace occult {
           
           generate_common<double>(function, assignment);
           
-          function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
+          function.code.emplace_back(op_storef, identifier->content, c->to_string().substr(4, c->to_string().size()));
+          
+          break;
+        }
+        case ast_type::float32_datatype: {
+          auto node = c.get();
+          
+          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
+          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
+          
+          generate_common<float>(function, assignment);
+          
+          function.code.emplace_back(op_storef, identifier->content, c->to_string().substr(4, c->to_string().size()));
           
           break;
         }

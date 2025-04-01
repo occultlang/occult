@@ -4,9 +4,12 @@
 namespace occult {
   enum ir_opcode {
     op_push,
+    op_pushf,
     op_pop,
     op_store,
     op_load,
+    op_storef,
+    op_loadf,
     op_add,
     op_div,
     op_mod,
@@ -59,6 +62,9 @@ namespace occult {
       case op_call:    return "op_call";
       case op_syscall: return "op_syscall"; 
       case label:      return "label";
+      case op_loadf:   return "op_loadf";
+      case op_pushf:   return "op_pushf";
+      case op_storef:  return "op_storef";
       default:         return "unknown_opcode";
     }
   }
@@ -70,7 +76,7 @@ namespace occult {
     ir_argument(std::string name, std::string type) : name(name), type(type) {}
   };
   
-  using ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, double, std::string>;
+  using ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, double, float, std::string>;
   
   struct ir_instr { 
     ir_opcode op;
@@ -92,7 +98,8 @@ namespace occult {
   enum ir_typename {
     signed_int,
     unsigned_int,
-    floating_point,
+    floating_point32,
+    floating_point64,
     string
   };
   
@@ -105,8 +112,8 @@ namespace occult {
     {"uint32", unsigned_int},
     {"uint16", unsigned_int},
     {"uint8", unsigned_int},
-    {"float32", floating_point},
-    {"float64", floating_point},
+    {"float32", floating_point32},
+    {"float64", floating_point64},
     {"bool", unsigned_int}, 
     {"char", unsigned_int}, 
     {"str", string}};

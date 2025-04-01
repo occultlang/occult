@@ -1,6 +1,5 @@
-fn main() int32 {
-  f64 a = 2.5e-5 + 40.11;
-  i32 x = 0;
+fn main() i64 {
+  f32 a = 40.11;
   
   return 0;
 }

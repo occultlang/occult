@@ -109,6 +109,7 @@ namespace occult {
   };
   
   constexpr std::uint8_t no_register = 0b000;
+  constexpr std::uint8_t no_register_sib = 0b100;
   
   struct modrm_byte {
     std::uint8_t addressing_mode; // addressing mode
@@ -131,7 +132,7 @@ namespace occult {
     std::uint8_t index; // index register
     std::uint8_t base; // base register
     
-    sib_byte(const std::uint8_t& scale, const std::uint8_t& index, const std::uint8_t& base) {
+    sib_byte(const std::uint8_t& base, const std::uint8_t& index, const std::uint8_t& scale) {
       this->scale = scale;
       this->index = index;
       this->base = base;
@@ -510,6 +511,89 @@ namespace occult {
         modrm = modrm_byte(addressing_modes::direct, no_register, x64_register[dest]);
         
         push_byte(modrm);
+      }
+      
+      emit_imm_by_size(imm, size);
+    }
+    
+    void emit_mov_mem_imm_with_scale_index(const std::string& dest, const std::string& index, std::int64_t disp, std::variant<std::uint64_t, std::int64_t> imm, const std::size_t& size = k64bit) { // mov [disp/register + disp], imm
+      std::uint8_t mov = 0xC7;
+      std::uint8_t mov8bit = 0xC6;
+      std::uint8_t modrm = 0;
+      std::uint8_t sib = 0;
+      
+      if (size == k64bit) {
+        push_byte(prefix64[k64bit]);
+      }
+      else if (size == k16bit) {
+        push_byte(prefix64[k16bit]);
+      }
+      else if (size == k64bit_ext_src) {
+        push_byte(prefix64[k64bit_ext_src]);
+      }
+      else if (size == k64bit_ext_target) {
+        push_byte(prefix64[k64bit_ext_target]);
+      }
+      
+      if (size == k8bit) {
+        push_byte(mov8bit);
+      }
+      else {
+        push_byte(mov);  
+      }
+      
+      if (disp != 0) { // reg + disp
+        if (dest == "rip" && size != k8bit) {
+          modrm = modrm_byte(addressing_modes::direct, no_register, rm_field::alt_mem_disp32); 
+          
+          push_byte(modrm);
+          
+          emit_imm32(disp);
+        }
+        else {
+          if (size == k8bit) {
+            modrm = modrm_byte(addressing_modes::disp8, no_register, x64_register[dest]);
+            
+            if (index == "") {
+              sib = sib_byte(x64_register[dest], no_register_sib, disp);
+            }
+            else {
+              sib = sib_byte(x64_register[dest], x64_register[index], disp);
+            }
+            
+            push_byte(modrm);
+            push_byte(sib);
+            
+            emit_imm8(disp);
+          }
+          else {
+            modrm = modrm_byte(addressing_modes::disp32, no_register, x64_register[dest]);
+            
+            if (index == "") {
+              sib = sib_byte(x64_register[dest], no_register_sib, disp);
+            }
+            else {
+              sib = sib_byte(x64_register[dest], x64_register[index], disp);
+            }
+            
+            push_byte(modrm);
+            push_byte(sib);
+            emit_imm32(disp);
+          }
+        }
+      }
+      else if (disp == 0) { // reg
+        modrm = modrm_byte(addressing_modes::direct, no_register, x64_register[dest]);
+        
+        if (index == "") {
+          sib = sib_byte(x64_register[dest], no_register_sib, disp);
+        }
+        else {
+          sib = sib_byte(x64_register[dest], x64_register[index], disp);
+        }
+        
+        push_byte(modrm);
+        push_byte(sib);
       }
       
       emit_imm_by_size(imm, size);
@@ -1251,7 +1335,7 @@ namespace occult {
       emit_short_jump(0xEB, addr);
     }
     
-    void emit_function_prologue(std::int64_t stack_size) {
+    void emit_function_prologue(std::int64_t stack_size = 0) {
       emit_push_reg_64("rbp");
       emit_mov_reg_reg("rbp", "rsp");
       emit_sub_reg8_64_imm8_32("rsp", stack_size);
@@ -1340,8 +1424,33 @@ namespace occult {
       return result;
     }
     
-    // converts integer to floating point value
+    void emit_movss_reg_mem(const std::string& dest, const std::string& src, const std::string& index, std::int64_t disp) {
+      push_bytes({0xF3, 0x0F, 0x10});
+      
+      auto modrm = modrm_byte(addressing_modes::direct, x64_register[dest], x64_register[src]);
+      
+      if (index != "rsp") {
+        std::uint8_t sib = 0;
+        
+        if (index == "") {
+          sib = sib_byte(x64_register[src], no_register_sib, disp);
+        }
+        else {
+          sib = sib_byte(x64_register[src], x64_register[index], disp);
+        }
+        
+        push_byte(modrm);
+        push_byte(sib);
+      }
+      else {
+        push_byte(modrm);
+      }
+    }
+    
+    // converts integer to floating point value c7 04 24 0f 49 40 f3
     void emit_cvtsi2ss_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k32bit) {
+      throw std::runtime_error("emit_cvtsi2ss_reg_reg doesn't work don't call it");
+      
       push_byte(0xF3);
       
       if (size == k8bit || size == k16bit || size == k64bit_ext_src || size == k64bit) {
@@ -1357,6 +1466,8 @@ namespace occult {
     }
     
     void emit_cvtsi2sd_reg_reg(const std::string& dest, const std::string& src, const std::size_t& size = k64bit) {
+      throw std::runtime_error("emit_cvtsi2sd_reg_reg doesn't work don't call it");
+      
       push_byte(0xF2);
       
       if (size == k64bit) {
@@ -1377,8 +1488,9 @@ namespace occult {
       push_byte(modrm);
     }
     
-    // wrapper function to move float immediate to register USE THIS INSTEAD OF MANUALLY DOING IT (for now)
     void emit_mov_xmm_float_imm(const std::string& dest, std::variant<float, double> fd) {
+      throw std::runtime_error("emit_mov_xmm_float_imm doesn't work don't call it");
+      
       if (std::holds_alternative<float>(fd)) {
         push_byte(0xB8 + x64_register["rdx"]); // 32 bits no prefix
         emit_imm32<std::uint32_t>(get_raw_float32_val(std::get<float>(fd)));
