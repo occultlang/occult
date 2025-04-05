@@ -33,7 +33,7 @@
 - - [x] Break statement
 - - [x] While loops
 - - [x] For loops (foreach will be done when arrays are added)
-- - [ ] Floating point variables
+- - [x] Floating point variables (Minimal so far)
 - - [x] String variables (immutable)
  
 ### Things planned
