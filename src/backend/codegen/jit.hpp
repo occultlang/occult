@@ -20,8 +20,8 @@ namespace occult {
       {"uint32", 3},
       {"uint16", 2},
       {"uint8", 1},
-      {"float32", 4},
-      {"float64", 8},
+      {"float32", 16},
+      {"float64", 16},
       {"bool", 1}, 
       {"char", 1},
       {"string", 8}};
@@ -46,7 +46,9 @@ namespace occult {
       w1->emit_ret();
       
       if (debug) {
+        std::cout << CYAN;
         w1->print_bytes();
+        std::cout << RESET;
       }
       
       auto jit_strlen = w1->setup_function();
@@ -70,7 +72,9 @@ namespace occult {
       w->emit_ret();
 
       if (debug) {
+          std::cout << CYAN;
           w->print_bytes();
+          std::cout << RESET;
       }
 
       auto jit_print = w->setup_function();
@@ -87,7 +91,9 @@ namespace occult {
       w2->emit_ret();
       
       if (debug) {
+        std::cout << CYAN;
         w2->print_bytes();
+        std::cout << RESET;
       }
       
       auto jit_stralloc = w2->setup_function();
@@ -120,7 +126,9 @@ namespace occult {
       w3->emit_ret();
       
       if (debug) {
+        std::cout << CYAN;
         w3->print_bytes();
+        std::cout << RESET;;
       }
       
       auto jit_atoi = w3->setup_function();

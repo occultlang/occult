@@ -9,7 +9,7 @@ namespace occult {
       return token_typename_map[tt];
     }
     else {
-      throw std::runtime_error("can't find token typename");
+      throw std::runtime_error("Can't find token typename");
     }
   }
   
@@ -333,18 +333,18 @@ namespace occult {
       for (size_t i = 0; i < stream.size(); ++i) {
         auto s = stream.at(i);
         
-        std::cout << "lexeme: " << s.lexeme << "\n"
-                  << "type: " << occult::token_t::get_typename(s.tt) << "\n"
-                  << "position in stream: " << i << "\n\n";
+        std::cout << "Lexeme: " << s.lexeme << "\n"
+                  << "Type: " << occult::token_t::get_typename(s.tt) << "\n"
+                  << "Position in stream: " << i << "\n\n";
       }
     }
     else {
       for (size_t i = 0; i < o_s.value().size(); ++i) {
         auto s = o_s.value().at(i);
         
-        std::cout << "lexeme: " << s.lexeme << "\n"
-          << "type: " << occult::token_t::get_typename(s.tt) << "\n"
-          << "position in stream: " << i << "\n\n";
+        std::cout << "Lexeme: " << s.lexeme << "\n"
+          << "Type: " << occult::token_t::get_typename(s.tt) << "\n"
+          << "Position in stream: " << i << "\n\n";
       }
     }
   }

@@ -3,9 +3,11 @@ fn test() i8 {
 }
 
 fn main() i64 {
-  // f32 a = 40.11;
-  i64 a2 = 0x7fffffffffffffff;
-  i8 y = test();
+  f32 a = 3.14;
+  f64 a2 = 312.12312;
   
-  return y;
+  // i64 a3 = 0x7fffffffffffffff;
+  // i8 y = test();
+  
+  return 0;
 }

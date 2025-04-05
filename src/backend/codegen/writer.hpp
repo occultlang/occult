@@ -32,7 +32,7 @@ namespace occult {
       memory = mmap(nullptr, page_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
       
       if (memory == MAP_FAILED) {
-        throw std::runtime_error("memory allocation failed");
+        throw std::runtime_error("Memory allocation failed");
       }
     }
     
@@ -54,7 +54,7 @@ namespace occult {
         memory = VirtualAlloc(nullptr, page_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
         if (!memory) {
-            throw std::runtime_error("memory allocation failed");
+            throw std::runtime_error("Memory allocation failed");
         }
     }
 

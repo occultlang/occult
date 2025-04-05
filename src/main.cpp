@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
   source_original = buffer.str();
 
   if (input_file.empty()) {
-    std::cout << "No input file specified" << std::endl;
+    std::cout << RED << "[-] No input file specified" << RESET << std::endl;
     display_help();
     
     return 0;
@@ -127,12 +127,12 @@ int main(int argc, char* argv[]) {
   if (showtime) {
     std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m" << duration.count() << "ms\n";
   }
-  if (debug) {
+  /*if (debug) {
     for (const auto& pair : jit_runtime.function_map) {
       std::cout << pair.first << std::endl;
       std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
     }
-  }
+  }*/
   
   if (jit) {
     auto it = jit_runtime.function_map.find("main");
@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
       duration = end - start;
       
       if (debug) {
-        std::cout << "JIT main returned: " << res << std::endl;
+        std::cout << "Main returned: " << res << std::endl;
       }
       
       if (showtime) {
@@ -153,7 +153,7 @@ int main(int argc, char* argv[]) {
       }
     }
     else {
-      std::cerr << "main function not found!" << std::endl;
+      std::cerr << "Main function not found!" << std::endl;
     }
   }
   else if (!jit) {

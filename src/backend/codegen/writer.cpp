@@ -45,7 +45,7 @@ namespace occult {
 
       void* new_memory = mremap(memory, allocated_size, new_size, MREMAP_MAYMOVE);
       if (new_memory == MAP_FAILED) {
-        throw std::runtime_error("failed to reallocate memory");
+        throw std::runtime_error("Failed to reallocate memory");
       }
   
       memory = new_memory;
@@ -65,7 +65,7 @@ namespace occult {
           PVOID new_memory = VirtualAlloc(nullptr, new_size, PAGE_EXECUTE_READWRITE | MEM_COMMIT | MEM_RESERVE, old_protect);
 
           if (new_memory == nullptr) {
-              throw std::runtime_error("failed to allocate additional memory");
+              throw std::runtime_error("Failed to allocate additional memory");
           }
 
           std::memcpy(new_memory, memory, allocated_size);
