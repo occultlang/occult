@@ -131,6 +131,8 @@ namespace occult {
           auto it = local_variable_map.find(var_name);
         
           if (it == local_variable_map.end()) { // variable doesn't exist yet
+            if (debug) std::cout << BLUE << "EMITTING VARIABLE '" << var_name << "'\n" << RESET;
+            
             totalsizes += type_sizes[instr.type];
             
             w->emit_pop_reg_64("rax");
@@ -160,12 +162,12 @@ namespace occult {
         
             local_variable_map.insert({var_name, totalsizes});
             local_variable_size_map.insert({var_name, type_sizes[instr.type]});
-          }
+          } 
           else { // variable already exists, reuse stack location
-            if (debug) std::cout << BLUE << "EMITTING VARIABLE '" << var_name << "'\n" << RESET;
+            if (debug) std::cout << BLUE << "EMITTING REUSE VARIABLE '" << var_name << "'\n" << RESET;
             w->emit_pop_reg_64("rax");
             
-            switch (local_variable_map[var_name]) {
+            switch (local_variable_size_map[var_name]) {
               case 1: {
                 w->emit_mov_mem_reg("rbp", -it->second, "rax", k8bit);
                 break;

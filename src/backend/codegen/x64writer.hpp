@@ -1338,7 +1338,9 @@ namespace occult {
     void emit_function_prologue(std::int64_t stack_size = 0) {
       emit_push_reg_64("rbp");
       emit_mov_reg_reg("rbp", "rsp");
-      emit_sub_reg8_64_imm8_32("rsp", stack_size);
+      
+      if (stack_size)
+        emit_sub_reg8_64_imm8_32("rsp", stack_size);
     }
     
     void emit_function_epilogue() {

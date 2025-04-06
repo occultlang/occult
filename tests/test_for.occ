@@ -1,9 +1,8 @@
 fn main() i64 {
-  // i64 int_max = 2147483647;
-  
-  for i64 i = 0 when i < 10 do i = i + 1 { 
-    print("a\n");
+  for i64 i = 0 when i < 10 do i = i + 1 {
+    i32 int_max = 2147483647;
+    //print("a\n"); PRINT CAUSED THIS WTF??!!! (need to rewrite) (was erroring in strlen in gdb so...)
   }
   
-  return 0;
+  return int_max;
 }
