@@ -11,7 +11,7 @@ namespace occult {
       return stream[pos - 1];
     }
     else {
-      throw std::runtime_error("out of bounds parser::previous");
+      throw std::runtime_error("Out of bounds parser::previous");
     }
   }
 
@@ -28,162 +28,165 @@ namespace occult {
     }
   }
   
-  /*
-   * parses a given stream of tokens and turns it into reverse polish notation
-   * handles function calls as well
-  */
+  void parser::parse_function_call_expr(std::vector<std::unique_ptr<ast>>& expr_ast_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref) {
+    i_ref++;
+    
+    auto start_node = ast_map[function_call_parser_tt]("start_call"); // start call
+    
+    start_node->add_child(ast_map[curr_tok_ref.tt](curr_tok_ref.lexeme)); // function name
+    
+    auto paren_depth = 1;
+    std::vector<token_t> current_args;
+    
+    while(i_ref + 1 < expr_ref.size() && 0 < paren_depth) {
+      i_ref++;
+      
+      auto current_token = expr_ref.at(i_ref);
+      
+      if (current_token.tt == left_paren_tt) {
+        paren_depth++;
+        
+        current_args.push_back(current_token);
+      } 
+      else if (current_token.tt == right_paren_tt) {
+        paren_depth--;
+        
+        if (paren_depth > 0) {
+          current_args.push_back(current_token); 
+        }
+      }
+      else if (current_token.tt == comma_tt && paren_depth == 1) {
+        auto arg_node = ast::new_node<ast_functionarg>();
+        
+        if (current_args.size() == 1 && current_args[0].tt == identifier_tt) {
+          arg_node->add_child(ast_map[identifier_tt](current_args.at(0).lexeme));
+        }
+        else {
+          auto parsed_args = parse_expression(current_args);
+          
+          for (auto& c : parsed_args) {
+            arg_node->add_child(std::move(c));
+          }
+        }
+        
+        start_node->add_child(std::move(arg_node));
+        
+        current_args.clear();
+      }
+      else {
+        current_args.push_back(current_token);
+      }
+    }
+    
+    if (!current_args.empty()) {
+      auto arg_node = ast::new_node<ast_functionarg>();
+      
+      if (current_args.size() == 1 && current_args[0].tt == identifier_tt) {
+        arg_node->add_child(ast_map[identifier_tt](current_args.at(0).lexeme));
+      }
+      else {
+        auto parsed_args = parse_expression(current_args);
+        
+        for (auto& c : parsed_args) {
+          arg_node->add_child(std::move(c));
+        }
+      }
+      
+      start_node->add_child(std::move(arg_node));
+    }
+    
+    auto end_node = ast_map[function_call_parser_tt]("end_call"); // start call
+    start_node->add_child(std::move(end_node));
+
+    expr_ast_ref.push_back(std::move(start_node));
+  }
+
+  void parser::shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<ast>>& expr_ast_ref, token_t& curr_tok_ref) {
+    switch(curr_tok_ref.tt) {
+      case number_literal_tt: 
+      case float_literal_tt: 
+      case string_literal_tt:
+      case char_literal_tt:
+      case false_keyword_tt:
+      case true_keyword_tt:
+      case unary_bitwise_not_tt:
+      case unary_minus_operator_tt:
+      case unary_plus_operator_tt:
+      case unary_not_operator_tt: {
+        expr_ast_ref.push_back(ast_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
+        break;
+      }
+      
+      case left_paren_tt: {
+        stack_ref.push(curr_tok_ref);
+        break;
+      }
+      
+      case right_paren_tt: {
+        while(!stack_ref.empty()) {
+          curr_tok_ref = stack_ref.top();
+          
+          stack_ref.pop();
+          
+          if (curr_tok_ref.tt == left_paren_tt) {
+            break;
+          }
+          
+          expr_ast_ref.push_back(ast_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
+        }
+        
+        break;
+      }
+        
+      default: {
+        while(!stack_ref.empty() && precedence_map[curr_tok_ref.tt] >= precedence_map[stack_ref.top().tt]) {
+          expr_ast_ref.push_back(ast_map[stack_ref.top().tt](stack_ref.top().lexeme));
+          
+          stack_ref.pop();
+        }
+        
+        stack_ref.push(curr_tok_ref);
+        
+        break;
+      }
+    }
+  }
+  
+  void parser::shunting_yard_stack_cleanup(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<ast>>& expr_ast_ref) {
+    while (!stack_ref.empty()) {
+      expr_ast_ref.push_back(ast_map[stack_ref.top().tt](stack_ref.top().lexeme));
+      stack_ref.pop();
+    }
+  }
+
   std::vector<std::unique_ptr<ast>> parser::parse_expression(std::vector<token_t> expr) {
     std::vector<std::unique_ptr<ast>> expr_ast;
     std::stack<token_t> operator_stack;
-    
+
     auto is_end = false;
     
     for (std::size_t i = 0; i < expr.size() && !is_end; i++) {
       auto t = expr.at(i);
       
-      switch(t.tt) {
-        case semicolon_tt:
-        case left_curly_bracket_tt: {
-          is_end = true; // marking the end of the statement
-          break;
-        }
-        
-        case identifier_tt: {
-          if (expr.at(i + 1).tt == left_paren_tt) { // function calls
-            i++;
-            
-            auto start_node = ast_map[function_call_parser_tt]("start_call"); // start call
-            
-            start_node->add_child(ast_map[t.tt](t.lexeme)); // function name
-            
-            auto paren_depth = 1;
-            std::vector<token_t> current_args;
-            
-            while(i + 1 < expr.size() && 0 < paren_depth) {
-              i++;
-              
-              auto current_token = expr.at(i);
-              
-              if (current_token.tt == left_paren_tt) {
-                paren_depth++;
-                
-                current_args.push_back(current_token);
-              } 
-              else if (current_token.tt == right_paren_tt) {
-                paren_depth--;
-                if (paren_depth > 0) {
-                  current_args.push_back(current_token); 
-                }
-              }
-              else if (current_token.tt == comma_tt && paren_depth == 1) {
-                auto arg_node = ast::new_node<ast_functionarg>();
-                
-                if (current_args.size() == 1 && current_args[0].tt == identifier_tt) {
-                  arg_node->add_child(ast_map[identifier_tt](current_args.at(0).lexeme));
-                }
-                else {
-                  auto parsed_args = parse_expression(current_args);
-                  
-                  for (auto& c : parsed_args) {
-                    arg_node->add_child(std::move(c));
-                  }
-                }
-                
-                start_node->add_child(std::move(arg_node));
-                
-                current_args.clear();
-              }
-              else {
-                current_args.push_back(current_token);
-              }
-            }
-            
-            if (!current_args.empty()) {
-              auto arg_node = ast::new_node<ast_functionarg>();
-              
-              if (current_args.size() == 1 && current_args[0].tt == identifier_tt) {
-                arg_node->add_child(ast_map[identifier_tt](current_args.at(0).lexeme));
-              }
-              else {
-                auto parsed_args = parse_expression(current_args);
-                
-                for (auto& c : parsed_args) {
-                  arg_node->add_child(std::move(c));
-                }
-              }
-              
-              start_node->add_child(std::move(arg_node));
-            }
-            
-            auto end_node = ast_map[function_call_parser_tt]("end_call"); // start call
-            start_node->add_child(std::move(end_node));
-
-            expr_ast.push_back(std::move(start_node));
-          }
-          else {
-            expr_ast.push_back(ast_map[t.tt](t.lexeme));
-          }
-          
-          break;
-        }
-        
-        case number_literal_tt: 
-        case float_literal_tt: 
-        case string_literal_tt:
-        case char_literal_tt:
-        case false_keyword_tt:
-        case true_keyword_tt:
-        case unary_bitwise_not_tt:
-        case unary_minus_operator_tt:
-        case unary_plus_operator_tt:
-        case unary_not_operator_tt: {
-          expr_ast.push_back(ast_map[t.tt](t.lexeme));
-          break;
-        }
-        
-        case left_paren_tt: {
-          operator_stack.push(t);
-          break;
-        }
-        
-        case right_paren_tt: {
-          while(!operator_stack.empty()) {
-            t = operator_stack.top();
-            
-            operator_stack.pop();
-            
-            if (t.tt == left_paren_tt) {
-              break;
-            }
-            
-            expr_ast.push_back(ast_map[t.tt](t.lexeme));
-          }
-          
-          break;
-        }
-        
-        default: {
-          while(!operator_stack.empty() && precedence_map[t.tt] >= precedence_map[operator_stack.top().tt]) {
-            expr_ast.push_back(ast_map[operator_stack.top().tt](operator_stack.top().lexeme));
-            
-            operator_stack.pop();
-          }
-          
-          operator_stack.push(t);
-          
-          break;
-        }
+      if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt) { // marking the end of the statement or expression
+        is_end = true; 
+      }
+      else if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) { // function call
+        parse_function_call_expr(expr_ast, expr, t, i);
+      }
+      else if (t.tt == identifier_tt) { // normal identifier, no expr, just push into the vector
+        expr_ast.push_back(ast_map[t.tt](t.lexeme));
+      }
+      else {
+        shunting_yard(operator_stack, expr_ast, t); // operator precedence using shunting yard
       }
     }
     
-    while (!operator_stack.empty()) {
-      expr_ast.push_back(ast_map[operator_stack.top().tt](operator_stack.top().lexeme));
-      operator_stack.pop();
-    }
+    shunting_yard_stack_cleanup(operator_stack, expr_ast); 
     
     return expr_ast;
   }
-  
+
   std::unique_ptr<ast> parser::parse_datatype() {     
    auto it = datatype_map.find(peek().tt);
    
@@ -289,6 +292,18 @@ namespace occult {
 
     return node;
   }
+
+  template<typename ParentNode>
+  void parser::parse_expression_until(ParentNode* parent, token_type t) {
+    auto first_pos = find_first_token(stream.begin() + pos, stream.end(), t);
+    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_pos + 1};
+    pos += first_pos;
+    auto converted_rpn = parse_expression(sub_stream);
+    
+    for (auto& c : converted_rpn) {
+      parent->add_child(std::move(c));
+    }
+  }
   
   template<typename IntegerAstType>
   std::unique_ptr<IntegerAstType> parser::parse_integer_type() {
@@ -309,15 +324,8 @@ namespace occult {
       if (match(peek(), semicolon_tt)) {
         throw runtime_error("expected expression", peek(), pos);
       }
-      
-      auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
-      pos += first_semicolon_pos;
-      auto converted_rpn = parse_expression(sub_stream);
-      
-      for (auto &c : converted_rpn) { // adding all the children of the converted expression into the integer node
-        node->get_children().at(1)->add_child(std::move(c));
-      }
+
+      parse_expression_until(node->get_children().at(1).get(), semicolon_tt); // parse the expression until the semicolon
     }
 
     if (match(peek(), semicolon_tt)) { // end of declaration
@@ -334,15 +342,8 @@ namespace occult {
     consume();
     
     auto return_node = ast::new_node<ast_returnstmt>();
-    
-    auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1}; 
-    pos += first_semicolon_pos;
-    auto converted_rpn = parse_expression(sub_stream);
-    
-    for (auto &c : converted_rpn) { 
-      return_node->add_child(std::move(c));
-    }
+  
+    parse_expression_until(return_node.get(), semicolon_tt); // parse the expression until the semicolon
     
     if (match(peek(), semicolon_tt)) { 
       consume();
@@ -358,15 +359,8 @@ namespace occult {
     consume(); // consume if
     
     auto if_node = ast::new_node<ast_ifstmt>();
- 
-    auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
-    pos += first_bracket_pos;
-    auto converted_rpn = parse_expression(sub_stream);
-    
-    for (auto &c : converted_rpn) { 
-      if_node->add_child(std::move(c));
-    }
+
+    parse_expression_until(if_node.get(), left_curly_bracket_tt); // parse the expression until the left curly bracket
     
     auto body = parse_block();  
     if_node->add_child(std::move(body));
@@ -387,14 +381,7 @@ namespace occult {
     
     auto elseif_node = ast::new_node<ast_elseifstmt>();
 
-    auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
-    pos += first_bracket_pos;
-    auto converted_rpn = parse_expression(sub_stream);
-    
-    for (auto &c : converted_rpn) { 
-      elseif_node->add_child(std::move(c));
-    }
+    parse_expression_until(elseif_node.get(), left_curly_bracket_tt); // parse the expression until the left curly bracket
     
     auto body = parse_block();  
     elseif_node->add_child(std::move(body));
@@ -458,15 +445,8 @@ namespace occult {
     consume(); 
     
     auto while_node = ast::new_node<ast_whilestmt>();
-    
-    auto first_bracket_pos = find_first_token(stream.begin() + pos, stream.end(), left_curly_bracket_tt);
-    std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_bracket_pos + 1};
-    pos += first_bracket_pos;
-    auto converted_rpn = parse_expression(sub_stream);
-    
-    for (auto &c : converted_rpn) { 
-      while_node->add_child(std::move(c));
-    }
+ 
+    parse_expression_until(while_node.get(), left_curly_bracket_tt); // parse the expression until the left curly bracket
     
     auto body = parse_block();  
     while_node->add_child(std::move(body));
@@ -492,15 +472,8 @@ namespace occult {
       if (match(peek(), semicolon_tt)) {
         throw runtime_error("expected expression", peek(), pos);
       }
-      
-      auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-      std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
-      pos += first_semicolon_pos;
-      auto converted_rpn = parse_expression(sub_stream);
-      
-      for (auto &c : converted_rpn) { 
-        assignment->add_child(std::move(c));
-      }
+    
+      parse_expression_until(assignment.get(), semicolon_tt); // parse the expression until the semicolon
       
       node->add_child(std::move(assignment));
     }
@@ -686,7 +659,7 @@ namespace occult {
         return std::move(converted_rpn.at(0));
       }
       else {
-        throw runtime_error("something is wrong with the function call no idea what though :)", peek(), pos);
+        throw runtime_error("Unrecoverable error while parsing function call", peek(), pos);
       }
     }
     else if (match(peek(), identifier_tt)) {
@@ -698,15 +671,8 @@ namespace occult {
         if (match(peek(), semicolon_tt)) {
           throw runtime_error("expected expression", peek(), pos);
         }
-        
-        auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
-        std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
-        pos += first_semicolon_pos;
-        auto converted_rpn = parse_expression(sub_stream);
-        
-        for (auto &c : converted_rpn) { 
-          id->add_child(std::move(c));
-        }
+
+        parse_expression_until(id.get(), semicolon_tt); // parse the expression until the semicolon
         
         if (match(peek(), semicolon_tt)) { 
           consume();

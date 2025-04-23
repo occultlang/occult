@@ -15,12 +15,17 @@ namespace occult {
     token_t previous();
     void consume(std::uintptr_t amt = 1);
     bool match(token_t t, token_type tt);
+    void parse_function_call_expr(std::vector<std::unique_ptr<ast>>& expr_ast_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref);
+    void shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<ast>>& expr_ast_ref, token_t& curr_tok_ref);
+    void shunting_yard_stack_cleanup(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<ast>>& expr_ast_ref);
     std::vector<std::unique_ptr<ast>> parse_expression(std::vector<token_t> expr);
     std::unique_ptr<ast_function> parse_function();
     std::unique_ptr<ast_block> parse_block();
     std::unique_ptr<ast_assignment> parse_assignment();
     std::unique_ptr<ast> parse_datatype();
     std::unique_ptr<ast_identifier> parse_identifier();
+    template<typename ParentNode>
+    void parse_expression_until(ParentNode* parent, token_type t);
     template<typename IntegerAstType = ast>
     std::unique_ptr<IntegerAstType> parse_integer_type();
     std::unique_ptr<ast_string> parse_string();
