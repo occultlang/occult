@@ -10,7 +10,7 @@ fn test() i64 {
       print("500million\n");
     }
   }
-  
+
   return i;
 }
 

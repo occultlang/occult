@@ -69,6 +69,10 @@ namespace occult {
     charliteral,
     functionargument,
     label,
+    array,
+    pointer,
+    dimensions_count,
+    dimension,
   };
   
   class ast {
@@ -216,4 +220,8 @@ namespace occult {
   NODE(stringliteral, ast_stringliteral)
   NODE(charliteral, ast_charliteral)
   NODE(label, ast_label)
+  NODE(array, ast_array)
+  NODE(dimensions_count, ast_dimensions_count)
+  NODE(dimension, ast_dimension)
+  NODE(pointer, ast_pointer)
 } // namespace occult

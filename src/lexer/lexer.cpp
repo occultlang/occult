@@ -22,22 +22,26 @@ namespace occult {
   void lexer::handle_comment() {
     if (const auto& lexeme = std::string() + source[pos] + source[pos + 1]; comment_map.contains(lexeme)) {
       increment(0, 2, 2); // beginning comment
-      
+  
       if (comment_map[lexeme] == comment_tt) {
         while (pos < source.size() && source[pos] != '\n' && source[pos] != '\r') {
           increment(0, 1, 1);
         }
       }
       else if (comment_map[lexeme] == multiline_comment_start_tt) {
-        while (pos < source.size() && source[pos] != '*' && source[pos + 1] != '/') {
+        // Properly detect end of multiline comment
+        while (pos < source.size()) {
+          if (source[pos] == '*' && pos + 1 < source.size() && source[pos + 1] == '/') {
+            break;
+          }
           if (source[pos] == '\n' || source[pos] == '\r') {
             increment(1, 0, 0);
           }
-          
           increment(0, 1, 1);
         }
-        
-        increment(0, 2, 2); // end multiline comment
+        if (pos < source.size()) {
+          increment(0, 2, 2); // skip the closing */
+        }
       }
     }
   }
@@ -195,23 +199,19 @@ namespace occult {
   token_t lexer::handle_operator(const bool& is_double) {
     if (source[pos] == '/' && source[pos + 1] == '/' ) {
       handle_comment();
-      
-      return token_t(line, column, "unknown token", unkown_tt);
+      return get_next_token();  // skip, goto next token
     }
     else if (source[pos] == '/' && source[pos + 1] == '*' ) {
       handle_comment();
-      
-      return token_t(line, column, "unknown token", unkown_tt);
+      return get_next_token(); // skip, goto next token
     }
-    
+  
     if (is_double) {
       increment(0, 2, 2);
-      
       return token_t(line, column, std::string() + source[pos - 2] + source[pos - 1], operator_map_double[std::string() + source[pos - 2] + source[pos - 1]]);
     }
     else {
       increment(0, 1, 1);
-      
       return token_t(line, column, std::string(1, source[pos - 1]), operator_map_single[source[pos - 1]]);
     }
   }

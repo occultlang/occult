@@ -97,6 +97,7 @@ namespace occult {
     char_keyword_tt,     // char
     string_keyword_tt,   // str
     array_keyword_tt,    // array
+    pointer_keyword_tt,  // ptr
     true_keyword_tt,     // true
     false_keyword_tt,    // false
     unary_minus_operator_tt,

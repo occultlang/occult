@@ -1,0 +1,17 @@
+include "../tests/add.occ" // goes based on the path of the compilers binary which might not be good...
+
+fn double_total(i64 arg) i64 {
+  i64 total = 0;
+  for i64 i = 0 when i <= arg do i = i + 1 {
+    total = i + total;
+    total = i + total;
+  }
+
+  return total;
+}
+
+fn main() i64 {
+  array[2][2] i64 x; 
+  
+  return add(double_total(10), double_total(10));
+}

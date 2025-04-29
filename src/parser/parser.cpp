@@ -1,5 +1,17 @@
 #include "parser.hpp"
 #include "parser_maps.hpp"
+#include <fstream>
+#include <sstream>
+#include "../lexer/number_parser.hpp"
+
+/*
+TODO:
+  [ ]  Add error syncrhonization for better error output / handling
+  [ ]  Make errors more verbose
+  [x]  Add array decls
+  [ ]  Array bodies + pointers in there
+  [ ]  Add pointer decls
+*/
 
 namespace occult {
   token_t parser::peek(std::uintptr_t pos) {
@@ -168,7 +180,7 @@ namespace occult {
     for (std::size_t i = 0; i < expr.size() && !is_end; i++) {
       auto t = expr.at(i);
       
-      if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt) { // marking the end of the statement or expression
+      if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt || t.tt == comma_tt) { // marking the end of the statement or expression
         is_end = true; 
       }
       else if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) { // function call
@@ -575,6 +587,70 @@ namespace occult {
     }
   }
 
+  std::unique_ptr<ast_array> parser::parse_array() {
+    consume(); // consume array
+  
+    auto node = ast::new_node<ast_array>();
+    std::vector<std::size_t> dimensions; 
+  
+    while (match(peek(), left_bracket_tt)) {
+      consume(); // consume [
+  
+      if (!match(peek(), number_literal_tt)) {
+        throw runtime_error("expected number literal inside array dimension", peek(), pos);
+      }
+  
+      std::size_t dimension_size = from_numerical_string<std::size_t>(peek().lexeme); // get dimension and store for later
+      dimensions.push_back(dimension_size); 
+      consume(); // consume the number literal
+  
+      match(peek(), right_bracket_tt); // expect ]
+      consume(); // consume ]
+    }
+  
+    // check if the next token is valid datatype
+    if (!(match(peek(), int8_keyword_tt) ||
+          match(peek(), int16_keyword_tt) ||
+          match(peek(), int32_keyword_tt) ||
+          match(peek(), int64_keyword_tt) ||
+          match(peek(), uint8_keyword_tt) ||
+          match(peek(), uint16_keyword_tt) ||
+          match(peek(), uint32_keyword_tt) ||
+          match(peek(), uint64_keyword_tt) ||
+          match(peek(), float32_keyword_tt) ||
+          match(peek(), float64_keyword_tt) ||
+          match(peek(), string_keyword_tt) ||
+          match(peek(), boolean_keyword_tt) ||
+          match(peek(), char_keyword_tt))) {
+      throw runtime_error("expected a valid datatype", peek(), pos);
+    }
+  
+    // parse datatype and identifier
+    node->add_child(parse_datatype());
+  
+    auto dimensions_count = ast::new_node<ast_dimensions_count>(std::to_string(dimensions.size()));
+    
+    for (const auto& dim : dimensions) {
+      auto dimension_node = ast::new_node<ast_dimension>(std::to_string(dim));
+      dimensions_count->add_child(std::move(dimension_node));
+    }
+    
+    node->add_child(std::move(dimensions_count));
+
+    if (!match(peek(), semicolon_tt)) {
+      throw runtime_error("expected semicolon at end of array declaration", peek(), pos);
+    }
+    consume(); // consume ';'
+
+    // body of array here
+  
+    return node;
+  }  
+
+  std::unique_ptr<ast_pointer> parser::parse_pointer() { 
+
+  }
+
   std::unique_ptr<ast> parser::parse_keyword(bool nested_function) {
     if (nested_function) {
       if (match(peek(), function_keyword_tt)) {
@@ -582,7 +658,33 @@ namespace occult {
       }
     }
     
-    if (match(peek(), int8_keyword_tt)) {
+    if (match(peek(), include_keyword_tt)) { // this is slower than it could be, but it works for now. will change later on
+      consume();
+
+      if (match(peek(), string_literal_tt)) {
+        consume();
+        auto string_token = previous();
+        
+        std::ifstream file(string_token.lexeme);
+        if (!file.is_open()) {
+          throw runtime_error("Could not open file, tried to include", string_token, pos);
+        }
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        std::string src = buffer.str();
+
+        lexer l(src);
+        auto included_stream = l.analyze();
+        parser p(included_stream);
+        auto included_ast = p.parse();
+
+        return included_ast;
+      }
+      else {
+        throw runtime_error("Expected string literal", peek(), pos);
+      }
+    }
+    else if (match(peek(), int8_keyword_tt)) {
       return parse_integer_type<ast_int8>();
     }
     else if (match(peek(), int16_keyword_tt)) {
@@ -642,6 +744,12 @@ namespace occult {
     else if (match(peek(), return_keyword_tt)) {
       return parse_return();
     }
+    else if (match(peek(), array_keyword_tt)) {
+      return parse_array();
+    }
+    else if (match(peek(), pointer_keyword_tt)) {
+      return parse_pointer();
+    }
     else if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
       auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
       std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
@@ -653,13 +761,13 @@ namespace occult {
           consume();
         }
         else {
-          throw runtime_error("expected semicolon", peek(), pos);
+          throw runtime_error("Expected semicolon", peek(), pos);
         }
         
         return std::move(converted_rpn.at(0));
       }
       else {
-        throw runtime_error("Unrecoverable error while parsing function call", peek(), pos);
+        throw runtime_error("Expected start to function call", peek(), pos); // not sure if this is verbose enough
       }
     }
     else if (match(peek(), identifier_tt)) {
@@ -690,7 +798,16 @@ namespace occult {
 
   std::unique_ptr<ast_root> parser::parse() {
     while (!match(peek(), end_of_file_tt)) {
-      root->add_child(parse_keyword(true)); // not nested
+      auto node = parse_keyword(true);
+
+      if (node->get_type() == ast_type::root) {
+        for (auto& child : node->get_children()) {
+          root->add_child(std::move(child)); // nested
+        }
+      }
+      else {
+        root->add_child(std::move(node)); // not nested
+      }
 
       if (match(peek(), end_of_file_tt)) {
         break;

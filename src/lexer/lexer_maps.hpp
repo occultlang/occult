@@ -78,6 +78,7 @@ namespace occult {
     {"char", char_keyword_tt},
     {"string", string_keyword_tt},
     {"array", array_keyword_tt},
+    {"ptr", pointer_keyword_tt},
     {"false", false_keyword_tt},
     {"true", true_keyword_tt},
     {"in", in_keyword_tt}};
@@ -146,6 +147,7 @@ namespace occult {
     {char_keyword_tt, "char"},
     {string_keyword_tt, "string"},
     {array_keyword_tt, "array"},
+    {pointer_keyword_tt, "pointer"},
     {false_keyword_tt, "false"},
     {true_keyword_tt, "true"},
     {end_of_file_tt, "end_of_file"},

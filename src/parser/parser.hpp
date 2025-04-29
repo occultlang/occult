@@ -40,6 +40,8 @@ namespace occult {
     std::unique_ptr<ast_continuestmt> parse_continue();
     std::unique_ptr<ast_breakstmt> parse_break();
     std::unique_ptr<ast_returnstmt> parse_return();
+    std::unique_ptr<ast_array> parse_array();
+    std::unique_ptr<ast_pointer> parse_pointer();
   public:
     parser(std::vector<token_t> stream) : root(ast::new_node<ast_root>()), stream(stream) {}
     
