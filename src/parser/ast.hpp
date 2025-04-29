@@ -73,7 +73,8 @@ namespace occult {
     pointer,
     dimensions_count,
     dimension,
-    arraybody
+    arraybody,
+    arrayelem,
   };
   
   class ast {
@@ -225,5 +226,6 @@ namespace occult {
   NODE(dimensions_count, ast_dimensions_count)
   NODE(dimension, ast_dimension)
   NODE(arraybody, ast_arraybody)
+  NODE(arrayelem, ast_arrayelement)
   NODE(pointer, ast_pointer)
 } // namespace occult

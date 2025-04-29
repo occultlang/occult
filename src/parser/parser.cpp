@@ -183,11 +183,13 @@ namespace occult {
       if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt || t.tt == comma_tt) { // marking the end of the statement or expression
         is_end = true; 
       }
-      else if (t.tt == identifier_tt && expr.at(i + 1).tt == left_paren_tt) { // function call
-        parse_function_call_expr(expr_ast, expr, t, i);
-      }
       else if (t.tt == identifier_tt) { // normal identifier, no expr, just push into the vector
-        expr_ast.push_back(ast_map[t.tt](t.lexeme));
+        if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) { // function call
+          parse_function_call_expr(expr_ast, expr, t, i);
+        }
+        else { // normal identifier
+          expr_ast.push_back(ast_map[t.tt](t.lexeme));
+        }
       }
       else {
         shunting_yard(operator_stack, expr_ast, t); // operator precedence using shunting yard
@@ -639,48 +641,61 @@ namespace occult {
 
     if (match(peek(), assignment_tt)) {
       consume(); // consume =
-
+    
       if (!match(peek(), left_curly_bracket_tt)) {
         throw runtime_error("expected '{' to start array body", peek(), pos);
       }
-      
-      // to help recursively parse array body
+    
       std::function<std::unique_ptr<ast>(void)> parse_array_body;
       parse_array_body = [&]() -> std::unique_ptr<ast> {
         if (!match(peek(), left_curly_bracket_tt)) {
           throw runtime_error("expected '{' in array body", peek(), pos);
         }
-        consume(); // consume {}
-
+        consume(); // consume {
+    
         auto body_node = ast::new_node<ast_arraybody>();
-
+    
         while (!match(peek(), right_curly_bracket_tt)) {
           if (match(peek(), left_curly_bracket_tt)) {
-            body_node->add_child(parse_array_body());
-          }
-          else if (match(peek(), number_literal_tt) ||
-                   match(peek(), float_literal_tt)  ||
-                   match(peek(), string_literal_tt) ||
-                   match(peek(), char_literal_tt)   ||
-                   match(peek(), true_keyword_tt)   ||
-                   match(peek(), false_keyword_tt)){
-            body_node->add_child(ast_map[peek().tt](peek().lexeme));
-            
-            consume();
-          } 
-          else if (match(peek(), comma_tt)) {
-            consume(); // skip commas
+            body_node->add_child(parse_array_body()); // nested array
           } 
           else {
-            throw runtime_error("unexpected token in array body", peek(), pos);
+            std::vector<token_t> element_tokens;
+            int paren_depth = 0;
+            while (!(match(peek(), comma_tt) && paren_depth == 0) &&
+                   !(match(peek(), right_curly_bracket_tt) && paren_depth == 0)) {
+              if (match(peek(), left_paren_tt) || match(peek(), left_bracket_tt) || match(peek(), left_curly_bracket_tt)) {
+                paren_depth++;
+              } 
+              else if (match(peek(), right_paren_tt) || match(peek(), right_bracket_tt) || match(peek(), right_curly_bracket_tt)) {
+                paren_depth--;
+              }
+
+              element_tokens.push_back(peek());
+              consume();
+            }
+
+            if (!element_tokens.empty()) {
+              auto expr_nodes = parse_expression(element_tokens);
+              
+              auto elem = ast::new_node<ast_arrayelement>();
+              for (auto& n : expr_nodes) {
+                elem->add_child(std::move(n));
+              }
+
+              body_node->add_child(std::move(elem));
+            }
+          }
+          if (match(peek(), comma_tt)) {
+            consume(); // skip comma
           }
         }
-
+    
         consume(); // consume }
-
+    
         return body_node;
       };
-
+    
       node->add_child(parse_array_body());
     }
 
