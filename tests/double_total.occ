@@ -11,7 +11,7 @@ fn double_total(i64 arg) i64 {
 }
 
 fn main() i64 {
-  array[2][2] i64 x; 
+  array[2][2][1] i64 x = {{{1}, {2}}, {{3}, {4}}}; 
   
   return add(double_total(10), double_total(10));
 }

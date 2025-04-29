@@ -587,27 +587,27 @@ namespace occult {
     }
   }
 
-  std::unique_ptr<ast_array> parser::parse_array() {
+  std::unique_ptr<ast_array> parser::parse_array() { // array <dimensions> <datatype> <identifier> = { ... };
     consume(); // consume array
-  
+
     auto node = ast::new_node<ast_array>();
     std::vector<std::size_t> dimensions; 
-  
+
     while (match(peek(), left_bracket_tt)) {
       consume(); // consume [
-  
+
       if (!match(peek(), number_literal_tt)) {
         throw runtime_error("expected number literal inside array dimension", peek(), pos);
       }
-  
+
       std::size_t dimension_size = from_numerical_string<std::size_t>(peek().lexeme); // get dimension and store for later
       dimensions.push_back(dimension_size); 
       consume(); // consume the number literal
-  
+
       match(peek(), right_bracket_tt); // expect ]
       consume(); // consume ]
     }
-  
+
     // check if the next token is valid datatype
     if (!(match(peek(), int8_keyword_tt) ||
           match(peek(), int16_keyword_tt) ||
@@ -624,29 +624,75 @@ namespace occult {
           match(peek(), char_keyword_tt))) {
       throw runtime_error("expected a valid datatype", peek(), pos);
     }
-  
+
     // parse datatype and identifier
     node->add_child(parse_datatype());
-  
+
     auto dimensions_count = ast::new_node<ast_dimensions_count>(std::to_string(dimensions.size()));
-    
+
     for (const auto& dim : dimensions) {
       auto dimension_node = ast::new_node<ast_dimension>(std::to_string(dim));
       dimensions_count->add_child(std::move(dimension_node));
     }
-    
+
     node->add_child(std::move(dimensions_count));
+
+    if (match(peek(), assignment_tt)) {
+      consume(); // consume =
+
+      if (!match(peek(), left_curly_bracket_tt)) {
+        throw runtime_error("expected '{' to start array body", peek(), pos);
+      }
+      
+      // to help recursively parse array body
+      std::function<std::unique_ptr<ast>(void)> parse_array_body;
+      parse_array_body = [&]() -> std::unique_ptr<ast> {
+        if (!match(peek(), left_curly_bracket_tt)) {
+          throw runtime_error("expected '{' in array body", peek(), pos);
+        }
+        consume(); // consume {}
+
+        auto body_node = ast::new_node<ast_arraybody>();
+
+        while (!match(peek(), right_curly_bracket_tt)) {
+          if (match(peek(), left_curly_bracket_tt)) {
+            body_node->add_child(parse_array_body());
+          }
+          else if (match(peek(), number_literal_tt) ||
+                   match(peek(), float_literal_tt)  ||
+                   match(peek(), string_literal_tt) ||
+                   match(peek(), char_literal_tt)   ||
+                   match(peek(), true_keyword_tt)   ||
+                   match(peek(), false_keyword_tt)){
+            body_node->add_child(ast_map[peek().tt](peek().lexeme));
+            
+            consume();
+          } 
+          else if (match(peek(), comma_tt)) {
+            consume(); // skip commas
+          } 
+          else {
+            throw runtime_error("unexpected token in array body", peek(), pos);
+          }
+        }
+
+        consume(); // consume }
+
+        return body_node;
+      };
+
+      node->add_child(parse_array_body());
+    }
 
     if (!match(peek(), semicolon_tt)) {
       throw runtime_error("expected semicolon at end of array declaration", peek(), pos);
     }
-    consume(); // consume ';'
 
-    // body of array here
-  
+    consume(); // consume ;
+
     return node;
-  }  
-
+  }
+    
   std::unique_ptr<ast_pointer> parser::parse_pointer() { 
 
   }
