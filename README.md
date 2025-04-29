@@ -19,14 +19,8 @@
   - - [x] x86 JIT Runtime
   - - [x] IR Translation -> x86 JIT
   - - [ ] Windows Support 
- 
-### Notes about the roadmap
-- IR/IL + Translation
-  - Stack-based IR, works with translation to native JIT x86_64
-- x86 JIT Runtime
-  - Isn't fully finished for the full functionality either, needs polishing
 
-### Things left to do before testing
+### Things left to do before release & alpha-testing
 - - [x] If statements
 - - [x] Loop statements
 - - [x] Continue statement
@@ -44,7 +38,7 @@
 - Match statement
 - Static Analysis
 - Foreach
-- An intermediate in between bytecode and AST, in TAC form for further optimisation later on
+- An intermediate in between stack IR and register bytecode, in TAC form for further optimisation later on
 _____________________________________________________________________________
 
 ### [Building](https://github.com/occultlang/occult/blob/main/BUILDING.md)
