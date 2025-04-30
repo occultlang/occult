@@ -83,6 +83,7 @@ namespace occult {
     ast() = default;
     
     std::string content = ""; // base class
+    std::size_t num_pointers = 0;
     
     template<typename BaseAst = ast>
     static std::unique_ptr<BaseAst> new_node() {

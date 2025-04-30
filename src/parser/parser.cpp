@@ -207,7 +207,14 @@ namespace occult {
    if (it != datatype_map.end()) {
      consume();  
      auto node = it->second();  // create the ast node
-     
+
+     if (match(peek(), multiply_operator_tt)) { 
+      while (match(peek(), multiply_operator_tt)) {
+        consume();
+        node->num_pointers++;
+      }
+    }
+
      if (peek().tt == identifier_tt) {
        node->add_child(parse_identifier());
      }
@@ -324,6 +331,13 @@ namespace occult {
     consume(); // consume keyword
 
     auto node = ast::new_node<IntegerAstType>();
+
+    if (match(peek(), multiply_operator_tt)) { 
+      while (match(peek(), multiply_operator_tt)) {
+        consume();
+        node->num_pointers++;
+      }
+    }
 
     if (match(peek(), identifier_tt)) {
       node->add_child(parse_identifier()); // add identifier as a child node
@@ -707,10 +721,6 @@ namespace occult {
 
     return node;
   }
-    
-  std::unique_ptr<ast_pointer> parser::parse_pointer() { 
-
-  }
 
   std::unique_ptr<ast> parser::parse_keyword(bool nested_function) {
     if (nested_function) {
@@ -807,9 +817,6 @@ namespace occult {
     }
     else if (match(peek(), array_keyword_tt)) {
       return parse_array();
-    }
-    else if (match(peek(), pointer_keyword_tt)) {
-      return parse_pointer();
     }
     else if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
       auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
