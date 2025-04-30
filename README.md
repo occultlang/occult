@@ -29,7 +29,7 @@
 - - [x] For loops (foreach will be done when arrays are added)
 - - [x] Floating point variables (Minimal so far)
 - - [x] String variables (immutable)
-- - [x] Arrays
+- - [ ] Arrays (add arrays access)
 - - [ ] Pointers
 - - [ ] Reworking of x86 runtime
 - - [ ] Translation from Stack IR to an encoded Register Bytecode for easier translation into machine code
