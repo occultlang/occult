@@ -163,6 +163,10 @@ namespace occult {
       }
     }
   }
+
+  void parser::parse_array_access_expr() {
+
+  }
   
   void parser::shunting_yard_stack_cleanup(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<ast>>& expr_ast_ref) {
     while (!stack_ref.empty()) {
@@ -186,6 +190,9 @@ namespace occult {
       else if (t.tt == identifier_tt) { // normal identifier, no expr, just push into the vector
         if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) { // function call
           parse_function_call_expr(expr_ast, expr, t, i);
+        }
+        else if (i + 1 < expr.size() && expr.at(i + 1).tt == left_bracket_tt) { // array access
+          parse_array_access_expr();
         }
         else { // normal identifier
           expr_ast.push_back(ast_map[t.tt](t.lexeme));
@@ -837,6 +844,11 @@ namespace occult {
       else {
         throw runtime_error("Expected start to function call", peek(), pos); // not sure if this is verbose enough
       }
+    }
+    else if (match(peek(), identifier_tt) && peek(1).tt == left_bracket_tt) { // array access
+      auto id = parse_identifier();
+
+        
     }
     else if (match(peek(), identifier_tt)) {
       auto id = parse_identifier();

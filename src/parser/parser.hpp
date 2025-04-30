@@ -17,6 +17,7 @@ namespace occult {
     bool match(token_t t, token_type tt);
     void parse_function_call_expr(std::vector<std::unique_ptr<ast>>& expr_ast_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref);
     void shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<ast>>& expr_ast_ref, token_t& curr_tok_ref);
+    void parse_array_access_expr();
     void shunting_yard_stack_cleanup(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<ast>>& expr_ast_ref);
     std::vector<std::unique_ptr<ast>> parse_expression(std::vector<token_t> expr);
     std::unique_ptr<ast_function> parse_function();

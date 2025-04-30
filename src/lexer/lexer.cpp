@@ -313,6 +313,17 @@ namespace occult {
             token.lexeme = "unary_minus";
           }
         }
+        else if (token.tt == bitwise_and_tt || token.tt == multiply_operator_tt) {
+          if (is_unary_context(previous_token_type)) {
+            if (token.tt == bitwise_and_tt) {
+              token.tt = reference_operator_tt;
+              token.lexeme = "ptr_reference";
+            } else if (token.tt == multiply_operator_tt) {
+              token.tt = dereference_operator_tt;
+              token.lexeme = "ptr_dereference";
+            }
+          }
+        }
         
         token_stream.push_back(token);
         previous_token_type = token.tt;

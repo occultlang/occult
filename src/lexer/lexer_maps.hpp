@@ -5,7 +5,7 @@ namespace occult {
   std::unordered_map<std::string, token_type> comment_map = {
     {"//", comment_tt},
     {"/*", multiline_comment_start_tt},
-    {"*/", multiline_comment_start_tt}};
+    {"*/", multiline_comment_end_tt}};
   
   std::unordered_map<char, token_type> whitespace_map = {
     {' ', whitespace_tt},
@@ -100,6 +100,13 @@ namespace occult {
     {xor_operator_tt, "xor_operator"},
     {unary_minus_operator_tt, "unary_minus"},
     {unary_plus_operator_tt, "unary_plus"},
+    {unary_bitwise_not_tt, "unary_bitwise_not"},
+    {bitwise_and_tt, "bitwise_and"},
+    {bitwise_or_tt, "bitwise_or"},
+    {bitwise_lshift_tt, "bitwise_lshift"},
+    {bitwise_rshift_tt, "bitwise_rshift"},
+    {reference_operator_tt, "reference_operator"},
+    {dereference_operator_tt, "dereference_operator"},
     {and_operator_tt, "and_operator"},
     {or_operator_tt, "or_operator"},
     {unary_not_operator_tt, "not_operator"},

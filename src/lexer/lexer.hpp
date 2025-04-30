@@ -102,6 +102,8 @@ namespace occult {
     false_keyword_tt,    // false
     unary_minus_operator_tt,
     unary_plus_operator_tt,
+    reference_operator_tt, // &
+    dereference_operator_tt, // *
     
     end_of_file_tt,
     unkown_tt,
