@@ -43,6 +43,7 @@ namespace occult {
     std::unique_ptr<ast_returnstmt> parse_return();
     std::unique_ptr<ast_array> parse_array();
     std::unique_ptr<ast_pointer> parse_pointer();
+    void synchronize(std::string what);
   public:
     parser(std::vector<token_t> stream) : root(ast::new_node<ast_root>()), stream(stream) {}
     

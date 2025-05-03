@@ -3,13 +3,17 @@
 #include "../lexer/lexer.hpp"
 
 namespace occult {
-  class runtime_error : public std::runtime_error {
+  class parsing_error : public std::runtime_error {
       mutable std::string message;
+      mutable std::string expected;
       token_t tk;
       int curr_pos;
   public:
-      explicit runtime_error(const std::string &message, token_t tk, int curr_pos) : std::runtime_error(message), tk(tk), curr_pos(curr_pos) {}
-  
+      explicit parsing_error(const std::string &expected, token_t tk, int curr_pos) : std::runtime_error("[PARSE ERROR] "), expected(expected), tk(tk), curr_pos(curr_pos) {}
       virtual const char *what() const noexcept override;
+      token_t get_token() const noexcept { return tk; }
+      std::string get_expected() const noexcept { return expected; }
+      int get_position() const noexcept { return curr_pos; }
+      std::string get_message() const noexcept { return message; }
   };
 } // namespace occult

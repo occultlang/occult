@@ -6,8 +6,8 @@
 
 /*
 TODO:
-  [ ]  Add error syncrhonization for better error output / handling
-  [ ]  Make errors more verbose
+  [x]  Add error syncrhonization for better error output / handling
+  [x]  Make errors more verbose
   [x]  Add array decls
   [x]  Array bodies + pointers in there
   [ ]  Add pointer decls
@@ -229,7 +229,7 @@ namespace occult {
      return node;
    }
    else {
-     throw runtime_error("invalid datatype", peek(), pos);
+     throw parsing_error("<dataype>", peek(), pos);
    }
   }
 
@@ -268,7 +268,7 @@ namespace occult {
       }
       
       if (!match(peek(), right_paren_tt)) {
-        throw runtime_error("expected right parenthesis", peek(), pos);
+        throw parsing_error(")", peek(), pos);
       }
       else {
         consume();
@@ -277,7 +277,7 @@ namespace occult {
       func_node->add_child(std::move(func_args_node));
     }
     else {
-      throw runtime_error("expected left parenthesis", peek(), pos);
+      throw parsing_error("(", peek(), pos);
     }
     
     auto return_type = parse_datatype();
@@ -300,7 +300,7 @@ namespace occult {
       }
       
       if (!match(peek(), right_curly_bracket_tt)) {
-        throw runtime_error("expected right curly brace", peek(), pos);
+        throw parsing_error("}", peek(), pos);
       }
       else {
         consume();
@@ -309,7 +309,7 @@ namespace occult {
       return block_node;
     }
     else {
-      throw runtime_error("expected left curly brace", peek(), pos);
+      throw parsing_error("{", peek(), pos);
     }
   }
 
@@ -350,14 +350,14 @@ namespace occult {
       node->add_child(parse_identifier()); // add identifier as a child node
     }
     else {
-      throw runtime_error("expected identifier", peek(), pos);
+      throw parsing_error("<identifier>", peek(), pos);
     }
 
     if (match(peek(), assignment_tt)) {
       node->add_child(parse_assignment());
       
       if (match(peek(), semicolon_tt)) {
-        throw runtime_error("expected expression", peek(), pos);
+        throw parsing_error("<expr>", peek(), pos);
       }
 
       parse_expression_until(node->get_children().at(1).get(), semicolon_tt); // parse the expression until the semicolon
@@ -367,7 +367,7 @@ namespace occult {
       consume();
     }
     else {
-      throw runtime_error("expected semicolon", peek(), pos);
+      throw parsing_error(";", peek(), pos);
     }
 
     return node;
@@ -384,7 +384,7 @@ namespace occult {
       consume();
     }
     else {
-      throw runtime_error("expected semicolon", peek(), pos);
+      throw parsing_error(";", peek(), pos);
     }
     
     return return_node;
@@ -455,7 +455,7 @@ namespace occult {
       consume();
     }
     else {
-      throw runtime_error("expected semicolon", peek(), pos);
+      throw parsing_error(";", peek(), pos);
     }
     
     return break_node;
@@ -470,7 +470,7 @@ namespace occult {
       consume();
     }
     else {
-      throw runtime_error("expected semicolon", peek(), pos);
+      throw parsing_error(";", peek(), pos);
     }
     
     return continue_node;
@@ -498,14 +498,14 @@ namespace occult {
       node->add_child(parse_identifier()); // add identifier as a child node
     }
     else {
-      throw runtime_error("expected identifier", peek(), pos);
+      throw parsing_error("<identifier>", peek(), pos);
     }
     
     if (match(peek(), assignment_tt)) {
       auto assignment = parse_assignment();
       
       if (match(peek(), semicolon_tt)) {
-        throw runtime_error("expected expression", peek(), pos);
+        throw parsing_error("<expr>", peek(), pos);
       }
     
       parse_expression_until(assignment.get(), semicolon_tt); // parse the expression until the semicolon
@@ -517,7 +517,7 @@ namespace occult {
       consume();
     }
     else {
-      throw runtime_error("expected semicolon", peek(), pos);
+      throw parsing_error(";", peek(), pos);
     }
     
     return node;
@@ -559,7 +559,7 @@ namespace occult {
         existing_for_node->add_child(std::move(foriter_node));
       }
       else {
-        throw runtime_error("expected do keyword", peek(), pos);
+        throw parsing_error("do", peek(), pos);
       }
       
       auto body = parse_block();  
@@ -568,7 +568,7 @@ namespace occult {
       return existing_for_node;
     }
     else {
-      throw runtime_error("expected when keyword", peek(), pos);
+      throw parsing_error("when", peek(), pos);
     }
   }
   
@@ -606,7 +606,7 @@ namespace occult {
       return for_node;
     }
     else {
-      throw runtime_error("expected in keyword", peek(), pos);
+      throw parsing_error("in", peek(), pos);
     }
   }
 
@@ -620,7 +620,7 @@ namespace occult {
       consume(); // consume [
 
       if (!match(peek(), number_literal_tt)) {
-        throw runtime_error("expected number literal inside array dimension", peek(), pos);
+        throw parsing_error("number literal in array dimension", peek(), pos);
       }
 
       std::size_t dimension_size = from_numerical_string<std::size_t>(peek().lexeme); // get dimension and store for later
@@ -645,7 +645,7 @@ namespace occult {
           match(peek(), string_keyword_tt) ||
           match(peek(), boolean_keyword_tt) ||
           match(peek(), char_keyword_tt))) {
-      throw runtime_error("expected a valid datatype", peek(), pos);
+      throw parsing_error("valid <datatype>", peek(), pos);
     }
 
     // parse datatype and identifier
@@ -664,13 +664,13 @@ namespace occult {
       consume(); // consume =
     
       if (!match(peek(), left_curly_bracket_tt)) {
-        throw runtime_error("expected '{' to start array body", peek(), pos);
+        throw parsing_error("'{' to start array body", peek(), pos);
       }
     
       std::function<std::unique_ptr<ast>(void)> parse_array_body;
       parse_array_body = [&]() -> std::unique_ptr<ast> {
         if (!match(peek(), left_curly_bracket_tt)) {
-          throw runtime_error("expected '{' in array body", peek(), pos);
+          throw parsing_error("'{' in array body", peek(), pos);
         }
         consume(); // consume {
     
@@ -721,7 +721,7 @@ namespace occult {
     }
 
     if (!match(peek(), semicolon_tt)) {
-      throw runtime_error("expected semicolon at end of array declaration", peek(), pos);
+      throw parsing_error("; at end of array decl", peek(), pos);
     }
 
     consume(); // consume ;
@@ -745,7 +745,7 @@ namespace occult {
         
         std::ifstream file(string_token.lexeme);
         if (!file.is_open()) {
-          throw runtime_error("Could not open file, tried to include", string_token, pos);
+          throw parsing_error("could not open file", string_token, pos);
         }
 
         std::stringstream buffer;
@@ -761,7 +761,7 @@ namespace occult {
         return included_ast;
       }
       else {
-        throw runtime_error("Expected string literal", peek(), pos);
+        throw parsing_error("string literal", peek(), pos);
       }
     }
     else if (match(peek(), int8_keyword_tt)) {
@@ -838,13 +838,13 @@ namespace occult {
           consume();
         }
         else {
-          throw runtime_error("Expected semicolon", peek(), pos);
+          throw parsing_error(";", peek(), pos);
         }
         
         return std::move(converted_rpn.at(0));
       }
       else {
-        throw runtime_error("Expected start to function call", peek(), pos); // not sure if this is verbose enough
+        throw parsing_error("<FUNC_CALL_START>", peek(), pos); // not sure if this is verbose enough
       }
     }
     else if (match(peek(), identifier_tt) && peek(1).tt == left_bracket_tt) { // array access
@@ -859,7 +859,7 @@ namespace occult {
         id->add_child(parse_assignment());
         
         if (match(peek(), semicolon_tt)) {
-          throw runtime_error("expected expression", peek(), pos);
+          throw parsing_error("<expr>", peek(), pos);
         }
 
         parse_expression_until(id.get(), semicolon_tt); // parse the expression until the semicolon
@@ -868,31 +868,55 @@ namespace occult {
           consume();
         }
         else {
-          throw runtime_error("expected semicolon", peek(), pos);
+          throw parsing_error(";", peek(), pos);
         }
         
         return id;
       }
     }
-    
-    throw runtime_error("unexpected keyword", peek(), pos);
+
+    throw parsing_error("<UKN_KEYWORD>", peek(), pos);
   }
 
+  void parser::synchronize(std::string what) {
+    std::cout << RED << what << RESET << std::endl;
+
+    std::uintptr_t last_pos = pos; 
+    while (!match(peek(), end_of_file_tt)) {
+      if (match(peek(), semicolon_tt) || match(peek(), left_curly_bracket_tt) || match(peek(), right_curly_bracket_tt)) {
+        consume();
+        
+        return;
+      }
+      
+      if (pos == last_pos) {
+        consume();
+      }
+      
+      last_pos = pos;
+    }
+  }
+  
   std::unique_ptr<ast_root> parser::parse() {
     while (!match(peek(), end_of_file_tt)) {
-      auto node = parse_keyword(true);
+      try {
+        auto node = parse_keyword(true);
 
-      if (node->get_type() == ast_type::root) {
-        for (auto& child : node->get_children()) {
-          root->add_child(std::move(child)); // nested
+        if (node->get_type() == ast_type::root) {
+          for (auto& child : node->get_children()) {
+            root->add_child(std::move(child)); // nested
+          }
+        }
+        else {
+          root->add_child(std::move(node)); // not nested
+        }
+
+        if (match(peek(), end_of_file_tt)) {
+          break;
         }
       }
-      else {
-        root->add_child(std::move(node)); // not nested
-      }
-
-      if (match(peek(), end_of_file_tt)) {
-        break;
+      catch (const parsing_error& e) {
+        synchronize(e.what());
       }
     }
 

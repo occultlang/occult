@@ -1,15 +1,21 @@
 #include "error.hpp"
 
 namespace occult {
-  const char *runtime_error::what() const noexcept {
+  const char *parsing_error::what() const noexcept {
     message = std::runtime_error::what();
-    message += "\ngot type \"";
-    message += token_t::get_typename(tk.tt);
-    message += "\"\nlexeme: ";
+    message += "Got \"";
     message += tk.lexeme;
-    message += "\"\nposition in stream: ";
+    message += "\", ";
+    message += "expected \"";
+    message += expected;
+    message += "\" at line ";
+    message += std::to_string(tk.line);
+    message += ", column ";
+    message += std::to_string(tk.column);
+    message += " (";
     message += std::to_string(curr_pos);
-    
+    message += ")";
+
     return message.c_str();
   }
 } // namespace occult
