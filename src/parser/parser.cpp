@@ -9,7 +9,7 @@ TODO:
   [ ]  Add error syncrhonization for better error output / handling
   [ ]  Make errors more verbose
   [x]  Add array decls
-  [ ]  Array bodies + pointers in there
+  [x]  Array bodies + pointers in there
   [ ]  Add pointer decls
 */
 
@@ -747,12 +747,14 @@ namespace occult {
         if (!file.is_open()) {
           throw runtime_error("Could not open file, tried to include", string_token, pos);
         }
+
         std::stringstream buffer;
         buffer << file.rdbuf();
         std::string src = buffer.str();
 
         lexer l(src);
         auto included_stream = l.analyze();
+
         parser p(included_stream);
         auto included_ast = p.parse();
 
@@ -848,7 +850,7 @@ namespace occult {
     else if (match(peek(), identifier_tt) && peek(1).tt == left_bracket_tt) { // array access
       auto id = parse_identifier();
 
-        
+      
     }
     else if (match(peek(), identifier_tt)) {
       auto id = parse_identifier();
