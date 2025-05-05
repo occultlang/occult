@@ -31,11 +31,11 @@
 - - [x] Arrays (add arrays access)
 - - [ ] Pointers
 - - [ ] Reworking of x86 runtime
- 
+- - [ ] Translation from Stack IR to an encoded Register Bytecode for easier translation into machine code
+
 ### Things planned
 - [ ] Static Analysis
 - [ ] An intermediate in between stack IR and register bytecode, in TAC form for further optimisation later on
-- [ ] Translation from Stack IR to an encoded Register Bytecode for easier translation into machine code
 - [ ] Windows support
 
 _____________________________________________________________________________
