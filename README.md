@@ -18,7 +18,6 @@
   - - [x] Stack-based IR 
   - - [x] x86 JIT Runtime
   - - [x] IR Translation -> x86 JIT
-  - - [ ] Windows Support 
 
 ### Things left to do before release & alpha-testing
 - - [x] If statements
@@ -29,16 +28,16 @@
 - - [x] For loops (foreach will be done when arrays are added)
 - - [x] Floating point variables (Minimal so far)
 - - [x] String variables (immutable)
-- - [ ] Arrays (add arrays access)
+- - [x] Arrays (add arrays access)
 - - [ ] Pointers
 - - [ ] Reworking of x86 runtime
-- - [ ] Translation from Stack IR to an encoded Register Bytecode for easier translation into machine code
  
 ### Things planned
-- Match statement
-- Static Analysis
-- Foreach
-- An intermediate in between stack IR and register bytecode, in TAC form for further optimisation later on
+- [ ] Static Analysis
+- [ ] An intermediate in between stack IR and register bytecode, in TAC form for further optimisation later on
+- [ ] Translation from Stack IR to an encoded Register Bytecode for easier translation into machine code
+- [ ] Windows support
+
 _____________________________________________________________________________
 
 ### [Building](https://github.com/occultlang/occult/blob/main/BUILDING.md)
