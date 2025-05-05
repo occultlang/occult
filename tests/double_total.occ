@@ -1,4 +1,4 @@
-include "../tests/add.occ" // goes based on the path of the compilers binary which might not be good...
+/*include "../tests/add.occ" // goes based on the path of the compilers binary which might not be good...
 
 fn double_total(i64 arg) i64 {
   i64 total = 0;
@@ -8,13 +8,15 @@ fn double_total(i64 arg) i64 {
   }
 
   return total;
-}
+}*/
 
 fn main() i64 {
   array[4] i64 test_array = {1, 2, 3, 4};
-  
-  i64 aaa = 123;
+  bbbbbb[aaaaa[0]] = call();
+  test(t[a[1]]);
+  /*i64 aaa = 123;
   i64* test_address2 = &aaa;
 
-  return add(double_total(10), double_total(10));
+  return add(double_total(10), double_total(10));*/
+  return 0;
 }

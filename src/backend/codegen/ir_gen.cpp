@@ -10,33 +10,33 @@
 // use string(s) to determine the current exit, entry, etc labels
 
 namespace occult {
-  ir_function ir_gen::generate_function(ast_function* func_node) {
+  ir_function ir_gen::generate_function(cst_function* func_node) {
     ir_function function;
     
     for (const auto& c : func_node->get_children()) {
       switch(c->get_type()) {
-        case ast_type::int8_datatype:
-        case ast_type::int16_datatype:
-        case ast_type::int32_datatype:
-        case ast_type::int64_datatype:
-        case ast_type::uint8_datatype:
-        case ast_type::uint16_datatype:
-        case ast_type::uint32_datatype:
-        case ast_type::uint64_datatype:
-        case ast_type::string_datatype: {
+        case cst_type::int8_datatype:
+        case cst_type::int16_datatype:
+        case cst_type::int32_datatype:
+        case cst_type::int64_datatype:
+        case cst_type::uint8_datatype:
+        case cst_type::uint16_datatype:
+        case cst_type::uint32_datatype:
+        case cst_type::uint64_datatype:
+        case cst_type::string_datatype: {
             function.type = c->to_string().substr(4, c->to_string().size());
             break;
         }
-        case ast_type::functionarguments: {
-            generate_function_args(function, ast::cast_raw<ast_functionargs>(c.get()));
+        case cst_type::functionarguments: {
+            generate_function_args(function, cst::cast_raw<cst_functionargs>(c.get()));
             break;
         }
-        case ast_type::identifier: {
+        case cst_type::identifier: {
             function.name = c->content;
             break;
         }
-        case ast_type::block: {
-            generate_block(function, ast::cast_raw<ast_block>(c.get()));
+        case cst_type::block: {
+            generate_block(function, cst::cast_raw<cst_block>(c.get()));
             break;
         }
         default: {
@@ -48,7 +48,7 @@ namespace occult {
     return function;
   }
   
-  void ir_gen::generate_function_args(ir_function& function, ast_functionargs* func_args_node) {
+  void ir_gen::generate_function_args(ir_function& function, cst_functionargs* func_args_node) {
     for (const auto& arg : func_args_node->get_children()) {
       for (const auto& c : arg->get_children()) {
         function.args.emplace_back(c->content, arg->to_string().substr(4, arg->to_string().size()));
@@ -56,58 +56,58 @@ namespace occult {
     }
   }
   
-  void ir_gen::generate_arith_and_bitwise_operators(ir_function& function, ast* c) {
+  void ir_gen::generate_arith_and_bitwise_operators(ir_function& function, cst* c) {
     switch (c->get_type()) {
-      case ast_type::add_operator: {
+      case cst_type::add_operator: {
         function.code.emplace_back(op_add);
         
         break;
       }
-      case ast_type::subtract_operator: {
+      case cst_type::subtract_operator: {
         function.code.emplace_back(op_sub);
         
         break;
       }
-      case ast_type::multiply_operator: {
+      case cst_type::multiply_operator: {
         function.code.emplace_back(op_mul);
         
         break;
       }
-      case ast_type::division_operator: {
+      case cst_type::division_operator: {
         function.code.emplace_back(op_div);
         
         break;
       }
-      case ast_type::modulo_operator: {
+      case cst_type::modulo_operator: {
         function.code.emplace_back(op_mod);
         
         break;
       }
-      case ast_type::bitwise_and: {
+      case cst_type::bitwise_and: {
         break;
       }
-      case ast_type::bitwise_or: {
+      case cst_type::bitwise_or: {
         break;
       }
-      case ast_type::xor_operator: {
+      case cst_type::xor_operator: {
         break;
       }
-      case ast_type::bitwise_lshift: {
+      case cst_type::bitwise_lshift: {
         break;
       }
-      case ast_type::bitwise_rshift: {
+      case cst_type::bitwise_rshift: {
         break;
       }
-      case ast_type::unary_plus_operator: {
+      case cst_type::unary_plus_operator: {
         break;
       }
-      case ast_type::unary_minus_operator: {
+      case cst_type::unary_minus_operator: {
         break;
       }
-      case ast_type::unary_bitwise_not: {
+      case cst_type::unary_bitwise_not: {
         break;
       }
-      case ast_type::unary_not_operator: {
+      case cst_type::unary_not_operator: {
         break;
       }
       default: {
@@ -117,58 +117,58 @@ namespace occult {
   }
   
   template<typename IntType>
-  void ir_gen::generate_common(ir_function& function, ast* node) {
+  void ir_gen::generate_common(ir_function& function, cst* node) {
     for (const auto& c : node->get_children()) {
       generate_arith_and_bitwise_operators(function, c.get());
       
       switch(c->get_type()) {
-        case ast_type::number_literal: {
+        case cst_type::number_literal: {
           function.code.emplace_back(op_push, from_numerical_string<IntType>(c->content));
           
           break;
         }
-        case ast_type::float_literal: {
+        case cst_type::float_literal: {
           function.code.emplace_back(op_pushf, from_numerical_string<IntType>(c->content));
           
           break;
         }
-        case ast_type::identifier: {
+        case cst_type::identifier: {
           function.code.emplace_back(op_load, c->content);
           
           break;
         }
-        case ast_type::stringliteral: {
+        case cst_type::stringliteral: {
           function.code.emplace_back(op_push, c->content);
           
           break;
         }
-        case ast_type::functioncall: {
+        case cst_type::functioncall: {
          generate_function_call(function, c.get());
           
           break;
         }
-        case ast_type::or_operator: {
+        case cst_type::or_operator: {
           break;
         }
-        case ast_type::and_operator: {
+        case cst_type::and_operator: {
           break;
         }
-        case ast_type::equals_operator: {
+        case cst_type::equals_operator: {
           break;
         }
-        case ast_type::not_equals_operator: {
+        case cst_type::not_equals_operator: {
           break;
         }
-        case ast_type::greater_than_operator: {
+        case cst_type::greater_than_operator: {
           break;
         }
-        case ast_type::less_than_operator: {
+        case cst_type::less_than_operator: {
           break;
         }
-        case ast_type::greater_than_or_equal_operator: {
+        case cst_type::greater_than_or_equal_operator: {
           break;
         }
-        case ast_type::less_than_or_equal_operator: {
+        case cst_type::less_than_or_equal_operator: {
           break;
         }
         default: {
@@ -178,7 +178,7 @@ namespace occult {
     }
   }
   
-  void ir_gen::handle_push_types(ir_function& function, ast* c) {    
+  void ir_gen::handle_push_types(ir_function& function, cst* c) {    
     auto it = ir_typemap.find(function.type);
     
     if (it != ir_typemap.end()) {
@@ -212,7 +212,7 @@ namespace occult {
     }
   }
   
-  void ir_gen::handle_push_types_common(ir_function& function, ast* c) {    
+  void ir_gen::handle_push_types_common(ir_function& function, cst* c) {    
     auto it = ir_typemap.find(function.type);
     
     if (it != ir_typemap.end()) {
@@ -247,14 +247,14 @@ namespace occult {
     }
   }
   
-  void ir_gen::generate_function_call(ir_function& function, ast* c) {
-    auto node = ast::cast_raw<ast_functioncall>(c);
+  void ir_gen::generate_function_call(ir_function& function, cst* c) {
+    auto node = cst::cast_raw<cst_functioncall>(c);
     
-    auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name of call
+    auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name of call
     
     auto arg_location = 1;
     while (node->get_children().at(arg_location).get()->content != "end_call") {
-      auto arg_node = ast::cast_raw<ast_functionarg>(node->get_children().at(arg_location).get());
+      auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(arg_location).get());
       
       handle_push_types_common(function, arg_node);
       
@@ -264,48 +264,48 @@ namespace occult {
     function.code.emplace_back(op_call, identifier->content);
   }
   
-  void ir_gen::generate_return(ir_function& function, ast_returnstmt* return_node) {
+  void ir_gen::generate_return(ir_function& function, cst_returnstmt* return_node) {
     for (const auto& c : return_node->get_children()) {
       generate_arith_and_bitwise_operators(function, c.get());
       
       switch(c->get_type()) {
-        case ast_type::number_literal: {
+        case cst_type::number_literal: {
           handle_push_types(function, c.get());
           
           break;
         }
-        case ast_type::identifier: {
+        case cst_type::identifier: {
           function.code.emplace_back(op_load, c->content);
           
           break;
         }
-        case ast_type::functioncall: {
+        case cst_type::functioncall: {
           generate_function_call(function, c.get());
           
           break;
         }
-        case ast_type::or_operator: {
+        case cst_type::or_operator: {
           break;
         }
-        case ast_type::and_operator: {
+        case cst_type::and_operator: {
           break;
         }
-        case ast_type::equals_operator: {
+        case cst_type::equals_operator: {
           break;
         }
-        case ast_type::not_equals_operator: {
+        case cst_type::not_equals_operator: {
           break;
         }
-        case ast_type::greater_than_operator: {
+        case cst_type::greater_than_operator: {
           break;
         }
-        case ast_type::less_than_operator: {
+        case cst_type::less_than_operator: {
           break;
         }
-        case ast_type::greater_than_or_equal_operator: {
+        case cst_type::greater_than_or_equal_operator: {
           break;
         }
-        case ast_type::less_than_or_equal_operator: {
+        case cst_type::less_than_or_equal_operator: {
           break;
         }
         default: {
@@ -315,7 +315,7 @@ namespace occult {
     }
   }
   
-  void ir_gen::generate_if(ir_function& function, ast_ifstmt* if_node, std::string current_break_label, std::string current_loop_start) {
+  void ir_gen::generate_if(ir_function& function, cst_ifstmt* if_node, std::string current_break_label, std::string current_loop_start) {
     std::string L1 = create_label();
     std::string L2 = create_label();
     
@@ -326,58 +326,58 @@ namespace occult {
     
     for (const auto& c : if_node->get_children()) { 
       switch (c->get_type()) {
-        case ast_type::number_literal: {
+        case cst_type::number_literal: {
           handle_push_types(function, c.get());
           
           break;
         }
-        case ast_type::identifier: {
+        case cst_type::identifier: {
           function.code.emplace_back(op_load, c->content);
           
           break;
         }
-        case ast_type::functioncall: {
+        case cst_type::functioncall: {
           generate_function_call(function, c.get());
           
           break;
         }
-        case ast_type::or_operator: {
+        case cst_type::or_operator: {
           break;
         }
-        case ast_type::and_operator: {
+        case cst_type::and_operator: {
           break;
         }
-        case ast_type::equals_operator: {
+        case cst_type::equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jnz, L2);
           
           break;
         }
-        case ast_type::not_equals_operator: {
+        case cst_type::not_equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jz, L2);
          
           break;
         }
-        case ast_type::greater_than_operator: {
+        case cst_type::greater_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jl, L2);
           
           break;
         }
-        case ast_type::less_than_operator: {
+        case cst_type::less_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jg, L2);
           
           break;
         }
-        case ast_type::greater_than_or_equal_operator: {
+        case cst_type::greater_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jle, L2);
           
           break;
         }
-        case ast_type::less_than_or_equal_operator: {
+        case cst_type::less_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jge, L2);
           
@@ -391,8 +391,8 @@ namespace occult {
     
     // block
     for (const auto& c : if_node->get_children()) {
-      if (c->get_type() == ast_type::block) {
-        generate_block(function, ast::cast_raw<ast_block>(c.get()), current_break_label, current_loop_start);
+      if (c->get_type() == cst_type::block) {
+        generate_block(function, cst::cast_raw<cst_block>(c.get()), current_break_label, current_loop_start);
       }
     }
     
@@ -403,7 +403,7 @@ namespace occult {
     
     // process other blocks / ifelse, else etc.
     for (const auto& c1 : if_node->get_children()) {
-      if (c1->get_type() == ast_type::elseifstmt) {
+      if (c1->get_type() == cst_type::elseifstmt) {
         L2 = create_label();
         
         for (const auto& c : c1->get_children()) { 
@@ -412,58 +412,58 @@ namespace occult {
         
         for (const auto& c : c1->get_children()) { 
           switch (c->get_type()) {
-            case ast_type::number_literal: {
+            case cst_type::number_literal: {
               handle_push_types(function, c.get());
               
               break;
             }
-            case ast_type::identifier: {
+            case cst_type::identifier: {
               function.code.emplace_back(op_load, c->content);
               
               break;
             }
-            case ast_type::functioncall: {
+            case cst_type::functioncall: {
               generate_function_call(function, c.get());
               
               break;
             }
-            case ast_type::or_operator: {
+            case cst_type::or_operator: {
               break;
             }
-            case ast_type::and_operator: {
+            case cst_type::and_operator: {
               break;
             }
-            case ast_type::equals_operator: {
+            case cst_type::equals_operator: {
               function.code.emplace_back(op_cmp);
               function.code.emplace_back(op_jnz, L2);
               
               break;
             }
-            case ast_type::not_equals_operator: {
+            case cst_type::not_equals_operator: {
               function.code.emplace_back(op_cmp);
               function.code.emplace_back(op_jz, L2);
              
               break;
             }
-            case ast_type::greater_than_operator: {
+            case cst_type::greater_than_operator: {
               function.code.emplace_back(op_cmp);
               function.code.emplace_back(op_jl, L2);
               
               break;
             }
-            case ast_type::less_than_operator: {
+            case cst_type::less_than_operator: {
               function.code.emplace_back(op_cmp);
               function.code.emplace_back(op_jg, L2);
               
               break;
             }
-            case ast_type::greater_than_or_equal_operator: {
+            case cst_type::greater_than_or_equal_operator: {
               function.code.emplace_back(op_cmp);
               function.code.emplace_back(op_jle, L2);
               
               break;
             }
-            case ast_type::less_than_or_equal_operator: {
+            case cst_type::less_than_or_equal_operator: {
               function.code.emplace_back(op_cmp);
               function.code.emplace_back(op_jge, L2);
               
@@ -476,8 +476,8 @@ namespace occult {
         }
         
         for (const auto& c : c1->get_children()) {
-          if (c->get_type() == ast_type::block) {
-            generate_block(function, ast::cast_raw<ast_block>(c.get()), current_break_label, current_loop_start);
+          if (c->get_type() == cst_type::block) {
+            generate_block(function, cst::cast_raw<cst_block>(c.get()), current_break_label, current_loop_start);
           }
         }
         
@@ -485,10 +485,10 @@ namespace occult {
         
         place_label(function, L2);
       }
-      else if (c1->get_type() == ast_type::elsestmt) {
+      else if (c1->get_type() == cst_type::elsestmt) {
         for (const auto& c : c1->get_children()) {
-          if (c->get_type() == ast_type::block) {
-            generate_block(function, ast::cast_raw<ast_block>(c.get()), current_break_label, current_loop_start);
+          if (c->get_type() == cst_type::block) {
+            generate_block(function, cst::cast_raw<cst_block>(c.get()), current_break_label, current_loop_start);
           }
         }
         
@@ -496,19 +496,19 @@ namespace occult {
       }
     }
     
-    // last label for all the blocks
+    // lcst label for all the blocks
     place_label(function, L1); 
   }
   
-  void ir_gen::generate_loop(ir_function& function, ast_loopstmt* loop_node) {
+  void ir_gen::generate_loop(ir_function& function, cst_loopstmt* loop_node) {
     auto L1 = create_label();
     auto B1 = create_label();
     
     place_label(function, L1);
     
     for (const auto& c : loop_node->get_children()) {
-      if (c->get_type() == ast_type::block) {
-        generate_block(function, ast::cast_raw<ast_block>(c.get()), B1, L1);
+      if (c->get_type() == cst_type::block) {
+        generate_block(function, cst::cast_raw<cst_block>(c.get()), B1, L1);
       }
     }
     
@@ -517,7 +517,7 @@ namespace occult {
     place_label(function, B1);
   }
   
-  void ir_gen::generate_while(ir_function& function, ast_whilestmt* while_node) {
+  void ir_gen::generate_while(ir_function& function, cst_whilestmt* while_node) {
     auto L1 = create_label();
     auto B1 = create_label();
     
@@ -530,58 +530,58 @@ namespace occult {
     
     for (const auto& c : while_node->get_children()) { 
       switch (c->get_type()) {
-        case ast_type::number_literal: {
+        case cst_type::number_literal: {
           handle_push_types(function, c.get());
           
           break;
         }
-        case ast_type::identifier: {
+        case cst_type::identifier: {
           function.code.emplace_back(op_load, c->content);
           
           break;
         }
-        case ast_type::functioncall: {
+        case cst_type::functioncall: {
           generate_function_call(function, c.get());
           
           break;
         }
-        case ast_type::or_operator: {
+        case cst_type::or_operator: {
           break;
         }
-        case ast_type::and_operator: {
+        case cst_type::and_operator: {
           break;
         }
-        case ast_type::equals_operator: {
+        case cst_type::equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jnz, B1); // havent tested
           
           break;
         }
-        case ast_type::not_equals_operator: {
+        case cst_type::not_equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jz, B1); // havent tested
          
           break;
         }
-        case ast_type::greater_than_operator: {
+        case cst_type::greater_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jle, B1);
           
           break;
         }
-        case ast_type::less_than_operator: {
+        case cst_type::less_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jge, B1);
           
           break;
         }
-        case ast_type::greater_than_or_equal_operator: {
+        case cst_type::greater_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jl, B1);
           
           break;
         }
-        case ast_type::less_than_or_equal_operator: {
+        case cst_type::less_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jg, B1);
           
@@ -594,8 +594,8 @@ namespace occult {
     }
     
     for (const auto& c : while_node->get_children()) {
-      if (c->get_type() == ast_type::block) {
-        generate_block(function, ast::cast_raw<ast_block>(c.get()), B1, L1);
+      if (c->get_type() == cst_type::block) {
+        generate_block(function, cst::cast_raw<cst_block>(c.get()), B1, L1);
       }
     }
     
@@ -604,18 +604,18 @@ namespace occult {
     place_label(function, B1);
   }
   
-  void ir_gen::generate_for(ir_function& function, ast_forstmt* for_node) {
+  void ir_gen::generate_for(ir_function& function, cst_forstmt* for_node) {
     auto first_node = for_node->get_children().front().get(); 
     auto condition = for_node->get_children().at(1).get();
     auto body = for_node->get_children().back().get();
     
     switch (for_node->get_children().front()->get_type()) {
-      case ast_type::int8_datatype:
-      case ast_type::int16_datatype:
-      case ast_type::int32_datatype:
-      case ast_type::int64_datatype: {
-        auto identifier = ast::cast_raw<ast_identifier>(first_node->get_children().front().get()); // name
-        auto assignment = ast::cast_raw<ast_assignment>(first_node->get_children().back().get()); // expression stuff
+      case cst_type::int8_datatype:
+      case cst_type::int16_datatype:
+      case cst_type::int32_datatype:
+      case cst_type::int64_datatype: {
+        auto identifier = cst::cast_raw<cst_identifier>(first_node->get_children().front().get()); // name
+        auto assignment = cst::cast_raw<cst_assignment>(first_node->get_children().back().get()); // expression stuff
         
         generate_common<std::int64_t>(function, assignment);
         
@@ -623,12 +623,12 @@ namespace occult {
         
         break;
       }
-      case ast_type::uint8_datatype:
-      case ast_type::uint16_datatype:
-      case ast_type::uint32_datatype:
-      case ast_type::uint64_datatype: {
-        auto identifier = ast::cast_raw<ast_identifier>(first_node->get_children().front().get());
-        auto assignment = ast::cast_raw<ast_assignment>(first_node->get_children().back().get());
+      case cst_type::uint8_datatype:
+      case cst_type::uint16_datatype:
+      case cst_type::uint32_datatype:
+      case cst_type::uint64_datatype: {
+        auto identifier = cst::cast_raw<cst_identifier>(first_node->get_children().front().get());
+        auto assignment = cst::cast_raw<cst_assignment>(first_node->get_children().back().get());
         
         generate_common<std::uint64_t>(function, assignment);
         
@@ -653,58 +653,58 @@ namespace occult {
     
     for (const auto& c : condition->get_children()) { 
       switch (c->get_type()) {
-        case ast_type::number_literal: {
+        case cst_type::number_literal: {
           handle_push_types(function, c.get());
           
           break;
         }
-        case ast_type::identifier: {
+        case cst_type::identifier: {
           function.code.emplace_back(op_load, c->content);
           
           break;
         }
-        case ast_type::functioncall: {
+        case cst_type::functioncall: {
           generate_function_call(function, c.get());
           
           break;
         }
-        case ast_type::or_operator: {
+        case cst_type::or_operator: {
           break;
         }
-        case ast_type::and_operator: {
+        case cst_type::and_operator: {
           break;
         }
-        case ast_type::equals_operator: {
+        case cst_type::equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jnz, B1); // havent tested
           
           break;
         }
-        case ast_type::not_equals_operator: {
+        case cst_type::not_equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jz, B1); // havent tested
          
           break;
         }
-        case ast_type::greater_than_operator: {
+        case cst_type::greater_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jle, B1);
           
           break;
         }
-        case ast_type::less_than_operator: {
+        case cst_type::less_than_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jge, B1);
           
           break;
         }
-        case ast_type::greater_than_or_equal_operator: {
+        case cst_type::greater_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jl, B1);
           
           break;
         }
-        case ast_type::less_than_or_equal_operator: {
+        case cst_type::less_than_or_equal_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_jg, B1);
           
@@ -716,9 +716,9 @@ namespace occult {
       }
     }
     
-    generate_block(function, ast::cast_raw<ast_block>(body), B1, L1);
+    generate_block(function, cst::cast_raw<cst_block>(body), B1, L1);
     
-    auto new_block = ast::new_node<ast_block>(); // swapping parent
+    auto new_block = cst::new_node<cst_block>(); // swapping parent
     for (auto& c : for_node->get_children().at(2)->get_children()) {
       new_block->add_child(std::move(c));
     }
@@ -730,16 +730,16 @@ namespace occult {
     place_label(function, B1);
   }
   
-  void ir_gen::generate_block(ir_function& function, ast_block* block_node, std::string current_break_label, std::string current_loop_start) {
+  void ir_gen::generate_block(ir_function& function, cst_block* block_node, std::string current_break_label, std::string current_loop_start) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
-        case ast_type::int8_datatype:
-        case ast_type::int16_datatype:
-        case ast_type::int32_datatype:
-        case ast_type::int64_datatype: {
+        case cst_type::int8_datatype:
+        case cst_type::int16_datatype:
+        case cst_type::int32_datatype:
+        case cst_type::int64_datatype: {
           auto node = c.get();
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get()); // name
-          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get()); // expression stuff
+          auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name
+          auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get()); // expression stuff
           
           generate_common<std::int64_t>(function, assignment);
           
@@ -747,14 +747,14 @@ namespace occult {
           
           break;
         }
-        case ast_type::uint8_datatype:
-        case ast_type::uint16_datatype:
-        case ast_type::uint32_datatype:
-        case ast_type::uint64_datatype: {
+        case cst_type::uint8_datatype:
+        case cst_type::uint16_datatype:
+        case cst_type::uint32_datatype:
+        case cst_type::uint64_datatype: {
           auto node = c.get();
           
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
-          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
+          auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get());
+          auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
           
           generate_common<std::uint64_t>(function, assignment);
           
@@ -762,11 +762,11 @@ namespace occult {
           
           break;
         }
-        case ast_type::float64_datatype: {
+        case cst_type::float64_datatype: {
           auto node = c.get();
           
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
-          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
+          auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get());
+          auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
           
           generate_common<double>(function, assignment);
           
@@ -774,11 +774,11 @@ namespace occult {
           
           break;
         }
-        case ast_type::float32_datatype: {
+        case cst_type::float32_datatype: {
           auto node = c.get();
           
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
-          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
+          auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get());
+          auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
           
           generate_common<float>(function, assignment);
           
@@ -786,11 +786,11 @@ namespace occult {
           
           break;
         }
-        case ast_type::string_datatype: {
+        case cst_type::string_datatype: {
           auto node = c.get();
           
-          auto identifier = ast::cast_raw<ast_identifier>(node->get_children().front().get());
-          auto assignment = ast::cast_raw<ast_assignment>(node->get_children().back().get());
+          auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get());
+          auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
           
           generate_common<std::string>(function, assignment);
           
@@ -798,50 +798,50 @@ namespace occult {
           
           break;
         }
-        case ast_type::identifier: {
+        case cst_type::identifier: {
           generate_common<std::int64_t>(function, c.get());
           
           function.code.emplace_back(op_store, c->content, c->to_string().substr(4, c->to_string().size()));
           
           break;
         }
-        case ast_type::functioncall: {
+        case cst_type::functioncall: {
           generate_function_call(function, c.get());
           
           break;
         }
-        case ast_type::ifstmt: {
-          generate_if(function, ast::cast_raw<ast_ifstmt>(c.get()), current_break_label, current_loop_start);
+        case cst_type::ifstmt: {
+          generate_if(function, cst::cast_raw<cst_ifstmt>(c.get()), current_break_label, current_loop_start);
           
           break;
         }
-        case ast_type::continuestmt: {
+        case cst_type::continuestmt: {
           function.code.emplace_back(op_jmp, current_loop_start);
           
           break;
         }
-        case ast_type::breakstmt: {
+        case cst_type::breakstmt: {
           function.code.emplace_back(op_jmp, current_break_label);
           
           break;
         }
-        case ast_type::loopstmt: {
-          generate_loop(function, ast::cast_raw<ast_loopstmt>(c.get()));
+        case cst_type::loopstmt: {
+          generate_loop(function, cst::cast_raw<cst_loopstmt>(c.get()));
           
           break;
         }
-        case ast_type::whilestmt: {
-          generate_while(function, ast::cast_raw<ast_whilestmt>(c.get()));
+        case cst_type::whilestmt: {
+          generate_while(function, cst::cast_raw<cst_whilestmt>(c.get()));
           
           break;
         }
-        case ast_type::forstmt: { // only supporting the normal for loop for now, not foreach
-          generate_for(function, ast::cast_raw<ast_forstmt>(c.get()));
+        case cst_type::forstmt: { // only supporting the normal for loop for now, not foreach
+          generate_for(function, cst::cast_raw<cst_forstmt>(c.get()));
           
           break;
         }
-        case ast_type::returnstmt: {
-          generate_return(function, ast::cast_raw<ast_returnstmt>(c.get()));
+        case cst_type::returnstmt: {
+          generate_return(function, cst::cast_raw<cst_returnstmt>(c.get()));
           
           function.code.emplace_back(op_ret);
           
@@ -899,8 +899,8 @@ namespace occult {
     for (const auto& c : root->get_children()) {
       auto type = c->get_type();
       
-      if (type == ast_type::function) {
-        functions.emplace_back(generate_function(ast::cast_raw<ast_function>(c.get())));
+      if (type == cst_type::function) {
+        functions.emplace_back(generate_function(cst::cast_raw<cst_function>(c.get())));
       }
     }
     

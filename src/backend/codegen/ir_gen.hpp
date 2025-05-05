@@ -1,5 +1,5 @@
 #pragma once
-#include "../../parser/ast.hpp"
+#include "../../parser/cst.hpp"
 
 namespace occult {
   enum ir_opcode {
@@ -119,29 +119,29 @@ namespace occult {
     {"str", string}};
   
   class ir_gen { // conversion into a linear IR
-    ast_root* root;
+    cst_root* root;
     int label_count;
     std::stack<std::string> label_stack;
     std::unordered_map<std::string, int> label_map;
     
-    ir_function generate_function(ast_function* func_node);
-    void generate_function_args(ir_function& function, ast_functionargs* func_args_node);
-    void generate_arith_and_bitwise_operators(ir_function& function, ast* c);
+    ir_function generate_function(cst_function* func_node);
+    void generate_function_args(ir_function& function, cst_functionargs* func_args_node);
+    void generate_arith_and_bitwise_operators(ir_function& function, cst* c);
     template<typename IntType>
-    void generate_common(ir_function& function, ast* assignment_node);
-    void handle_push_types(ir_function& function, ast* c);
-    void handle_push_types_common(ir_function& function, ast* c);
-    void generate_function_call(ir_function& function, ast* c);
-    void generate_return(ir_function& function, ast_returnstmt* return_node);
-    void generate_if(ir_function& function, ast_ifstmt* if_node, std::string current_break_label = "", std::string current_loop_start = "");
-    void generate_loop(ir_function& function, ast_loopstmt* loop_node);
-    void generate_while(ir_function& function, ast_whilestmt* while_node);
-    void generate_for(ir_function& function, ast_forstmt* for_node);
-    void generate_block(ir_function& function, ast_block* block_node, std::string current_break_label = "", std::string current_loop_start = "");
+    void generate_common(ir_function& function, cst* assignment_node);
+    void handle_push_types(ir_function& function, cst* c);
+    void handle_push_types_common(ir_function& function, cst* c);
+    void generate_function_call(ir_function& function, cst* c);
+    void generate_return(ir_function& function, cst_returnstmt* return_node);
+    void generate_if(ir_function& function, cst_ifstmt* if_node, std::string current_break_label = "", std::string current_loop_start = "");
+    void generate_loop(ir_function& function, cst_loopstmt* loop_node);
+    void generate_while(ir_function& function, cst_whilestmt* while_node);
+    void generate_for(ir_function& function, cst_forstmt* for_node);
+    void generate_block(ir_function& function, cst_block* block_node, std::string current_break_label = "", std::string current_loop_start = "");
     std::string create_label();
     void place_label(ir_function& function, std::string label_name);
   public:
-    ir_gen(ast_root* root) : root(root), label_count(0) {}
+    ir_gen(cst_root* root) : root(root), label_count(0) {}
     void visualize(std::vector<ir_function> funcs);
     std::vector<ir_function> lower();
   };

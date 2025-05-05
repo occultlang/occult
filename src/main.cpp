@@ -1,5 +1,5 @@
 #include "lexer/lexer.hpp"
-#include "parser/ast.hpp"
+#include "parser/cst.hpp"
 #include "parser/parser.hpp"
 #include "backend/codegen/ir_gen.hpp"
 #include "backend/codegen/x64writer.hpp"
@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
   
   start = std::chrono::high_resolution_clock::now();
   occult::parser parser(tokens);
-  auto ast = parser.parse();
+  auto cst = parser.parse();
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (parser.get_state() == occult::parser::state::failed) {
@@ -108,11 +108,11 @@ int main(int argc, char* argv[]) {
      std::cout << GREEN << "[OCCULTC] Completed parsing \033[0m" << duration.count() << "ms\n";
   }
   if (debug && verbose) {
-    ast->visualize();
+    cst->visualize();
   }
 
   start = std::chrono::high_resolution_clock::now();
-  occult::ir_gen ir_gen(ast.get());
+  occult::ir_gen ir_gen(cst.get());
   auto ir = ir_gen.lower();
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
   /*if (debug) {
     for (const auto& pair : jit_runtime.function_map) {
       std::cout << pair.first << std::endl;
-      std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
+      std::cout << "0x" << std::hex << reinterpret_ccst<std::int64_t>(&pair.second) << std::dec << std::endl;
     }
   }*/
   
