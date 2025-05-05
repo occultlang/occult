@@ -100,7 +100,11 @@ int main(int argc, char* argv[]) {
   auto ast = parser.parse();
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
-  if (showtime) {
+  if (parser.get_state() == occult::parser::state::failed) {
+    std::cout << RED << "[OCCULTC] Parsing failed" << RESET << std::endl;
+    return 1;
+  }
+  else if (showtime) {
      std::cout << GREEN << "[OCCULTC] Completed parsing \033[0m" << duration.count() << "ms\n";
   }
   if (debug && verbose) {

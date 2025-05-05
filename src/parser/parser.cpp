@@ -4,15 +4,6 @@
 #include <sstream>
 #include "../lexer/number_parser.hpp"
 
-/*
-TODO:
-  [x]  Add error syncrhonization for better error output / handling
-  [x]  Make errors more verbose
-  [x]  Add array decls
-  [x]  Array bodies + pointers in there
-  [ ]  Add pointer decls
-*/
-
 namespace occult {
   token_t parser::peek(std::uintptr_t pos) {
     return stream[this->pos + pos];
@@ -912,10 +903,12 @@ namespace occult {
         }
 
         if (match(peek(), end_of_file_tt)) {
+          parser_state = state::success;
           break;
         }
       }
       catch (const parsing_error& e) {
+        parser_state = state::failed;
         synchronize(e.what());
       }
     }

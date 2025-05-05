@@ -7,9 +7,16 @@
 
 namespace occult {
   class parser {
+  public:
+    enum class state : std::uint8_t { 
+      failed,
+      success
+    };
+  private:
     std::unique_ptr<ast_root> root;
     std::vector<token_t> stream;
     std::uintptr_t pos = 0;
+    state parser_state = state::failed;
     
     token_t peek(std::uintptr_t pos = 0);
     token_t previous();
@@ -48,5 +55,6 @@ namespace occult {
     parser(std::vector<token_t> stream) : root(ast::new_node<ast_root>()), stream(stream) {}
     
     std::unique_ptr<ast_root> parse();
+    state get_state() const { return parser_state; }
   };
 } // namespace occult
