@@ -5,6 +5,10 @@
 
 // this file contains helper functions as well as maps
 
+#define CST_MAP_ENTRY(token, node) {token, [](std::string lexeme) { return cst::new_node<node>(lexeme); }}
+#define CST_MAP_ENTRY_CUSTOM_LEXEME(token, node, value) {token, [](std::string) { return cst::new_node<node>(value); }}
+#define CST_MAP_ENTRY_NO_LEXEME(token, node) {token, []() { return cst::new_node<node>(); }}
+
 namespace occult { 
   std::unordered_map<token_type, int> precedence_map = {
     {unary_plus_operator_tt, 2},
@@ -55,50 +59,53 @@ namespace occult {
   }
   
   std::unordered_map<int, std::function<std::unique_ptr<cst>(std::string)>> cst_map = {
-    {function_call_parser_tt, [](std::string lexeme) { return cst::new_node<cst_functioncall>(lexeme); }},
-    {comma_tt, [](std::string lexeme) { return cst::new_node<cst_comma>(lexeme); }},
-    {identifier_tt, [](std::string lexeme) { return cst::new_node<cst_identifier>(lexeme); }},
-    {number_literal_tt, [](std::string lexeme) { return cst::new_node<cst_numberliteral>(lexeme); }},
-    {false_keyword_tt, [](std::string) { return cst::new_node<cst_numberliteral>("0"); }},
-    {true_keyword_tt, [](std::string) { return cst::new_node<cst_numberliteral>("1"); }},
-    {char_literal_tt, [](std::string lexeme) { return cst::new_node<cst_charliteral>(lexeme); }},
-    {float_literal_tt, [](std::string lexeme) { return cst::new_node<cst_floatliteral>(lexeme); }},
-    {string_literal_tt, [](std::string lexeme) { return cst::new_node<cst_stringliteral>(lexeme); }},
-    {add_operator_tt, [](std::string lexeme) { return cst::new_node<cst_add>(lexeme); }},
-    {subtract_operator_tt, [](std::string lexeme) { return cst::new_node<cst_subtract>(lexeme); }},
-    {unary_plus_operator_tt, [](std::string lexeme) { return cst::new_node<cst_unary_plus>(lexeme); }},
-    {unary_minus_operator_tt, [](std::string lexeme) { return cst::new_node<cst_unary_minus>(lexeme); }},
-    {multiply_operator_tt, [](std::string lexeme) { return cst::new_node<cst_multiply>(lexeme); }},
-    {division_operator_tt, [](std::string lexeme) { return cst::new_node<cst_divide>(lexeme); }},
-    {modulo_operator_tt, [](std::string lexeme) { return cst::new_node<cst_modulo>(lexeme); }},
-    {bitwise_and_tt, [](std::string lexeme) { return cst::new_node<cst_bitwise_and>(lexeme); }},
-    {unary_bitwise_not_tt, [](std::string lexeme) { return cst::new_node<cst_unary_bitwise_not>(lexeme); }},
-    {bitwise_or_tt, [](std::string lexeme) { return cst::new_node<cst_bitwise_or>(lexeme); }},
-    {xor_operator_tt, [](std::string lexeme) { return cst::new_node<cst_xor>(lexeme); }},
-    {bitwise_lshift_tt, [](std::string lexeme) { return cst::new_node<cst_bitwise_lshift>(lexeme); }},
-    {bitwise_rshift_tt, [](std::string lexeme) { return cst::new_node<cst_bitwise_rshift>(lexeme); }},
-    {and_operator_tt, [](std::string lexeme) { return cst::new_node<cst_and>(lexeme); }},
-    {or_operator_tt, [](std::string lexeme) { return cst::new_node<cst_or>(lexeme); }},
-    {unary_not_operator_tt, [](std::string lexeme) { return cst::new_node<cst_unary_not>(lexeme); }},
-    {equals_operator_tt, [](std::string lexeme) { return cst::new_node<cst_equals>(lexeme); }},
-    {not_equals_operator_tt, [](std::string lexeme) { return cst::new_node<cst_not_equals>(lexeme); }},
-    {greater_than_operator_tt, [](std::string lexeme) { return cst::new_node<cst_greater_than>(lexeme); }},
-    {less_than_operator_tt, [](std::string lexeme) { return cst::new_node<cst_less_than>(lexeme); }},
-    {greater_than_or_equal_operator_tt, [](std::string lexeme) { return cst::new_node<cst_greater_than_or_equal>(lexeme); }},
-    {less_than_or_equal_operator_tt, [](std::string lexeme) { return cst::new_node<cst_less_than_or_equal>(lexeme); }}}; // map for converting lexemes to nodes relatively easily
+    CST_MAP_ENTRY(function_call_parser_tt, cst_functioncall),
+    CST_MAP_ENTRY(comma_tt, cst_comma),
+    CST_MAP_ENTRY(identifier_tt, cst_identifier),
+    CST_MAP_ENTRY(number_literal_tt, cst_numberliteral),
+    CST_MAP_ENTRY_CUSTOM_LEXEME(false_keyword_tt, cst_numberliteral, "0"),
+    CST_MAP_ENTRY_CUSTOM_LEXEME(true_keyword_tt, cst_numberliteral, "1"),
+    CST_MAP_ENTRY(char_literal_tt, cst_charliteral),
+    CST_MAP_ENTRY(float_literal_tt, cst_floatliteral),
+    CST_MAP_ENTRY(string_literal_tt, cst_stringliteral),
+    CST_MAP_ENTRY(add_operator_tt, cst_add),
+    CST_MAP_ENTRY(subtract_operator_tt, cst_subtract),
+    CST_MAP_ENTRY(unary_plus_operator_tt, cst_unary_plus),
+    CST_MAP_ENTRY(unary_minus_operator_tt, cst_unary_minus),
+    CST_MAP_ENTRY(multiply_operator_tt, cst_multiply),
+    CST_MAP_ENTRY(division_operator_tt, cst_divide),
+    CST_MAP_ENTRY(modulo_operator_tt, cst_modulo),
+    CST_MAP_ENTRY(bitwise_and_tt, cst_bitwise_and),
+    CST_MAP_ENTRY(unary_bitwise_not_tt, cst_unary_bitwise_not),
+    CST_MAP_ENTRY(bitwise_or_tt, cst_bitwise_or),
+    CST_MAP_ENTRY(xor_operator_tt, cst_xor),
+    CST_MAP_ENTRY(bitwise_lshift_tt, cst_bitwise_lshift),
+    CST_MAP_ENTRY(bitwise_rshift_tt, cst_bitwise_rshift),
+    CST_MAP_ENTRY(and_operator_tt, cst_and),
+    CST_MAP_ENTRY(or_operator_tt, cst_or),
+    CST_MAP_ENTRY(unary_not_operator_tt, cst_unary_not),
+    CST_MAP_ENTRY(equals_operator_tt, cst_equals),
+    CST_MAP_ENTRY(not_equals_operator_tt, cst_not_equals),
+    CST_MAP_ENTRY(greater_than_operator_tt, cst_greater_than),
+    CST_MAP_ENTRY(less_than_operator_tt, cst_less_than),
+    CST_MAP_ENTRY(greater_than_or_equal_operator_tt, cst_greater_than_or_equal),
+    CST_MAP_ENTRY(less_than_or_equal_operator_tt, cst_less_than_or_equal),
+    CST_MAP_ENTRY(dereference_operator_tt, cst_dereference),
+    CST_MAP_ENTRY(reference_operator_tt, cst_reference),
+  }; // map for converting lexemes to nodes relatively easily
   
   std::unordered_map<token_type, std::function<std::unique_ptr<cst>()>> datatype_map = {
-    {int8_keyword_tt, []() { return cst::new_node<cst_int8>(); }},
-    {int16_keyword_tt, []() { return cst::new_node<cst_int16>(); }},
-    {int32_keyword_tt, []() { return cst::new_node<cst_int32>(); }},
-    {int64_keyword_tt, []() { return cst::new_node<cst_int64>(); }},
-    {uint8_keyword_tt, []() { return cst::new_node<cst_uint8>(); }},
-    {uint16_keyword_tt, []() { return cst::new_node<cst_uint16>(); }},
-    {uint32_keyword_tt, []() { return cst::new_node<cst_uint32>(); }},
-    {uint64_keyword_tt, []() { return cst::new_node<cst_uint64>(); }},
-    {float32_keyword_tt, []() { return cst::new_node<cst_float32>(); }},
-    {float64_keyword_tt, []() { return cst::new_node<cst_float64>(); }},
-    {string_keyword_tt, []() { return cst::new_node<cst_string>(); }},
-    {char_keyword_tt, []() { return cst::new_node<cst_int8>(); }},
-    {boolean_keyword_tt, []() { return cst::new_node<cst_int8>(); }}};
+    CST_MAP_ENTRY_NO_LEXEME(int8_keyword_tt, cst_int8),
+    CST_MAP_ENTRY_NO_LEXEME(int16_keyword_tt, cst_int16),
+    CST_MAP_ENTRY_NO_LEXEME(int32_keyword_tt, cst_int32),
+    CST_MAP_ENTRY_NO_LEXEME(int64_keyword_tt, cst_int64),
+    CST_MAP_ENTRY_NO_LEXEME(uint8_keyword_tt, cst_uint8),
+    CST_MAP_ENTRY_NO_LEXEME(uint16_keyword_tt, cst_uint16),
+    CST_MAP_ENTRY_NO_LEXEME(uint32_keyword_tt, cst_uint32),
+    CST_MAP_ENTRY_NO_LEXEME(uint64_keyword_tt, cst_uint64),
+    CST_MAP_ENTRY_NO_LEXEME(float32_keyword_tt, cst_float32),
+    CST_MAP_ENTRY_NO_LEXEME(float64_keyword_tt, cst_float64),
+    CST_MAP_ENTRY_NO_LEXEME(string_keyword_tt, cst_string),
+    CST_MAP_ENTRY_NO_LEXEME(char_keyword_tt, cst_int8),
+    CST_MAP_ENTRY_NO_LEXEME(boolean_keyword_tt, cst_int8)};
 } // namespace occult

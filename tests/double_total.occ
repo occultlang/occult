@@ -14,9 +14,9 @@ fn main() i64 {
   array[4] i64 test_array = {1, 2, 3, 4};
   bbbbbb[aaaaa[0]] = call();
   test(t[a[1]]);
-  /*i64 aaa = 123;
+  i64 aaa = 123;
   i64* test_address2 = &aaa;
-
-  return add(double_total(10), double_total(10));*/
+  i64 aaafffffffffff = *test_address2 * 30; // when doing IR we will have to check if it is a reference or dereference
+  /*return add(double_total(10), double_total(10));*/
   return 0;
 }

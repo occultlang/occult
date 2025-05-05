@@ -76,6 +76,8 @@ namespace occult {
     arraybody,
     arrayelem,
     arrayaccess,
+    dereference,
+    reference,
   };
   
   class cst {
@@ -230,5 +232,6 @@ namespace occult {
   NODE(arraybody, cst_arraybody)
   NODE(arrayelem, cst_arrayelement)
   NODE(arrayaccess, cst_arrayaccess)
-  NODE(pointer, cst_pointer)
+  NODE(dereference, cst_dereference)
+  NODE(reference, cst_reference)
 } // namespace occult

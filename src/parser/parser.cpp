@@ -903,7 +903,8 @@ namespace occult {
         auto new_array_access = cst::new_node<cst_arrayaccess>();
         if (array_access_node) {
           new_array_access->add_child(std::move(array_access_node));
-        } else {
+        } 
+        else {
           new_array_access->add_child(std::move(lcst_id));
         }
     

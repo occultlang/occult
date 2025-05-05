@@ -49,7 +49,6 @@ namespace occult {
     std::unique_ptr<cst_breakstmt> parse_break();
     std::unique_ptr<cst_returnstmt> parse_return();
     std::unique_ptr<cst_array> parse_array();
-    std::unique_ptr<cst_pointer> parse_pointer();
     void synchronize(std::string what);
   public:
     parser(std::vector<token_t> stream) : root(cst::new_node<cst_root>()), stream(stream) {}
