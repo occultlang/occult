@@ -22,7 +22,6 @@ namespace occult {
             w = 1 << 3
         };
     
-
         /*
             to clarify:
 
