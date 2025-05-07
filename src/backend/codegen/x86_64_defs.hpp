@@ -22,6 +22,15 @@ namespace occult {
             w = 1 << 3
         };
     
+
+        /*
+            to clarify:
+
+            w is the 64-bit operand size (extended register size for 64 bit) rAX to rSP
+            r is extending the reg field in the ModR/M byte (+8 to register number i.e r8-15) e.g add r9, rax
+            x is extending the index field in the SIB byte (+8 to index register)
+            b is extending the rm or base field in ModR/M or SIB byte (+8 to the base register)
+        */
         enum rex : std::uint8_t {
             rex = 0x40, // access to extended registers in 64-bit mode
             rex_b = rex | b, // access to extended base register
@@ -41,12 +50,14 @@ namespace occult {
             rex_wrxb = rex | w | r | x | b // 64-bit operand size, extended modrm reg, extended SIB index and extended base register
         };
 
-        enum other_prefix {
+        enum other_prefix : std::uint8_t {
             fs_segment_override = 0x64,
             gs_segment_override = 0x65,
             operand_size_override = 0x66, // 16-bit operand size (also includes precision override)
             address_size_override = 0x67,
         };
+
+        constexpr std::uint8_t k2ByteOpcodePrefix = 0x0F; 
 
         // addressing method 
         enum rm_field : std::uint8_t { // in order already
@@ -151,7 +162,7 @@ namespace occult {
             imm16_to_32 is the source (immediate 16-bit to 32-bit)
         */
 
-        // opcodes that do not involve SIMD, SSE, x87-FPU, or whatever.
+        // opcodes that do not involve any floating point stuff
         enum i_opcode : std::uint8_t {
             DECLARE_OPCODE(ADD_rm8_r8, 0x00) // ADD r/m8, r8
             DECLARE_OPCODE(ADD_rm16_to_64_r16_to_64, 0x01) // ADD r/m16_to_64, r16_to_64
@@ -395,6 +406,85 @@ namespace occult {
 
             DECLARE_OPCODE(XLAT_AL_m8, 0xD7) // XLAT AL, m8
 
+            DECLARE_OPCODE(IN_AL_imm8, 0xE4) // IN AL, imm8
+            DECLARE_OPCODE(IN_eAX_imm8, 0xE5) // IN rAX, imm8
+            DECLARE_OPCODE(OUT_imm8_AL, 0xE6) // OUT imm8, AL
+            DECLARE_OPCODE(OUT_imm8_eAX, 0xE7) // OUT imm8, rAX
+            
+            DECLARE_OPCODE(INT1_eFlags, 0xF1) // INT1 eFlags
+            
+            DECLARE_OPCODE(HLT, 0xF4) // HLT
+            DECLARE_OPCODE(CMC, 0xF5) // CMC
+
+            DECLARE_OPCODE(TEST_rm8_imm8, 0xF6) // TEST r/m8, imm8
+            DECLARE_OPCODE(NOT_rm8, 0xF6) // NOT r/m8
+            DECLARE_OPCODE(NEG_rm8, 0xF6) // NEG r/m8
+            DECLARE_OPCODE(MUL_AX_AL_rm8, 0xF6) // MUL rAX, r/m8
+            DECLARE_OPCODE(IMUL_AX_AL_rm8, 0xF6) // IMUL rAX, r/m8
+            DECLARE_OPCODE(DIV_AL_AH_AX_rm8, 0xF6) // DIV rAX, r/m8
+            DECLARE_OPCODE(IDIV_AL_AH_AX_rm8, 0xF6) // IDIV rAX, r/m8
+            DECLARE_OPCODE(TEST_rm16_to_64_imm16_or_32, 0xF7) // TEST r/m16_to_64, imm16_or_32
+            DECLARE_OPCODE(NOT_rm16_to_64, 0xF7) // NOT r/m16_to_64
+            DECLARE_OPCODE(NEG_rm16_to_64, 0xF7) // NEG r/m16_to_64
+            DECLARE_OPCODE(MUL_rDX_rAX_rm16_to_64, 0xF7) // MUL rAX, r/m16_to_64
+            DECLARE_OPCODE(IMUL_rDX_rAX_rm16_to_64, 0xF7) // IMUL rAX, r/m16_to_64
+            DECLARE_OPCODE(DIV_rDX_rAX_rm16_to_64, 0xF7) // DIV rAX, r/m16_to_64
+            DECLARE_OPCODE(IDIV_rDX_rAX_rm16_to_64, 0xF7) // IDIV rAX, r/m16_to_64
+
+            DECLARE_OPCODE(CLC, 0xF8) // CLR CARRY
+            DECLARE_OPCODE(STC, 0xF9) // SET CARRY
+            DECLARE_OPCODE(CLI, 0xFA) // CLEAR INTERRUPT
+            DECLARE_OPCODE(STI, 0xFB) // SET INTERRUPT
+            DECLARE_OPCODE(CLD, 0xFC) // CLEAR DIRECTION
+            DECLARE_OPCODE(STD, 0xFD) // SET DIRECTION
+
+            DECLARE_OPCODE(INC_rm8, 0xFE) // INC r/m8
+            DECLARE_OPCODE(DEC_imm8, 0xFE) // DEC r/m8
+            DECLARE_OPCODE(INC_rm16_to_64, 0xFF) // INC r/m16_to_64
+            DECLARE_OPCODE(DEC_rm16_to_64, 0xFF) // DEC r/m16_to_64
+
+            DECLARE_OPCODE(CALL_rm16_or_32, 0xFF) // CALL r/m16_or_32
+            DECLARE_OPCODE(CALL_rm64, 0xFF) // CALL r/m64
+            
+            DECLARE_OPCODE(JMP_rm16_or_32, 0xFF) // JMP r/m16_or_32
+            DECLARE_OPCODE(JMP_rm64, 0xFF) // JMP r/m64
+
+            DECLARE_OPCODE(PUSH_rm16_or_32, 0xFF) // PUSH r/m16_or_32
+            DECLARE_OPCODE(PUSH_rm64, 0xFF) // PUSH r/m64
+        };
+
+        // two byte integer opcodes, naming scheme is the same, these require the k2ByteOpcodePrefix (0x0F)
+        enum i_opcode_2b : std::uint8_t {
+            DECLARE_OPCODE(SYSCALL, 0x05) // SYSCALL RCX R11 SS
+            DECLARE_OPCODE(SYSRET, 0x07) // SYSRET RAX EFlags SS
+            DECLARE_OPCODE(SYSENTER, 0x34) // SYSENTER SS RSP IA32_SYSENTER_EIP
+            DECLARE_OPCODE(SYSEXIT, 0x35) // SYSEXIT SS RSP IA32_SYSENTER_EIP
+
+            DECLARE_OPCODE(JO_rel16_or_32, 0x80) // JO rel16/32
+            DECLARE_OPCODE(JNO_rel16_or_32, 0x81) // JNO rel16/32
+            DECLARE_OPCODE(JB_rel16_or_32, 0x82)  // JB rel16/32
+            DECLARE_OPCODE(JNB_rel16_or_32, 0x83) // JNB rel16/32
+            DECLARE_OPCODE(JZ_rel16_or_32, 0x84) // JZ rel16/32
+            DECLARE_OPCODE(JNZ_rel16_or_32, 0x85) // JNZ rel16/32
+            DECLARE_OPCODE(JBE_rel16_or_32, 0x86) // JBE rel16/32
+            DECLARE_OPCODE(JNBE_rel16_or_32, 0x87) // JNBE rel16/32
+            DECLARE_OPCODE(JS_rel16_or_32, 0x88) // JS rel16/32
+            DECLARE_OPCODE(JNS_rel16_or_32, 0x89) // JNS rel16/32
+            DECLARE_OPCODE(JP_rel16_or_32, 0x8A) // JP rel16/32
+            DECLARE_OPCODE(JNP_rel16_or_32, 0x8B) // JNP rel16/32
+            DECLARE_OPCODE(JL_rel16_or_32, 0x8C) // JL rel16/32
+            DECLARE_OPCODE(JNL_rel16_or_32, 0x8D) // JNL rel16/32
+            DECLARE_OPCODE(JLE_rel16_or_32, 0x8E) // JLE rel16/32
+            DECLARE_OPCODE(JNLE_rel16_or_32, 0x8F) // JNLE rel16/32
+        };
+
+        // floating point opcodes, naming scheme is the same
+        enum f_opcode : std::uint8_t {
+            
+        };
+
+        // two byte floating point opcodes, naming scheme is the same, these require the k2ByteOpcodePrefix (0x0F)
+        enum f_opcode_2b : std::uint8_t {
             
         };
     } // namespace x86_64
