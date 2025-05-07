@@ -151,7 +151,8 @@ namespace occult {
             imm16_to_32 is the source (immediate 16-bit to 32-bit)
         */
 
-        enum opcode : std::uint8_t {
+        // opcodes that do not involve SIMD, SSE, x87-FPU, or whatever.
+        enum i_opcode : std::uint8_t {
             DECLARE_OPCODE(ADD_rm8_r8, 0x00) // ADD r/m8, r8
             DECLARE_OPCODE(ADD_rm16_to_64_r16_to_64, 0x01) // ADD r/m16_to_64, r16_to_64
             DECLARE_OPCODE(ADD_r8_rm8, 0x02) // ADD r8, r/m8
@@ -347,6 +348,52 @@ namespace occult {
 
             DECLARE_OPCODE(MOV_rm8_imm8, 0xC6) // MOV r/m8, imm8
             DECLARE_OPCODE(MOV_rm16_to_64_imm16_or_32, 0xC7) // MOV r/m16_to_64, imm16_or_32
+
+            DECLARE_OPCODE(ENTER_rBP_imm16_imm8, 0xC8) // ENTER rBP, imm16, imm8
+            DECLARE_OPCODE(LEAVE_rBP, 0xC9) // LEAVE rBP
+
+            DECLARE_OPCODE(RETNF_imm16, 0xCA) // RETNF imm16   
+            DECLARE_OPCODE(RETNF, 0xCB) // RETNF
+            
+            DECLARE_OPCODE(INT3_eFlags, 0xCC) // INT3 eFlags
+            DECLARE_OPCODE(INT_imm8, 0xCD) // INT imm8
+            DECLARE_OPCODE(INTO_eFlags, 0xCE) // INTO eFlags
+            DECLARE_OPCODE(IRET_eFlags, 0xCF) // IRET eFlags
+            
+            DECLARE_OPCODE(ROL_rm8_1, 0xD0) // ROL r/m8, 1
+            DECLARE_OPCODE(ROR_rm8_1, 0xD0) // ROR r/m8, 1
+            DECLARE_OPCODE(RCL_rm8_1, 0xD0) // RCL r/m8, 1
+            DECLARE_OPCODE(RCR_rm8_1, 0xD0) // RCR r/m8, 1
+            DECLARE_OPCODE(SHL_rm8_1, 0xD0) // SHL r/m8, 1
+            DECLARE_OPCODE(SAL_rm8_1, 0xD0) // SAL r/m8, 1
+            DECLARE_OPCODE(SHR_rm8_1, 0xD0) // SHR r/m8, 1
+            DECLARE_OPCODE(SAR_rm8_1, 0xD0) // SAR r/m8, 1
+            DECLARE_OPCODE(ROL_rm16_to_64_1, 0xD1) // ROL r/m16_to_64, 1
+            DECLARE_OPCODE(ROR_rm16_to_64_1, 0xD1) // ROR r/m16_to_64, 1
+            DECLARE_OPCODE(RCL_rm16_to_64_1, 0xD1) // RCL r/m16_to_64, 1
+            DECLARE_OPCODE(RCR_rm16_to_64_1, 0xD1) // RCR r/m16_to_64, 1
+            DECLARE_OPCODE(SHL_rm16_to_64_1, 0xD1) // SHL r/m16_to_64, 1
+            DECLARE_OPCODE(SAL_rm16_to_64_1, 0xD1) // SAL r/m16_to_64, 1
+            DECLARE_OPCODE(SHR_rm16_to_64_1, 0xD1) // SHR r/m16_to_64, 1
+            DECLARE_OPCODE(SAR_rm16_to_64_1, 0xD1) // SAR r/m16_to_64, 1
+            DECLARE_OPCODE(ROL_rm8_CL, 0xD2) // ROL r/m8, CL
+            DECLARE_OPCODE(ROR_rm8_CL, 0xD2) // ROR r/m8, CL
+            DECLARE_OPCODE(RCL_rm8_CL, 0xD2) // RCL r/m8, CL
+            DECLARE_OPCODE(RCR_rm8_CL, 0xD2) // RCR r/m8, CL
+            DECLARE_OPCODE(SHL_rm8_CL, 0xD2) // SHL r/m8, CL
+            DECLARE_OPCODE(SAL_rm8_CL, 0xD2) // SAL r/m8, CL
+            DECLARE_OPCODE(SHR_rm8_CL, 0xD2) // SHR r/m8, CL
+            DECLARE_OPCODE(SAR_rm8_CL, 0xD2) // SAR r/m8, CL
+            DECLARE_OPCODE(ROL_rm16_to_64_CL, 0xD3) // ROL r/m16_to_64, CL
+            DECLARE_OPCODE(ROR_rm16_to_64_CL, 0xD3) // ROR r/m16_to_64, CL
+            DECLARE_OPCODE(RCL_rm16_to_64_CL, 0xD3) // RCL r/m16_to_64, CL
+            DECLARE_OPCODE(RCR_rm16_to_64_CL, 0xD3) // RCR r/m16_to_64, CL
+            DECLARE_OPCODE(SHL_rm16_to_64_CL, 0xD3) // SHL r/m16_to_64, CL
+            DECLARE_OPCODE(SAL_rm16_to_64_CL, 0xD3) // SAL r/m16_to_64, CL
+            DECLARE_OPCODE(SHR_rm16_to_64_CL, 0xD3) // SHR r/m16_to_64, CL
+            DECLARE_OPCODE(SAR_rm16_to_64_CL, 0xD3) // SAR r/m16_to_64, CL
+
+            DECLARE_OPCODE(XLAT_AL_m8, 0xD7) // XLAT AL, m8
 
             
         };
