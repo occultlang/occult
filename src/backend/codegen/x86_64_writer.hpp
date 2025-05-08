@@ -16,13 +16,13 @@ namespace occult {
                 if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, spl) || 
                     REG_RANGE(base, r8b, r15b) || REG_RANGE(base, al, spl)) {
                     if (REG_RANGE(dest, r8b, r15b) && REG_RANGE(base, r8b, r15b)) {
-                        push_byte(rex::rex_rb);
+                        push_byte(rex_rb);
                     }
                     else if (REG_RANGE(dest, r8b, r15b)) {
-                        push_byte(rex::rex_b);
+                        push_byte(rex_b);
                     }
                     else if (REG_RANGE(base, r8b, r15b)) {
-                        push_byte(rex::rex_r);
+                        push_byte(rex_r);
                     }
 
                     push_byte(op8);
@@ -33,13 +33,13 @@ namespace occult {
                     push_byte(other_prefix::operand_size_override); // 16-bit operand size
 
                     if (REG_RANGE(dest, r8w, r15w) && REG_RANGE(base, r8w, r15w)) {
-                        push_byte(rex::rex_rb);
+                        push_byte(rex_rb);
                     }
                     else if (REG_RANGE(dest, r8w, r15w)) {
-                        push_byte(rex::rex_b);
+                        push_byte(rex_b);
                     }
                     else if (REG_RANGE(base, r8w, r15w)) {
-                        push_byte(rex::rex_r);
+                        push_byte(rex_r);
                     }
 
                     push_byte(op);
@@ -48,13 +48,13 @@ namespace occult {
                 else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, esp) || 
                          REG_RANGE(base, r8d, r15d) || REG_RANGE(base, eax, esp)) {
                     if (REG_RANGE(dest, r8d, r15d) && REG_RANGE(base, r8d, r15d)) {
-                        push_byte(rex::rex_rb);
+                        push_byte(rex_rb);
                     }
                     else if (REG_RANGE(dest, r8d, r15d)) {
-                        push_byte(rex::rex_b);
+                        push_byte(rex_b);
                     }
                     else if (REG_RANGE(base, r8d, r15d)) {
-                        push_byte(rex::rex_r);
+                        push_byte(rex_r);
                     }
 
                     push_byte(op);
@@ -63,27 +63,38 @@ namespace occult {
                 else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rsp) || 
                          REG_RANGE(base, r8, r15) || REG_RANGE(base, rax, rsp)) {
                     if (REG_RANGE(dest, r8, r15) && REG_RANGE(base, r8, r15)) {
-                        push_byte(rex::rex_wrb);
+                        push_byte(rex_wrb);
                     }
                     else if (REG_RANGE(dest, r8, r15)) {
-                        push_byte(rex::rex_wb);
+                        push_byte(rex_wb);
                     }
                     else if (REG_RANGE(base, r8, r15)) {
-                        push_byte(rex::rex_wr);
+                        push_byte(rex_wr);
                     }
                     else {
-                        push_byte(rex::rex_w);
+                        push_byte(rex_w);
                     }
 
                     push_byte(op);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rebase_register(base)));
                 }
             }
+
+            void emit_reg_to_mem(const i_opcode& op8, const i_opcode& op, const grp& dest, 
+                                std::optional<const grp&> index, std::optional<const std::size_t&> scale, 
+                                std::optional<const std::size_t&> offset, const grp& base) { 
+                
+            }
         public:
             x86_64_writer() : writer() {}
 
-            void emit_add(const grp& dest, const grp& base) { // will add other things like immediates and memory later :)
+            void emit_add(const grp& dest, const grp& base) { 
                 emit_reg_to_reg(i_opcode::ADD_r8_rm8, i_opcode::ADD_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_add(const grp& dest, std::optional<const grp&> index, std::optional<const std::size_t&> scale, 
+                          std::optional<const std::size_t&> offset, const grp& base) { 
+                emit_reg_to_mem(i_opcode::ADD_rm8_r8, i_opcode::ADD_rm16_to_64_r16_to_64, dest, index, scale, offset, base);
             }
         };
     }
