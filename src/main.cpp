@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
   using namespace occult::x86_64;
 
   x86_64_writer writer;
-  writer.emit_add(ax, r10w); // elegance is key...
+  writer.emit_add(rbp, null_val, null_val, 0, rax); // add [mem], reg
   writer.print_bytes();
 
   if (jit) {

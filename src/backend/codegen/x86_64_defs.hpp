@@ -57,10 +57,7 @@ namespace occult {
         };
 
         constexpr std::uint8_t k2ByteOpcodePrefix = 0x0F; 
-        constexpr std::uint8_t k8bitSize = 8;
-        constexpr std::uint8_t k16bitSize = 16;
-        constexpr std::uint8_t k32bitSize = 32;
-        constexpr std::uint8_t k64bitSize = 64;
+        constexpr std::uint8_t kSpecialSIBIndex = 0b100;
 
         // addressing method 
         enum class rm_field : std::uint8_t { // in order already
@@ -144,7 +141,8 @@ namespace occult {
             grp base; // base register
             
             sib(const std::uint8_t& scale, const grp& index, const grp& base) : scale(scale), index(index), base(base) {}
-            
+            sib(const std::uint8_t& scale, const std::uint8_t& index, const grp& base) : scale(scale), index(static_cast<grp>(index)), base(base) {}
+
             operator std::uint8_t() const {
               return (scale << 6) | (index << 3) | base;  
             }
