@@ -26,7 +26,7 @@ namespace occult {
             to clarify:
 
             w is the 64-bit operand size (extended register size for 64 bit) rAX to rSP
-            r is extending the reg field in the ModR/M byte (+8 to register number i.e r8-15) e.g add r9, rax
+            r is extending the reg field in the ModR/M byte (+8 to register number i.e r8-15) e.g add r9, rax (rax is base)
             x is extending the index field in the SIB byte (+8 to index register)
             b is extending the rm or base field in ModR/M or SIB byte (+8 to the base register)
         */
@@ -57,9 +57,13 @@ namespace occult {
         };
 
         constexpr std::uint8_t k2ByteOpcodePrefix = 0x0F; 
+        constexpr std::uint8_t k8bitSize = 8;
+        constexpr std::uint8_t k16bitSize = 16;
+        constexpr std::uint8_t k32bitSize = 32;
+        constexpr std::uint8_t k64bitSize = 64;
 
         // addressing method 
-        enum rm_field : std::uint8_t { // in order already
+        enum class rm_field : std::uint8_t { // in order already
             immediate = 0b000, // 0b000 operand is a constant value (e.g., mov rax, 42)
             reg = 0b001, // 0b001 operand is a register (e.g., mov rax, rbx)
             direct = 0b010, // 0b010 operand is a memory address (e.g., mov rax, [0x1234])
@@ -71,7 +75,7 @@ namespace occult {
         };
 
         // addressing modes
-        enum mod_field : std::uint8_t {
+        enum class mod_field : std::uint8_t {
             indirect = 0b00, // [reg] — no displacement (except special case RIP-relative)
             disp8 = 0b01, // [reg + disp8] — 8-bit displacement
             disp32 = 0b10, // [reg + disp32] — 32-bit displacement
@@ -80,52 +84,71 @@ namespace occult {
         
         // general purpose registers
         enum grp : std::uint8_t {
-            rAX,
-            rBX,
-            rCX,
-            rDX,
-            rSI,
-            rDI,
-            rBP,
-            rSP,
-
-            r8 = 0, // extended registers
-            r9,
-            r10,
-            r11,
-            r12,
-            r13,
-            r14,
-            r15,
+            rax, rcx, rdx, rbx, rsp, rbp, rsi, rdi,
+            eax, ecx, edx, ebx, esp, ebp, esi, edi,
+            ax, cx, dx, bx, sp, bp, si, di,
+            al, cl, dl, bl, spl, bpl, sil, dil,
+            r8, r9, r10, r11, r12, r13, r14, r15,
+            r8d, r9d, r10d, r11d, r12d, r13d, r14d, r15d,
+            r8w, r9w, r10w, r11w, r12w, r13w, r14w, r15w,
+            r8b, r9b, r10b, r11b, r12b, r13b, r14b, r15b
         };
 
+        // rebases register to the correct size
+        static grp rebase_register(const grp& reg) {
+            if (reg >= eax && reg <= esp) {
+                return static_cast<grp>(reg - eax + rax);
+            }
+            else if (reg >= ax && reg <= sp) {
+                return static_cast<grp>(reg - ax + rax);
+            }
+            else if (reg >= al && reg <= spl) {
+                return static_cast<grp>(reg - al + rax);
+            }
+            else if (reg >= r8 && reg <= r15) {
+                return static_cast<grp>(reg - r8 + rax);
+            }
+            else if (reg >= r8d && reg <= r15d) {
+                return static_cast<grp>(reg - r8d + rax);
+            }
+            else if (reg >= r8w && reg <= r15w) {
+                return static_cast<grp>(reg - r8w + rax);
+            }
+            else if (reg >= r8b && reg <= r15b) {
+                return static_cast<grp>(reg - r8b + rax);
+            }
+
+            return reg;
+        }
+
         // Mod R/M byte
-        struct modrm_byte {
+        struct modrm {
             mod_field mod; // addressing mode 
             grp reg; // register
             rm_field rm;  // addressing method (register/memory operand)
             
-            modrm_byte(const mod_field& mod, const grp& reg, const rm_field& rm) : mod(mod), reg(reg), rm(rm) {}
-            
+            modrm(const mod_field& mod, const rm_field& rm, const grp& reg) : mod(mod), reg(reg), rm(rm) {}
+            modrm(const mod_field& mod, const grp& rm, const grp& reg) : mod(mod), reg(reg), rm(static_cast<rm_field>(rm)) {}
+
             operator std::uint8_t() const {
-              return (mod << 6) | (reg << 3) | rm; 
+              return (static_cast<std::uint8_t>(mod) << 6) | (reg << 3) | static_cast<std::uint8_t>(rm); 
             }
         };
 
         // SIB byte
         // Scale, Index, Base
-        struct sib_byte {
+        struct sib {
             std::uint8_t scale; // scaling factor (1, 2, 4 etc.)
             grp index; // index register
             grp base; // base register
             
-            sib_byte(const std::uint8_t& scale, const grp& index, const grp& base) : scale(scale), index(index), base(base) {}
+            sib(const std::uint8_t& scale, const grp& index, const grp& base) : scale(scale), index(index), base(base) {}
             
             operator std::uint8_t() const {
               return (scale << 6) | (index << 3) | base;  
             }
         };
-
+        
         /*
             naming scheme for opcodes:
             <operation>_<destination>_<source>
@@ -252,14 +275,14 @@ namespace occult {
             DECLARE_OPCODE(JLE_rel8, 0x7E) // JLE rel8
             DECLARE_OPCODE(JNLE_rel8, 0x7F) // JNLE rel8
 
-            DECLARE_OPCODE(ADD_rm8_to_64_imm8, 0x80) // ADD r/m8, imm8
-            DECLARE_OPCODE(OR_rm8_to_64_imm8, 0x80) // OR r/m8, imm8
-            DECLARE_OPCODE(ADC_rm8_to_64_imm8, 0x80) // ADC r/m8, imm8
-            DECLARE_OPCODE(SBB_rm8_to_64_imm8, 0x80) // SBB r/m8, imm8
-            DECLARE_OPCODE(AND_rm8_to_64_imm8, 0x80) // AND r/m8, imm8
-            DECLARE_OPCODE(SUB_rm8_to_64_imm8, 0x80) // SUB r/m8, imm8
-            DECLARE_OPCODE(XOR_rm8_to_64_imm8, 0x80) // XOR r/m8, imm8
-            DECLARE_OPCODE(CMP_rm8_to_64_imm8, 0x80) // CMP r/m8, imm8
+            DECLARE_OPCODE(ADD_rm8_imm8, 0x80) // ADD r/m8, imm8
+            DECLARE_OPCODE(OR_rm8_imm8, 0x80) // OR r/m8, imm8
+            DECLARE_OPCODE(ADC_rm8_imm8, 0x80) // ADC r/m8, imm8
+            DECLARE_OPCODE(SBB_rm8_imm8, 0x80) // SBB r/m8, imm8
+            DECLARE_OPCODE(AND_rm8_imm8, 0x80) // AND r/m8, imm8
+            DECLARE_OPCODE(SUB_rm8_imm8, 0x80) // SUB r/m8, imm8
+            DECLARE_OPCODE(XOR_rm8_imm8, 0x80) // XOR r/m8, imm8
+            DECLARE_OPCODE(CMP_rm8_imm8, 0x80) // CMP r/m8, imm8
 
             DECLARE_OPCODE(ADD_rm8_to_64_imm16_or_32, 0x81) // ADD r/m16/32/64, imm16_or_32
             DECLARE_OPCODE(OR_rm8_to_64_imm16_or_32, 0x81) // OR r/m16/32/64, imm16_or_32
@@ -332,7 +355,7 @@ namespace occult {
             DECLARE_OPCODE(SCAS_m8_AL, 0xAE) // SCAS m8, AL
             DECLARE_OPCODE(SCAS_rAX_m16_to_32, 0xAF) // SCAS rAX, m16_to_32
 
-            DECLARE_OPCODE(MOV_rm16_to_64_imm16_or_32, 0xB0) // MOV r/m8, imm8
+            DECLARE_OPCODE(MOV_r8_imm8, 0xB0) // MOV r8, imm8
             DECLARE_OPCODE(MOV_rm16_to_64_imm16_to_64, 0xB8) // MOV r/m16_to_64, imm16_or_32
 
             DECLARE_OPCODE(ROL_rm8_imm8, 0xC0) // ROL r/m8, imm8

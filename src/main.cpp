@@ -4,6 +4,7 @@
 #include "backend/codegen/ir_gen.hpp"
 #include "backend/codegen/x64writer.hpp"
 #include "backend/codegen/jit.hpp"
+#include "backend/codegen/x86_64_writer.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -138,6 +139,12 @@ int main(int argc, char* argv[]) {
     }
   }*/
   
+  using namespace occult::x86_64;
+
+  x86_64_writer writer;
+  writer.emit_add(ax, r10w); // elegance is key...
+  writer.print_bytes();
+
   if (jit) {
     auto it = jit_runtime.function_map.find("main");
     if (it != jit_runtime.function_map.end()) {
