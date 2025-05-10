@@ -66,9 +66,9 @@ namespace occult {
             direct = 0b010, // 0b010 operand is a memory address (e.g., mov rax, [0x1234])
             indirect = 0b011, // 0b011 operand is a memory address in a register (e.g., mov rax, [rbx])
             indexed = 0b100, // 0b100 operand uses base + index (e.g., mov rax, [rbx + rsi])
-            scaled_indexed = 0b101, // 0b101 operand uses base + index * scale (e.g., mov rax, [rbx + rsi*4])
-            rip_relative = 0b110, // 0b110 operand is relative to instruction pointer (e.g., mov rax, [rip + offset])
-            segment_offset = 0b111 // 0b111 operand uses segment register offset (e.g., mov rax, fs:[0x10])
+            rip_relative = 0b101, // 0b110 operand is relative to instruction pointer (e.g., mov rax, [rip + offset]) 
+            // scaled_index = 0b110, // 0b101 operand uses base + index * scale (e.g., mov rax, [rbx + rsi*4])
+            // segment_offset = 0b111 // 0b111 operand uses segment register offset (e.g., mov rax, fs:[0x10])
         };
 
         // addressing modes
@@ -183,8 +183,7 @@ namespace occult {
             imm16_to_32 is the source (immediate 16-bit to 32-bit)
         */
 
-        // opcodes that do not involve any floating point stuff
-        enum i_opcode : std::uint8_t {
+        enum opcode : std::uint8_t {
             DECLARE_OPCODE(ADD_rm8_r8, 0x00) // ADD r/m8, r8
             DECLARE_OPCODE(ADD_rm16_to_64_r16_to_64, 0x01) // ADD r/m16_to_64, r16_to_64
             DECLARE_OPCODE(ADD_r8_rm8, 0x02) // ADD r8, r/m8
@@ -474,8 +473,8 @@ namespace occult {
             DECLARE_OPCODE(PUSH_rm64, 0xFF) // PUSH r/m64
         };
 
-        // two byte integer opcodes, naming scheme is the same, these require the k2ByteOpcodePrefix (0x0F)
-        enum i_opcode_2b : std::uint8_t {
+        // naming scheme is the same, these require the k2ByteOpcodePrefix (0x0F)
+        enum opcode_2b : std::uint8_t { // 2 bytes
             DECLARE_OPCODE(SYSCALL, 0x05) // SYSCALL RCX R11 SS
             DECLARE_OPCODE(SYSRET, 0x07) // SYSRET RAX EFlags SS
             DECLARE_OPCODE(SYSENTER, 0x34) // SYSENTER SS RSP IA32_SYSENTER_EIP
@@ -497,16 +496,6 @@ namespace occult {
             DECLARE_OPCODE(JNL_rel16_or_32, 0x8D) // JNL rel16/32
             DECLARE_OPCODE(JLE_rel16_or_32, 0x8E) // JLE rel16/32
             DECLARE_OPCODE(JNLE_rel16_or_32, 0x8F) // JNLE rel16/32
-        };
-
-        // floating point opcodes, naming scheme is the same
-        enum f_opcode : std::uint8_t {
-            
-        };
-
-        // two byte floating point opcodes, naming scheme is the same, these require the k2ByteOpcodePrefix (0x0F)
-        enum f_opcode_2b : std::uint8_t {
-            
         };
     } // namespace x86_64
 } // namespace occult
