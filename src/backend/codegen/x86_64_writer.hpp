@@ -75,28 +75,7 @@ namespace occult {
         concept IsMem = std::is_base_of_v<mem, T>;
 
         template<typename T>
-        concept IsImm8 = std::is_integral_v<T> && std::is_same_v<std::int8_t, T>;
-
-        template<typename T>
-        concept IsImm16 = std::is_integral_v<T> && std::is_same_v<std::int16_t, T>;
-
-        template<typename T>
-        concept IsImm32 = std::is_integral_v<T> && std::is_same_v<std::int32_t, T>;
-
-        template<typename T>
-        concept IsImm64 = std::is_integral_v<T> && std::is_same_v<std::int64_t, T>;
-
-        template<typename T>
-        concept IsImmU8 = std::is_integral_v<T> && std::is_same_v<std::uint8_t, T>;
-
-        template<typename T>
-        concept IsImmU16 = std::is_integral_v<T> && std::is_same_v<std::uint16_t, T>;
-
-        template<typename T>
-        concept IsImmU32 = std::is_integral_v<T> && std::is_same_v<std::uint32_t, T>;
-
-        template<typename T>
-        concept IsImmU64 = std::is_integral_v<T> && std::is_same_v<std::uint64_t, T>;
+        concept IsImm = std::is_integral_v<T>;
 
         class x86_64_writer : public writer {  
             template<typename IntType = std::int8_t> // template if we want to use unsigned values
@@ -313,6 +292,57 @@ namespace occult {
                     emit_imm32(dest.disp);
                 }
             }
+
+            // rm field indicates which operation is used for things such as (ADD, OR, etc. ) (opcodes are 0x80 for 8bit and 0x81 for higher than 8bit)
+            void emit_reg_imm(const opcode& op8, const opcode& op, const grp& dest, const IsImm auto& imm, const rm_field& rm) {
+                if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, spl)) {
+                    if (REG_RANGE(dest, r8b, r15b)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(op8);
+                    push_byte(modrm(mod_field::register_direct, rebase_register(dest), rm));
+                    emit_imm8(imm);
+                }
+                else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, sp)) {
+                    push_byte(other_prefix::operand_size_override); // 16-bit operand size
+                    if (REG_RANGE(dest, r8w, r15w)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(op);
+                    push_byte(modrm(mod_field::register_direct, rebase_register(dest), rm));
+                    emit_imm16(imm);
+                }
+                else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, esp)) {
+                    if (REG_RANGE(dest, r8d, r15d)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(op);
+                    push_byte(modrm(mod_field::register_direct, rm, rebase_register(dest)));
+                    emit_imm32(imm);
+                }
+                else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rsp) ) {
+                    if (REG_RANGE(dest, r8, r15)) {
+                        push_byte(rex_wb);
+                    }
+                    else {
+                        push_byte(rex_w);
+                    }
+
+                    push_byte(op);
+                    push_byte(modrm(mod_field::register_direct, rm, rebase_register(dest)));
+                    emit_imm32(imm);
+                }
+            }
+
+            template<typename T, typename T2>
+            void validate_imm_size(const T2& imm) {
+                if (typeid(T2) == typeid(T)) {
+                    throw std::invalid_argument("Immediate value can not be of 64-bit size");
+                }
+            }
         public:
             x86_64_writer() : writer() {}
             
@@ -328,12 +358,9 @@ namespace occult {
                 emit_reg_to_mem(opcode::ADD_r8_rm8, opcode::ADD_r16_to_64_rm16_to_64, base, dest); // we can just use the same function apparently...?
             }
             
-            void emit_add(const IsGrp auto& dest, const IsImm8 auto& imm8) {
-
-            }
-
-            void emit_add(const IsMem auto& dest, const IsImm8 auto& imm8) {
-                
+            void emit_add(const IsGrp auto& dest, const IsImm auto& imm) {
+                validate_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0));
             }
         };
     }

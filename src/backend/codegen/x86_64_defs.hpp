@@ -67,8 +67,8 @@ namespace occult {
             indirect = 0b011, // 0b011 operand is a memory address in a register (e.g., mov rax, [rbx])
             indexed = 0b100, // 0b100 operand uses base + index (e.g., mov rax, [rbx + rsi])
             rip_relative = 0b101, // 0b110 operand is relative to instruction pointer (e.g., mov rax, [rip + offset]) 
-            // scaled_index = 0b110, // 0b101 operand uses base + index * scale (e.g., mov rax, [rbx + rsi*4])
-            // segment_offset = 0b111 // 0b111 operand uses segment register offset (e.g., mov rax, fs:[0x10])
+            scaled_index = 0b110, // 0b101 operand uses base + index * scale (e.g., mov rax, [rbx + rsi*4]) NOT SURE IF RIGHT
+            segment_offset = 0b111 // 0b111 operand uses segment register offset (e.g., mov rax, fs:[0x10]) NOT SURE IF RIGHT
         };
 
         // addressing modes
@@ -127,6 +127,7 @@ namespace occult {
             
             modrm(const mod_field& mod, const rm_field& rm, const grp& reg) : mod(mod), reg(reg), rm(rm) {}
             modrm(const mod_field& mod, const grp& rm, const grp& reg) : mod(mod), reg(reg), rm(static_cast<rm_field>(rm)) {}
+            modrm(const mod_field& mod, const grp& rm, const rm_field& reg) : mod(mod), reg(static_cast<grp>(reg)), rm(static_cast<rm_field>(rm)) {}
 
             operator std::uint8_t() const {
               return (static_cast<std::uint8_t>(mod) << 6) | (reg << 3) | static_cast<std::uint8_t>(rm); 
