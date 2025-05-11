@@ -128,6 +128,7 @@ namespace occult {
             modrm(const mod_field& mod, const rm_field& rm, const grp& reg) : mod(mod), reg(reg), rm(rm) {}
             modrm(const mod_field& mod, const grp& rm, const grp& reg) : mod(mod), reg(reg), rm(static_cast<rm_field>(rm)) {}
             modrm(const mod_field& mod, const grp& rm, const rm_field& reg) : mod(mod), reg(static_cast<grp>(reg)), rm(static_cast<rm_field>(rm)) {}
+            modrm(const mod_field& mod, const rm_field& rm, const rm_field& reg) : mod(mod), reg(static_cast<grp>(reg)), rm(static_cast<rm_field>(rm)) {}
 
             operator std::uint8_t() const {
               return (static_cast<std::uint8_t>(mod) << 6) | (reg << 3) | static_cast<std::uint8_t>(rm); 
@@ -355,7 +356,7 @@ namespace occult {
             DECLARE_OPCODE(SCAS_rAX_m16_to_32, 0xAF) // SCAS rAX, m16_to_32
 
             DECLARE_OPCODE(MOV_r8_imm8, 0xB0) // MOV r8, imm8
-            DECLARE_OPCODE(MOV_rm16_to_64_imm16_to_64, 0xB8) // MOV r/m16_to_64, imm16_or_32
+            DECLARE_OPCODE(MOV_rm16_to_64_imm16_to_64, 0xB8) // MOV r/m16_to_64, imm16_to_64
 
             DECLARE_OPCODE(ROL_rm8_imm8, 0xC0) // ROL r/m8, imm8
             DECLARE_OPCODE(ROR_rm8_imm8, 0xC0) // ROR r/m8, imm8

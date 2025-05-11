@@ -41,7 +41,6 @@ namespace occult {
   
     if (required_size > allocated_size) {
       std::size_t new_size = ((required_size / page_size) + 1) * page_size;
-  
 
       void* new_memory = mremap(memory, allocated_size, new_size, MREMAP_MAYMOVE);
       if (new_memory == MAP_FAILED) {

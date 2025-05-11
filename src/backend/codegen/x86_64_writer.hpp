@@ -23,8 +23,6 @@
 
 namespace occult {
     namespace x86_64 {
-        inline constexpr std::nullopt_t null_val { std::nullopt_t::_Construct::_Token }; // same as nullopt
-
         enum class mem_mode : std::uint8_t {
             none,
             disp,
@@ -75,7 +73,18 @@ namespace occult {
         concept IsMem = std::is_base_of_v<mem, T>;
 
         template<typename T>
-        concept IsImm = std::is_integral_v<T>;
+        concept IsSignedImm = std::is_integral_v<T> && std::is_signed_v<T>;
+
+        template<typename T>
+        concept IsUnsignedImm = std::is_integral_v<T> && std::is_unsigned_v<T>;
+
+#define REG_TO_REG_ARG const IsGrp auto& dest, const IsGrp auto& base
+#define REG_TO_MEM_ARG const IsMem auto& dest, const IsGrp auto& base
+#define MEM_TO_REG_ARG const IsGrp auto& dest, const IsMem auto& base
+#define SIGNED_IMM_TO_REG_ARG const IsGrp auto& dest, const IsSignedImm auto& imm
+#define UNSIGNED_IMM_TO_REG_ARG const IsGrp auto& dest, const IsUnsignedImm auto& imm
+#define SIGNED_IMM_TO_MEM_ARG const IsMem auto& dest, const IsSignedImm auto& imm
+#define UNSIGNED_IMM_TO_MEM_ARG const IsMem auto& dest, const IsUnsignedImm auto& imm
 
         class x86_64_writer : public writer {  
             template<typename IntType = std::int8_t> // template if we want to use unsigned values
@@ -233,17 +242,17 @@ namespace occult {
             }
 
             void check_stack_reg_r2m(const opcode& op8, const opcode& op, const mem& dest) {
-                if (dest.reg == bpl) {
+                if (dest.reg == spl) {
                     push_byte(op8);
                 }
-                else if (dest.reg == bp) {
+                else if (dest.reg == sp) {
                     push_byte(other_prefix::operand_size_override);
                     push_byte(op);
                 }
-                else if (dest.reg == ebp) {
+                else if (dest.reg == esp) {
                     push_byte(op);
                 }
-                else if (dest.reg == rbp) {
+                else if (dest.reg == rsp) {
                     push_byte(rex_w);
                     push_byte(op);
                 }
@@ -294,7 +303,10 @@ namespace occult {
             }
 
             // rm field indicates which operation is used for things such as (ADD, OR, etc. ) (opcodes are 0x80 for 8bit and 0x81 for higher than 8bit)
-            void emit_reg_imm(const opcode& op8, const opcode& op, const grp& dest, const IsImm auto& imm, const rm_field& rm) {
+            // this can also be used for 0xC7 and 0xC6
+            // this is for the opcodes which require "different modes?" 
+            template<std::integral T> 
+            void emit_reg_imm(const opcode& op8, const opcode& op, const grp& dest, const T& imm, const rm_field& rm, bool is_signed = true, bool do_imm64 = false) {
                 if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, spl)) {
                     if (REG_RANGE(dest, r8b, r15b)) {
                         push_byte(rex_b);
@@ -302,7 +314,13 @@ namespace occult {
 
                     push_byte(op8);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rm));
-                    emit_imm8(imm);
+
+                    if (is_signed) {
+                        emit_imm8(imm);
+                    }
+                    else {
+                        emit_imm8<std::uint8_t>(imm);
+                    }
                 }
                 else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, sp)) {
                     push_byte(other_prefix::operand_size_override); // 16-bit operand size
@@ -312,7 +330,13 @@ namespace occult {
 
                     push_byte(op);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rm));
-                    emit_imm16(imm);
+
+                    if (is_signed) {
+                        emit_imm16(imm);
+                    }
+                    else {
+                        emit_imm16<std::uint16_t>(imm);
+                    }
                 }
                 else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, esp)) {
                     if (REG_RANGE(dest, r8d, r15d)) {
@@ -321,7 +345,13 @@ namespace occult {
 
                     push_byte(op);
                     push_byte(modrm(mod_field::register_direct, rm, rebase_register(dest)));
-                    emit_imm32(imm);
+
+                    if (is_signed) {
+                        emit_imm32(imm);
+                    }
+                    else {
+                        emit_imm32<std::uint32_t>(imm);
+                    }
                 }
                 else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rsp) ) {
                     if (REG_RANGE(dest, r8, r15)) {
@@ -333,34 +363,192 @@ namespace occult {
 
                     push_byte(op);
                     push_byte(modrm(mod_field::register_direct, rm, rebase_register(dest)));
-                    emit_imm32(imm);
+                    
+                    if (!do_imm64)
+                        if (is_signed) {
+                            emit_imm32(imm);
+                        }
+                        else {
+                            emit_imm32<std::uint32_t>(imm);
+                        }
+                    else {
+                        if (is_signed) {
+                            emit_imm64(imm);
+                        }
+                        else {
+                            emit_imm64<std::uint64_t>(imm);
+                        }
+                    }
+                }
+            }
+
+            // uses OP + REG & prefixes for correct registers & requires no MOD/RM
+            template<std::integral T> 
+            void emit_reg_imm_basic(const opcode& op8, const opcode& op, const grp& dest, const T& imm, bool is_signed = true) { 
+                if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, spl)) {
+                    if (REG_RANGE(dest, r8b, r15b)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(static_cast<std::uint8_t>(op8) + static_cast<std::uint8_t>(rebase_register(dest)));
+
+                    if (is_signed) {
+                        emit_imm8(imm);
+                    }
+                    else {
+                        emit_imm8<std::uint8_t>(imm);
+                    }
+                }
+                else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, sp)) {
+                    push_byte(other_prefix::operand_size_override); // 16-bit operand size
+                    if (REG_RANGE(dest, r8w, r15w)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(dest)));
+
+                    if (is_signed) {
+                        emit_imm16(imm);
+                    }
+                    else {
+                        emit_imm16<std::uint16_t>(imm);
+                    }
+                }
+                else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, esp)) {
+                    if (REG_RANGE(dest, r8d, r15d)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(dest)));
+
+                    if (is_signed) {
+                        emit_imm32(imm);
+                    }
+                    else {
+                        emit_imm32<std::uint32_t>(imm);
+                    }
+                }
+                else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rsp) ) {
+                    if (REG_RANGE(dest, r8, r15)) {
+                        push_byte(rex_wb);
+                    }
+                    else {
+                        push_byte(rex_w);
+                    }
+
+                    push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(dest)));
+                    
+                    if (is_signed) {
+                        emit_imm64(imm);
+                    }
+                    else {
+                        emit_imm64<std::uint64_t>(imm);
+                    }
+                }
+            }
+
+            // somewhat works, have to fix AI wrote this.
+            template<std::integral T> 
+            void emit_mem_imm(const opcode& op8, const opcode& op, const mem& dest, const T& imm, const rm_field& rm, bool is_signed = true, bool do_imm64 = false) {
+                if (dest.reg == rip) { // rip relative
+                    throw std::invalid_argument("Can't move immediate to rip-relative address.");
+                }
+                else if (NOT_STACK_PTR(dest.reg) && NOT_STACK_BASE_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [reg]
+                    check_reg_r2m(op8, op, dest, dest.reg);
+                    push_byte(modrm(mod_field::indirect, rebase_register(dest.reg), rm));
+                } 
+                else if (IS_STACK_BASE_PTR(dest.reg) && NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rbp]
+                    check_stack_reg_r2m(op8, op, dest);
+                    push_byte(modrm(mod_field::disp8, rebase_register(dest.reg), rm));
+                    emit_imm8(0);
+                }
+                else if (NOT_STACK_BASE_PTR(dest.reg) && IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rsp]
+                    check_stack_reg_r2m(op8, op, dest);
+                    push_byte(modrm(mod_field::indirect, rm_field::indexed, rm)); 
+                    push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
+                }
+                else if (NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [reg + disp32] (we are always going to do disp32)
+                    check_reg_r2m(op8, op, dest, dest.reg);
+                    push_byte(modrm(mod_field::disp32, rebase_register(dest.reg), rm));
+                    emit_imm32(dest.disp);
+                }
+                else if (IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [rsp + disp32]
+                    check_stack_reg_r2m(op8, op, dest);
+                    push_byte(modrm(mod_field::disp32, rm_field::indexed, rm)); 
+                    push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
+                    emit_imm32(dest.disp);
+                }
+                else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::none) { // [reg + SIB]
+                    check_reg_r2m(op8, op, dest, dest.reg);
+                    push_byte(modrm(mod_field::indirect, rm_field::indexed, rm)); 
+                    push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
+                }
+                else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::disp) { // [reg + SIB + disp]
+                    check_reg_r2m(op8, op, dest, dest.reg);
+                    push_byte(modrm(mod_field::disp32, rm_field::indexed, rm)); 
+                    push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
+                    emit_imm32(dest.disp);
+                }
+
+                if (is_signed) {
+                    if (do_imm64) {
+                        emit_imm64(imm);
+                    } else {
+                        emit_imm32(imm);
+                    }
+                } 
+                else {
+                    if (do_imm64) {
+                        emit_imm64<std::uint64_t>(imm);
+                    } else {
+                        emit_imm32<std::uint32_t>(imm);
+                    }
                 }
             }
 
             template<typename T, typename T2>
-            void validate_imm_size(const T2& imm) {
-                if (typeid(T2) == typeid(T)) {
-                    throw std::invalid_argument("Immediate value can not be of 64-bit size");
+            void validate_imm_size(const T2&) {
+                if (sizeof(T2) == sizeof(T)) {
+                    throw std::invalid_argument("Immediate value can not be of size (" + std::to_string(sizeof(T)) + " bytes)");
                 }
             }
         public:
             x86_64_writer() : writer() {}
             
-            void emit_add(const IsGrp auto& dest, const IsGrp auto& base) { 
+            void emit_add(REG_TO_REG_ARG) { 
                 emit_reg_to_reg(opcode::ADD_r8_rm8, opcode::ADD_r16_to_64_rm16_to_64, dest, base);
             }
 
-            void emit_add(const IsMem auto& dest, const IsGrp auto& base) {     
+            void emit_add(REG_TO_MEM_ARG) {     
                 emit_reg_to_mem(opcode::ADD_rm8_r8, opcode::ADD_rm16_to_64_r16_to_64, dest, base);
             }
 
-            void emit_add(const IsGrp auto& dest, const IsMem auto& base) {
+            void emit_add(MEM_TO_REG_ARG) {
                 emit_reg_to_mem(opcode::ADD_r8_rm8, opcode::ADD_r16_to_64_rm16_to_64, base, dest); // we can just use the same function apparently...?
             }
             
-            void emit_add(const IsGrp auto& dest, const IsImm auto& imm) {
+            void emit_add(SIGNED_IMM_TO_REG_ARG) {
                 validate_imm_size<std::int64_t>(imm);
                 emit_reg_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0));
+            }
+
+            void emit_add(UNSIGNED_IMM_TO_REG_ARG) {
+                validate_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false);
+            }
+
+            void emit_add(SIGNED_IMM_TO_MEM_ARG) {
+                validate_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0));
+            }
+
+            void emit_add(UNSIGNED_IMM_TO_MEM_ARG) {
+                validate_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false);
+            }
+
+            void emit_mov(SIGNED_IMM_TO_REG_ARG) {
+                emit_reg_imm_basic(opcode::MOV_r8_imm8, opcode::MOV_rm16_to_64_imm16_to_64, dest, imm);
             }
         };
     }

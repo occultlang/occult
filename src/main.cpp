@@ -142,10 +142,12 @@ int main(int argc, char* argv[]) {
   using namespace occult::x86_64;
 
   x86_64_writer writer;
-  writer.emit_add(rax, INT_MAX); // add eax, INT_MAX 
   writer.emit_add(rax, mem{rip, 0x1000}); // add rax, [rip + 0x1000]
   writer.emit_add(mem{rsp, rdx, 0}, rcx); // add [rsp + rdx * 1], rcx
   writer.emit_add(rcx, mem{rsp, rdx, 0, 0x1000}); // add rcx, [rsp + rdx * 1 + 0x1000]
+  writer.emit_add(mem{rsp}, 10); // add [rsp], 10
+  writer.emit_add(eax, INT_MAX); // add eax, INT_MAX 
+  writer.emit_mov(r8b, INT_MAX); // mov r8b, INT_MAX
   writer.print_bytes();
   
   if (jit) {
