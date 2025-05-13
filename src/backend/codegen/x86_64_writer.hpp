@@ -447,7 +447,7 @@ namespace occult {
                 }
             }
 
-            // somewhat works, have to fix AI wrote this.
+            // believe this is finished, too tired to document, will get to it in the future i guess lmao
             template<std::integral T> 
             void emit_mem_imm(const opcode& op8, const opcode& op, const mem& dest, const T& imm, const rm_field& rm, bool is_signed = true, bool do_imm64 = false) {
                 if (dest.reg == rip) { // rip relative
@@ -514,7 +514,8 @@ namespace occult {
             }
         public:
             x86_64_writer() : writer() {}
-            
+
+            // tbf i should use macros for this, but i can do that another time
             void emit_add(REG_TO_REG_ARG) { 
                 emit_reg_to_reg(opcode::ADD_r8_rm8, opcode::ADD_r16_to_64_rm16_to_64, dest, base);
             }
@@ -527,6 +528,94 @@ namespace occult {
                 emit_reg_to_mem(opcode::ADD_r8_rm8, opcode::ADD_r16_to_64_rm16_to_64, base, dest); // we can just use the same function apparently...?
             }
             
+            void emit_or(REG_TO_REG_ARG) { 
+                emit_reg_to_reg(opcode::OR_r8_rm8, opcode::OR_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_or(REG_TO_MEM_ARG) {     
+                emit_reg_to_mem(opcode::OR_rm8_r8, opcode::OR_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_or(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::OR_r8_rm8, opcode::OR_r16_to_64_rm16_to_64, base, dest);
+            }
+
+            void emit_adc(REG_TO_REG_ARG) { 
+                emit_reg_to_reg(opcode::ADC_r8_rm8, opcode::ADC_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_adc(REG_TO_MEM_ARG) {     
+                emit_reg_to_mem(opcode::ADC_rm8_r8, opcode::ADC_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_adc(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::ADC_r8_rm8, opcode::ADC_r16_to_64_rm16_to_64, base, dest);
+            }
+
+            void emit_sbb(REG_TO_REG_ARG) { 
+                emit_reg_to_reg(opcode::SBB_r8_rm8, opcode::SBB_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_sbb(REG_TO_MEM_ARG) {     
+                emit_reg_to_mem(opcode::SBB_rm8_r8, opcode::SBB_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_sbb(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::SBB_r8_rm8, opcode::SBB_r16_to_64_rm16_to_64, base, dest);
+            }
+
+            void emit_and(REG_TO_REG_ARG) { 
+                emit_reg_to_reg(opcode::AND_r8_rm8, opcode::AND_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_and(REG_TO_MEM_ARG) {     
+                emit_reg_to_mem(opcode::AND_rm8_r8, opcode::AND_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_and(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::AND_r8_rm8, opcode::AND_r16_to_64_rm16_to_64, base, dest); // we can just use the same function apparently...?
+            }
+
+            void emit_sub(REG_TO_REG_ARG) { 
+                emit_reg_to_reg(opcode::SUB_r8_rm8, opcode::SUB_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_sub(REG_TO_MEM_ARG) {     
+                emit_reg_to_mem(opcode::SUB_rm8_r8, opcode::SUB_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_sub(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::SUB_r8_rm8, opcode::SUB_r16_to_64_rm16_to_64, base, dest); // we can just use the same function apparently...?
+            }
+            
+            void emit_xor(REG_TO_REG_ARG) { 
+                emit_reg_to_reg(opcode::XOR_r8_rm8, opcode::XOR_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_xor(REG_TO_MEM_ARG) {     
+                emit_reg_to_mem(opcode::XOR_rm8_r8, opcode::XOR_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_xor(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::XOR_r8_rm8, opcode::XOR_r16_to_64_rm16_to_64, base, dest); // we can just use the same function apparently...?
+            }
+
+            void emit_cmp(REG_TO_REG_ARG) { 
+                emit_reg_to_reg(opcode::CMP_r8_rm8, opcode::CMP_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_cmp(REG_TO_MEM_ARG) {     
+                emit_reg_to_mem(opcode::CMP_rm8_r8, opcode::CMP_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_cmp(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::CMP_r8_rm8, opcode::CMP_r16_to_64_rm16_to_64, base, dest); // we can just use the same function apparently...?
+            }
+
+            /* continue to add opcodes in order according to coder64 */
+
+            /* immedaite for memory should be finished */
+
             void emit_add(SIGNED_IMM_TO_REG_ARG) {
                 validate_imm_size<std::int64_t>(imm);
                 emit_reg_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0));
@@ -545,10 +634,6 @@ namespace occult {
             void emit_add(UNSIGNED_IMM_TO_MEM_ARG) {
                 validate_imm_size<std::uint64_t>(imm);
                 emit_mem_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false);
-            }
-
-            void emit_mov(SIGNED_IMM_TO_REG_ARG) {
-                emit_reg_imm_basic(opcode::MOV_r8_imm8, opcode::MOV_rm16_to_64_imm16_to_64, dest, imm);
             }
         };
     }

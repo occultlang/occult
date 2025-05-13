@@ -24,7 +24,7 @@ void display_help() {
   std::cout << "  -d, --debug                    Enable debugging options (shows time as well -t is not needed)\n";
   std::cout << "  -o, --output <filename>        Output a native binary\n";
   std::cout << "  -j, --jit                      Compile code as just-in-time (in memory)\n";
-  std::cout << "  -h, --help                     Display this help message." << std::endl;
+  std::cout << "  -h, --help                     Display this help message.\n" ;
 }
 
 int main(int argc, char* argv[]) {
@@ -144,10 +144,11 @@ int main(int argc, char* argv[]) {
   x86_64_writer writer;
   writer.emit_add(rax, mem{rip, 0x1000}); // add rax, [rip + 0x1000]
   writer.emit_add(mem{rsp, rdx, 0}, rcx); // add [rsp + rdx * 1], rcx
-  writer.emit_add(rcx, mem{rsp, rdx, 0, 0x1000}); // add rcx, [rsp + rdx * 1 + 0x1000]
+  writer.emit_add(rcx, mem{rsp, rdx, 0, 0x1000}); // add rcx, [rsp + rdx * 1 + 0x1000]*/
   writer.emit_add(mem{rsp}, 10); // add [rsp], 10
   writer.emit_add(eax, INT_MAX); // add eax, INT_MAX 
-  writer.emit_mov(r8b, INT_MAX); // mov r8b, INT_MAX
+  //writer.emit_mov(r8b, INT_MAX); // mov r8b, INT_MAX 
+  writer.emit_add(rax, rcx);
   writer.print_bytes();
   
   if (jit) {
