@@ -78,6 +78,9 @@ namespace occult {
         template<typename T>
         concept IsUnsignedImm = std::is_integral_v<T> && std::is_unsigned_v<T>;
 
+        template<typename T>
+        concept IsRel8 = std::is_integral_v<T> &&std::is_unsigned_v<T> && sizeof(T) == 1;
+
 #define REG_TO_REG_ARG const IsGrp auto& dest, const IsGrp auto& base
 #define REG_TO_MEM_ARG const IsMem auto& dest, const IsGrp auto& base
 #define MEM_TO_REG_ARG const IsGrp auto& dest, const IsMem auto& base
@@ -85,6 +88,10 @@ namespace occult {
 #define UNSIGNED_IMM_TO_REG_ARG const IsGrp auto& dest, const IsUnsignedImm auto& imm
 #define SIGNED_IMM_TO_MEM_ARG const IsMem auto& dest, const IsSignedImm auto& imm
 #define UNSIGNED_IMM_TO_MEM_ARG const IsMem auto& dest, const IsUnsignedImm auto& imm
+#define REG_ARG const IsGrp auto& reg
+#define SIGNED_IMM_ARG const IsSignedImm auto& imm
+#define UNSIGNED_IMM_ARG const IsUnsignedImm auto& imm
+#define REL8_ARG const IsRel8 auto& target_address
 
         class x86_64_writer : public writer {  
             template<typename IntType = std::int8_t> // template if we want to use unsigned values
@@ -344,7 +351,7 @@ namespace occult {
                     }
 
                     push_byte(op);
-                    push_byte(modrm(mod_field::register_direct, rm, rebase_register(dest)));
+                    push_byte(modrm(mod_field::register_direct, rebase_register(dest), rm));
 
                     if (is_signed) {
                         emit_imm32(imm);
@@ -362,7 +369,7 @@ namespace occult {
                     }
 
                     push_byte(op);
-                    push_byte(modrm(mod_field::register_direct, rm, rebase_register(dest)));
+                    push_byte(modrm(mod_field::register_direct, rebase_register(dest), rm));
                     
                     if (!do_imm64)
                         if (is_signed) {
@@ -505,12 +512,73 @@ namespace occult {
                     }
                 }
             }
+            
+            void emit_reg(const opcode& op8, const opcode& op, const grp& r) {
+                if (REG_RANGE(r, r8b, r15b) || REG_RANGE(r, al, spl)) {
+                    if (REG_RANGE(r10b, r8b, r15b)) {
+                        push_byte(rex_rb);
+                    }
+                    else if (REG_RANGE(r, r8b, r15b)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(static_cast<std::uint8_t>(op8) + static_cast<std::uint8_t>(rebase_register(r)));
+                }
+                else if (REG_RANGE(r, r8w, r15w) || REG_RANGE(r, ax, sp)) {
+                    push_byte(other_prefix::operand_size_override); // 16-bit operand size
+
+                    if (REG_RANGE(r, r8w, r15w)) {
+                        push_byte(rex_rb);
+                    }
+                    else if (REG_RANGE(r, r8w, r15w)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(r)));
+                }
+                else if (REG_RANGE(r, r8d, r15d) || REG_RANGE(r, eax, esp)) {
+                    if (REG_RANGE(r, r8d, r15d)) {
+                        push_byte(rex_rb);
+                    }
+                    else if (REG_RANGE(r, r8d, r15d)) {
+                        push_byte(rex_b);
+                    }
+
+                    push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(r)));
+                }
+                else if (REG_RANGE(r, r8, r15) || REG_RANGE(r, rax, rsp)) {
+                    if (REG_RANGE(r, r8, r15)) {
+                        push_byte(rex_wrb);
+                    }
+                    else if (REG_RANGE(r, r8, r15)) {
+                        push_byte(rex_wb);
+                    }
+                    else {
+                        push_byte(rex_w);
+                    }
+
+                    push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(r)));
+                }
+            }
+
+            void emit_short_jump(std::uint8_t opcode, std::uint8_t target_address) {
+                std::uint8_t current_address = get_code().size();
+                std::uint8_t rel8 = target_address - (current_address + 2);
+                
+                push_byte(opcode);
+                push_byte(rel8);
+            }
 
             template<typename T, typename T2>
-            void validate_imm_size(const T2&) {
+            void assert_imm_size(const T2&) {
                 if (sizeof(T2) == sizeof(T)) {
                     throw std::invalid_argument("Immediate value can not be of size (" + std::to_string(sizeof(T)) + " bytes)");
                 }
+            }
+
+            template<typename T>
+            bool imm_fits(std::int64_t imm) {
+                return imm >= std::numeric_limits<T>::min() && imm <= std::numeric_limits<T>::max();
             }
         public:
             x86_64_writer() : writer() {}
@@ -612,28 +680,327 @@ namespace occult {
                 emit_reg_to_mem(opcode::CMP_r8_rm8, opcode::CMP_r16_to_64_rm16_to_64, base, dest); // we can just use the same function apparently...?
             }
 
-            /* continue to add opcodes in order according to coder64 */
+            void emit_push(REG_ARG) {
+                emit_reg(opcode::PUSH_r64_or_16, opcode::PUSH_r64_or_16, reg);
+            }
 
-            /* immedaite for memory should be finished */
+            void emit_pop(REG_ARG) {
+                emit_reg(opcode::POP_r64_or_16, opcode::POP_r64_or_16, reg);
+            }
 
-            void emit_add(SIGNED_IMM_TO_REG_ARG) {
-                validate_imm_size<std::int64_t>(imm);
+            void emit_push(SIGNED_IMM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+
+                if (imm_fits<std::int8_t>(imm)) {
+                    push_byte(opcode::PUSH_imm8);
+                    emit_imm8(imm);
+                }
+                else if (imm_fits<std::int16_t>(imm)) {
+                    push_byte(other_prefix::operand_size_override); 
+                    push_byte(opcode::PUSH_imm16_or_32);
+                    emit_imm16(imm);
+                }
+                else {
+                    push_byte(opcode::PUSH_imm16_or_32);
+                    emit_imm32(imm);
+                }
+            }
+
+            void emit_push(UNSIGNED_IMM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+
+                if (imm_fits<std::uint8_t>(imm)) {
+                    push_byte(opcode::PUSH_imm8);
+                    emit_imm8(imm);
+                }
+                else if (imm_fits<std::uint16_t>(imm)) {
+                    push_byte(other_prefix::operand_size_override); 
+                    push_byte(opcode::PUSH_imm16_or_32);
+                    emit_imm16(imm);
+                }
+                else {
+                    push_byte(opcode::PUSH_imm16_or_32);
+                    emit_imm32(imm);
+                }
+            }
+
+            void emit_imul(const IsGrp auto& dest, const IsGrp auto& base, const IsSignedImm auto& imm) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::IMUL_r16_to_64_rm16_to_64_imm8, opcode::IMUL_r16_to_64_rm16_to_64_imm16_to_32, base, imm, static_cast<rm_field>(dest));
+            }
+            
+            void emit_imul(const IsGrp auto& dest, const IsMem auto& base, const IsSignedImm auto& imm) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::IMUL_r16_to_64_rm16_to_64_imm8, opcode::IMUL_r16_to_64_rm16_to_64_imm16_to_32, base, imm, static_cast<rm_field>(dest));
+            }
+
+            void emit_imul(const IsGrp auto& dest, const IsGrp auto& base, const IsUnsignedImm auto& imm) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::IMUL_r16_to_64_rm16_to_64_imm8, opcode::IMUL_r16_to_64_rm16_to_64_imm16_to_32, base, imm, static_cast<rm_field>(dest), false);
+            }
+            
+            void emit_imul(const IsGrp auto& dest, const IsMem auto& base, const IsUnsignedImm auto& imm) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::IMUL_r16_to_64_rm16_to_64_imm8, opcode::IMUL_r16_to_64_rm16_to_64_imm16_to_32, base, imm, static_cast<rm_field>(dest), false);
+            }
+            
+            void emit_jo(REL8_ARG) {
+                emit_short_jump(opcode::JO_rel8, target_address);
+            }
+            
+            void emit_jno(REL8_ARG) {
+                emit_short_jump(opcode::JNO_rel8, target_address);
+            }
+            
+            void emit_jb(REL8_ARG) {
+                emit_short_jump(opcode::JB_rel8, target_address);
+            }
+            
+            void emit_jnb(REL8_ARG) {
+                emit_short_jump(opcode::JNB_rel8, target_address);
+            }
+            
+            void emit_jz(REL8_ARG) {
+                emit_short_jump(opcode::JZ_rel8, target_address);
+            }
+            
+            void emit_jnz(REL8_ARG) {
+                emit_short_jump(opcode::JNZ_rel8, target_address);
+            }
+            
+            void emit_jbe(REL8_ARG) {
+                emit_short_jump(opcode::JBE_rel8, target_address);
+            }
+            
+            void emit_jnbe(REL8_ARG) {
+                emit_short_jump(opcode::JNBE_rel8, target_address);
+            }
+            
+            void emit_js(REL8_ARG) {
+                emit_short_jump(opcode::JS_rel8, target_address);
+            }
+            
+            void emit_jns(REL8_ARG) {
+                emit_short_jump(opcode::JNS_rel8, target_address);
+            }
+            
+            void emit_jp(REL8_ARG) {
+                emit_short_jump(opcode::JP_rel8, target_address);
+            }
+            
+            void emit_jnp(REL8_ARG) {
+                emit_short_jump(opcode::JNP_rel8, target_address);
+            }
+            
+            void emit_jl(REL8_ARG) {
+                emit_short_jump(opcode::JL_rel8, target_address);
+            }
+            
+            void emit_jnl(REL8_ARG) {
+                emit_short_jump(opcode::JNL_rel8, target_address);
+            }
+            
+            void emit_jle(REL8_ARG) {
+                emit_short_jump(opcode::JLE_rel8, target_address);
+            }
+            
+            void emit_jnle(REL8_ARG) {
+                emit_short_jump(opcode::JNLE_rel8, target_address);
+            }
+
+            void emit_add(SIGNED_IMM_TO_REG_ARG) { // for these, the number in rm_field is the operation, 0 (add), 1 (or) etc.
+                assert_imm_size<std::int64_t>(imm);
                 emit_reg_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0));
             }
 
             void emit_add(UNSIGNED_IMM_TO_REG_ARG) {
-                validate_imm_size<std::uint64_t>(imm);
+                assert_imm_size<std::uint64_t>(imm);
                 emit_reg_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false);
             }
 
             void emit_add(SIGNED_IMM_TO_MEM_ARG) {
-                validate_imm_size<std::int64_t>(imm);
+                assert_imm_size<std::int64_t>(imm);
                 emit_mem_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0));
             }
 
             void emit_add(UNSIGNED_IMM_TO_MEM_ARG) {
-                validate_imm_size<std::uint64_t>(imm);
+                assert_imm_size<std::uint64_t>(imm);
                 emit_mem_imm(opcode::ADD_rm8_imm8, opcode::ADD_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false);
+            }
+
+            void emit_or(SIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(1));
+            }
+
+            void emit_or(UNSIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(1), false);
+            }
+
+            void emit_or(SIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(1));
+            }
+
+            void emit_or(UNSIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(1), false);
+            }
+            
+            void emit_adc(SIGNED_IMM_TO_REG_ARG) { // not gonna lie, the opcode numbers are the same, i cba to change them right now, will do them later
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(2));
+            }
+
+            void emit_adc(UNSIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(2), false);
+            }
+
+            void emit_adc(SIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(2));
+            }
+
+            void emit_adc(UNSIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(2), false);
+            }
+
+            void emit_sbb(SIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(3));
+            }
+
+            void emit_sbb(UNSIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(3), false);
+            }
+
+            void emit_sbb(SIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(3));
+            }
+
+            void emit_sbb(UNSIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(3), false);
+            }
+
+            void emit_and(SIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(4));
+            }
+
+            void emit_and(UNSIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(4), false);
+            }
+
+            void emit_and(SIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(4));
+            }
+
+            void emit_and(UNSIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(4), false);
+            }
+
+            void emit_sub(SIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(5));
+            }
+
+            void emit_sub(UNSIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(5), false);
+            }
+
+            void emit_sub(SIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(5));
+            }
+
+            void emit_sub(UNSIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(5), false);
+            }
+
+            void emit_xor(SIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(6));
+            }
+
+            void emit_xor(UNSIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(6), false);
+            }
+
+            void emit_xor(SIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(6));
+            }
+
+            void emit_xor(UNSIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(6), false);
+            }
+
+            void emit_cmp(SIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(7));
+            }
+
+            void emit_cmp(UNSIGNED_IMM_TO_REG_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(7), false);
+            }
+
+            void emit_cmp(SIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(7));
+            }
+
+            void emit_cmp(UNSIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(7), false);
+            }
+
+            void emit_test(REG_TO_REG_ARG) {
+                emit_reg_to_reg(opcode::TEST_rm8_imm8, opcode::TEST_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_test(REG_TO_MEM_ARG) {
+                emit_reg_to_mem(opcode::TEST_rm8_imm8, opcode::TEST_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_xchg(REG_TO_REG_ARG) {
+                emit_reg_to_reg(opcode::XCHG_r8_rm8, opcode::XCHG_r16_to_64_rm16_to_64, dest, base);
+            }
+
+            void emit_xchg(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::XCHG_r8_rm8, opcode::XCHG_r16_to_64_rm16_to_64, base, dest); // opposite still
+            }
+            
+            void emit_mov(REG_TO_REG_ARG) {
+                emit_reg_to_reg(opcode::MOV_rm8_r8, opcode::MOV_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_mov(REG_TO_MEM_ARG) {
+                emit_reg_to_mem(opcode::MOV_rm8_r8, opcode::MOV_rm16_to_64_r16_to_64, dest, base);
+            }
+
+            void emit_mov(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::MOV_rm8_r8, opcode::MOV_rm16_to_64_r16_to_64, base, dest);
+            }
+
+
+            
+
+            void emit_mov(SIGNED_IMM_TO_REG_ARG) {
+                emit_reg_imm_basic(opcode::MOV_rm16_to_64_imm16_to_64, opcode::MOV_rm16_to_64_imm16_to_64, dest, imm);
             }
         };
     }
