@@ -28,6 +28,7 @@ namespace occult {
             disp,
             reg,
             scaled_index,
+            abs
         };
 
         struct mem {
@@ -94,32 +95,31 @@ namespace occult {
 #define REL8_ARG const IsRel8 auto& target_address
 
         class x86_64_writer : public writer {  
-            template<typename IntType = std::int8_t> // template if we want to use unsigned values
-            void emit_imm8(IntType imm) {
-                for (int i = 0; i < 1; ++i) {
+            template<typename IntType = std::int8_t>
+            void emit_imm(IntType imm, int size) {
+                for (int i = 0; i < size; ++i) {
                     push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
                 }
+            }
+            
+            template<typename IntType = std::int8_t> // template if we want to use unsigned values
+            void emit_imm8(IntType imm) {
+                emit_imm<IntType>(imm, 1);
             }
             
             template<typename IntType = std::int16_t>
             void emit_imm16(IntType imm) {
-                for (int i = 0; i < 2; ++i) {
-                    push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
-                }
+                emit_imm<IntType>(imm, 2);
             }
             
             template<typename IntType = std::int32_t>
             void emit_imm32(IntType imm) {
-                for (int i = 0; i < 4; ++i) {
-                    push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
-                }
+                emit_imm<IntType>(imm, 4);
             }
             
             template<typename IntType = std::int64_t>
             void emit_imm64(IntType imm) {
-                for (int i = 0; i < 8; ++i) {
-                    push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
-                }
+                emit_imm<IntType>(imm, 8);
             }
 
             void emit_reg_to_reg(const opcode& op8, const opcode& op, const grp& dest, const grp& base) { 
@@ -996,6 +996,24 @@ namespace occult {
                 emit_reg_to_mem(opcode::MOV_rm8_r8, opcode::MOV_rm16_to_64_r16_to_64, base, dest);
             }
 
+            /*
+                quick note, this library does not support direct memory addresses, you have to load it into a register first 
+                then use `operation operand, [register]` for example
+
+                instead of:
+
+                `operation operand, [0xDEADBEEF]` <- won't work
+
+                use:
+
+                `mov register, 0xDEADBEEF`
+                `operation operand, [register]` 
+
+                from what i know, this is specific with LEA and perhaps CALL, but its fine i guess, we can't really call with 64 bit addresses anyways? 
+            */      
+            void emit_lea(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::LEA_r16_to_64_mem, opcode::LEA_r16_to_64_mem, base, dest);
+            }
 
             
 
