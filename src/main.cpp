@@ -155,6 +155,15 @@ int main(int argc, char* argv[]) {
   writer.emit_push(INT16_MAX); // push INT16_MAX
   writer.emit_imul(rax, rbx, 0x2000); // imul rax, rbx, 0x2000
   writer.emit_or(rcx, 0x10); // or rcx, 0x10*/
+  //writer.emit_pop(mem{rcx});
+  writer.emit_rol(rcx, 10);
+  writer.emit_ror(rcx, 10);
+  writer.emit_rcl(rcx, 10);
+  writer.emit_rcr(rcx, 10);
+  writer.emit_shl(rcx, 10);
+  writer.emit_shr(rcx, 10);
+  writer.emit_sal(rcx, 10);
+  writer.emit_sar(rcx, 10);
   writer.print_bytes();
   
   if (jit) {

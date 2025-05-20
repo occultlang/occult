@@ -356,7 +356,7 @@ namespace occult {
             DECLARE_OPCODE(SCAS_rAX_m16_to_32, 0xAF) // SCAS rAX, m16_to_32
 
             DECLARE_OPCODE(MOV_r8_imm8, 0xB0) // MOV r8, imm8
-            DECLARE_OPCODE(MOV_rm16_to_64_imm16_to_64, 0xB8) // MOV r/m16_to_64, imm16_to_64
+            DECLARE_OPCODE(MOV_r16_to_64_imm16_to_64, 0xB8) // MOV r/m16_to_64, imm16_to_64
 
             DECLARE_OPCODE(ROL_rm8_imm8, 0xC0) // ROL r/m8, imm8
             DECLARE_OPCODE(ROR_rm8_imm8, 0xC0) // ROR r/m8, imm8
@@ -377,7 +377,7 @@ namespace occult {
             DECLARE_OPCODE(SAR_rm16_to_64_imm8, 0xC1) // SAR r/m16_to_64, imm8
 
             DECLARE_OPCODE(RETN_imm16, 0xC2) // RETN imm16
-            DECLARE_OPCODE(RETN, 0xC3) // RETN
+            DECLARE_OPCODE(RETN, 0xC3) // RETN (return near)
 
             DECLARE_OPCODE(MOV_rm8_imm8, 0xC6) // MOV r/m8, imm8
             DECLARE_OPCODE(MOV_rm16_to_64_imm16_or_32, 0xC7) // MOV r/m16_to_64, imm16_or_32
@@ -385,8 +385,8 @@ namespace occult {
             DECLARE_OPCODE(ENTER_rBP_imm16_imm8, 0xC8) // ENTER rBP, imm16, imm8
             DECLARE_OPCODE(LEAVE_rBP, 0xC9) // LEAVE rBP
 
-            DECLARE_OPCODE(RETNF_imm16, 0xCA) // RETNF imm16   
-            DECLARE_OPCODE(RETNF, 0xCB) // RETNF
+            DECLARE_OPCODE(RETF_imm16, 0xCA) // RETNF imm16   
+            DECLARE_OPCODE(RETF, 0xCB) // RETNF
             
             DECLARE_OPCODE(INT3_eFlags, 0xCC) // INT3 eFlags
             DECLARE_OPCODE(INT_imm8, 0xCD) // INT imm8
