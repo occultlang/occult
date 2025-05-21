@@ -30,7 +30,7 @@
 - - [x] String variables (immutable)
 - - [x] Arrays (add arrays access)
 - - [x] Pointers
-- - [ ] Reworking of x86 runtime
+- - [x] Reworking of x86 runtime (Migration in progress)
 - - [ ] Translation from Stack IR to an encoded Register Bytecode for easier translation into machine code
 
 ### Things planned
