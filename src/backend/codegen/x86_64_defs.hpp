@@ -3,7 +3,6 @@
 #include <unordered_map>
 #include <string>
 
-
 /*
     definitions for x86_64
     based on https://ref.x86asm.net/coder64.html
@@ -94,13 +93,13 @@ namespace occult {
 
         // rebases register to the correct size
         static grp rebase_register(const grp& reg) {
-            if (reg >= eax && reg <= esp) {
+            if (reg >= eax && reg <= edi) {
                 return static_cast<grp>(reg - eax + rax);
             }
-            else if (reg >= ax && reg <= sp) {
+            else if (reg >= ax && reg <= di) {
                 return static_cast<grp>(reg - ax + rax);
             }
-            else if (reg >= al && reg <= spl) {
+            else if (reg >= al && reg <= dil) {
                 return static_cast<grp>(reg - al + rax);
             }
             else if (reg >= r8 && reg <= r15) {
@@ -461,7 +460,7 @@ namespace occult {
             DECLARE_OPCODE(STD, 0xFD) // SET DIRECTION
 
             DECLARE_OPCODE(INC_rm8, 0xFE) // INC r/m8
-            DECLARE_OPCODE(DEC_imm8, 0xFE) // DEC r/m8
+            DECLARE_OPCODE(DEC_rm8, 0xFE) // DEC r/m8
             DECLARE_OPCODE(INC_rm16_to_64, 0xFF) // INC r/m16_to_64
             DECLARE_OPCODE(DEC_rm16_to_64, 0xFF) // DEC r/m16_to_64
 
@@ -473,6 +472,10 @@ namespace occult {
 
             DECLARE_OPCODE(PUSH_rm16_or_32, 0xFF) // PUSH r/m16_or_32
             DECLARE_OPCODE(PUSH_rm64, 0xFF) // PUSH r/m64
+        
+            DECLARE_OPCODE(CALL_rel32, 0xE8)
+            DECLARE_OPCODE(JMP_rel8, 0xEB)
+            DECLARE_OPCODE(JMP_rel32, 0xE9)
         };
 
         // naming scheme is the same, these require the k2ByteOpcodePrefix (0x0F)
@@ -482,22 +485,27 @@ namespace occult {
             DECLARE_OPCODE(SYSENTER, 0x34) // SYSENTER SS RSP IA32_SYSENTER_EIP
             DECLARE_OPCODE(SYSEXIT, 0x35) // SYSEXIT SS RSP IA32_SYSENTER_EIP
 
-            DECLARE_OPCODE(JO_rel16_or_32, 0x80) // JO rel16/32
-            DECLARE_OPCODE(JNO_rel16_or_32, 0x81) // JNO rel16/32
-            DECLARE_OPCODE(JB_rel16_or_32, 0x82)  // JB rel16/32
-            DECLARE_OPCODE(JNB_rel16_or_32, 0x83) // JNB rel16/32
-            DECLARE_OPCODE(JZ_rel16_or_32, 0x84) // JZ rel16/32
-            DECLARE_OPCODE(JNZ_rel16_or_32, 0x85) // JNZ rel16/32
-            DECLARE_OPCODE(JBE_rel16_or_32, 0x86) // JBE rel16/32
-            DECLARE_OPCODE(JNBE_rel16_or_32, 0x87) // JNBE rel16/32
-            DECLARE_OPCODE(JS_rel16_or_32, 0x88) // JS rel16/32
-            DECLARE_OPCODE(JNS_rel16_or_32, 0x89) // JNS rel16/32
-            DECLARE_OPCODE(JP_rel16_or_32, 0x8A) // JP rel16/32
-            DECLARE_OPCODE(JNP_rel16_or_32, 0x8B) // JNP rel16/32
-            DECLARE_OPCODE(JL_rel16_or_32, 0x8C) // JL rel16/32
-            DECLARE_OPCODE(JNL_rel16_or_32, 0x8D) // JNL rel16/32
-            DECLARE_OPCODE(JLE_rel16_or_32, 0x8E) // JLE rel16/32
-            DECLARE_OPCODE(JNLE_rel16_or_32, 0x8F) // JNLE rel16/32
+            DECLARE_OPCODE(JO_rel32, 0x80) // JO rel16/32
+            DECLARE_OPCODE(JNO_rel32, 0x81) // JNO rel16/32
+            DECLARE_OPCODE(JB_rel32, 0x82)  // JB rel16/32
+            DECLARE_OPCODE(JNB_rel32, 0x83) // JNB rel16/32
+            DECLARE_OPCODE(JZ_rel32, 0x84) // JZ rel16/32
+            DECLARE_OPCODE(JNZ_rel32, 0x85) // JNZ rel16/32
+            DECLARE_OPCODE(JBE_rel32, 0x86) // JBE rel16/32
+            DECLARE_OPCODE(JNBE_rel32, 0x87) // JNBE rel16/32
+            DECLARE_OPCODE(JS_rel32, 0x88) // JS rel16/32
+            DECLARE_OPCODE(JNS_rel32, 0x89) // JNS rel16/32
+            DECLARE_OPCODE(JP_rel32, 0x8A) // JP rel16/32
+            DECLARE_OPCODE(JNP_rel32, 0x8B) // JNP rel16/32
+            DECLARE_OPCODE(JL_rel32, 0x8C) // JL rel16/32
+            DECLARE_OPCODE(JNL_rel32, 0x8D) // JNL rel16/32
+            DECLARE_OPCODE(JLE_rel32, 0x8E) // JLE rel16/32
+            DECLARE_OPCODE(JNLE_rel32, 0x8F) // JNLE rel16/32
+        };
+
+        // these require the k2ByteOpcodePrefix (0x0F) naming is the same
+        enum float_opcode_2b : std::uint8_t {
+
         };
     } // namespace x86_64
 } // namespace occult

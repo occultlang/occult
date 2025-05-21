@@ -1,6 +1,6 @@
 #include "linker.hpp"
 #include <chrono>
-
+/*
 namespace occult {
   void linker::link_and_create_binary(const std::string& binary_name, std::unordered_map<std::string, jit_function>& function_map,
                                       const std::map<std::string, std::vector<std::uint8_t>>& function_raw_code_map, bool debug, bool showtime) {
@@ -104,3 +104,4 @@ namespace occult {
     elf::generate_binary(binary_name, final_code, final_code.size() * 2, entry_addr);
   }
 }
+*/

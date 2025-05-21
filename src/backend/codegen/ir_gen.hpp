@@ -15,6 +15,16 @@ namespace occult {
     op_mod,
     op_sub,
     op_mul,
+    op_logical_and,
+    op_logical_or,
+    op_bitwise_and,
+    op_bitwise_or,
+    op_bitwise_xor,
+    op_bitwise_not,
+    op_not,
+    op_bitwise_lshift,
+    op_bitwise_rshift,
+    op_negate,
     op_jmp,
     op_jz,//je
     op_jnz,//jne

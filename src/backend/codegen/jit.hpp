@@ -1,6 +1,6 @@
 #pragma once
 #include "ir_gen.hpp"
-#include "x64writer.hpp"
+/*#include "x64writer.hpp"
 #include <map>
 
 namespace occult {  
@@ -148,3 +148,4 @@ namespace occult {
     std::map<std::string, std::vector<std::uint8_t>> function_raw_code_map;
   };
 } // namespace occult
+*/

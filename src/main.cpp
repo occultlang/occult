@@ -2,7 +2,6 @@
 #include "parser/cst.hpp"
 #include "parser/parser.hpp"
 #include "backend/codegen/ir_gen.hpp"
-#include "backend/codegen/x64writer.hpp"
 #include "backend/codegen/jit.hpp"
 #include "backend/codegen/x86_64_writer.hpp"
 
@@ -124,7 +123,24 @@ int main(int argc, char* argv[]) {
     ir_gen.visualize(ir);
   }
 
-  start = std::chrono::high_resolution_clock::now();
+  using namespace occult::x86_64;
+  
+  x86_64_writer add_writer;
+  using add_t = int(*)(int, int);
+
+  add_writer.emit_push(rbp);
+  add_writer.emit_mov(rbp, rsp);
+  add_writer.emit_add(rdi, rsi);
+  add_writer.emit_mov(rax, rdi);
+  add_writer.emit_mov(rsp, rbp);
+  add_writer.emit_pop(rbp);
+  add_writer.emit_ret();
+  
+  auto add = reinterpret_cast<add_t>(add_writer.setup_function()); 
+  
+  std::cout << add(123, 123) << std::endl;
+
+  /*start = std::chrono::high_resolution_clock::now();
   occult::jit_runtime jit_runtime(ir, debug, jit);
   jit_runtime.convert_ir();
   end = std::chrono::high_resolution_clock::now();
@@ -132,17 +148,17 @@ int main(int argc, char* argv[]) {
   if (showtime) {
     std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m" << duration.count() << "ms\n";
   }
-  /*if (debug) {
+  if (debug) {
     for (const auto& pair : jit_runtime.function_map) {
       std::cout << pair.first << std::endl;
       std::cout << "0x" << std::hex << reinterpret_ccst<std::int64_t>(&pair.second) << std::dec << std::endl;
     }
   }*/
   
-  using namespace occult::x86_64;
+  /*using namespace occult::x86_64;
 
   x86_64_writer writer;
-  /*writer.emit_add(rax, mem{rip, 0x1000}); // add rax, [rip + 0x1000]
+  writer.emit_add(rax, mem{rip, 0x1000}); // add rax, [rip + 0x1000]
   writer.emit_add(mem{rsp, rdx, 0}, rcx); // add [rsp + rdx * 1], rcx
   writer.emit_add(rcx, mem{rsp, rdx, 0, 0x1000}); // add rcx, [rsp + rdx * 1 + 0x1000]
   writer.emit_add(mem{rsp}, 10); // add [rsp], 10
@@ -156,7 +172,7 @@ int main(int argc, char* argv[]) {
   writer.emit_imul(rax, rbx, 0x2000); // imul rax, rbx, 0x2000
   writer.emit_or(rcx, 0x10); // or rcx, 0x10*/
   //writer.emit_pop(mem{rcx});
-  writer.emit_rol(rcx, 10);
+  /*writer.emit_rol(rcx, 10);
   writer.emit_ror(rcx, 10);
   writer.emit_rcl(rcx, 10);
   writer.emit_rcr(rcx, 10);
@@ -193,7 +209,7 @@ int main(int argc, char* argv[]) {
 #ifdef __linux
     chmod(filenameout.c_str(), S_IRWXU);
 #endif
-  }
+  }*/
   
   return 0;
 }

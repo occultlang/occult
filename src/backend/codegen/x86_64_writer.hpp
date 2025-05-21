@@ -78,10 +78,7 @@ namespace occult {
 
         template<typename T>
         concept IsUnsignedImm = std::is_integral_v<T> && std::is_unsigned_v<T>;
-
-        template<typename T>
-        concept IsRel8 = IsUnsignedImm<T> && sizeof(T) == 1;
-
+        
         template<typename T>
         concept IsSignedImm8 = IsSignedImm<T> && sizeof(T) == 1;
 
@@ -95,13 +92,15 @@ namespace occult {
 #define UNSIGNED_IMM_TO_REG_ARG const IsGrp auto& dest, const IsUnsignedImm auto& imm
 #define SIGNED_IMM_TO_MEM_ARG const IsMem auto& dest, const IsSignedImm auto& imm
 #define UNSIGNED_IMM_TO_MEM_ARG const IsMem auto& dest, const IsUnsignedImm auto& imm
-#define REG_ARG const IsGrp auto& reg
+#define REG_ARG const IsGrp auto& _reg
 #define SIGNED_IMM_ARG const IsSignedImm auto& imm
 #define UNSIGNED_IMM_ARG const IsUnsignedImm auto& imm
-#define REL8_ARG const IsRel8 auto& target_address
+#define REL8_ARG const std::uint8_t& target_address
 #define MEM_ARG const IsMem auto& m
+#define REL32_ARG const std::uint32_t& target_address
 
         class x86_64_writer : public writer {  
+        private:
             enum class imm_mode : std::uint8_t {
                 do_8,
                 no_64,
@@ -136,8 +135,8 @@ namespace occult {
             }
 
             void emit_reg_to_reg(const opcode& op8, const opcode& op, const grp& dest, const grp& base) { 
-                if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, spl) || 
-                    REG_RANGE(base, r8b, r15b) || REG_RANGE(base, al, spl)) {
+                if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, dil) || 
+                    REG_RANGE(base, r8b, r15b) || REG_RANGE(base, al, dil)) {
                     if (REG_RANGE(dest, r8b, r15b) && REG_RANGE(base, r8b, r15b)) {
                         push_byte(rex_rb);
                     }
@@ -151,8 +150,8 @@ namespace occult {
                     push_byte(op8);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rebase_register(base)));
                 }
-                else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, sp) || 
-                         REG_RANGE(base, r8w, r15w) || REG_RANGE(base, ax, sp)) {
+                else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, di) || 
+                         REG_RANGE(base, r8w, r15w) || REG_RANGE(base, ax, di)) {
                     push_byte(other_prefix::operand_size_override); // 16-bit operand size
 
                     if (REG_RANGE(dest, r8w, r15w) && REG_RANGE(base, r8w, r15w)) {
@@ -168,8 +167,8 @@ namespace occult {
                     push_byte(op);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rebase_register(base)));
                 }
-                else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, esp) || 
-                         REG_RANGE(base, r8d, r15d) || REG_RANGE(base, eax, esp)) {
+                else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, edi) || 
+                         REG_RANGE(base, r8d, r15d) || REG_RANGE(base, eax, edi)) {
                     if (REG_RANGE(dest, r8d, r15d) && REG_RANGE(base, r8d, r15d)) {
                         push_byte(rex_rb);
                     }
@@ -183,8 +182,8 @@ namespace occult {
                     push_byte(op);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rebase_register(base)));
                 }
-                else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rsp) || 
-                         REG_RANGE(base, r8, r15) || REG_RANGE(base, rax, rsp)) {
+                else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rdi) || 
+                         REG_RANGE(base, r8, r15) || REG_RANGE(base, rax, rdi)) {
                     if (REG_RANGE(dest, r8, r15) && REG_RANGE(base, r8, r15)) {
                         push_byte(rex_wrb);
                     }
@@ -327,7 +326,7 @@ namespace occult {
             // this is for the opcodes which require "different modes?" 
             template<std::integral T> 
             void emit_reg_imm(const opcode& op8, const opcode& op, const grp& dest, const T& imm, const rm_field& rm, bool is_signed = true, imm_mode im_m = imm_mode::normal) {
-                if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, spl)) {
+                if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, dil)) {
                     if (REG_RANGE(dest, r8b, r15b)) {
                         push_byte(rex_b);
                     }
@@ -342,7 +341,7 @@ namespace occult {
                         emit_imm8<std::uint8_t>(imm);
                     }
                 }
-                else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, sp)) {
+                else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, di)) {
                     push_byte(other_prefix::operand_size_override); // 16-bit operand size
                     if (REG_RANGE(dest, r8w, r15w)) {
                         push_byte(rex_b);
@@ -368,7 +367,7 @@ namespace occult {
                         }
                     }
                 }
-                else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, esp)) {
+                else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, edi)) {
                     if (REG_RANGE(dest, r8d, r15d)) {
                         push_byte(rex_b);
                     }
@@ -393,7 +392,7 @@ namespace occult {
                         }
                     }
                 }
-                else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rsp) ) {
+                else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rdi) ) {
                     if (REG_RANGE(dest, r8, r15)) {
                         push_byte(rex_wb);
                     }
@@ -404,7 +403,7 @@ namespace occult {
                     push_byte(op);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rm));
                     
-                    if (im_m == imm_mode::normal) {
+                    if (im_m == imm_mode::no_64) {
                         if (is_signed) {
                             emit_imm32(imm);
                         }
@@ -420,7 +419,7 @@ namespace occult {
                             emit_imm8<std::uint8_t>(imm);
                         }
                     }
-                    else {
+                    else if (im_m == imm_mode::normal) {
                         if (is_signed) {
                             emit_imm64(imm);
                         }
@@ -434,7 +433,7 @@ namespace occult {
             // uses OP + REG & prefixes for correct registers & requires no MOD/RM
             template<std::integral T> 
             void emit_reg_imm_basic(const opcode& op8, const opcode& op, const grp& dest, const T& imm, bool is_signed = true) { 
-                if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, spl)) {
+                if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, dil)) {
                     if (REG_RANGE(dest, r8b, r15b)) {
                         push_byte(rex_b);
                     }
@@ -448,7 +447,7 @@ namespace occult {
                         emit_imm8<std::uint8_t>(imm);
                     }
                 }
-                else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, sp)) {
+                else if (REG_RANGE(dest, r8w, r15w) || REG_RANGE(dest, ax, di)) {
                     push_byte(other_prefix::operand_size_override); // 16-bit operand size
                     if (REG_RANGE(dest, r8w, r15w)) {
                         push_byte(rex_b);
@@ -463,7 +462,7 @@ namespace occult {
                         emit_imm16<std::uint16_t>(imm);
                     }
                 }
-                else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, esp)) {
+                else if (REG_RANGE(dest, r8d, r15d) || REG_RANGE(dest, eax, edi)) {
                     if (REG_RANGE(dest, r8d, r15d)) {
                         push_byte(rex_b);
                     }
@@ -477,7 +476,7 @@ namespace occult {
                         emit_imm32<std::uint32_t>(imm);
                     }
                 }
-                else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rsp) ) {
+                else if (REG_RANGE(dest, r8, r15) || REG_RANGE(dest, rax, rdi) ) {
                     if (REG_RANGE(dest, r8, r15)) {
                         push_byte(rex_wb);
                     }
@@ -574,7 +573,7 @@ namespace occult {
             }
             
             void emit_reg(const opcode& op8, const opcode& op, const grp& r) {
-                if (REG_RANGE(r, r8b, r15b) || REG_RANGE(r, al, spl)) {
+                if (REG_RANGE(r, r8b, r15b) || REG_RANGE(r, al, dil)) {
                     if (REG_RANGE(r10b, r8b, r15b)) {
                         push_byte(rex_rb);
                     }
@@ -584,7 +583,7 @@ namespace occult {
 
                     push_byte(static_cast<std::uint8_t>(op8) + static_cast<std::uint8_t>(rebase_register(r)));
                 }
-                else if (REG_RANGE(r, r8w, r15w) || REG_RANGE(r, ax, sp)) {
+                else if (REG_RANGE(r, r8w, r15w) || REG_RANGE(r, ax, di)) {
                     push_byte(other_prefix::operand_size_override); // 16-bit operand size
 
                     if (REG_RANGE(r, r8w, r15w)) {
@@ -596,7 +595,7 @@ namespace occult {
 
                     push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(r)));
                 }
-                else if (REG_RANGE(r, r8d, r15d) || REG_RANGE(r, eax, esp)) {
+                else if (REG_RANGE(r, r8d, r15d) || REG_RANGE(r, eax, edi)) {
                     if (REG_RANGE(r, r8d, r15d)) {
                         push_byte(rex_rb);
                     }
@@ -606,7 +605,7 @@ namespace occult {
 
                     push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(r)));
                 }
-                else if (REG_RANGE(r, r8, r15) || REG_RANGE(r, rax, rsp)) {
+                else if (REG_RANGE(r, r8, r15) || REG_RANGE(r, rax, rdi)) {
                     if (REG_RANGE(r, r8, r15)) {
                         push_byte(rex_wrb);
                     }
@@ -629,6 +628,22 @@ namespace occult {
                 push_byte(rel8);
             }
 
+            void emit_near_jump(std::uint8_t opcode, std::uint32_t target_address) {
+                std::uint32_t current_address = get_code().size();
+                std::int32_t rel32 = target_address - (current_address + 6);
+                
+                push_bytes({k2ByteOpcodePrefix, opcode});
+                emit_imm32<std::uint32_t>(rel32);
+            }
+
+            void emit_long_jump(std::uint8_t opcode, std::uint32_t target_address) {
+                std::uint32_t current_address = get_code().size();
+                std::int32_t rel32 = target_address - (current_address + 5);
+                
+                push_bytes({opcode});
+                emit_imm32<std::uint32_t>(rel32);
+            }
+
             template<typename T, typename T2>
             void assert_imm_size(const T2&) {
                 if (sizeof(T2) == sizeof(T)) {
@@ -645,7 +660,7 @@ namespace occult {
 
             // tbf i should use macros for this, but i can do that another time
             void emit_add(REG_TO_REG_ARG) { 
-                emit_reg_to_reg(opcode::ADD_r8_rm8, opcode::ADD_r16_to_64_rm16_to_64, dest, base);
+                emit_reg_to_reg(opcode::ADD_r8_rm8, opcode::ADD_r16_to_64_rm16_to_64, base, dest);
             }
 
             void emit_add(REG_TO_MEM_ARG) {     
@@ -657,7 +672,7 @@ namespace occult {
             }
             
             void emit_or(REG_TO_REG_ARG) { 
-                emit_reg_to_reg(opcode::OR_r8_rm8, opcode::OR_r16_to_64_rm16_to_64, dest, base);
+                emit_reg_to_reg(opcode::OR_r8_rm8, opcode::OR_r16_to_64_rm16_to_64, base, dest);
             }
 
             void emit_or(REG_TO_MEM_ARG) {     
@@ -669,7 +684,7 @@ namespace occult {
             }
 
             void emit_adc(REG_TO_REG_ARG) { 
-                emit_reg_to_reg(opcode::ADC_r8_rm8, opcode::ADC_r16_to_64_rm16_to_64, dest, base);
+                emit_reg_to_reg(opcode::ADC_r8_rm8, opcode::ADC_r16_to_64_rm16_to_64, base, dest);
             }
 
             void emit_adc(REG_TO_MEM_ARG) {     
@@ -681,7 +696,7 @@ namespace occult {
             }
 
             void emit_sbb(REG_TO_REG_ARG) { 
-                emit_reg_to_reg(opcode::SBB_r8_rm8, opcode::SBB_r16_to_64_rm16_to_64, dest, base);
+                emit_reg_to_reg(opcode::SBB_r8_rm8, opcode::SBB_r16_to_64_rm16_to_64, base, dest);
             }
 
             void emit_sbb(REG_TO_MEM_ARG) {     
@@ -693,7 +708,7 @@ namespace occult {
             }
 
             void emit_and(REG_TO_REG_ARG) { 
-                emit_reg_to_reg(opcode::AND_r8_rm8, opcode::AND_r16_to_64_rm16_to_64, dest, base);
+                emit_reg_to_reg(opcode::AND_r8_rm8, opcode::AND_r16_to_64_rm16_to_64, base, dest);
             }
 
             void emit_and(REG_TO_MEM_ARG) {     
@@ -705,7 +720,7 @@ namespace occult {
             }
 
             void emit_sub(REG_TO_REG_ARG) { 
-                emit_reg_to_reg(opcode::SUB_r8_rm8, opcode::SUB_r16_to_64_rm16_to_64, dest, base);
+                emit_reg_to_reg(opcode::SUB_r8_rm8, opcode::SUB_r16_to_64_rm16_to_64, base, dest);
             }
 
             void emit_sub(REG_TO_MEM_ARG) {     
@@ -717,7 +732,7 @@ namespace occult {
             }
             
             void emit_xor(REG_TO_REG_ARG) { 
-                emit_reg_to_reg(opcode::XOR_r8_rm8, opcode::XOR_r16_to_64_rm16_to_64, dest, base);
+                emit_reg_to_reg(opcode::XOR_r8_rm8, opcode::XOR_r16_to_64_rm16_to_64, base, dest);
             }
 
             void emit_xor(REG_TO_MEM_ARG) {     
@@ -729,7 +744,7 @@ namespace occult {
             }
 
             void emit_cmp(REG_TO_REG_ARG) { 
-                emit_reg_to_reg(opcode::CMP_r8_rm8, opcode::CMP_r16_to_64_rm16_to_64, dest, base);
+                emit_reg_to_reg(opcode::CMP_r8_rm8, opcode::CMP_r16_to_64_rm16_to_64, base, dest);
             }
 
             void emit_cmp(REG_TO_MEM_ARG) {     
@@ -741,11 +756,11 @@ namespace occult {
             }
 
             void emit_push(REG_ARG) {
-                emit_reg(opcode::PUSH_r64_or_16, opcode::PUSH_r64_or_16, reg);
+                emit_reg(opcode::PUSH_r64_or_16, opcode::PUSH_r64_or_16, _reg);
             }
 
             void emit_pop(REG_ARG) {
-                emit_reg(opcode::POP_r64_or_16, opcode::POP_r64_or_16, reg);
+                emit_reg(opcode::POP_r64_or_16, opcode::POP_r64_or_16, _reg);
             }
 
             void emit_push(SIGNED_IMM_ARG) {
@@ -804,67 +819,67 @@ namespace occult {
                 emit_mem_imm(opcode::IMUL_r16_to_64_rm16_to_64_imm8, opcode::IMUL_r16_to_64_rm16_to_64_imm16_to_32, base, imm, static_cast<rm_field>(dest), false, imm_mode::no_64);
             }
             
-            void emit_jo(REL8_ARG) {
+            void emit_jo_short(REL8_ARG) {
                 emit_short_jump(opcode::JO_rel8, target_address);
             }
             
-            void emit_jno(REL8_ARG) {
+            void emit_jno_short(REL8_ARG) {
                 emit_short_jump(opcode::JNO_rel8, target_address);
             }
             
-            void emit_jb(REL8_ARG) {
+            void emit_jb_short(REL8_ARG) {
                 emit_short_jump(opcode::JB_rel8, target_address);
             }
             
-            void emit_jnb(REL8_ARG) {
+            void emit_jnb_short(REL8_ARG) {
                 emit_short_jump(opcode::JNB_rel8, target_address);
             }
             
-            void emit_jz(REL8_ARG) {
+            void emit_jz_short(REL8_ARG) {
                 emit_short_jump(opcode::JZ_rel8, target_address);
             }
             
-            void emit_jnz(REL8_ARG) {
+            void emit_jnz_short(REL8_ARG) {
                 emit_short_jump(opcode::JNZ_rel8, target_address);
             }
             
-            void emit_jbe(REL8_ARG) {
+            void emit_jbe_short(REL8_ARG) {
                 emit_short_jump(opcode::JBE_rel8, target_address);
             }
             
-            void emit_jnbe(REL8_ARG) {
+            void emit_jnbe_short(REL8_ARG) {
                 emit_short_jump(opcode::JNBE_rel8, target_address);
             }
             
-            void emit_js(REL8_ARG) {
+            void emit_js_short(REL8_ARG) {
                 emit_short_jump(opcode::JS_rel8, target_address);
             }
             
-            void emit_jns(REL8_ARG) {
+            void emit_jns_short(REL8_ARG) {
                 emit_short_jump(opcode::JNS_rel8, target_address);
             }
             
-            void emit_jp(REL8_ARG) {
+            void emit_jp_short(REL8_ARG) {
                 emit_short_jump(opcode::JP_rel8, target_address);
             }
             
-            void emit_jnp(REL8_ARG) {
+            void emit_jnp_short(REL8_ARG) {
                 emit_short_jump(opcode::JNP_rel8, target_address);
             }
             
-            void emit_jl(REL8_ARG) {
+            void emit_jl_short(REL8_ARG) {
                 emit_short_jump(opcode::JL_rel8, target_address);
             }
             
-            void emit_jnl(REL8_ARG) {
+            void emit_jnl_short(REL8_ARG) {
                 emit_short_jump(opcode::JNL_rel8, target_address);
             }
             
-            void emit_jle(REL8_ARG) {
+            void emit_jle_short(REL8_ARG) {
                 emit_short_jump(opcode::JLE_rel8, target_address);
             }
             
-            void emit_jnle(REL8_ARG) {
+            void emit_jnle_short(REL8_ARG) {
                 emit_short_jump(opcode::JNLE_rel8, target_address);
             }
 
@@ -1075,9 +1090,8 @@ namespace occult {
                 emit_reg_to_mem(opcode::LEA_r16_to_64_mem, opcode::LEA_r16_to_64_mem, base, dest);
             }
 
-            template<typename = void>
-            void emit_pop(MEM_ARG) { // 0x8F, this might need its own function. pop [mem]
-                static_assert([]{ return false; }(), "emit_pop is not yet implemented");
+            void emit_pop(MEM_ARG) { 
+                emit_reg_to_mem(opcode::POP_rm16_to_64, opcode::POP_rm16_to_64, m, static_cast<grp>(0));
             }
 
             void emit_nop() {
@@ -1182,6 +1196,191 @@ namespace occult {
             void emit_mov(UNSIGNED_IMM_TO_MEM_ARG) {
                 assert_imm_size<std::uint64_t>(imm);
                 emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false, true, imm_mode::no_64);
+            }
+
+            void emit_test(SIGNED_IMM_TO_REG_ARG) { // i think the rm_field could also be 0 for TEST
+                assert_imm_size<std::int64_t>(imm);
+                emit_reg_imm(opcode::TEST_rm8_imm8, opcode::TEST_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(1), true, imm_mode::no_64);
+            }
+
+            void emit_test(UNSIGNED_IMM_TO_REG_ARG) { 
+                assert_imm_size<std::uint64_t>(imm);
+                emit_reg_imm(opcode::TEST_rm8_imm8, opcode::TEST_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(1), false, imm_mode::no_64);
+            }
+
+            void emit_test(SIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::int64_t>(imm);
+                emit_mem_imm(opcode::TEST_rm8_imm8, opcode::TEST_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(1), true, imm_mode::no_64);
+            }
+
+            void emit_test(UNSIGNED_IMM_TO_MEM_ARG) {
+                assert_imm_size<std::uint64_t>(imm);
+                emit_mem_imm(opcode::TEST_rm8_imm8, opcode::TEST_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(1), false, imm_mode::no_64);
+            }
+
+            void emit_not(REG_ARG) { 
+                emit_reg_to_reg(opcode::NOT_rm8, opcode::NOT_rm16_to_64, _reg, static_cast<grp>(2)); // 2 is which operation
+            }
+
+            void emit_not(MEM_ARG) {
+                emit_reg_to_mem(opcode::NOT_rm8, opcode::NOT_rm16_to_64, m, static_cast<grp>(2));
+            }
+
+            void emit_neg(REG_ARG) { 
+                emit_reg_to_reg(opcode::NOT_rm8, opcode::NOT_rm16_to_64, _reg, static_cast<grp>(3)); // 2 is which operation
+            }
+
+            void emit_neg(MEM_ARG) {
+                emit_reg_to_mem(opcode::NOT_rm8, opcode::NOT_rm16_to_64, m, static_cast<grp>(3));
+            }
+
+            void emit_mul(REG_ARG) {
+                emit_reg_to_reg(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, _reg, static_cast<grp>(4)); 
+            }
+
+            void emit_mul(MEM_ARG) {
+                emit_reg_to_mem(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, m, static_cast<grp>(4));
+            }
+
+            void emit_imul(REG_ARG) {
+                emit_reg_to_reg(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, _reg, static_cast<grp>(5)); 
+            }
+
+            void emit_imul(MEM_ARG) {
+                emit_reg_to_mem(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, m, static_cast<grp>(5));
+            }
+
+            void emit_div(REG_ARG) {
+                emit_reg_to_reg(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, _reg, static_cast<grp>(6)); 
+            }
+
+            void emit_div(MEM_ARG) {
+                emit_reg_to_mem(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, m, static_cast<grp>(6));
+            }
+
+            void emit_idiv(REG_ARG) {
+                emit_reg_to_reg(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, _reg, static_cast<grp>(7)); 
+            }
+
+            void emit_idiv(MEM_ARG) {
+                emit_reg_to_mem(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, m, static_cast<grp>(7));
+            }
+
+            void emit_inc(REG_ARG) {
+                emit_reg_to_reg(opcode::INC_rm8, opcode::INC_rm16_to_64, _reg, static_cast<grp>(0));
+            }
+
+            void emit_inc(MEM_ARG) {
+                emit_reg_to_mem(opcode::INC_rm8, opcode::INC_rm16_to_64, m, static_cast<grp>(0));
+            }
+
+            void emit_dec(REG_ARG) {
+                emit_reg_to_reg(opcode::DEC_rm8, opcode::INC_rm16_to_64, _reg, static_cast<grp>(1));
+            }
+
+            void emit_dec(MEM_ARG) {
+                emit_reg_to_mem(opcode::DEC_rm8, opcode::INC_rm16_to_64, m, static_cast<grp>(1));
+            }
+
+            void emit_call(REG_ARG) { // we will not support 64
+                emit_reg_to_reg(opcode::CALL_rm16_or_32, opcode::CALL_rm16_or_32, _reg, static_cast<grp>(2));
+            }
+
+            void emit_call(MEM_ARG) {
+                emit_reg_to_mem(opcode::CALL_rm16_or_32, opcode::CALL_rm16_or_32, m, static_cast<grp>(2));
+            }
+
+            void emit_jmp(REG_ARG) { 
+                emit_reg_to_reg(opcode::JMP_rm16_or_32, opcode::JMP_rm16_or_32, _reg, static_cast<grp>(4));
+            }
+
+            void emit_jmp(MEM_ARG) {
+                emit_reg_to_mem(opcode::JMP_rm16_or_32, opcode::JMP_rm16_or_32, m, static_cast<grp>(4));
+            }
+
+            void emit_push(MEM_ARG) {
+                emit_reg_to_mem(opcode::PUSH_rm16_or_32, opcode::PUSH_rm16_or_32, m, static_cast<grp>(6));
+            }
+
+            void emit_syscall() {
+                push_byte(k2ByteOpcodePrefix);
+                push_byte(opcode_2b::SYSCALL);
+            }
+
+            void emit_jo_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JO_rel32, target_address);
+            }
+            
+            void emit_jno_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JNO_rel32, target_address);
+            }
+            
+            void emit_jb_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JB_rel32, target_address);
+            }
+            
+            void emit_jnb_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JNB_rel32, target_address);
+            }
+            
+            void emit_jz_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JZ_rel32, target_address);
+            }
+            
+            void emit_jnz_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JNZ_rel32, target_address);
+            }
+            
+            void emit_jbe_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JBE_rel32, target_address);
+            }
+            
+            void emit_jnbe_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JNBE_rel32, target_address);
+            }
+            
+            void emit_js_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JS_rel32, target_address);
+            }
+            
+            void emit_jns_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JNS_rel32, target_address);
+            }
+            
+            void emit_jp_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JP_rel32, target_address);
+            }
+            
+            void emit_jnp_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JNP_rel32, target_address);
+            }
+            
+            void emit_jl_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JL_rel32, target_address);
+            }
+            
+            void emit_jnl_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JNL_rel32, target_address);
+            }
+            
+            void emit_jle_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JLE_rel32, target_address);
+            }
+            
+            void emit_jnle_near(REL32_ARG) {
+                emit_near_jump(opcode_2b::JNLE_rel32, target_address);
+            }
+
+            void emit_call(REL32_ARG) {
+                emit_long_jump(opcode::CALL_rel32, target_address);
+            }
+
+            void emit_jmp_near(REL32_ARG) {
+                emit_long_jump(opcode::JMP_rel32, target_address);
+            }
+
+            void emit_jmp_short(REL8_ARG) {
+                emit_short_jump(opcode::JMP_rel8, target_address);
             }
         };
     }

@@ -3,7 +3,7 @@
 
 // variables buggy with for loop (vars initialized before the for) 
 // TODO: change sizes of variables in IR and make x64writer more verbose
-
+/*
 namespace occult {
   void jit_runtime::convert_ir() {
     for (auto& func : ir_funcs) {
@@ -431,3 +431,4 @@ namespace occult {
     }
   }
 } // namespace occult
+*/

@@ -143,7 +143,7 @@ namespace occult {
           break;
         }
         case cst_type::functioncall: {
-         generate_function_call(function, c.get());
+          generate_function_call(function, c.get());
           
           break;
         }
