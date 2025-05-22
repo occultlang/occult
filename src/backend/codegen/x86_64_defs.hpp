@@ -501,6 +501,8 @@ namespace occult {
             DECLARE_OPCODE(JNL_rel32, 0x8D) // JNL rel16/32
             DECLARE_OPCODE(JLE_rel32, 0x8E) // JLE rel16/32
             DECLARE_OPCODE(JNLE_rel32, 0x8F) // JNLE rel16/32
+
+            // seto to setnle here
         };
 
         // these require the k2ByteOpcodePrefix (0x0F) naming is the same

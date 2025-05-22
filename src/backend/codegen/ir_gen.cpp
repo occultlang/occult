@@ -84,30 +84,48 @@ namespace occult {
         break;
       }
       case cst_type::bitwise_and: {
+        function.code.emplace_back(op_bitwise_and);
+
         break;
       }
       case cst_type::bitwise_or: {
+        function.code.emplace_back(op_bitwise_or);
+
         break;
       }
       case cst_type::xor_operator: {
+        function.code.emplace_back(op_bitwise_xor);
+
         break;
       }
       case cst_type::bitwise_lshift: {
+        function.code.emplace_back(op_bitwise_lshift);
+
         break;
       }
       case cst_type::bitwise_rshift: {
+        function.code.emplace_back(op_bitwise_rshift);
+
         break;
       }
       case cst_type::unary_plus_operator: {
+        function.code.emplace_back(op_negate);
+        function.code.emplace_back(op_negate); // hehe
+
         break;
       }
       case cst_type::unary_minus_operator: {
+        function.code.emplace_back(op_negate);
+
         break;
       }
       case cst_type::unary_bitwise_not: {
+        function.code.emplace_back(op_bitwise_not);
+
         break;
       }
       case cst_type::unary_not_operator: {
+        function.code.emplace_back(op_not);
         break;
       }
       default: {
@@ -148,27 +166,49 @@ namespace occult {
           break;
         }
         case cst_type::or_operator: {
+          function.code.emplace_back(op_logical_or);
+
           break;
         }
         case cst_type::and_operator: {
+          function.code.emplace_back(op_logical_and);
+
           break;
         }
         case cst_type::equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setz);
+          
           break;
         }
         case cst_type::not_equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setnz);
+         
           break;
         }
         case cst_type::greater_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setg);
+          
           break;
         }
         case cst_type::less_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setl);
+          
           break;
         }
         case cst_type::greater_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setge);
+          
           break;
         }
         case cst_type::less_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setle);
+          
           break;
         }
         default: {
@@ -285,27 +325,49 @@ namespace occult {
           break;
         }
         case cst_type::or_operator: {
+          function.code.emplace_back(op_logical_or);
+
           break;
         }
         case cst_type::and_operator: {
+          function.code.emplace_back(op_logical_and);
+
           break;
         }
         case cst_type::equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setz);
+          
           break;
         }
         case cst_type::not_equals_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setnz);
+         
           break;
         }
         case cst_type::greater_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setg);
+          
           break;
         }
         case cst_type::less_than_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setl);
+          
           break;
         }
         case cst_type::greater_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setge);
+          
           break;
         }
         case cst_type::less_than_or_equal_operator: {
+          function.code.emplace_back(op_cmp);
+          function.code.emplace_back(op_setle);
+          
           break;
         }
         default: {
@@ -342,9 +404,13 @@ namespace occult {
           break;
         }
         case cst_type::or_operator: {
+          function.code.emplace_back(op_logical_or);
+
           break;
         }
         case cst_type::and_operator: {
+          function.code.emplace_back(op_logical_and);
+
           break;
         }
         case cst_type::equals_operator: {
@@ -428,9 +494,13 @@ namespace occult {
               break;
             }
             case cst_type::or_operator: {
+              function.code.emplace_back(op_logical_or);
+              
               break;
             }
             case cst_type::and_operator: {
+              function.code.emplace_back(op_logical_and);
+
               break;
             }
             case cst_type::equals_operator: {
@@ -546,9 +616,13 @@ namespace occult {
           break;
         }
         case cst_type::or_operator: {
+          function.code.emplace_back(op_logical_or);
+              
           break;
         }
         case cst_type::and_operator: {
+          function.code.emplace_back(op_logical_and);
+
           break;
         }
         case cst_type::equals_operator: {
@@ -669,9 +743,13 @@ namespace occult {
           break;
         }
         case cst_type::or_operator: {
+          function.code.emplace_back(op_logical_or);
+              
           break;
         }
         case cst_type::and_operator: {
+          function.code.emplace_back(op_logical_and);
+
           break;
         }
         case cst_type::equals_operator: {

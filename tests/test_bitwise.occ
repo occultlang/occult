@@ -1,0 +1,11 @@
+fn test_b(i64 a, i64 b) bool {
+    return a == b;
+}
+
+fn main() i64 {
+    bool b = test_b(a, b);
+    bool b2 = 1 != 2;
+    i64 bitwise = 1 << 3;
+
+    return bitwise ^ bitwise;
+}

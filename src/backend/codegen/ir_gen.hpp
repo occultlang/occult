@@ -32,6 +32,12 @@ namespace occult {
     op_jle,
     op_jg,
     op_jge,
+    op_setz,
+    op_setnz,
+    op_setl,
+    op_setle,
+    op_setg,
+    op_setge,
     op_cmp,
     op_ret,
     op_call,
@@ -46,36 +52,52 @@ namespace occult {
   
   inline std::string opcode_to_string(ir_opcode op) {
     switch (op) {
-      case op_push:    return "op_push";
-      case op_pop:     return "op_pop";
-      case op_mod:     return "op_mod";
-      case op_store:   return "op_store";
-      case op_load:    return "op_load";
-      case op_add:     return "op_add";
-      case op_div:     return "op_div";
-      case op_sub:     return "op_sub";
-      case op_mul:     return "op_mul";
-      case op_fadd:    return "op_fadd";
-      case op_fdiv:    return "op_fdiv";
-      case op_fsub:    return "op_fsub";
-      case op_fmul:    return "op_fmul";
-      case op_fmod:    return "op_fmod";
-      case op_jmp:     return "op_jmp";
-      case op_jz:      return "op_jz";
-      case op_jnz:     return "op_jnz";
-      case op_jl:      return "op_jl";
-      case op_jle:     return "op_jle";
-      case op_jg:      return "op_jg";
-      case op_jge:     return "op_jge";
-      case op_cmp:     return "op_cmp";
-      case op_ret:     return "op_ret";
-      case op_call:    return "op_call";
-      case op_syscall: return "op_syscall"; 
-      case label:      return "label";
-      case op_loadf:   return "op_loadf";
-      case op_pushf:   return "op_pushf";
-      case op_storef:  return "op_storef";
-      default:         return "unknown_opcode";
+      case op_push:         return "op_push";
+      case op_pushf:        return "op_pushf";
+      case op_pop:          return "op_pop";
+      case op_store:        return "op_store";
+      case op_load:         return "op_load";
+      case op_storef:       return "op_storef";
+      case op_loadf:        return "op_loadf";
+      case op_add:          return "op_add";
+      case op_div:          return "op_div";
+      case op_mod:          return "op_mod";
+      case op_sub:          return "op_sub";
+      case op_mul:          return "op_mul";
+      case op_logical_and:  return "op_logical_and";
+      case op_logical_or:   return "op_logical_or";
+      case op_bitwise_and:  return "op_bitwise_and";
+      case op_bitwise_or:   return "op_bitwise_or";
+      case op_bitwise_xor:  return "op_bitwise_xor";
+      case op_bitwise_not:  return "op_bitwise_not";
+      case op_not:          return "op_not";
+      case op_bitwise_lshift: return "op_bitwise_lshift";
+      case op_bitwise_rshift: return "op_bitwise_rshift";
+      case op_negate:       return "op_negate";
+      case op_jmp:          return "op_jmp";
+      case op_jz:           return "op_jz";
+      case op_jnz:          return "op_jnz";
+      case op_jl:           return "op_jl";
+      case op_jle:          return "op_jle";
+      case op_jg:           return "op_jg";
+      case op_jge:          return "op_jge";
+      case op_setz:         return "op_setz";
+      case op_setnz:        return "op_setnz";
+      case op_setl:         return "op_setl";
+      case op_setle:        return "op_setle";
+      case op_setg:         return "op_setg";
+      case op_setge:        return "op_setge";
+      case op_cmp:          return "op_cmp";
+      case op_ret:          return "op_ret";
+      case op_call:         return "op_call";
+      case op_syscall:      return "op_syscall";
+      case op_fadd:         return "op_fadd";
+      case op_fdiv:         return "op_fdiv";
+      case op_fsub:         return "op_fsub";
+      case op_fmul:         return "op_fmul";
+      case op_fmod:         return "op_fmod";
+      case label:           return "label";
+      default:              return "unknown_opcode";
     }
   }
   
