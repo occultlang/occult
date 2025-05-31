@@ -8,8 +8,9 @@ namespace occult {
       mutable std::string expected;
       token_t tk;
       int curr_pos;
+      const char* func_name;
   public:
-      explicit parsing_error(const std::string &expected, token_t tk, int curr_pos) : std::runtime_error("[PARSE ERROR] "), expected(expected), tk(tk), curr_pos(curr_pos) {}
+      explicit parsing_error(const std::string &expected, token_t tk, int curr_pos, const char* func_name) : std::runtime_error("[PARSE ERROR] "), expected(expected), tk(tk), curr_pos(curr_pos), func_name(func_name) {}
       virtual const char *what() const noexcept override;
       token_t get_token() const noexcept { return tk; }
       std::string get_expected() const noexcept { return expected; }

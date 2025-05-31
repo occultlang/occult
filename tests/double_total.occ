@@ -1,6 +1,6 @@
 /*include "../tests/add.occ" // goes based on the path of the compilers binary which might not be good...
 
-fn double_total(i64 arg) i64 {
+/*fn double_total(i64 arg) i64 {
   i64 total = 0;
   for i64 i = 0 when i <= arg do i = i + 1 {
     total = i + total;
@@ -10,11 +10,26 @@ fn double_total(i64 arg) i64 {
   return total;
 }*/
 
+fn test_ptr() i64 {
+  i64* p = 0xDEADBEEF;
+  *p = 1;
+
+  return 0;
+}
+
 fn main() i64 {
   array[4] i64 test_array = {1, 2, 3, 4};
-  bbbbbb[aaaaa[0]] = call();
-  test(t[a[1]]);
-  i64 aaa = 123;
+  array[2][2] i64 test_array2 = {{1, 2}, {3, 4}};
+  array[3][4] i64 test_array3;
+  array[2] i64 test_array4 = {1, 2};
+  
+  access_test[1] = 123;
+  access_test2d[1][2] = 10;
+  access_test3d[1][2][3] = 11;
+
+  //bbbbbb[aaaaa[0]] = call();
+  //test(t[a[1]]);
+  /*i64 aaa = 123;
   i64* test_address2 = &aaa;
   i64 aaafffffffffff = *test_address2 * 30; // when doing IR we will have to check if it is a reference or dereference
   /*return add(double_total(10), double_total(10));*/

@@ -15,6 +15,9 @@ namespace occult {
     message += " (";
     message += std::to_string(curr_pos);
     message += ")";
+    message += " in parsing function \"";
+    message += func_name;
+    message += "\"";
 
     return message.c_str();
   }

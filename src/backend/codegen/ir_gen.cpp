@@ -9,6 +9,8 @@
 
 // use string(s) to determine the current exit, entry, etc labels
 
+// add other cases to array declaration for types
+
 namespace occult {
   ir_function ir_gen::generate_function(cst_function* func_node) {
     ir_function function;
@@ -807,7 +809,120 @@ namespace occult {
     
     place_label(function, B1);
   }
-  
+
+  void ir_gen::generate_array_decl(ir_function& function, cst_array* array_node) { /* maybe we need some metadata for the actual location in the CST to make it easier to map it to proper codegen...? */
+    auto type = array_node->get_children().front().get();
+    auto identifier = cst::cast_raw<cst_identifier>(type->get_children().front().get()); // name
+
+    function.code.emplace_back(op_array_decl, identifier->content);
+    function.code.emplace_back(op_decl_array_type,  type->to_string().substr(4, type->to_string().size()));
+
+    auto dimensions_count_node = cst::cast_raw<cst_dimensions_count>(array_node->get_children().at(1).get());
+    
+    std::vector<std::size_t> dimensions;
+    for (const auto& c : dimensions_count_node->get_children()) {
+      if (c->get_type() == cst_type::dimension) {
+        dimensions.push_back(from_numerical_string<std::size_t>(c->content));
+      }
+    }
+
+    function.code.emplace_back(op_array_dimensions, std::to_string(dimensions.size()));
+
+    for (const auto& dim : dimensions) {
+      function.code.emplace_back(op_array_size, std::to_string(dim));
+    }
+
+    if (dimensions.size() > 1) {
+      auto first_array_node = cst::cast_raw<cst_arraybody>(array_node->get_children().back().get()); 
+
+      if (first_array_node == nullptr) {
+        return;
+      }
+      
+      for (std::size_t i = 0; i < dimensions.size(); ++i) { 
+        for (std::size_t j = 0; j < dimensions[i]; ++j) {
+          auto array_node = first_array_node->get_children().at(j).get();
+          
+          if (array_node->get_type() == cst_type::arraybody) {
+            auto element = cst::cast_raw<cst_arrayelement>(array_node->get_children().at(j).get());
+
+            for (const auto& c : element->get_children()) {
+              switch(c->get_type()) { /* ADD OTHER TYPES AND CASES TO THIS */
+                case cst_type::number_literal: {
+                  handle_push_types(function, c.get());
+
+                  break;
+                }
+                default: {
+                  break;
+                }
+              }
+            }
+
+            function.code.emplace_back(op_array_store_element, identifier->content);
+          }
+        }
+      }
+    }    
+    else if (dimensions.size() == 1) {
+      auto first_array_node = cst::cast_raw<cst_arraybody>(array_node->get_children().back().get());
+
+      if (first_array_node == nullptr) {
+        return;
+      }
+
+      for (std::size_t i = 0; i < dimensions.front(); ++i) {
+      
+        auto element = cst::cast_raw<cst_arrayelement>(first_array_node->get_children().at(i).get());
+
+        for (const auto& c : element->get_children()) {
+          switch(c->get_type()) { /* ADD OTHER TYPES AND CASES TO THIS */
+            case cst_type::number_literal: {
+              handle_push_types(function, c.get());
+
+              break;
+            }
+            default: {
+              break;
+            }
+          }
+        }
+
+        function.code.emplace_back(op_array_store_element, identifier->content);
+      }
+    }
+  }
+
+  void ir_gen::generate_array_access(ir_function& function, cst_arrayaccess* array_access_node) {
+    if (array_access_node->get_children().front()->get_type() == cst_type::identifier) { // 1-dimensional array access
+      auto identifier = cst::cast_raw<cst_identifier>(array_access_node->get_children().front().get());
+      auto index = cst::cast_raw<cst_numberliteral>(array_access_node->get_children().at(1).get());
+
+      if (array_access_node->get_children().back()->get_type() == cst_type::assignment) {
+        auto assignment = cst::cast_raw<cst_assignment>(array_access_node->get_children().back().get());
+
+        for (const auto& c : assignment->get_children()) {
+          switch(c->get_type()) { /* ADD OTHER TYPES AND CASES TO THIS */
+            case cst_type::number_literal: {
+              handle_push_types(function, c.get());
+
+              break;
+            }
+            default: {
+              break;
+            }
+          }
+        }
+        
+        function.code.emplace_back(op_declare_where_to_store, index->content);
+        function.code.emplace_back(op_array_store_element, identifier->content);
+      }
+    }
+    else if (array_access_node->get_children().at(1)->get_type() == cst_type::arrayaccess) { // 2d+
+      // need to implement this
+    }
+  }
+
   void ir_gen::generate_block(ir_function& function, cst_block* block_node, std::string current_break_label, std::string current_loop_start) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
@@ -874,6 +989,16 @@ namespace occult {
           
           function.code.emplace_back(op_store, identifier->content, c->to_string().substr(4, c->to_string().size()));
           
+          break;
+        }
+        case cst_type::array: {
+          generate_array_decl(function, cst::cast_raw<cst_array>(c.get()));
+
+          break;
+        }
+        case cst_type::arrayaccess: {
+          generate_array_access(function, cst::cast_raw<cst_arrayaccess>(c.get()));
+
           break;
         }
         case cst_type::identifier: {

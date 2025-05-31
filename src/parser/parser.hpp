@@ -4,6 +4,7 @@
 #include "error.hpp"
 
 #include <variant>
+#include <source_location>
 
 namespace occult {
   class parser {

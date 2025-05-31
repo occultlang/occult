@@ -321,11 +321,11 @@ namespace occult {
           if (is_unary_context(previous_token_type)) {
             if (token.tt == bitwise_and_tt) {
               token.tt = reference_operator_tt;
-              token.lexeme = "ptr_reference";
+              token.lexeme = "reference_operator"; // ptr reference
             } 
             else if (token.tt == multiply_operator_tt) {
               token.tt = dereference_operator_tt;
-              token.lexeme = "ptr_dereference";
+              token.lexeme = "dereference_operator"; // ptr dereference
             }
           }
         }

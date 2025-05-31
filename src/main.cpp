@@ -4,7 +4,7 @@
 #include "backend/codegen/ir_gen.hpp"
 #include "backend/codegen/jit.hpp"
 #include "backend/codegen/x86_64_writer.hpp"
-
+#include <source_location>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -122,8 +122,8 @@ int main(int argc, char* argv[]) {
   if (debug) {
     ir_gen.visualize(ir);
   }
-
-  using namespace occult::x86_64;
+  
+  /*using namespace occult::x86_64;
   
   x86_64_writer add_writer;
   using add_t = int(*)(int, int);
@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
   
   auto add = reinterpret_cast<add_t>(add_writer.setup_function()); 
   
-  std::cout << add(123, 123) << std::endl;
+  std::cout << add(123, 123) << std::endl;*/
 
   /*start = std::chrono::high_resolution_clock::now();
   occult::jit_runtime jit_runtime(ir, debug, jit);

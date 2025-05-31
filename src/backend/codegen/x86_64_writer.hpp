@@ -1068,7 +1068,7 @@ namespace occult {
             }
 
             void emit_mov(MEM_TO_REG_ARG) {
-                emit_reg_to_mem(opcode::MOV_rm8_r8, opcode::MOV_rm16_to_64_r16_to_64, base, dest);
+                emit_reg_to_mem(opcode::MOV_r8_rm8, opcode::MOV_r16_to_64_rm16_to_64, base, dest);
             }
 
             /*
