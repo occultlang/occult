@@ -118,6 +118,77 @@ namespace occult {
             return reg;
         }
 
+        static std::string reg_to_string(const grp& reg) {
+            switch (reg) {
+                case rax: return "rax";
+                case rcx: return "rcx";
+                case rdx: return "rdx";
+                case rbx: return "rbx";
+                case rsp: return "rsp";
+                case rbp: return "rbp";
+                case rsi: return "rsi";
+                case rdi: return "rdi";
+                case rip: return "rip";
+                case r8:  return "r8";
+                case r9:  return "r9";
+                case r10: return "r10";
+                case r11: return "r11";
+                case r12: return "r12";
+                case r13: return "r13";
+                case r14: return "r14";
+                case r15: return "r15";
+                case eax: return "eax";
+                case ecx: return "ecx";
+                case edx: return "edx";
+                case ebx: return "ebx";
+                case esp: return "esp";
+                case ebp: return "ebp";
+                case esi: return "esi";
+                case edi: return "edi";
+                case ax:  return "ax";
+                case cx:  return "cx";
+                case dx:  return "dx";
+                case bx:  return "bx";
+                case sp:  return "sp";
+                case bp:  return "bp";
+                case si:  return "si";
+                case di:  return "di";
+                case al:  return "al";
+                case cl:  return "cl";
+                case dl:  return "dl";
+                case bl:  return "bl";
+                case spl: return "spl";
+                case bpl: return "bpl";
+                case sil: return "sil";
+                case dil: return "dil";
+                case r8d: return "r8d";
+                case r9d: return "r9d";
+                case r10d: return "r10d";
+                case r11d: return "r11d";
+                case r12d: return "r12d";
+                case r13d: return "r13d";
+                case r14d: return "r14d";
+                case r15d: return "r15d";
+                case r8w: return "r8w";
+                case r9w: return "r9w";
+                case r10w: return "r10w";
+                case r11w: return "r11w";
+                case r12w: return "r12w";
+                case r13w: return "r13w";
+                case r14w: return "r14w";
+                case r15w: return "r15w";
+                case r8b: return "r8b";
+                case r9b: return "r9b";
+                case r10b: return "r10b";
+                case r11b: return "r11b";
+                case r12b: return "r12b";
+                case r13b: return "r13b";
+                case r14b: return "r14b";
+                case r15b: return "r15b";
+                default: return "unknown";
+            }
+        }
+
         // Mod R/M byte
         struct modrm {
             mod_field mod; // addressing mode 
@@ -502,7 +573,25 @@ namespace occult {
             DECLARE_OPCODE(JLE_rel32, 0x8E) // JLE rel16/32
             DECLARE_OPCODE(JNLE_rel32, 0x8F) // JNLE rel16/32
 
-            // seto to setnle here
+            DECLARE_OPCODE(SETO_rm8, 0x90) // SETO rm8
+            DECLARE_OPCODE(SETNO_rm8, 0x91) // SETNO rm8
+            DECLARE_OPCODE(SETB_rm8, 0x92)  // SETB rm8
+            DECLARE_OPCODE(SETNB_rm8, 0x93) // SETNB rm8
+            DECLARE_OPCODE(SETZ_rm8, 0x94) // SETZ rm8
+            DECLARE_OPCODE(SETNZ_rm8, 0x95) // SETNZ rm8
+            DECLARE_OPCODE(SETBE_rm8, 0x96) // SETBE rm8
+            DECLARE_OPCODE(SETNBE_rm8, 0x97) // SETNBE rm8
+            DECLARE_OPCODE(SETS_rm8, 0x99) // SETS rm8
+            DECLARE_OPCODE(SETNS_rm8, 0x99) // SETNS rm8
+            DECLARE_OPCODE(SETP_rm8, 0x9A) // SETP rm8
+            DECLARE_OPCODE(SETNP_rm8, 0x9B) // SETNP rm8
+            DECLARE_OPCODE(SETL_rm8, 0x9C) // SETL rm8
+            DECLARE_OPCODE(SETNL_rm8, 0x9D) // SETNL rm8
+            DECLARE_OPCODE(SETLE_rm8, 0x9E) // SETLE rm8
+            DECLARE_OPCODE(SETNLE_rm8, 0x9F) // SETNLE rm8
+
+            DECLARE_OPCODE(MOVZX_r16_to_64_rm8, 0xB6) // MOV r16_to_64, r/m8
+            DECLARE_OPCODE(MOVZX_r16_to_64_rm16, 0xB7) // MOV r16_to_64, r/m16
         };
 
         // these require the k2ByteOpcodePrefix (0x0F) naming is the same

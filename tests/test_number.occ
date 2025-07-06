@@ -1,10 +1,17 @@
-fn test() i8 {
+/*fn test() i8 {
   return 255;
-}
+}*/
 
 fn main() i64 {
-  f32 a = 3.14;
-  f64 a2 = 312.12312;
+  i64 a = 1 + 2 + 3;
+  i64 b = 4;
+
+  if a == b {
+    print("hi world");
+  }
+
+  //f32 a = 3.14;
+  //f64 a2 = 312.12312;
   
   // i64 a3 = 0x7fffffffffffffff;
   // i8 y = test();

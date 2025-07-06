@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(occult)
 # -O3 normally
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -std=c++23 -O0 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -std=c++23 -O0 -Wall -Wextra -g")
 
 add_executable(occultc
 ./src/lexer/lexer.hpp
@@ -20,7 +20,5 @@ add_executable(occultc
 ./src/backend/linker/linker.cpp
 ./src/backend/linker/linker.hpp
 ./src/backend/codegen/ir_gen.cpp
-./src/backend/codegen/ir_gen.hpp
-./src/backend/codegen/jit.cpp
-./src/backend/codegen/jit.hpp
+./src/backend/codegen/ir_gen.hpp 
 ./src/main.cpp)

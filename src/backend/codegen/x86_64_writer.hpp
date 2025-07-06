@@ -103,6 +103,7 @@ namespace occult {
         private:
             enum class imm_mode : std::uint8_t {
                 do_8,
+                do_16,
                 no_64,
                 normal,
             };
@@ -134,17 +135,22 @@ namespace occult {
                 emit_imm<IntType>(imm, 8);
             }
 
-            void emit_reg_to_reg(const opcode& op8, const opcode& op, const grp& dest, const grp& base) { 
+#define CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH if (is_2bOPC) { push_byte(k2ByteOpcodePrefix); }
+
+            void emit_reg_to_reg(const opcode& op8, const opcode& op, const grp& dest, const grp& base, bool is_2bOPC = false) { 
                 if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, dil) || 
                     REG_RANGE(base, r8b, r15b) || REG_RANGE(base, al, dil)) {
                     if (REG_RANGE(dest, r8b, r15b) && REG_RANGE(base, r8b, r15b)) {
                         push_byte(rex_rb);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else if (REG_RANGE(dest, r8b, r15b)) {
                         push_byte(rex_b);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else if (REG_RANGE(base, r8b, r15b)) {
                         push_byte(rex_r);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
 
                     push_byte(op8);
@@ -156,12 +162,15 @@ namespace occult {
 
                     if (REG_RANGE(dest, r8w, r15w) && REG_RANGE(base, r8w, r15w)) {
                         push_byte(rex_rb);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else if (REG_RANGE(dest, r8w, r15w)) {
                         push_byte(rex_b);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else if (REG_RANGE(base, r8w, r15w)) {
                         push_byte(rex_r);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
 
                     push_byte(op);
@@ -171,12 +180,15 @@ namespace occult {
                          REG_RANGE(base, r8d, r15d) || REG_RANGE(base, eax, edi)) {
                     if (REG_RANGE(dest, r8d, r15d) && REG_RANGE(base, r8d, r15d)) {
                         push_byte(rex_rb);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else if (REG_RANGE(dest, r8d, r15d)) {
                         push_byte(rex_b);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else if (REG_RANGE(base, r8d, r15d)) {
                         push_byte(rex_r);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
 
                     push_byte(op);
@@ -186,15 +198,19 @@ namespace occult {
                          REG_RANGE(base, r8, r15) || REG_RANGE(base, rax, rdi)) {
                     if (REG_RANGE(dest, r8, r15) && REG_RANGE(base, r8, r15)) {
                         push_byte(rex_wrb);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else if (REG_RANGE(dest, r8, r15)) {
                         push_byte(rex_wb);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else if (REG_RANGE(base, r8, r15)) {
                         push_byte(rex_wr);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
                     else {
                         push_byte(rex_w);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
 
                     push_byte(op);
@@ -202,119 +218,147 @@ namespace occult {
                 }
             }
 
-            void check_reg_r2m(const opcode& op8, const opcode& op, const mem& dest, const grp& base, bool is_rip = false) {
-                if (REG_RANGE(dest.reg, r8b, r15b) && REG_RANGE(base, r8b, r15b) && !is_rip) {
-                    push_byte(rex_rb);
+            void check_reg_r2m(const opcode& op8, const opcode& op, const mem& dest, const grp& base, bool is_rip = false, bool is_2bOPC = false) {
+                auto emit_2b = [&]() {
+                    if (is_2bOPC) push_byte(k2ByteOpcodePrefix);
+                };
+
+                const bool dest_r8b = REG_RANGE(dest.reg, r8b, r15b);
+                const bool base_r8b = REG_RANGE(base, r8b, r15b);
+                const bool dest_8 = REG_RANGE(dest.reg, al, dil);
+                const bool base_8 = REG_RANGE(base, al, dil);
+
+                const bool dest_r8w = REG_RANGE(dest.reg, r8w, r15w);
+                const bool base_r8w = REG_RANGE(base, r8w, r15w);
+                const bool dest_16 = REG_RANGE(dest.reg, ax, di);
+                const bool base_16 = REG_RANGE(base, ax, di);
+
+                const bool dest_r8d = REG_RANGE(dest.reg, r8d, r15d);
+                const bool base_r8d = REG_RANGE(base, r8d, r15d);
+                const bool dest_32 = REG_RANGE(dest.reg, eax, edi);
+                const bool base_32 = REG_RANGE(base, eax, edi);
+
+                const bool dest_r8q = REG_RANGE(dest.reg, r8, r15);
+                const bool base_r8q = REG_RANGE(base, r8, r15);
+                const bool dest_64 = REG_RANGE(dest.reg, rax, rdi);
+                const bool base_64 = REG_RANGE(base, rax, rdi);
+
+                // --- 8-bit registers (r8b-r15b, spl, bpl, sil, dil) ---
+                if ((dest_r8b || dest_8) || (base_r8b || base_8)) {
+                    bool needs_rex = false;
+                    uint8_t rex = 0x40; // REX prefix base
+
+                    if (dest_r8b || base_r8b) {
+                    needs_rex = true;
+                    if (dest_r8b) rex |= 0x01; // REX.B
+                    if (base_r8b) rex |= 0x04; // REX.R
+                    }
+
+                    // Special 8-bit registers (spl, bpl, sil, dil) always require REX
+                    if (dest.reg == spl || dest.reg == bpl || dest.reg == sil || dest.reg == dil ||
+                        base == spl || base == bpl || base == sil || base == dil) {
+                    needs_rex = true;
+                    }
+
+                    if (needs_rex) push_byte(rex);
+                    emit_2b();
                     push_byte(op8);
+                    return;
                 }
-                else if (REG_RANGE(dest.reg, r8b, r15b)) {
-                    push_byte(rex_b);
-                    push_byte(op8);
-                }
-                else if (REG_RANGE(base, r8b, r15b) && !is_rip) {
-                    push_byte(rex_r);
-                    push_byte(op8);
-                }
-                else if (REG_RANGE(dest.reg, r8w, r15w) && REG_RANGE(base, r8w, r15w)) {
-                    push_byte(other_prefix::operand_size_override); // 16-bit operand size
-                    push_byte(rex_rb);
+
+                // --- 16-bit ---
+                if (dest_r8w || base_r8w || dest_16 || base_16) {
+                    push_byte(other_prefix::operand_size_override); // 0x66
+                    uint8_t rex = 0x40;
+                    if (dest_r8w) rex |= 0x01;
+                    if (base_r8w) rex |= 0x04;
+                    if (rex != 0x40) push_byte(rex);
+                    emit_2b();
                     push_byte(op);
+                    return;
                 }
-                else if (REG_RANGE(dest.reg, r8w, r15w)) {
-                    push_byte(other_prefix::operand_size_override); // 16-bit operand size
-                    push_byte(rex_b);
+
+                // --- 32-bit ---
+                if (dest_r8d || base_r8d || dest_32 || base_32) {
+                    push_byte(other_prefix::address_size_override); // 0x67
+                    uint8_t rex = 0x40;
+                    if (dest_r8d) rex |= 0x01;
+                    if (base_r8d) rex |= 0x04;
+                    if (rex != 0x40) push_byte(rex);
+                    emit_2b();
                     push_byte(op);
+                    return;
                 }
-                else if (REG_RANGE(base, r8w, r15w)&& !is_rip) {
-                    push_byte(other_prefix::operand_size_override); // 16-bit operand size
-                    push_byte(rex_r);
+
+                // --- 64-bit ---
+                if (dest_r8q || base_r8q || dest_64 || base_64) {
+                    uint8_t rex = rex_w; // 0x48
+                    if (dest_r8q) rex |= 0x01;  // REX.B
+                    if (base_r8q) rex |= 0x04;  // REX.R
+                    push_byte(rex);
+                    emit_2b();
                     push_byte(op);
+                    return;
                 }
-                else if (REG_RANGE(dest.reg, r8d, r15d) && REG_RANGE(base, r8d, r15d)) {
-                    push_byte(rex_rb);
-                    push_byte(op);
-                }
-                else if (REG_RANGE(dest.reg, r8d, r15d)) {
-                    push_byte(rex_b);
-                    push_byte(op);
-                }
-                else if (REG_RANGE(base, r8d, r15d) && !is_rip) {
-                    push_byte(rex_r);
-                    push_byte(op);
-                }
-                else if (REG_RANGE(dest.reg, r8, r15) && REG_RANGE(base, r8, r15) && !is_rip) {
-                    push_byte(rex_wrb);
-                    push_byte(op);
-                }
-                else if (REG_RANGE(dest.reg, r8, r15)) {
-                    push_byte(rex_wb);
-                    push_byte(op);
-                }
-                else if (REG_RANGE(base, r8, r15) && !is_rip) {
-                    push_byte(rex_wr);
-                    push_byte(op);
-                }
-                else {
+
+                // --- Stack registers (explicit case) ---
+                if (dest.reg == sp || dest.reg == esp || dest.reg == rsp || dest.reg == spl) {
+                    if (dest.reg == sp) {
+                    push_byte(other_prefix::operand_size_override); // 0x66
+                    } else if (dest.reg == esp) {
+                    push_byte(other_prefix::address_size_override); // 0x67
+                    } else if (dest.reg == rsp || dest.reg == spl) {
                     push_byte(rex_w);
-                    push_byte(op);
+                    }
+                    emit_2b();
+                    push_byte(dest.reg < spl ? op : op8);
+                    return;
                 }
+
+                // --- Fallback (assume 64-bit with basic rex_w) ---
+                push_byte(rex_w);
+                emit_2b();
+                push_byte(op);
             }
 
-            void check_stack_reg_r2m(const opcode& op8, const opcode& op, const mem& dest) {
-                if (dest.reg == spl) {
-                    push_byte(op8);
-                }
-                else if (dest.reg == sp) {
-                    push_byte(other_prefix::operand_size_override);
-                    push_byte(op);
-                }
-                else if (dest.reg == esp) {
-                    push_byte(op);
-                }
-                else if (dest.reg == rsp) {
-                    push_byte(rex_w);
-                    push_byte(op);
-                }
-            }
-
-            void emit_reg_to_mem(const opcode& op8, const opcode& op, const mem& dest, const grp& base) { 
+            void emit_reg_to_mem(const opcode& op8, const opcode& op, const mem& dest, const grp& base, bool is_2bOPC = false) { 
                 if (dest.reg == rip) { // rip relative
-                    check_reg_r2m(op8, op, dest, base, true);
+                    check_reg_r2m(op8, op, dest, base, true, is_2bOPC);
                     push_byte(modrm(mod_field::indirect, rm_field::rip_relative, rebase_register(base)));
                     emit_imm32(dest.disp);
                 }
                 else if (NOT_STACK_PTR(dest.reg) && NOT_STACK_BASE_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [reg]
-                    check_reg_r2m(op8, op, dest, base);
+                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
                     push_byte(modrm(mod_field::indirect, rebase_register(dest.reg), rebase_register(base)));
                 } 
                 else if (IS_STACK_BASE_PTR(dest.reg) && NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rbp]
-                    check_stack_reg_r2m(op8, op, dest);
+                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
                     push_byte(modrm(mod_field::disp8, rebase_register(dest.reg), rebase_register(base)));
                     emit_imm8(0);
                 }
                 else if (NOT_STACK_BASE_PTR(dest.reg) && IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rsp]
-                    check_stack_reg_r2m(op8, op, dest);
+                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
                     push_byte(modrm(mod_field::indirect, rm_field::indexed, rebase_register(base))); 
                     push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
                 }
                 else if (NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [reg + disp32] (we are always going to do disp32)
-                    check_reg_r2m(op8, op, dest, base);
+                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
                     push_byte(modrm(mod_field::disp32, rebase_register(dest.reg), rebase_register(base)));
                     emit_imm32(dest.disp);
                 }
                 else if (IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [rsp + disp32]
-                    check_stack_reg_r2m(op8, op, dest);
+                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
                     push_byte(modrm(mod_field::disp32, rm_field::indexed, rebase_register(base))); 
                     push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
                     emit_imm32(dest.disp);
                 }
                 else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::none) { // [reg + SIB]
-                    check_reg_r2m(op8, op, dest, base);
+                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
                     push_byte(modrm(mod_field::indirect, rm_field::indexed, rebase_register(base))); 
                     push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
                 }
                 else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::disp) { // [reg + SIB + disp]
-                    check_reg_r2m(op8, op, dest, base);
+                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
                     push_byte(modrm(mod_field::disp32, rm_field::indexed, rebase_register(base))); 
                     push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
                     emit_imm32(dest.disp);
@@ -506,12 +550,12 @@ namespace occult {
                     push_byte(modrm(mod_field::indirect, rebase_register(dest.reg), rm));
                 } 
                 else if (IS_STACK_BASE_PTR(dest.reg) && NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rbp]
-                    check_stack_reg_r2m(op8, op, dest);
+                    check_reg_r2m(op8, op, dest, dest.reg);
                     push_byte(modrm(mod_field::disp8, rebase_register(dest.reg), rm));
                     emit_imm8(0);
                 }
                 else if (NOT_STACK_BASE_PTR(dest.reg) && IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rsp]
-                    check_stack_reg_r2m(op8, op, dest);
+                    check_reg_r2m(op8, op, dest, dest.reg);
                     push_byte(modrm(mod_field::indirect, rm_field::indexed, rm)); 
                     push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
                 }
@@ -521,7 +565,7 @@ namespace occult {
                     emit_imm32(dest.disp);
                 }
                 else if (IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [rsp + disp32]
-                    check_stack_reg_r2m(op8, op, dest);
+                    check_reg_r2m(op8, op, dest, dest.reg);
                     push_byte(modrm(mod_field::disp32, rm_field::indexed, rm)); 
                     push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
                     emit_imm32(dest.disp);
@@ -549,6 +593,16 @@ namespace occult {
 
                         break;
                     }
+                    case imm_mode::do_16: {
+                        if (is_signed) {
+                            emit_imm16(imm) ;
+                        }
+                        else {
+                            emit_imm16<std::uint16_t>(imm);
+                        }
+
+                        break;
+                    }
                     case imm_mode::no_64: {
                         if (is_signed) {
                             emit_imm32(imm);
@@ -572,6 +626,7 @@ namespace occult {
                 }
             }
             
+            // we don't need 64 bit extensions here for normal rax-rdi
             void emit_reg(const opcode& op8, const opcode& op, const grp& r) {
                 if (REG_RANGE(r, r8b, r15b) || REG_RANGE(r, al, dil)) {
                     if (REG_RANGE(r10b, r8b, r15b)) {
@@ -612,9 +667,6 @@ namespace occult {
                     else if (REG_RANGE(r, r8, r15)) {
                         push_byte(rex_wb);
                     }
-                    else {
-                        push_byte(rex_w);
-                    }
 
                     push_byte(static_cast<std::uint8_t>(op) + static_cast<std::uint8_t>(rebase_register(r)));
                 }
@@ -642,6 +694,14 @@ namespace occult {
                 
                 push_bytes({opcode});
                 emit_imm32<std::uint32_t>(rel32);
+            }
+            
+            void emit_setX_reg8(const opcode_2b& op, REG_ARG) { // remove the t ;) 
+                emit_reg_to_reg(static_cast<opcode>(op), static_cast<opcode>(op), _reg, static_cast<grp>(0), true);
+            }
+            
+            void emit_setX_mem8(const opcode_2b& op, MEM_ARG) { 
+                emit_reg_to_mem(static_cast<opcode>(op), static_cast<opcode>(op), m, static_cast<grp>(0), true);
             }
 
             template<typename T, typename T2>
@@ -1190,12 +1250,24 @@ namespace occult {
 
             void emit_mov(SIGNED_IMM_TO_MEM_ARG) {
                 assert_imm_size<std::int64_t>(imm);
-                emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), true, imm_mode::no_64);
+
+                if (imm_fits<std::int16_t>(imm)) {
+                    emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), true, imm_mode::do_16);
+                }
+                else {
+                    emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), true, imm_mode::no_64);
+                }
             }
 
             void emit_mov(UNSIGNED_IMM_TO_MEM_ARG) {
                 assert_imm_size<std::uint64_t>(imm);
-                emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false, true, imm_mode::no_64);
+                
+                if (imm_fits<std::int16_t>(imm)) {
+                    emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false, imm_mode::do_16);
+                }
+                else {
+                    emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false, imm_mode::no_64);
+                }
             }
 
             void emit_test(SIGNED_IMM_TO_REG_ARG) { // i think the rm_field could also be 0 for TEST
@@ -1383,7 +1455,143 @@ namespace occult {
                 emit_short_jump(opcode::JMP_rel8, target_address);
             }
 
-            // seto to setnle here
+            void emit_function_prologue() {
+                emit_push(rbp);
+                emit_mov(rbp, rsp);
+            }
+
+            void emit_function_epilogue() {
+                emit_mov(rsp, rbp);
+                emit_pop(rbp);
+            }
+
+            void emit_seto(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETO_rm8, _reg);
+            }
+            
+            void emit_seto(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETO_rm8, m);
+            }
+
+            void emit_setno(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETNO_rm8, _reg);
+            }
+            
+            void emit_setno(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETNO_rm8, m);
+            }
+
+            void emit_setb(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETB_rm8, _reg);
+            }
+            
+            void emit_setb(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETB_rm8, m);
+            }
+
+            void emit_setnb(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETNB_rm8, _reg);
+            }
+            
+            void emit_setnb(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETNB_rm8, m);
+            }
+
+            void emit_setz(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETZ_rm8, _reg);
+            }
+            
+            void emit_setz(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETZ_rm8, m);
+            }
+
+            void emit_setnz(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETNZ_rm8, _reg);
+            }
+            
+            void emit_setnz(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETNZ_rm8, m);
+            }
+
+            void emit_setbe(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETBE_rm8, _reg);
+            }
+
+            void emit_setbe(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETBE_rm8, m);
+            }
+
+            void emit_setnbe(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETNBE_rm8, _reg);
+            }
+
+            void emit_setnbe(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETNBE_rm8, m);
+            }
+
+            void emit_sets(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETS_rm8, _reg);
+            }
+
+            void emit_sets(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETS_rm8, m);
+            }
+
+            void emit_setns(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETNS_rm8, _reg);
+            }
+
+            void emit_setns(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETNS_rm8, m);
+            }
+
+            void emit_setp(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETP_rm8, _reg);
+            }
+
+            void emit_setp(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETP_rm8, m);
+            }
+
+            void emit_setnp(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETNP_rm8, _reg);
+            }
+
+            void emit_setnp(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETNP_rm8, m);
+            }
+
+            void emit_setl(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETL_rm8, _reg);
+            }
+
+            void emit_setl(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETL_rm8, m);
+            }
+
+            void emit_setnl(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETNL_rm8, _reg);
+            }
+
+            void emit_setnl(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETNL_rm8, m);
+            }
+
+            void emit_setle(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETLE_rm8, _reg);
+            }
+
+            void emit_setle(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETLE_rm8, m);
+            }
+
+            void emit_setnle(REG_ARG) {
+                emit_setX_reg8(opcode_2b::SETNLE_rm8, _reg);
+            }
+
+            void emit_setnle(MEM_ARG) {
+                emit_setX_mem8(opcode_2b::SETNLE_rm8, m);
+            }
         };
     }
 } // namespace occult

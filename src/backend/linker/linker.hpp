@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <string>
 #include <map>
-#include "elf_header.hpp"
+#include "elf_header.hpp" /*
 #include "../codegen/jit.hpp"
-/*
+
 namespace occult {
   class linker {
   public:

@@ -1077,7 +1077,7 @@ namespace occult {
     void operator()(std::monostate){ std::cout << "\n"; };
   };
   
-  void ir_gen::visualize(std::vector<ir_function> funcs) {
+  void ir_gen::visualize_stack_ir(std::vector<ir_function> funcs) {
     for (auto& func : funcs) {
       std::cout << "\n" << func.type << "\n";
       std::cout << func.name << "\n";
@@ -1096,7 +1096,7 @@ namespace occult {
     }
   }
   
-  std::vector<ir_function> ir_gen::lower() {
+  std::vector<ir_function> ir_gen::lower_to_stack() {
     std::vector<ir_function> functions;
     
     for (const auto& c : root->get_children()) {
@@ -1108,5 +1108,37 @@ namespace occult {
     }
     
     return functions;
+  }
+
+  struct reg_visitor {
+    void operator()(const float& v){ std::cout << v; };
+    void operator()(const double& v){ std::cout << v; };
+    void operator()(const std::int64_t& v){ std::cout << v; };
+    void operator()(const std::uint64_t& v){ std::cout << v; };
+    void operator()(const std::string& v){ std::cout << v; };
+    void operator()(std::monostate){ std::cout << ""; };
+    void operator()(ir_register v){ std::cout << "r" << static_cast<int>(v); };
+  };
+  
+  void ir_gen::visualize_register_ir(std::vector<ir_reg_function> funcs) {
+    for (auto& func : funcs) {
+      std::cout << "\n" << func.type << "\n";
+      std::cout << func.name << "\n";
+      
+      std::cout << "args:\n";
+      for (auto& arg : func.args) {
+        std::cout << "\t" << arg.type << "\n";
+        std::cout << "\t" << arg.name << "\n";
+      }
+      
+      std::cout << "code:\n";
+      for (auto& i : func.code) {
+        std::cout << occult::opcode_to_string(i.op) << " ";
+        std::visit(reg_visitor(), i.dest);
+        std::cout << " ";
+        std::visit(reg_visitor(), i.src);
+        std::cout << "\n";
+      }
+    }
   }
 } // namespace occult

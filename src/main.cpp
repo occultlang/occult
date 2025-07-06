@@ -2,8 +2,7 @@
 #include "parser/cst.hpp"
 #include "parser/parser.hpp"
 #include "backend/codegen/ir_gen.hpp"
-#include "backend/codegen/jit.hpp"
-#include "backend/codegen/x86_64_writer.hpp"
+#include "backend/codegen/x86_64_codegen.hpp"
 #include <source_location>
 #include <iostream>
 #include <fstream>
@@ -17,16 +16,26 @@
 #endif
 
 void display_help() {
-  std::cout << "Usage: occultc [options] <source.occ>\n";
-  std::cout << "Options:\n";
-  std::cout << "  -t, --time                     Shows the compilation time for each stage.\n";
-  std::cout << "  -d, --debug                    Enable debugging options (shows time as well -t is not needed)\n";
-  std::cout << "  -o, --output <filename>        Output a native binary\n";
-  std::cout << "  -j, --jit                      Compile code as just-in-time (in memory)\n";
-  std::cout << "  -h, --help                     Display this help message.\n" ;
+  std::cout << "Usage: occultc [options] <source.occ>\n"
+            << "Options:\n"
+            << "  -t,   --time              Show compilation time per stage\n"
+            << "  -d,   --debug             Enable debug mode (implies --time)\n"
+            << "  -o,   --output <file>     Output native binary\n"
+            << "  -j,   --jit               JIT compile (in memory)\n"
+            << "  -h,   --help              Show this message\n";
 }
 
-int main(int argc, char* argv[]) {
+enum class codegenmode : std::uint8_t {
+  none,
+  stack,
+  _register
+};
+
+int equals_aot(std::int64_t a, std::int64_t b) {
+  return a == b;
+}
+
+int main(int argc, char* argv[]) {  
   std::string input_file;
   std::string source_original;
   
@@ -34,6 +43,7 @@ int main(int argc, char* argv[]) {
   bool verbose = false;
   bool showtime = false;
   bool jit = true; // we will default to JIT but still have the arg if anyone wants to use it /shrug
+
   std::string filenameout;
   
   for (int i = 1; i < argc; ++i) {
@@ -113,36 +123,19 @@ int main(int argc, char* argv[]) {
 
   start = std::chrono::high_resolution_clock::now();
   occult::ir_gen ir_gen(cst.get());
-  auto ir = ir_gen.lower();
+  auto ir = ir_gen.lower_to_stack();
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
      std::cout << GREEN << "[OCCULTC] Completed generating IR \033[0m" << duration.count() << "ms\n";
   }
   if (debug) {
-    ir_gen.visualize(ir);
+    ir_gen.visualize_stack_ir(ir);
   }
   
-  /*using namespace occult::x86_64;
-  
-  x86_64_writer add_writer;
-  using add_t = int(*)(int, int);
-
-  add_writer.emit_push(rbp);
-  add_writer.emit_mov(rbp, rsp);
-  add_writer.emit_add(rdi, rsi);
-  add_writer.emit_mov(rax, rdi);
-  add_writer.emit_mov(rsp, rbp);
-  add_writer.emit_pop(rbp);
-  add_writer.emit_ret();
-  
-  auto add = reinterpret_cast<add_t>(add_writer.setup_function()); 
-  
-  std::cout << add(123, 123) << std::endl;*/
-
-  /*start = std::chrono::high_resolution_clock::now();
-  occult::jit_runtime jit_runtime(ir, debug, jit);
-  jit_runtime.convert_ir();
+  start = std::chrono::high_resolution_clock::now();
+  occult::x86_64::codegen jit_runtime(ir, debug);
+  jit_runtime.compile(jit);
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
@@ -151,60 +144,32 @@ int main(int argc, char* argv[]) {
   if (debug) {
     for (const auto& pair : jit_runtime.function_map) {
       std::cout << pair.first << std::endl;
-      std::cout << "0x" << std::hex << reinterpret_ccst<std::int64_t>(&pair.second) << std::dec << std::endl;
-    }
-  }*/
-  
-  /*using namespace occult::x86_64;
-
-  x86_64_writer writer;
-  writer.emit_add(rax, mem{rip, 0x1000}); // add rax, [rip + 0x1000]
-  writer.emit_add(mem{rsp, rdx, 0}, rcx); // add [rsp + rdx * 1], rcx
-  writer.emit_add(rcx, mem{rsp, rdx, 0, 0x1000}); // add rcx, [rsp + rdx * 1 + 0x1000]
-  writer.emit_add(mem{rsp}, 10); // add [rsp], 10
-  writer.emit_add(eax, INT_MAX); // add eax, INT_MAX 
-  writer.emit_mov(r8d, INT_MAX); // mov r8d, INT_MAX 
-  writer.emit_add(rax, rcx); // add rax, rcx
-  writer.emit_add(rbx, r9); // add rbx, r9
-  writer.emit_push(INT8_MAX); // push INT8_MAX
-  writer.emit_push(INT32_MAX); // push INT32_MAX
-  writer.emit_push(INT16_MAX); // push INT16_MAX
-  writer.emit_imul(rax, rbx, 0x2000); // imul rax, rbx, 0x2000
-  writer.emit_or(rcx, 0x10); // or rcx, 0x10*/
-  //writer.emit_pop(mem{rcx});
-  /*writer.emit_rol(rcx, 10);
-  writer.emit_ror(rcx, 10);
-  writer.emit_rcl(rcx, 10);
-  writer.emit_rcr(rcx, 10);
-  writer.emit_shl(rcx, 10);
-  writer.emit_shr(rcx, 10);
-  writer.emit_sal(rcx, 10);
-  writer.emit_sar(rcx, 10);
-  writer.print_bytes();
-  
-  if (jit) {
-    auto it = jit_runtime.function_map.find("main");
-    if (it != jit_runtime.function_map.end()) {
-      start = std::chrono::high_resolution_clock::now();
-      
-      auto res = reinterpret_cast<std::int64_t(*)()>(it->second)();
-      
-      end = std::chrono::high_resolution_clock::now();
-      duration = end - start;
-      
-      if (debug) {
-        std::cout << "Main returned: " << res << std::endl;
-      }
-      
-      if (showtime) {
-        std::cout << GREEN << "[OCCULTC] Completed executing jit code " << RESET << duration.count() << "ms\n";
-      }
-    }
-    else {
-      std::cerr << "Main function not found!" << std::endl;
+      std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
     }
   }
-  else if (!jit) {
+
+  auto it = jit_runtime.function_map.find("main");
+  if (it != jit_runtime.function_map.end()) {
+    start = std::chrono::high_resolution_clock::now();
+      
+    auto res = reinterpret_cast<std::int64_t(*)()>(it->second)();
+      
+    end = std::chrono::high_resolution_clock::now();
+    duration = end - start;
+      
+    if (debug) {
+      std::cout << "Main returned: " << res << std::endl;
+    }
+      
+    if (showtime) {
+      std::cout << GREEN << "[OCCULTC] Completed executing jit code " << RESET << duration.count() << "ms\n";
+    }
+  }
+  else {
+    std::cerr << "Main function not found!" << std::endl;
+  }
+  
+  /*else if (!jit) {
     occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, debug, showtime);
 #ifdef __linux
     chmod(filenameout.c_str(), S_IRWXU);

@@ -18,5 +18,5 @@ fn main() i64 {
     }
   }
   
-  return result; // 7
+  return result;
 }

@@ -3,6 +3,7 @@
 
 namespace occult {
   enum ir_opcode {
+    null_op,
     op_push,
     op_pushf,
     op_pop,
@@ -55,6 +56,7 @@ namespace occult {
     op_array_dimensions,
     op_array_size,
     op_decl_array_type,
+    op_mov,
   };
   
   inline std::string opcode_to_string(ir_opcode op) {
@@ -111,6 +113,7 @@ namespace occult {
       case op_array_size:   return "array_size";
       case op_decl_array_type: return "decl_array_type";
       case op_declare_where_to_store: return "declare_where_to_store";
+      case op_mov: return "mov";
       default:              return "unknown_opcode";
     }
   }
@@ -140,6 +143,31 @@ namespace occult {
     std::string name;
     std::string type;
   };
+
+  enum class ir_register : std::uint8_t {
+    r0, r1, r2, r3,
+    r4, r5, r6, r7, 
+    r8, r9, r10, r11, 
+    r12, r13, r14, r15
+  }; // 16 registers
+
+  using reg_ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, double, float, std::string, ir_register>;
+
+  struct ir_reg_instr {
+    ir_opcode op;
+    reg_ir_operand dest;
+    reg_ir_operand src;
+    std::string type;
+
+    ir_reg_instr() = default;
+  };
+
+  struct ir_reg_function {
+    std::vector<ir_reg_instr> code;
+    std::vector<ir_argument> args;
+    std::string name;
+    std::string type;
+  };
   
   enum ir_typename {
     signed_int,
@@ -162,8 +190,56 @@ namespace occult {
     {"float64", floating_point64},
     {"bool", unsigned_int}, 
     {"char", unsigned_int}, 
-    {"str", string}};
+    {"str", string}}; 
+
+  enum class reg_usage : std::uint8_t {
+      not_in_use,
+      in_use
+  }; // just did an enum class because its more readable than true or false  
   
+  class ir_register_pool {
+    std::array<reg_usage, 16> pool; // registers in use (index corresponds with the register)
+  public:
+    ir_register_pool() { pool.fill(reg_usage::not_in_use); }
+    
+    ir_register allocate() {
+      for (std::size_t i = 0; i < pool.size(); i++) {
+        if (pool.at(i) == reg_usage::not_in_use) {
+          pool.at(i) = reg_usage::in_use;
+
+          return static_cast<ir_register>(i);
+        }
+      }
+      
+      throw std::runtime_error("all virtual registers are in use");
+    }
+
+    void free(const ir_register& r) {
+      pool.at(static_cast<std::size_t>(r)) = reg_usage::not_in_use;
+    }
+
+    reg_usage is_in_use(const ir_register& r) {
+      for (std::size_t i = 0; i < pool.size(); i++) {
+        if (i == static_cast<std::size_t>(r) && pool.at(i) == reg_usage::in_use) {
+          return reg_usage::in_use;
+        }
+      }
+
+      return reg_usage::not_in_use;
+    }
+
+    void visualize_allocated_registers() {
+      for (std::size_t i = 0; i < pool.size(); i++) {
+        if (pool.at(i) == reg_usage::in_use) {
+          std::cout << "r" << i << ": in use\n";
+        }
+        else {
+          std::cout << "r" << i << ": not in use\n";
+        }
+      }
+    }
+  };
+
   class ir_gen { // conversion into a linear IR
     cst_root* root;
     int label_count;
@@ -190,7 +266,9 @@ namespace occult {
     void place_label(ir_function& function, std::string label_name);
   public:
     ir_gen(cst_root* root) : root(root), label_count(0) {}
-    void visualize(std::vector<ir_function> funcs);
-    std::vector<ir_function> lower();
+    void visualize_stack_ir(std::vector<ir_function> funcs);
+    std::vector<ir_function> lower_to_stack();
+    void visualize_register_ir(std::vector<ir_reg_function> funcs);
+    //std::vector<ir_reg_function> translate_to_register(std::vector<ir_function> funcs);
   };
 } // namespace occult
