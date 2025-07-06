@@ -171,7 +171,7 @@ namespace occult {
             
               if (it == local_variable_map.end()) { // variable doesn't exist yet
                 if (debug) {
-                  std::cout << CYAN << "[CODEGEN INFO] Emitting variable: " << RESET << var_name << std::endl;
+                  std::cout << BLUE << "[CODEGEN INFO] Emitting variable: " << RESET << var_name << std::endl;
                 }
 
                 totalsizes += 8;
@@ -187,7 +187,7 @@ namespace occult {
               }
               else {
                 if (debug) {
-                  std::cout << CYAN << "[CODEGEN INFO] Re-emitting variable: " << RESET << var_name << std::endl;
+                  std::cout << BLUE << "[CODEGEN INFO] Re-emitting variable: " << RESET << var_name << std::endl;
                 }
 
                 auto offset = -it->second;
@@ -199,7 +199,7 @@ namespace occult {
                 pool.free(r);
 
                 if (debug) {
-                  std::cout << CYAN << "[CODEGEN INFO] Variable location: " << RESET << offset << std::endl;
+                  std::cout << BLUE << "[CODEGEN INFO] Variable location: " << RESET << offset << std::endl;
                 }
               }
 
@@ -220,7 +220,7 @@ namespace occult {
               auto offset = -it->second;
         
               if (debug) {
-                std::cout << CYAN << "[CODEGEN INFO] Loading: " << RESET << var_name << "\n\tLocation: " << offset << std::endl;
+                std::cout << BLUE << "[CODEGEN INFO] Loading: " << RESET << var_name << "\n\tLocation: " << offset << std::endl;
               }
 
               auto r = pool.alloc();
@@ -270,9 +270,17 @@ namespace occult {
                 pool.free(result);
               }
 
-              w->emit_function_epilogue();
-              w->emit_ret();
-
+              if (!use_jit && is_main) {
+                w->emit_pop(rax);
+                w->emit_function_epilogue();
+                w->emit_mov(rdi, rax);
+                w->emit_mov(rax, 60); 
+                w->emit_syscall();
+              }
+              else {
+                w->emit_function_epilogue();
+                w->emit_ret();
+              }
               break;
             }
 
@@ -386,7 +394,7 @@ namespace occult {
               std::string func_name = std::get<std::string>(code.operand);
 
               if (debug) {
-                std::cout << CYAN << "[CODEGEN INFO] Calling: " << YELLOW << "\"" << func_name << "\"\n" << RESET;
+                std::cout << BLUE << "[CODEGEN INFO] Calling: " << YELLOW << "\"" << func_name << "\"\n" << RESET;
               }
 
               auto it = std::find_if(ir_funcs.begin(), ir_funcs.end(), [&](const ir_function& f) { // lazy compilation
@@ -404,12 +412,12 @@ namespace occult {
               }
 
               if (debug) {
-                std::cout << CYAN << "[CODEGEN INFO] Popping arguments for function call: " << YELLOW << "\"" << func_name << "\"\n" << RESET;
+                std::cout << BLUE << "[CODEGEN INFO] Popping arguments for function call: " << YELLOW << "\"" << func_name << "\"\n" << RESET;
               }
               
               int arg_count = it->args.size(); 
               if (debug) {
-                std::cout << CYAN << "[CODEGEN INFO] Argument count: " << RESET << arg_count << std::endl;
+                std::cout << BLUE << "[CODEGEN INFO] Argument count: " << RESET << arg_count << std::endl;
               }
 
               std::vector<grp> reg_stack_copy = pool.get_stack();
@@ -423,7 +431,7 @@ namespace occult {
                 }
 
                 if (debug) {
-                  std::cout << CYAN << "[CODEGEN INFO] Popping argument: " << RESET << reg_to_string(pool.top()) << std::endl;
+                  std::cout << BLUE << "[CODEGEN INFO] Popping argument: " << RESET << reg_to_string(pool.top()) << std::endl;
                 }
 
                 args.push_back(pool.pop());
@@ -441,7 +449,7 @@ namespace occult {
                   
                   if (i < sizeof(sysv_regs) / sizeof(grp)) {
                     if (debug) {
-                      std::cout << CYAN << "[CODEGEN INFO] Pushing argument: " << RESET << reg_to_string(sysv_regs[i]) << std::endl;
+                      std::cout << BLUE << "[CODEGEN INFO] Pushing argument: " << RESET << reg_to_string(sysv_regs[i]) << std::endl;
                     }
                     
                     w->emit_mov(sysv_regs[i], args[i]);
@@ -463,7 +471,7 @@ namespace occult {
               
               w->emit_mov(rax, reinterpret_cast<std::int64_t>(&function_map[func_name]));
               w->emit_call(mem{rax});
-
+          
               if (is_systemv) {
                 const grp caller_saved[] = {r15, r14, r13, r12, r11, r10};
                 for (auto reg : caller_saved) {
@@ -476,7 +484,9 @@ namespace occult {
                 w->emit_add(rsp, (args.size() - reg_limit) * 8);
               }
 
-              pool.push(rax);
+              auto ret_reg = pool.alloc();
+              w->emit_mov(ret_reg, rax);
+              pool.push(ret_reg);
 
               break;
             }
@@ -488,12 +498,12 @@ namespace occult {
         }
 
         if (debug) {
-          std::cout << CYAN << "[CODEGEN INFO] Total jump instructions to backpatch " << RESET << jump_instructions.size() << std::endl;
+          std::cout << BLUE << "[CODEGEN INFO] Total jump instructions to backpatch " << RESET << jump_instructions.size() << std::endl;
         }
 
         for (auto& jump : jump_instructions) {
           if (debug) {
-            std::cout << CYAN << "[CODEGEN INFO] Jump Backpatching:\n" << RESET;
+            std::cout << BLUE << "[CODEGEN INFO] Jump Backpatching:\n" << RESET;
           }
           
           auto& instr = jump.first;
@@ -518,13 +528,13 @@ namespace occult {
 
       void compile_function(const ir_function& func, bool use_jit) {
         if (debug && function_map.contains(func.name)) {
-          std::cout << BLUE << "[FUNCTIONMAP INFO] Symbol " << YELLOW << "\"" << func.name << "\"" << BLUE << " already exists, probably already compiled or is compiling." << RESET << std::endl;
+          std::cout << BLUE << "[CODEGEN INFO] Symbol " << YELLOW << "\"" << func.name << "\"" << BLUE << " already exists, probably already compiled or is compiling." << RESET << std::endl;
 
           return;
         }
 
         if (debug) {
-          std::cout << CYAN << "[CODEGEN INFO] Compiling function: " << YELLOW << "\"" << func.name << "\"\n" << RESET;
+          std::cout << BLUE << "[CODEGEN INFO] Compiling function: " << YELLOW << "\"" << func.name << "\"\n" << RESET;
         }
 
         auto w = std::make_unique<x86_64_writer>();
@@ -544,11 +554,14 @@ namespace occult {
           w->print_bytes();
         }
 
+        function_raw_code_map.insert({func.name, w->get_code()});
+
         w->setup_function();
         writers.push_back(std::move(w));
       }
     public:
       std::unordered_map<std::string, jit_function> function_map;
+      std::map<std::string, std::vector<std::uint8_t>> function_raw_code_map;
 
       codegen(std::vector<ir_function> ir_funcs, bool debug) : ir_funcs(ir_funcs), debug(debug) {}
       

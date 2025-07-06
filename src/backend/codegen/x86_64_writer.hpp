@@ -243,81 +243,125 @@ namespace occult {
                 const bool dest_64 = REG_RANGE(dest.reg, rax, rdi);
                 const bool base_64 = REG_RANGE(base, rax, rdi);
 
-                // --- 8-bit registers (r8b-r15b, spl, bpl, sil, dil) ---
                 if ((dest_r8b || dest_8) || (base_r8b || base_8)) {
                     bool needs_rex = false;
-                    uint8_t rex = 0x40; // REX prefix base
+                    std::uint8_t rex = rex::rex; 
 
                     if (dest_r8b || base_r8b) {
-                    needs_rex = true;
-                    if (dest_r8b) rex |= 0x01; // REX.B
-                    if (base_r8b) rex |= 0x04; // REX.R
+                        needs_rex = true;
+
+                        if (dest_r8b) {
+                            rex |= b; 
+                        }
+
+                        if (base_r8b) {
+                            rex |= r;
+                        }
                     }
 
-                    // Special 8-bit registers (spl, bpl, sil, dil) always require REX
                     if (dest.reg == spl || dest.reg == bpl || dest.reg == sil || dest.reg == dil ||
                         base == spl || base == bpl || base == sil || base == dil) {
-                    needs_rex = true;
+                        needs_rex = true;
                     }
 
-                    if (needs_rex) push_byte(rex);
+                    if (needs_rex) {
+                        push_byte(rex);
+                    }
+
                     emit_2b();
+
                     push_byte(op8);
+
                     return;
                 }
 
-                // --- 16-bit ---
                 if (dest_r8w || base_r8w || dest_16 || base_16) {
-                    push_byte(other_prefix::operand_size_override); // 0x66
-                    uint8_t rex = 0x40;
-                    if (dest_r8w) rex |= 0x01;
-                    if (base_r8w) rex |= 0x04;
-                    if (rex != 0x40) push_byte(rex);
+                    push_byte(other_prefix::operand_size_override);
+
+                    uint8_t rex = rex::rex;
+
+                    if (dest_r8w) {
+                        rex |= b;
+                    }
+
+                    if (base_r8w) {
+                        rex |= r;
+                    }
+
+                    if (rex != rex::rex) {
+                        push_byte(rex);
+                    }
                     emit_2b();
+
                     push_byte(op);
+
                     return;
                 }
 
-                // --- 32-bit ---
                 if (dest_r8d || base_r8d || dest_32 || base_32) {
-                    push_byte(other_prefix::address_size_override); // 0x67
-                    uint8_t rex = 0x40;
-                    if (dest_r8d) rex |= 0x01;
-                    if (base_r8d) rex |= 0x04;
-                    if (rex != 0x40) push_byte(rex);
+                    push_byte(other_prefix::address_size_override);
+
+                    uint8_t rex = rex::rex;
+
+                    if (dest_r8d) {
+                        rex |= b;
+                    }
+                    if (base_r8d) {
+                        rex |= r;
+                    }
+
+                    if (rex != rex::rex) {
+                        push_byte(rex);
+                    }
+
                     emit_2b();
+
                     push_byte(op);
+
                     return;
                 }
 
-                // --- 64-bit ---
                 if (dest_r8q || base_r8q || dest_64 || base_64) {
-                    uint8_t rex = rex_w; // 0x48
-                    if (dest_r8q) rex |= 0x01;  // REX.B
-                    if (base_r8q) rex |= 0x04;  // REX.R
+                    uint8_t rex = rex_w;
+
+                    if (dest_r8q) {
+                        rex |= b;  
+                    }
+                    if (base_r8q) {
+                        rex |= r; 
+                    }
+
                     push_byte(rex);
+
                     emit_2b();
+
                     push_byte(op);
+
                     return;
                 }
 
-                // --- Stack registers (explicit case) ---
                 if (dest.reg == sp || dest.reg == esp || dest.reg == rsp || dest.reg == spl) {
                     if (dest.reg == sp) {
-                    push_byte(other_prefix::operand_size_override); // 0x66
-                    } else if (dest.reg == esp) {
-                    push_byte(other_prefix::address_size_override); // 0x67
-                    } else if (dest.reg == rsp || dest.reg == spl) {
-                    push_byte(rex_w);
+                        push_byte(other_prefix::operand_size_override);
+                    } 
+                    else if (dest.reg == esp) {
+                        push_byte(other_prefix::address_size_override);
+                    } 
+                    else if (dest.reg == rsp || dest.reg == spl) {
+                        push_byte(rex_w);
                     }
+
                     emit_2b();
+
                     push_byte(dest.reg < spl ? op : op8);
+                    
                     return;
                 }
 
-                // --- Fallback (assume 64-bit with basic rex_w) ---
                 push_byte(rex_w);
+                
                 emit_2b();
+
                 push_byte(op);
             }
 

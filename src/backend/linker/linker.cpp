@@ -1,15 +1,12 @@
 #include "linker.hpp"
 #include <chrono>
-/*
+
 namespace occult {
   void linker::link_and_create_binary(const std::string& binary_name, std::unordered_map<std::string, jit_function>& function_map,
                                       const std::map<std::string, std::vector<std::uint8_t>>& function_raw_code_map, bool debug, bool showtime) {
     auto start = std::chrono::high_resolution_clock::now();
     
     std::unordered_map<std::uint64_t, std::string> func_addr_map; 
-    
-    if (debug)
-      std::cout << GREEN << "[*] Linking functions...\n" << RESET;
     
     for (const auto& pair : function_map) { // Copy address of functions to map the address itself to the name of the function
       func_addr_map[reinterpret_cast<std::uint64_t>(&pair.second)] = pair.first;
@@ -24,7 +21,7 @@ namespace occult {
       final_code.insert(final_code.end(), m.second.begin(), m.second.end());
       
       if (debug)
-        std::cout << BLUE << "[+] Added function: " << m.first << RESET << std::endl;
+        std::cout << BLUE << "[LINKER INFO] Added function: " << YELLOW << "\"" << m.first << "\"" << RESET << std::endl;
       
       offset += m.second.size(); // Move offset forward
     }
@@ -33,23 +30,23 @@ namespace occult {
     std::uint64_t entry_addr = base_addr + locations["main"] + sizeof(elf_header) + sizeof(elf_program_header);
     
     if (debug) {
-      std::cout << GREEN << "[*] Base address: " << YELLOW << "0x" << std::hex << base_addr << std::dec << RESET << std::endl;
-      std::cout << GREEN << "[*] Entry address: " << YELLOW << "0x" << std::hex << entry_addr << std::dec << RESET << std::endl;
+      std::cout << BLUE << "[LINKER INFO] Base address: " << RED << "0x" << std::hex << base_addr << std::dec << RESET << std::endl;
+      std::cout << BLUE << "[LINKER INFO] Entry address: " << RED << "0x" << std::hex << entry_addr << std::dec << RESET << std::endl;
     }
     
     // Scan for call relocations
-    for (std::size_t i = 0; i < final_code.size() - 11; i++) {
+    for (std::size_t i = 0; i < final_code.size() - 13; i++) {
       auto current_byte = final_code.at(i);
       auto next_byte = final_code.at(i + 1);
-      auto second_last_byte = final_code.at(i + 10);
-      auto last_byte = final_code.at(i + 11);
+      auto second_last_byte = final_code.at(i + 11);
+      auto last_byte = final_code.at(i + 12);
       
-      // Check for the byte sequence for 'call' (48 b8 XX XX XX XX XX XX XX XX ff 10 or ff 13)
+      // Check for the byte sequence for 'call' (48 b8 XX XX XX XX XX XX XX XX 48 ff 10 or ff 13)
       if (current_byte == 0x48 && (next_byte == 0xb8 || next_byte == 0xbb) && second_last_byte == 0xff && (last_byte == 0x10 || last_byte == 0x13)) {
         if (debug) {
-          std::cout << CYAN << "[!] Byte sequence found at index " << i << RESET << "\n";
-          std::cout << CYAN << "    Old byte sequence: ";
-          for (std::size_t j = 0; j <= 11; j++) {
+          std::cout << BLUE << "[LINKER INFO] Byte sequence found at index " << RESET << i << "\n";
+          std::cout << BLUE << "[LINKER INFO] Old byte sequence: " << RESET;
+          for (std::size_t j = 0; j <= 12; j++) {
             std::cout << std::setw(2) << std::setfill('0') << std::uppercase << std::hex << static_cast<int>(final_code.at(i + j)) << " ";
           }
           std::cout << std::dec << RESET << "\n";
@@ -62,15 +59,15 @@ namespace occult {
         }
       
         if (debug) {
-          std::cout << YELLOW << "    Address to reloc: 0x" << std::hex << address << std::dec << RESET << "\n";
-          std::cout << BLUE << "    Resolving: " << func_addr_map[address] << RESET << "\n";
+          std::cout << BLUE << "[LINKER INFO] Address to reloc: " << RED << "0x" <<  std::hex << address << std::dec << RESET << "\n";
+          std::cout << BLUE << "[LINKER INFO] Resolving: " << YELLOW << "\"" << func_addr_map[address] << "\"\n" << RESET;
         }
       
         // Calculate the new resolved address based on the symbol location
         std::uint64_t new_address = base_addr + locations[func_addr_map[address]] + sizeof(elf_header) + sizeof(elf_program_header);
       
         if (debug)
-          std::cout << YELLOW << "    New address: 0x" << std::hex << new_address << std::dec << RESET << "\n";
+          std::cout << BLUE << "[LINKER INFO] New address: " << RED << "0x" << std::hex << new_address << std::dec << RESET << "\n";
       
         // Replace the address bytes with the new relative offset
         for (std::size_t j = 0; j < sizeof(new_address); ++j) {
@@ -78,14 +75,15 @@ namespace occult {
         }
       
         if (last_byte == 0x10) { // fix calls to not call to memory, but rather an absolute address
-          final_code.at(i + 11) = 0xd0;
-        } else if (last_byte == 0x13) {
-          final_code.at(i + 11) = 0xd3;
+          final_code.at(i + 12) = 0xd0;
+        } 
+        else if (last_byte == 0x13) {
+          final_code.at(i + 12) = 0xd3;
         }
       
         if (debug) {
-          std::cout << CYAN << "    New byte sequence: ";
-          for (std::size_t j = 0; j <= 11; j++) {
+          std::cout << BLUE << "[LINKER INFO] New byte sequence: " << RESET;
+          for (std::size_t j = 0; j <= 12; j++) {
             std::cout << std::setw(2) << std::setfill('0') << std::uppercase << std::hex << static_cast<int>(final_code.at(i + j)) << " ";
           }
           std::cout << std::dec << RESET << "\n";
@@ -104,4 +102,3 @@ namespace occult {
     elf::generate_binary(binary_name, final_code, final_code.size() * 2, entry_addr);
   }
 }
-*/

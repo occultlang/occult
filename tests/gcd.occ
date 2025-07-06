@@ -1,0 +1,16 @@
+fn gcd(i64 a, i64 b) i64 {
+    if a == b {
+      return a;
+    } 
+    else if a > b {
+      return gcd(a - b, b);
+    } 
+    else {
+      return gcd(a, b - a);
+    }
+  }
+  
+  fn main() i64 {
+    return gcd(48, 18);  // Should return 6
+  }
+  

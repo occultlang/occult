@@ -25,16 +25,6 @@ void display_help() {
             << "  -h,   --help              Show this message\n";
 }
 
-enum class codegenmode : std::uint8_t {
-  none,
-  stack,
-  _register
-};
-
-int equals_aot(std::int64_t a, std::int64_t b) {
-  return a == b;
-}
-
 int main(int argc, char* argv[]) {  
   std::string input_file;
   std::string source_original;
@@ -141,40 +131,41 @@ int main(int argc, char* argv[]) {
   if (showtime) {
     std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m" << duration.count() << "ms\n";
   }
-  if (debug) {
+  if (debug && jit) {
     for (const auto& pair : jit_runtime.function_map) {
       std::cout << pair.first << std::endl;
       std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
     }
   }
 
-  auto it = jit_runtime.function_map.find("main");
-  if (it != jit_runtime.function_map.end()) {
-    start = std::chrono::high_resolution_clock::now();
-      
-    auto res = reinterpret_cast<std::int64_t(*)()>(it->second)();
-      
-    end = std::chrono::high_resolution_clock::now();
-    duration = end - start;
-      
-    if (debug) {
-      std::cout << "Main returned: " << res << std::endl;
+  if (jit) {
+    auto it = jit_runtime.function_map.find("main");
+    if (it != jit_runtime.function_map.end()) {
+      start = std::chrono::high_resolution_clock::now();
+        
+      auto res = reinterpret_cast<std::int64_t(*)()>(it->second)();
+        
+      end = std::chrono::high_resolution_clock::now();
+      duration = end - start;
+        
+      if (debug) {
+        std::cout << "Main returned: " << res << std::endl;
+      }
+        
+      if (showtime) {
+        std::cout << GREEN << "[OCCULTC] Completed executing jit code " << RESET << duration.count() << "ms\n";
+      }
     }
-      
-    if (showtime) {
-      std::cout << GREEN << "[OCCULTC] Completed executing jit code " << RESET << duration.count() << "ms\n";
+    else {
+      std::cerr << "Main function not found!" << std::endl;
     }
   }
-  else {
-    std::cerr << "Main function not found!" << std::endl;
-  }
-  
-  /*else if (!jit) {
+  else if (!jit) {
     occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, debug, showtime);
 #ifdef __linux
     chmod(filenameout.c_str(), S_IRWXU);
 #endif
-  }*/
+  }
   
   return 0;
 }
