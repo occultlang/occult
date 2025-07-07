@@ -8,8 +8,7 @@
 </div>
 
 > [!IMPORTANT]
-> Occult 2.0.0-alpha is going to be released during summer 2025. <br>
-> Keep the wonder alive, and never lose the spark!
+> Occult 2.0.0-alpha is released! <br>
 
 ### Things that need to be done
 - [ ] Pointers
