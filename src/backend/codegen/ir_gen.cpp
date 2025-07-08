@@ -1,5 +1,6 @@
 #include "ir_gen.hpp"
 #include "../../lexer/number_parser.hpp"
+#include <algorithm>
 
 /*
  * This IR generation is really crappy and disorganized, I will make it organized later on, and I'll probably move to SSA or TAC
@@ -110,10 +111,7 @@ namespace occult {
 
         break;
       }
-      case cst_type::unary_plus_operator: {
-        function.code.emplace_back(op_negate);
-        function.code.emplace_back(op_negate); // hehe
-
+      case cst_type::unary_plus_operator: { // just purely syntax
         break;
       }
       case cst_type::unary_minus_operator: {
@@ -167,16 +165,6 @@ namespace occult {
           
           break;
         }
-        case cst_type::or_operator: {
-          function.code.emplace_back(op_logical_or);
-
-          break;
-        }
-        case cst_type::and_operator: {
-          function.code.emplace_back(op_logical_and);
-
-          break;
-        }
         case cst_type::equals_operator: {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_setz);
@@ -211,6 +199,17 @@ namespace occult {
           function.code.emplace_back(op_cmp);
           function.code.emplace_back(op_setle);
           
+          break;
+        }
+
+        case cst_type::or_operator: {
+          function.code.emplace_back(op_logical_or);
+
+          break;
+        }
+        case cst_type::and_operator: {
+          function.code.emplace_back(op_logical_and);
+
           break;
         }
         default: {
@@ -1104,6 +1103,25 @@ namespace occult {
       
       if (type == cst_type::function) {
         functions.emplace_back(generate_function(cst::cast_raw<cst_function>(c.get())));
+      }
+    }
+
+    for (auto& func : functions) { // fix unary ordering
+      for (std::size_t i = 0; i < func.code.size(); i++) {
+        switch (func.code.at(i).op) {
+          case ir_opcode::op_bitwise_not:
+          case ir_opcode::op_not:
+          case ir_opcode::op_negate: {
+            if (func.code.at(i + 1).op == ir_opcode::op_load || func.code.at(i + 1).op == ir_opcode::op_push) {
+              std::iter_swap(func.code.begin() + i, func.code.begin() + i + 1);
+            }
+
+            break;
+          }
+          default: {
+            break;
+          }
+        }
       }
     }
     

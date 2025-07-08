@@ -1636,6 +1636,15 @@ namespace occult {
             void emit_setnle(MEM_ARG) {
                 emit_setX_mem8(opcode_2b::SETNLE_rm8, m);
             }
+
+            /* for these ones, the other thing to shift by is in cl */
+            void emit_shl(REG_ARG) {
+                emit_reg_to_reg(opcode::SHR_rm8_CL, opcode::SHR_rm16_to_64_CL, _reg, static_cast<grp>(4), false);
+            }
+
+            void emit_shr(REG_ARG) {
+                emit_reg_to_reg(opcode::SHR_rm8_CL, opcode::SHR_rm16_to_64_CL, _reg, static_cast<grp>(5), false);
+            }
         };
     }
 } // namespace occult

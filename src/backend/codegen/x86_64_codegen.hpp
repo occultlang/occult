@@ -117,6 +117,20 @@ namespace occult {
         w->push_byte(opcode_2b::MOVZX_r16_to_64_rm8);
         w->push_byte(modrm(mod_field::register_direct, reg, reg));
       }
+
+      void emit_temporary_cmovz(const grp& reg, const grp& reg2, x86_64_writer* w) {
+        w->push_byte(0x45);
+        w->push_byte(k2ByteOpcodePrefix);
+        w->push_byte(static_cast<opcode_2b>(0x44));
+        w->push_byte(modrm(mod_field::register_direct, reg2, reg));
+      }
+
+      void emit_temporary_cmovnz(const grp& reg, const grp& reg2, x86_64_writer* w) { 
+        w->push_byte(0x45);
+        w->push_byte(k2ByteOpcodePrefix);
+        w->push_byte(static_cast<opcode_2b>(0x45));
+        w->push_byte(modrm(mod_field::register_direct, reg2, reg));
+      }
       
       void generate_code(const ir_function& func, x86_64_writer* w, bool is_main, bool use_jit) {
         register_pool pool(w);
@@ -288,6 +302,15 @@ namespace occult {
 
               break;
             }
+            case ir_opcode::op_negate: {
+              auto r = pool.pop(); 
+
+              w->emit_neg(r);
+
+              pool.push(r);
+
+              break;
+            }
 
             /* bitwise */
             case ir_opcode::op_bitwise_and: {
@@ -326,13 +349,35 @@ namespace occult {
 
               break;
             }
-            case ir_opcode::op_bitwise_not: { // not implemented because I need to fix the precedence for it in IR and parser (its)
+            case ir_opcode::op_bitwise_not: { 
+              auto r = pool.pop(); 
+
+              w->emit_not(r);
+
+              pool.push(r);
+
               break;
             }
-            case ir_opcode::op_bitwise_lshift: { // have to add SHL which uses CL (reg) to x86_64_writer.hpp
+            case ir_opcode::op_bitwise_lshift: { 
+              auto rhs = pool.pop();
+              auto lhs = pool.pop();
+
+              w->emit_mov(rcx, rhs);
+              w->emit_shl(lhs);
+
+              pool.push(lhs);
+
               break;
             }
-            case ir_opcode::op_bitwise_rshift: { // have to add SHR which uses CL (reg) to x86_64_writer.hpp
+            case ir_opcode::op_bitwise_rshift: { 
+              auto rhs = pool.pop();
+              auto lhs = pool.pop();
+
+              w->emit_mov(rcx, rhs);
+              w->emit_shr(lhs);
+
+              pool.push(lhs);
+
               break;
             }
           
@@ -464,10 +509,13 @@ namespace occult {
 
               break;
             }
-            case ir_opcode::op_logical_and: { // add cmov to x86_64_writer.hpp
+            case ir_opcode::op_not: { // logical not
               break;
             }
-            case ir_opcode::op_logical_or: { // add cmov to x86_64_writer.hpp
+            case ir_opcode::op_logical_and: {
+              break;
+            }
+            case ir_opcode::op_logical_or: {
               break;
             }
 
