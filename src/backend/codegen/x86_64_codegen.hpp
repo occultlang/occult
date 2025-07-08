@@ -164,7 +164,6 @@ namespace occult {
 
               break;
             }
-
             case ir_opcode::op_store: {
               auto var_name = std::get<std::string>(code.operand);
               auto it = local_variable_map.find(var_name);
@@ -205,7 +204,6 @@ namespace occult {
 
               break;
             }
-
             case ir_opcode::op_load: {
               const auto& var_name = std::get<std::string>(code.operand);
 
@@ -232,6 +230,7 @@ namespace occult {
               break;
             }
 
+            /* arith */
             case ir_opcode::op_add: {
               auto rhs = pool.pop();     
               auto lhs = pool.pop();   
@@ -254,10 +253,86 @@ namespace occult {
 
               break;
             }
+            case ir_opcode::op_mod: {
+              auto rhs = pool.pop();     
+              auto lhs = pool.pop();
+
+              w->emit_mov(rax, lhs);
+              w->emit_xor(rdx, rdx);
+              w->emit_div(rhs);
+
+              pool.push(rdx); // remainder
+              
+              break;
+            }
             case ir_opcode::op_div: {
+              auto rhs = pool.pop();     
+              auto lhs = pool.pop();
+
+              w->emit_mov(rax, lhs);
+              w->emit_xor(rdx, rdx);
+              w->emit_div(rhs);
+
+              pool.push(rax); // quotient
+              
               break;
             }
             case ir_opcode::op_mul: {
+              auto rhs = pool.pop();     
+              auto lhs = pool.pop();
+
+              w->emit_mov(rax, lhs);
+              w->emit_mul(rhs);
+
+              pool.push(rax);
+
+              break;
+            }
+
+            /* bitwise */
+            case ir_opcode::op_bitwise_and: {
+              auto rhs = pool.pop();
+              auto lhs = pool.pop();
+
+              auto result = pool.alloc();
+              w->emit_mov(result, lhs);   
+              w->emit_and(result, rhs);   
+
+              pool.push(result);
+
+              break;
+            }
+            case ir_opcode::op_bitwise_or: {
+              auto rhs = pool.pop();
+              auto lhs = pool.pop();
+
+              auto result = pool.alloc();
+              w->emit_mov(result, lhs);  
+              w->emit_or(result, rhs);  
+
+              pool.push(result);
+
+              break;
+            }
+            case ir_opcode::op_bitwise_xor: {
+              auto rhs = pool.pop();
+              auto lhs = pool.pop();
+
+              auto result = pool.alloc();
+              w->emit_mov(result, lhs);   
+              w->emit_xor(result, rhs);   
+
+              pool.push(result);
+
+              break;
+            }
+            case ir_opcode::op_bitwise_not: { // not implemented because I need to fix the precedence for it in IR and parser (its)
+              break;
+            }
+            case ir_opcode::op_bitwise_lshift: { // have to add SHL which uses CL (reg) to x86_64_writer.hpp
+              break;
+            }
+            case ir_opcode::op_bitwise_rshift: { // have to add SHR which uses CL (reg) to x86_64_writer.hpp
               break;
             }
           
@@ -284,6 +359,7 @@ namespace occult {
               break;
             }
 
+            /* logical */
             case ir_opcode::label: { // we realloc the label location in here
               auto current_location = w->get_code().size();
               auto label_name = std::get<std::string>(code.operand);
@@ -317,7 +393,6 @@ namespace occult {
               
               break;
             }
-
             case ir_opcode::op_cmp: {
               auto rhs = pool.pop();
               auto lhs = pool.pop();
@@ -387,6 +462,12 @@ namespace occult {
 
               pool.push(target); 
 
+              break;
+            }
+            case ir_opcode::op_logical_and: { // add cmov to x86_64_writer.hpp
+              break;
+            }
+            case ir_opcode::op_logical_or: { // add cmov to x86_64_writer.hpp
               break;
             }
 
