@@ -138,7 +138,7 @@ namespace occult {
         std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
         std::unordered_map<std::string, std::int64_t> local_variable_map;
         
-        std::uint32_t totalsizes = 0;
+        std::int32_t totalsizes = 0;
 
         const grp sysv_regs[] = {rdi, rsi, rdx, rcx, r8, r9};
         
@@ -151,7 +151,7 @@ namespace occult {
               w->emit_mov(r, sysv_regs[i]);
             } 
             else {
-              std::uint32_t offset = 16 + (i - 6) * 8;
+              std::int32_t offset = 16 + (i - 6) * 8;
               w->emit_mov(r, mem{rbp, offset});
             }
           } 
@@ -203,7 +203,7 @@ namespace occult {
                   std::cout << BLUE << "[CODEGEN INFO] Re-emitting variable: " << RESET << var_name << std::endl;
                 }
 
-                auto offset = -it->second;
+                std::int32_t offset = -it->second;
 
                 grp r = pool.pop();
 
@@ -229,7 +229,7 @@ namespace occult {
                 return; 
               }
 
-              auto offset = -it->second;
+              std::int32_t offset = -it->second;
         
               if (debug) {
                 std::cout << BLUE << "[CODEGEN INFO] Loading: " << RESET << var_name << "\n\tLocation: " << offset << std::endl;
@@ -277,6 +277,9 @@ namespace occult {
 
               pool.push(rdx); // remainder
               
+              pool.free(rhs);
+              pool.free(lhs);
+
               break;
             }
             case ir_opcode::op_div: {
@@ -289,6 +292,9 @@ namespace occult {
 
               pool.push(rax); // quotient
               
+              pool.free(rhs);
+              pool.free(lhs);
+              
               break;
             }
             case ir_opcode::op_mul: {
@@ -299,6 +305,9 @@ namespace occult {
               w->emit_mul(rhs);
 
               pool.push(rax);
+
+              pool.free(rhs);
+              pool.free(lhs);
 
               break;
             }
@@ -317,11 +326,10 @@ namespace occult {
               auto rhs = pool.pop();
               auto lhs = pool.pop();
 
-              auto result = pool.alloc();
-              w->emit_mov(result, lhs);   
-              w->emit_and(result, rhs);   
+              w->emit_and(lhs, rhs);   
 
-              pool.push(result);
+              pool.push(lhs);
+              pool.free(rhs);
 
               break;
             }
@@ -329,11 +337,10 @@ namespace occult {
               auto rhs = pool.pop();
               auto lhs = pool.pop();
 
-              auto result = pool.alloc();
-              w->emit_mov(result, lhs);  
-              w->emit_or(result, rhs);  
+              w->emit_or(lhs, rhs);  
 
-              pool.push(result);
+              pool.push(lhs);
+              pool.free(rhs);
 
               break;
             }
@@ -341,11 +348,10 @@ namespace occult {
               auto rhs = pool.pop();
               auto lhs = pool.pop();
 
-              auto result = pool.alloc();
-              w->emit_mov(result, lhs);   
-              w->emit_xor(result, rhs);   
+              w->emit_xor(lhs, rhs);   
 
-              pool.push(result);
+              pool.push(lhs);
+              pool.free(rhs);
 
               break;
             }
@@ -366,6 +372,7 @@ namespace occult {
               w->emit_shl(lhs);
 
               pool.push(lhs);
+              pool.free(rhs);
 
               break;
             }
@@ -377,6 +384,7 @@ namespace occult {
               w->emit_shr(lhs);
 
               pool.push(lhs);
+              pool.free(rhs);
 
               break;
             }

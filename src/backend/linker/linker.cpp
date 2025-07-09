@@ -99,6 +99,6 @@ namespace occult {
     }
     
     // Generate the final binary
-    elf::generate_binary(binary_name, final_code, final_code.size() * 2, entry_addr);
+    elf::generate_binary(binary_name, final_code, final_code.size() * 3, entry_addr);
   }
 }

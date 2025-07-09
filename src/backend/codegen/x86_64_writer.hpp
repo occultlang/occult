@@ -218,7 +218,7 @@ namespace occult {
                 }
             }
 
-            void check_reg_r2m(const opcode& op8, const opcode& op, const mem& dest, const grp& base, bool is_rip = false, bool is_2bOPC = false) {
+            void check_reg_r2m(const opcode& op8, const opcode& op, const mem& dest, const grp& base, bool is_2bOPC = false) {
                 auto emit_2b = [&]() {
                     if (is_2bOPC) push_byte(k2ByteOpcodePrefix);
                 };
@@ -367,42 +367,42 @@ namespace occult {
 
             void emit_reg_to_mem(const opcode& op8, const opcode& op, const mem& dest, const grp& base, bool is_2bOPC = false) { 
                 if (dest.reg == rip) { // rip relative
-                    check_reg_r2m(op8, op, dest, base, true, is_2bOPC);
+                    check_reg_r2m(op8, op, dest, base, is_2bOPC);
                     push_byte(modrm(mod_field::indirect, rm_field::rip_relative, rebase_register(base)));
                     emit_imm32(dest.disp);
                 }
                 else if (NOT_STACK_PTR(dest.reg) && NOT_STACK_BASE_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [reg]
-                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
+                    check_reg_r2m(op8, op, dest, base, is_2bOPC);
                     push_byte(modrm(mod_field::indirect, rebase_register(dest.reg), rebase_register(base)));
                 } 
                 else if (IS_STACK_BASE_PTR(dest.reg) && NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rbp]
-                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
+                    check_reg_r2m(op8, op, dest, base, is_2bOPC);
                     push_byte(modrm(mod_field::disp8, rebase_register(dest.reg), rebase_register(base)));
                     emit_imm8(0);
                 }
                 else if (NOT_STACK_BASE_PTR(dest.reg) && IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rsp]
-                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
+                    check_reg_r2m(op8, op, dest, base, is_2bOPC);
                     push_byte(modrm(mod_field::indirect, rm_field::indexed, rebase_register(base))); 
                     push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
                 }
                 else if (NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [reg + disp32] (we are always going to do disp32)
-                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
+                    check_reg_r2m(op8, op, dest, base, is_2bOPC);
                     push_byte(modrm(mod_field::disp32, rebase_register(dest.reg), rebase_register(base)));
                     emit_imm32(dest.disp);
                 }
                 else if (IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [rsp + disp32]
-                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
+                    check_reg_r2m(op8, op, dest, base, is_2bOPC);
                     push_byte(modrm(mod_field::disp32, rm_field::indexed, rebase_register(base))); 
                     push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
                     emit_imm32(dest.disp);
                 }
                 else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::none) { // [reg + SIB]
-                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
+                    check_reg_r2m(op8, op, dest, base, is_2bOPC);
                     push_byte(modrm(mod_field::indirect, rm_field::indexed, rebase_register(base))); 
                     push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
                 }
                 else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::disp) { // [reg + SIB + disp]
-                    check_reg_r2m(op8, op, dest, base, false, is_2bOPC);
+                    check_reg_r2m(op8, op, dest, base, is_2bOPC);
                     push_byte(modrm(mod_field::disp32, rm_field::indexed, rebase_register(base))); 
                     push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
                     emit_imm32(dest.disp);

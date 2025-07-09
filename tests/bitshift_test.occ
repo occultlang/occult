@@ -1,0 +1,166 @@
+fn main() i64 {
+  i64 and_test_1 = 6 & 3;
+  if and_test_1 != 2 {
+    return 1;
+  }
+
+  i64 or_test_1 = 6 | 3;
+  if or_test_1 != 7 {
+    return 2;
+  }
+
+  i64 xor_test_1 = 6 ^ 3;
+  if xor_test_1 != 5 {
+    return 3;
+  }
+
+  i64 not_test_1 = ~0;
+  if not_test_1 != -1 {
+    return 4;
+  }
+
+  i64 not_test_2 = ~6;
+  if not_test_2 != -7 {
+    return 5;
+  }
+
+  i64 lshift_test_1 = 2 << 2;
+  if lshift_test_1 != 8 {
+    return 6;
+  }
+
+  i64 rshift_test_1 = 8 >> 2;
+  if rshift_test_1 != 2 {
+    return 7;
+  }
+
+  i64 combo_1 = (5 | 3) ^ (5 & 3);
+  if combo_1 != 6 {
+    return 8;
+  }
+
+  i64 and_test_2 = 12 & 5;      // 0b1100 & 0b0101 = 0b0100 = 4
+  if and_test_2 != 4 {
+    return 9;
+  }
+
+  i64 or_test_2 = 12 | 5;       // 0b1100 | 0b0101 = 0b1101 = 13
+  if or_test_2 != 13 {
+    return 10;
+  }
+
+  i64 xor_test_2 = 12 ^ 5;      // 0b1100 ^ 0b0101 = 0b1001 = 9
+  if xor_test_2 != 9 {
+    return 11;
+  }
+
+  i64 not_test_3 = ~12;         // ~0b1100 = ...1111110011 = -13
+  if not_test_3 != -13 {
+    return 12;
+  }
+
+  i64 not_test_4 = ~9;          // ~0b1001 = ...1111110110 = -10
+  if not_test_4 != -10 {
+    return 13;
+  }
+
+  i64 lshift_test_2 = 3 << 3;   // 0b0011 << 3 = 0b11000 = 24
+  if lshift_test_2 != 24 {
+    return 14;
+  }
+
+  i64 rshift_test_2 = 24 >> 3;  // 0b11000 >> 3 = 0b0011 = 3
+  if rshift_test_2 != 3 {
+    return 15;
+  }
+
+  i64 combo_2 = (7 | 5) ^ (7 & 5); // (0b0111 | 0b0101 = 0b0111) ^ (0b0111 & 0b0101 = 0b0101)
+                                   // => 0b0111 ^ 0b0101 = 0b0010 = 2
+  if combo_2 != 2 {
+    return 16;
+  }
+
+  i64 and_test_3 = 18 & 7;      // 0b10010 & 0b00111 = 0b00010 = 2
+  if and_test_3 != 2 {
+    return 17;
+  }
+
+  i64 or_test_3 = 18 | 7;       // 0b10010 | 0b00111 = 0b10111 = 23
+  if or_test_3 != 23 {
+    return 18;
+  }
+
+  i64 xor_test_3 = 18 ^ 7;      // 0b10010 ^ 0b00111 = 0b10101 = 21
+  if xor_test_3 != 21 {
+    return 19;
+  }
+
+  i64 not_test_5 = ~18;         // ~0b10010 = ...11111101101 = -19
+  if not_test_5 != -19 {
+    return 20;
+  }
+
+  i64 not_test_6 = ~23;         // ~0b10111 = ...11111111000 = -24
+  if not_test_6 != -24 {
+    return 21;
+  }
+
+  i64 lshift_test_3 = 5 << 4;   // 0b0101 << 4 = 0b01010000 = 80
+  if lshift_test_3 != 80 {
+    return 22;
+  }
+
+  i64 rshift_test_3 = 80 >> 4;  // 0b01010000 >> 4 = 0b0101 = 5
+  if rshift_test_3 != 5 {
+    return 23;
+  }
+
+  i64 combo_3 = (10 | 6) ^ (10 & 6); // (0b1010 | 0b0110 = 0b1110) ^ (0b1010 & 0b0110 = 0b0010)
+                                     // => 0b1110 ^ 0b0010 = 0b1100 = 12
+  if combo_3 != 12 {
+    return 24;
+  }
+
+  i64 and_test_4 = 7 & 4;       // 0b0111 & 0b0100 = 0b0100 = 4
+  if and_test_4 != 4 {
+    return 25;
+  }
+
+  i64 or_test_4 = 7 | 4;        // 0b0111 | 0b0100 = 0b0111 = 7
+  if or_test_4 != 7 {
+    return 26;
+  }
+
+  i64 xor_test_4 = 7 ^ 4;       // 0b0111 ^ 0b0100 = 0b0011 = 3
+  if xor_test_4 != 3 {
+    return 27;
+  }
+
+  i64 not_test_7 = ~7;          // ~0b0111 = ...1111111000 = -8
+  if not_test_7 != -8 {
+    return 28;
+  }
+
+  i64 not_test_8 = ~4;          // ~0b0100 = ...1111111011 = -5
+  if not_test_8 != -5 {
+    return 29;
+  }
+
+  i64 lshift_test_4 = 3 << 5;   // 0b0011 << 5 = 0b110000 = 96
+  if lshift_test_4 != 96 {
+    return 30;
+  }
+
+  i64 rshift_test_4 = 48 >> 5;  // 0b110000 >> 5 = 0b0011 = 1
+  if rshift_test_4 != 1 {
+    return 31;
+  }
+
+  i64 combo_4 = (13 | 9) ^ (13 & 9); // (0b1101 | 0b1001 = 0b1101) ^ (0b1101 & 0b1001 = 0b1001)
+                                     // => 0b1101 ^ 0b1001 = 0b0100 = 4
+  if combo_4 != 4 {
+    return 32;
+  }
+
+  return 0; // success
+}

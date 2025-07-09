@@ -1,0 +1,68 @@
+fn main() i64 {
+  i64 not_true = !true;         // !true = false = 0
+  if not_true != 0 {
+    return 1;
+  }
+
+  i64 not_false = !false;       // !false = true = 1
+  if not_false != 1 {
+    return 2;
+  }
+
+  i64 not_zero = !0;            // !0 = true = 1
+  if not_zero != 1 {
+    return 3;
+  }
+
+  i64 not_nonzero = !123;       // !123 = false = 0
+  if not_nonzero != 0 {
+    return 4;
+  }
+
+  i64 and_true = true && true;  // 1 && 1 = 1
+  if and_true != 1 {
+    return 5;
+  }
+
+  i64 and_false = true && false; // 1 && 0 = 0
+  if and_false != 0 {
+    return 6;
+  }
+
+  i64 and_zero = 0 && 999;      // 0 && 999 = 0
+  if and_zero != 0 {
+    return 7;
+  }
+
+  i64 and_nonzero = 123 && 456; // 123 && 456 = 1
+  if and_nonzero != 1 {
+    return 8;
+  }
+
+  i64 or_true = true || false;  // 1 || 0 = 1
+  if or_true != 1 {
+    return 9;
+  }
+
+  i64 or_false = false || false; // 0 || 0 = 0
+  if or_false != 0 {
+    return 10;
+  }
+
+  i64 or_mixed = 123 || 0;      // 123 || 0 = 1
+  if or_mixed != 1 {
+    return 11;
+  }
+
+  i64 or_zero = 0 || 0;         // 0 || 0 = 0
+  if or_zero != 0 {
+    return 12;
+  }
+
+  i64 complex = !(5 && 0 || 1); // 5 && 0 = 0, 0 || 1 = 1, !1 = 0
+  if complex != 0 {
+    return 13;
+  }
+
+  return 0; // success
+}
