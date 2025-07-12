@@ -4,7 +4,6 @@
   </a>
   <h1 style="margin: 5px;">The Occult Programming Language</h1>
   <p align="center">An enigmatic programming language... <a href="https://occultlang.org" target="_blank">occultlang.org</a></p> <br>
-  <a href="https://discord.gg/ptUACmpg3Z" target="_blank">Official Discord</a> <br><br>
 </div>
 
 > [!IMPORTANT]
