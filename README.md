@@ -19,7 +19,7 @@
 - [ ] Foreach loops
 - [ ] Static Analysis
 - [ ] Windows support
-- [ ] Inline assembler based on architecture type
+- [ ] Inline assembler based on a generic assembly language
 - [ ] Multi-platform support (RISCV, Arm64, etc.)
 - [ ] A new intermediate following the first IR stage to allow for optimizations on code, would be TAC or SSA. 
 
