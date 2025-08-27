@@ -8,7 +8,6 @@
 
 > [!IMPORTANT]
 > An update is going to come soon to Occult! ✨ <br>
-> I am taking a short hiatus and will be back relatively soon.
 > #### - Anthony
 
 ### Things that need to be done
