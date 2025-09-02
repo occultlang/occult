@@ -8,7 +8,7 @@
   }
 
   return total;
-}*/
+}
 
 fn test_ptr() i64 {
   i64* p = 0xDEADBEEF;
@@ -17,7 +17,16 @@ fn test_ptr() i64 {
   return 0;
 }
 
-fn main() i64 {
+fn ptr_func() i64** {
+  
+}
+*/
+
+fn main() array[][] i64 {
+return 0;
+}
+
+/*fn main() i64 {
   array[4] i64 test_array = {1, 2, 3, 4};
   array[2][2] i64 test_array2 = {{1, 2}, {3, 4}};
   array[3][4] i64 test_array3;
@@ -29,9 +38,9 @@ fn main() i64 {
 
   //bbbbbb[aaaaa[0]] = call();
   //test(t[a[1]]);
-  /*i64 aaa = 123;
+  i64 aaa = 123;
   i64* test_address2 = &aaa;
   i64 aaafffffffffff = *test_address2 * 30; // when doing IR we will have to check if it is a reference or dereference
-  /*return add(double_total(10), double_total(10));*/
+  return add(double_total(10), double_total(10));
   return 0;
-}
+}*/

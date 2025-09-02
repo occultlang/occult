@@ -1,0 +1,14 @@
+fn main() i64 {
+  i64 i = 0;
+  i64 x = 10;
+
+  while i < 10 && x == 10 {
+    if i < 10 {
+      i = i + 1;
+    }
+  }
+   
+  for i = i when i < 20 && x == 10; do i = i + 1 { }
+
+  return i;
+}

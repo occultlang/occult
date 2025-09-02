@@ -104,57 +104,6 @@ namespace occult {
     expr_cst_ref.push_back(std::move(start_node));
   }
 
-  void parser::shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref) {
-    switch(curr_tok_ref.tt) {
-      case number_literal_tt: 
-      case float_literal_tt: 
-      case string_literal_tt:
-      case char_literal_tt:
-      case false_keyword_tt:
-      case true_keyword_tt:
-      case unary_bitwise_not_tt:
-      case unary_minus_operator_tt:
-      case unary_plus_operator_tt:
-      case unary_not_operator_tt: {
-        expr_cst_ref.push_back(cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
-        break;
-      }
-      
-      case left_paren_tt: {
-        stack_ref.push(curr_tok_ref);
-        break;
-      }
-      
-      case right_paren_tt: {
-        while(!stack_ref.empty()) {
-          curr_tok_ref = stack_ref.top();
-          
-          stack_ref.pop();
-          
-          if (curr_tok_ref.tt == left_paren_tt) {
-            break;
-          }
-          
-          expr_cst_ref.push_back(cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
-        }
-        
-        break;
-      }
-        
-      default: {
-        while(!stack_ref.empty() && precedence_map[curr_tok_ref.tt] >= precedence_map[stack_ref.top().tt]) {
-          expr_cst_ref.push_back(cst_map[stack_ref.top().tt](stack_ref.top().lexeme));
-          
-          stack_ref.pop();
-        }
-        
-        stack_ref.push(curr_tok_ref);
-        
-        break;
-      }
-    }
-  }
-
   void parser::parse_array_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref) {
     auto array_access_node = cst::new_node<cst_arrayaccess>();
     array_access_node->add_child(cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
@@ -211,44 +160,123 @@ namespace occult {
   
     expr_cst_ref.push_back(std::move(array_access_node));
   }
+
+  void parser::shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref, bool& b_ref) {
+    switch (curr_tok_ref.tt) {
+      case number_literal_tt:
+      case float_literal_tt:
+      case string_literal_tt:
+      case char_literal_tt:
+      case false_keyword_tt:
+      case true_keyword_tt:
+      case identifier_tt: {    
+        auto n = cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme);
+        
+        expr_cst_ref.push_back(std::move(n));
+
+        break;
+      }
+      case unary_bitwise_not_tt:
+      case unary_minus_operator_tt:
+      case unary_plus_operator_tt:
+      case unary_not_operator_tt: {
+        stack_ref.push(curr_tok_ref); // push unary ops to stack
+        
+        break;
+      }
+      case left_paren_tt: {
+        stack_ref.push(curr_tok_ref);
+        expr_cst_ref.push_back(cst::new_node<cst_expr_end>());
+        
+        break;
+      }
+      case right_paren_tt: {
+        while (!stack_ref.empty() && stack_ref.top().tt != left_paren_tt) {
+          auto n = cst_map[stack_ref.top().tt](stack_ref.top().lexeme);
+
+          expr_cst_ref.push_back(std::move(n));
+          stack_ref.pop();
+        }
+        if (!stack_ref.empty() && stack_ref.top().tt == left_paren_tt) {
+          stack_ref.pop(); 
+        } 
+        else {
+          throw parsing_error("matching left parenthesis", curr_tok_ref, pos, std::source_location::current().function_name());
+        }
+        
+        while (!stack_ref.empty() && // pop unary ops after paren
+              (stack_ref.top().tt == unary_bitwise_not_tt ||
+                stack_ref.top().tt == unary_minus_operator_tt ||
+                stack_ref.top().tt == unary_plus_operator_tt ||
+                stack_ref.top().tt == unary_not_operator_tt)) {
+          expr_cst_ref.push_back(cst_map[stack_ref.top().tt](stack_ref.top().lexeme));
+          stack_ref.pop();
+        }
+
+        expr_cst_ref.push_back(cst::new_node<cst_expr_start>());
+
+        break;
+      }
+      default: { // binary ops
+        while (!stack_ref.empty() && stack_ref.top().tt != left_paren_tt &&
+              precedence_map[curr_tok_ref.tt] > precedence_map[stack_ref.top().tt]) {
+          auto n = cst_map[stack_ref.top().tt](stack_ref.top().lexeme);
+          
+          expr_cst_ref.push_back(std::move(n));
+          stack_ref.pop();
+        }
+        stack_ref.push(curr_tok_ref);
+
+        break;
+      }
+    }
+  }
   
   void parser::shunting_yard_stack_cleanup(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref) {
     while (!stack_ref.empty()) {
+      if (stack_ref.top().tt == left_paren_tt) {
+        throw parsing_error("unmatched left parenthesis", stack_ref.top(), pos, std::source_location::current().function_name());
+      }
+      
       expr_cst_ref.push_back(cst_map[stack_ref.top().tt](stack_ref.top().lexeme));
       stack_ref.pop();
     }
   }
 
+  /* 
+    after careful consideration, for now, occult will only support binary comparisons for now. no singular comparisons. (e.g !X instead use X == false) 
+    although, we can NOT expressions in parenthesis still. but they can NOT be singular. 
+
+    if you think about it, more verbosity is a double edged sword. its a weird language thing for now... until i actually add singular comparisons 
+  */
   std::vector<std::unique_ptr<cst>> parser::parse_expression(std::vector<token_t> expr) {
     std::vector<std::unique_ptr<cst>> expr_cst;
     std::stack<token_t> operator_stack;
-
-    auto is_end = false;
     
-    for (std::size_t i = 0; i < expr.size() && !is_end; i++) {
+    for (std::size_t i = 0; i < expr.size(); i++) {
       auto t = expr.at(i);
-      
-      if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt || t.tt == comma_tt) { // marking the end of the statement or expression
-        is_end = true; 
-      }
-      else if (t.tt == identifier_tt) { // normal identifier, no expr, just push into the vector
-        if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) { // function call
+
+      if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt || t.tt == comma_tt) {
+        break; // end of expr
+      } 
+      else if (t.tt == identifier_tt) {
+        if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) {
           parse_function_call_expr(expr_cst, expr, t, i);
-        }
-        else if (i + 1 < expr.size() && expr.at(i + 1).tt == left_bracket_tt) { // array access
+        } 
+        else if (i + 1 < expr.size() && expr.at(i + 1).tt == left_bracket_tt) {
           parse_array_access_expr(expr_cst, expr, t, i);
-        }
-        else { // normal identifier
+        } 
+        else {
           expr_cst.push_back(cst_map[t.tt](t.lexeme));
         }
-      }
+      }  
       else {
-        shunting_yard(operator_stack, expr_cst, t); // operator precedence using shunting yard
+        shunting_yard(operator_stack, expr_cst, t);
       }
     }
-    
-    shunting_yard_stack_cleanup(operator_stack, expr_cst); 
-    
+
+    shunting_yard_stack_cleanup(operator_stack, expr_cst);
+
     return expr_cst;
   }
 
@@ -264,13 +292,39 @@ namespace occult {
         consume();
         node->num_pointers++;
       }
-    }
+     }
 
      if (peek().tt == identifier_tt) {
        node->add_child(parse_identifier());
      }
      
      return node;
+   }
+   else if (match(peek(), array_keyword_tt)) {
+    consume();
+
+    auto node = cst::new_node<cst_array>();
+
+    auto dimension_count = 0;
+    while (match(peek(), left_bracket_tt) && match(peek(1), right_bracket_tt)) {
+      consume(2);
+      dimension_count++;
+    }
+
+    node->add_child(cst::new_node<cst_dimensions_count>(std::to_string(dimension_count)));
+
+    it = datatype_map.find(peek().tt);
+    if (it != datatype_map.end()) {
+      consume();  
+      auto datatype_node = it->second();
+
+      node->add_child(std::move(datatype_node));
+
+      return node;
+    }
+    else {
+      throw parsing_error("<dataype>", peek(), pos, std::source_location::current().function_name());
+    }
    }
    else {
      throw parsing_error("<dataype>", peek(), pos, std::source_location::current().function_name());
@@ -1102,7 +1156,7 @@ namespace occult {
           root->add_child(std::move(node)); // not nested
         }
 
-        if (match(peek(), end_of_file_tt)) {
+        if (match(peek(), end_of_file_tt) && parser_state == state::neutral) {
           parser_state = state::success;
           break;
         }

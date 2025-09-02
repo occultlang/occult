@@ -78,6 +78,8 @@ namespace occult {
     arrayaccess,
     dereference,
     reference,
+    expr_start,
+    expr_end
   };
   
   class cst {
@@ -87,6 +89,7 @@ namespace occult {
     
     std::string content = ""; // base class
     std::size_t num_pointers = 0;
+    bool do_not = false;
     
     template<typename BaseCst = cst>
     static std::unique_ptr<BaseCst> new_node() {
@@ -146,7 +149,11 @@ namespace occult {
         }
         output += ": " + content_copy;
       }
-    
+
+      if (do_not) {
+        output += GREEN " (do_not = true)" RESET;
+      }
+
       std::cout << output << "\n";
     
       for (const auto& child : children) {
@@ -234,4 +241,6 @@ namespace occult {
   NODE(arrayaccess, cst_arrayaccess)
   NODE(dereference, cst_dereference)
   NODE(reference, cst_reference)
+  NODE(expr_start, cst_expr_start) // not used
+  NODE(expr_end, cst_expr_end) // used to mark an end of an expression for comparisons
 } // namespace occult

@@ -1,0 +1,18 @@
+fn main() i64 {
+    return cpp_div(10, 2);
+
+    i64 x = false;
+    i64 y = true;
+    i64 b = 1;
+    i64 a = 1;
+    
+    if y == true && x == true || !(b == a) { 
+        return 40;
+    }
+    else if y == true {
+        return 71;
+    }
+    else {
+        return 5;
+    }
+}

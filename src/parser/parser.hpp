@@ -10,6 +10,7 @@ namespace occult {
   class parser {
   public:
     enum class state : std::uint8_t { 
+      neutral,
       failed,
       success
     };
@@ -17,15 +18,15 @@ namespace occult {
     std::unique_ptr<cst_root> root;
     std::vector<token_t> stream;
     std::uintptr_t pos = 0;
-    state parser_state = state::failed;
+    state parser_state = state::neutral;
     
     token_t peek(std::uintptr_t pos = 0);
     token_t previous();
     void consume(std::uintptr_t amt = 1);
     bool match(token_t t, token_type tt);
     void parse_function_call_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref);
-    void shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref);
     void parse_array_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref);
+    void shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref);
     void shunting_yard_stack_cleanup(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref);
     std::vector<std::unique_ptr<cst>> parse_expression(std::vector<token_t> expr);
     std::unique_ptr<cst_function> parse_function();

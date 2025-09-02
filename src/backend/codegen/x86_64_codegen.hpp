@@ -163,7 +163,9 @@ namespace occult {
           local_variable_map.insert({func.args[i].name, totalsizes});
         }
 
-        for (const auto& code : func.code) {
+        for (std::size_t i = 0; i < func.code.size(); i++) {
+          const auto& code = func.code.at(i);
+
           switch (code.op) {
             case ir_opcode::op_push: {
               if (std::holds_alternative<int64_t>(code.operand)) {
@@ -517,16 +519,15 @@ namespace occult {
 
               break;
             }
-            case ir_opcode::op_not: { // logical not
-              break;
-            }
-            case ir_opcode::op_logical_and: {
-              break;
-            }
-            case ir_opcode::op_logical_or: {
-              break;
-            }
+            case ir_opcode::op_not: {
+              auto r = pool.pop();  
 
+              w->emit_cmp(r, 0);         
+              w->emit_setz(r);           // set r to 1 if equal (i.e., was 0), else 0
+              pool.push(r);     
+
+              break;
+            }
             case ir_opcode::op_call: {
               std::string func_name = std::get<std::string>(code.operand);
 
@@ -599,22 +600,29 @@ namespace occult {
                 pool.free(args[i]);
               }
 
+              std::vector<grp> caller_saved_used;
               if (is_systemv) {
                 const grp caller_saved[] = {r10, r11, r12, r13, r14, r15};
+                std::vector<grp> used;
+
                 for (auto reg : caller_saved) {
-                  w->emit_push(reg);
+                  if (std::find(reg_stack_copy.begin(), reg_stack_copy.end(), reg) != reg_stack_copy.end()) {
+                    w->emit_push(reg);
+                    used.push_back(reg);
+                  }
                 }
+
+                caller_saved_used = std::move(used);
               }
               
               w->emit_mov(rax, reinterpret_cast<std::int64_t>(&function_map[func_name]));
               w->emit_call(mem{rax});
           
               if (is_systemv) {
-                const grp caller_saved[] = {r15, r14, r13, r12, r11, r10};
-                for (auto reg : caller_saved) {
-                  w->emit_pop(reg);
+                for (auto it = caller_saved_used.rbegin(); it != caller_saved_used.rend(); ++it) {
+                  w->emit_pop(*it);
                 }
-              }              
+              }
 
               std::size_t reg_limit = is_systemv ? 6 : 4;
               if (args.size() > reg_limit) {
@@ -625,6 +633,11 @@ namespace occult {
               w->emit_mov(ret_reg, rax);
               pool.push(ret_reg);
 
+              break;
+            }
+
+            /* arrays */
+            case op_array_decl: {
               break;
             }
 
@@ -664,43 +677,49 @@ namespace occult {
       }
 
       void compile_function(const ir_function& func, bool use_jit) {
-        if (debug && function_map.contains(func.name)) {
-          std::cout << BLUE << "[CODEGEN INFO] Symbol " << YELLOW << "\"" << func.name << "\"" << BLUE << " already exists, probably already compiled or is compiling." << RESET << std::endl;
+        static std::unordered_set<std::string> compiling_functions;
 
-          return;
+        if (debug && function_map.contains(func.name)) {
+            std::cout << BLUE << "[CODEGEN INFO] Symbol " << YELLOW << "\"" << func.name << "\"" << BLUE << " already exists, probably already compiled or is compiling." << RESET << std::endl;
+            return;
         }
 
+        if (compiling_functions.contains(func.name)) {
+            return; 
+        }
+
+        compiling_functions.insert(func.name);
+
         if (debug) {
-          std::cout << BLUE << "[CODEGEN INFO] Compiling function: " << YELLOW << "\"" << func.name << "\"\n" << RESET;
+            std::cout << BLUE << "[CODEGEN INFO] Compiling function: " << YELLOW << "\"" << func.name << "\"\n" << RESET;
         }
 
         auto w = std::make_unique<x86_64_writer>();
         function_map.insert({func.name, reinterpret_cast<jit_function>(w->memory)});
-        
         w->emit_function_prologue();
-        
+
         bool is_main = false;
         if (func.name == "main") {
-          is_main = true;
+            is_main = true;
         }
 
         generate_code(func, w.get(), is_main, use_jit);
 
         if (debug) {
-          std::cout << GREEN << "[CODEGEN INFO] Generated code for " << YELLOW << "\"" << func.name << "\"\n" << RESET; 
-          w->print_bytes();
+            std::cout << GREEN << "[CODEGEN INFO] Generated code for " << YELLOW << "\"" << func.name << "\"\n" << RESET;
+            w->print_bytes();
         }
 
         function_raw_code_map.insert({func.name, w->get_code()});
-
         w->setup_function();
         writers.push_back(std::move(w));
-      }
+        compiling_functions.erase(func.name); 
+    }
     public:
       std::unordered_map<std::string, jit_function> function_map;
       std::map<std::string, std::vector<std::uint8_t>> function_raw_code_map;
 
-      codegen(std::vector<ir_function> ir_funcs, bool debug) : ir_funcs(ir_funcs), debug(debug) {}
+      codegen(std::vector<ir_function> ir_funcs, bool debug = false) : ir_funcs(ir_funcs), debug(debug) {}
       
       ~codegen() {
         writers.clear();

@@ -596,7 +596,7 @@ namespace occult {
 
         // these require the k2ByteOpcodePrefix (0x0F) naming is the same
         enum float_opcode_2b : std::uint8_t {
-
+            
         };
     } // namespace x86_64
 } // namespace occult

@@ -119,7 +119,7 @@ namespace occult {
 
     static std::string get_typename(const token_type& tt);
 
-    token_t(const std::uintptr_t& line, const std::uintptr_t& column, const std::string& lexeme, const token_type& tt) : line(line), column(column), lexeme(lexeme), tt(tt) {}
+    token_t(const std::uintptr_t& line = 0, const std::uintptr_t& column = 0, const std::string& lexeme = "", const token_type& tt = token_type::unkown_tt) : line(line), column(column), lexeme(lexeme), tt(tt) {}
   } token_t; // token structure
 
   class lexer {
@@ -127,11 +127,13 @@ namespace occult {
     std::uintptr_t pos;
     std::uintptr_t line;
     std::uintptr_t column;
+    bool use_whitespace;
     
     std::vector<token_t> stream;
     void increment(const std::uintptr_t& line = 0, const std::uintptr_t& pos = 0, const std::uintptr_t& column = 0);
     void handle_comment();
     void handle_whitespace();
+    token_t handle_whitespace_with_token();
     std::string handle_escape_sequences(const char& type);
     token_t handle_string();
     token_t handle_char();
@@ -141,7 +143,7 @@ namespace occult {
     token_t handle_symbol();
     token_t get_next_token();
   public:
-    lexer(const std::string& source) : source(source), pos(0), line(1), column(1) {}
+    lexer(const std::string& source, bool use_whitespace = false) : source(source), pos(0), line(1), column(1), use_whitespace(use_whitespace) {}
     
     std::vector<token_t> analyze();
     void visualize(const std::optional<std::vector<token_t>>& o_s = std::nullopt); 

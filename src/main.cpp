@@ -15,6 +15,8 @@
 #include "backend/pe_header.hpp"
 #endif
 
+#include <cstdlib>
+
 void display_help() {
   std::cout << "Usage: occultc [options] <source.occ>\n"
             << "Options:\n"
@@ -23,6 +25,24 @@ void display_help() {
             << "  -o,   --output <file>     Output native binary\n"
             << "  -j,   --jit               JIT compile (in memory)\n"
             << "  -h,   --help              Show this message\n";
+}
+
+std::int64_t occ_puts(std::int64_t text) {
+    if (text == 0) {
+        return 0;
+    }
+
+    int count = 0;
+    for (int shift = 56; shift >= 0 && count < 8; shift -= 8) {
+        char c = static_cast<char>((text >> shift) & 0xFF);
+        if (c == 0) {
+            break;
+        }
+        std::cout.put(c);
+        ++count;
+    }
+
+    return count;
 }
 
 int main(int argc, char* argv[]) {  
@@ -70,7 +90,7 @@ int main(int argc, char* argv[]) {
       input_file = arg;
     }
   }
-  
+
   std::ifstream file(input_file);
   std::stringstream buffer;
   buffer << file.rdbuf();
@@ -112,7 +132,7 @@ int main(int argc, char* argv[]) {
   }
 
   start = std::chrono::high_resolution_clock::now();
-  occult::ir_gen ir_gen(cst.get());
+  occult::ir_gen ir_gen(cst.get(), debug);
   auto ir = ir_gen.lower_to_stack();
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
@@ -122,9 +142,10 @@ int main(int argc, char* argv[]) {
   if (debug) {
     ir_gen.visualize_stack_ir(ir);
   }
-  
+
   start = std::chrono::high_resolution_clock::now();
   occult::x86_64::codegen jit_runtime(ir, debug);
+
   jit_runtime.compile(jit);
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;

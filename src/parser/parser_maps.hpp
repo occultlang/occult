@@ -26,8 +26,6 @@ namespace occult {
     {bitwise_rshift_tt, 5},
     {bitwise_lshift_tt, 5},
     
-    // space in-between for experimentation of and and or (logical)
-    
     {greater_than_operator_tt, 8},
     {less_than_operator_tt, 8},
     {less_than_or_equal_operator_tt, 8},

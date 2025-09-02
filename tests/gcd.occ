@@ -1,4 +1,4 @@
-fn gcd(i64 a, i64 b) i64 {
+fn gcd(i64 a, i64 b) i64 { // greatest common divisor
     if a == b {
       return a;
     } 
@@ -11,6 +11,6 @@ fn gcd(i64 a, i64 b) i64 {
   }
   
   fn main() i64 {
-    return gcd(48, 18);  // Should return 6
+    return gcd(48, 18);  // should return 6
   }
   

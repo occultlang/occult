@@ -1,6 +1,8 @@
 #pragma once
 #include "../../parser/cst.hpp"
 
+// write assignment for booleans (comparison w OR, and AND)
+
 namespace occult {
   enum ir_opcode {
     null_op,
@@ -57,6 +59,7 @@ namespace occult {
     op_array_size,
     op_decl_array_type,
     op_mov,
+    op_test,
   };
   
   inline std::string opcode_to_string(ir_opcode op) {
@@ -114,6 +117,7 @@ namespace occult {
       case op_decl_array_type: return "decl_array_type";
       case op_declare_where_to_store: return "declare_where_to_store";
       case op_mov: return "mov";
+      case op_test: return "test";
       default:              return "unknown_opcode";
     }
   }
@@ -243,9 +247,12 @@ namespace occult {
   class ir_gen { // conversion into a linear IR
     cst_root* root;
     int label_count;
+    int temp_var_count;
     std::stack<std::string> label_stack;
     std::unordered_map<std::string, int> label_map;
-    
+    std::unordered_map<std::string, int> temp_var_map;
+    bool debug;
+
     ir_function generate_function(cst_function* func_node);
     void generate_function_args(ir_function& function, cst_functionargs* func_args_node);
     void generate_arith_and_bitwise_operators(ir_function& function, cst* c);
@@ -255,6 +262,11 @@ namespace occult {
     void handle_push_types_common(ir_function& function, cst* c);
     void generate_function_call(ir_function& function, cst* c);
     void generate_return(ir_function& function, cst_returnstmt* return_node);
+    void generate_or_jump(ir_function& function, cst* comparison, const std::string& true_label);
+    void generate_and_jump(ir_function& function, cst* comparison, const std::string& false_label);  
+    void generate_inverted_jump(ir_function& function, cst* comparison, const std::string& false_label);
+    void generate_normal_jump(ir_function& function, cst* comparison, const std::string& false_label);
+    void generate_condition(ir_function& function, cst* node, std::string false_label, std::string true_label);
     void generate_if(ir_function& function, cst_ifstmt* if_node, std::string current_break_label = "", std::string current_loop_start = "");
     void generate_loop(ir_function& function, cst_loopstmt* loop_node);
     void generate_while(ir_function& function, cst_whilestmt* while_node);
@@ -263,9 +275,11 @@ namespace occult {
     void generate_array_access(ir_function& function, cst_arrayaccess* array_access_node);
     void generate_block(ir_function& function, cst_block* block_node, std::string current_break_label = "", std::string current_loop_start = "");
     std::string create_label();
+    std::string create_temp_var();
     void place_label(ir_function& function, std::string label_name);
+    void place_temp_var(ir_function& function, std::string var_name);
   public:
-    ir_gen(cst_root* root) : root(root), label_count(0) {}
+    ir_gen(cst_root* root, bool debug = false) : root(root), label_count(0), temp_var_count(0), debug(debug) {}
     void visualize_stack_ir(std::vector<ir_function> funcs);
     std::vector<ir_function> lower_to_stack();
     void visualize_register_ir(std::vector<ir_reg_function> funcs);

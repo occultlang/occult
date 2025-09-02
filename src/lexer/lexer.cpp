@@ -58,6 +58,24 @@ namespace occult {
       }
     }
   }
+  
+  token_t lexer::handle_whitespace_with_token() {
+    std::string lexeme = "";
+    
+    if (whitespace_map.contains(source[pos])) {
+      lexeme += source[pos];
+
+      if (source[pos] == '\n' || source[pos] == '\r') {
+        increment(1, 1, 0);
+        column = 1;
+      }
+      else {
+        increment(0, 1, 1);
+      }
+    }
+
+    return token_t(line, column, lexeme, whitespace_tt);
+  }
 
   std::string lexer::handle_escape_sequences(const char& type) {
     std::string lexeme = "";
@@ -259,7 +277,16 @@ namespace occult {
       return token_t(line, column, "end of file", end_of_file_tt);
     }
 
-    handle_whitespace();
+    if (use_whitespace && whitespace_map.contains(source[pos])) {
+      token_t whitespace_token = handle_whitespace_with_token();
+      
+      if (whitespace_token.tt == whitespace_tt) {
+        return whitespace_token;
+      }
+    } 
+    else {
+      handle_whitespace();
+    }
 
     if (pos < source.length() && source[pos] == '\"') {
       return handle_string();
