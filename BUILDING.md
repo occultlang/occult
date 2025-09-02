@@ -1,4 +1,8 @@
 _____________________________________________________________________________
+
+> [!IMPORTANT]
+> **The highest C++ standard that Occult should use is C++20**
+
 ### Building for Linux / MacOS
 ```bash
 git clone https://github.com/occultlang/occult.git && cd occult
