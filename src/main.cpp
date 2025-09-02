@@ -15,8 +15,6 @@
 #include "backend/pe_header.hpp"
 #endif
 
-#include <cstdlib>
-
 void display_help() {
   std::cout << "Usage: occultc [options] <source.occ>\n"
             << "Options:\n"
@@ -25,24 +23,6 @@ void display_help() {
             << "  -o,   --output <file>     Output native binary\n"
             << "  -j,   --jit               JIT compile (in memory)\n"
             << "  -h,   --help              Show this message\n";
-}
-
-std::int64_t occ_puts(std::int64_t text) {
-    if (text == 0) {
-        return 0;
-    }
-
-    int count = 0;
-    for (int shift = 56; shift >= 0 && count < 8; shift -= 8) {
-        char c = static_cast<char>((text >> shift) & 0xFF);
-        if (c == 0) {
-            break;
-        }
-        std::cout.put(c);
-        ++count;
-    }
-
-    return count;
 }
 
 int main(int argc, char* argv[]) {  
