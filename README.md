@@ -7,15 +7,16 @@
 </div>
 
 > [!IMPORTANT]
-> An update is going to come soon to Occult! ✨ <br>
+> Working hard on Occult! ✨ <br>
 > #### - Anthony
 
-### Things that need to be done
-- [ ] Pointers
-- [ ] Arrays
-- [ ] Strings 
-- [ ] Floating point numbers
-- [ ] Foreach loops
+### Things that need to be done (Highlighted has priority)
+- [ ] **Pointers**
+- [ ] **Arrays**
+- [ ] **Strings** 
+- [ ] **Floating point numbers**
+- [ ] **Foreach loops**
+- [ ] **Implicit boolean conversion**
 - [ ] Static Analysis
 - [ ] Windows support
 - [ ] Inline assembler based on a generic assembly language
