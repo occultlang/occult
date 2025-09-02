@@ -161,7 +161,7 @@ namespace occult {
     expr_cst_ref.push_back(std::move(array_access_node));
   }
 
-  void parser::shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref, bool& b_ref) {
+  void parser::shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref) {
     switch (curr_tok_ref.tt) {
       case number_literal_tt:
       case float_literal_tt:
