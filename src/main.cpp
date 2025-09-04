@@ -3,6 +3,7 @@
 #include "parser/parser.hpp"
 #include "backend/codegen/ir_gen.hpp"
 #include "backend/codegen/x86_64_codegen.hpp"
+#include "backend/codegen/function_registry.hpp"
 #include <source_location>
 #include <iostream>
 #include <fstream>
@@ -14,6 +15,8 @@
 #elif _WIN64
 #include "backend/pe_header.hpp"
 #endif
+
+#include <cstdlib>
 
 void display_help() {
   std::cout << "Usage: occultc [options] <source.occ>\n"
@@ -125,7 +128,6 @@ int main(int argc, char* argv[]) {
 
   start = std::chrono::high_resolution_clock::now();
   occult::x86_64::codegen jit_runtime(ir, debug);
-
   jit_runtime.compile(jit);
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;

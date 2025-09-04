@@ -1,6 +1,4 @@
 fn main() i64 {
-    return cpp_div(10, 2);
-
     i64 x = false;
     i64 y = true;
     i64 b = 1;
