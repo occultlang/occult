@@ -1217,15 +1217,6 @@ namespace occult {
     function.code.emplace_back(op_store, var_name);
   }
   
-  struct visitor {
-    void operator()(const float& v){ std::cout << v << "\n"; };
-    void operator()(const double& v){ std::cout << v << "\n"; };
-    void operator()(const std::int64_t& v){ std::cout << v << "\n"; };
-    void operator()(const std::uint64_t& v){ std::cout << v << "\n"; };
-    void operator()(const std::string& v){ std::cout << v << "\n"; };
-    void operator()(std::monostate){ std::cout << "\n"; };
-  };
-  
   void ir_gen::visualize_stack_ir(std::vector<ir_function> funcs) {
     for (auto& func : funcs) {
       std::cout << "\n" << func.type << "\n";
@@ -1240,7 +1231,7 @@ namespace occult {
       std::cout << "code:\n";
       for (auto& i : func.code) {
         std::cout << occult::opcode_to_string(i.op) << " ";
-        std::visit(visitor(), i.operand);
+        std::visit(visitor_stack(), i.operand);
       }
     }
   }

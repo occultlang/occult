@@ -117,6 +117,9 @@ int main(int argc, char* argv[]) {
   start = std::chrono::high_resolution_clock::now();
   occult::ir_gen ir_gen(cst.get(), debug);
   auto ir = ir_gen.lower_to_stack();
+  occult::function_registry::register_function_to_ir<&__cast_to_uint32__>(ir);
+  occult::function_registry::register_function_to_ir<&__cast_to_int64__>(ir);
+  occult::function_registry::register_function_to_ir<&__cast_to_uint64__>(ir);
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
@@ -128,6 +131,9 @@ int main(int argc, char* argv[]) {
 
   start = std::chrono::high_resolution_clock::now();
   occult::x86_64::codegen jit_runtime(ir, debug);
+  occult::function_registry::register_function_to_codegen<&__cast_to_uint32__>(jit_runtime);
+  occult::function_registry::register_function_to_codegen<&__cast_to_int64__>(jit_runtime);
+  occult::function_registry::register_function_to_codegen<&__cast_to_uint64__>(jit_runtime);
   jit_runtime.compile(jit);
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;

@@ -183,6 +183,15 @@ namespace occult {
     string
   };
   
+  struct visitor_stack {
+    void operator()(const float& v){ std::cout << v << "\n"; };
+    void operator()(const double& v){ std::cout << v << "\n"; };
+    void operator()(const std::int64_t& v){ std::cout << v << "\n"; };
+    void operator()(const std::uint64_t& v){ std::cout << v << "\n"; };
+    void operator()(const std::string& v){ std::cout << v << "\n"; };
+    void operator()(std::monostate){ std::cout << "\n"; };
+  };
+
   const std::unordered_map<std::string, ir_typename> ir_typemap = {
     {"int64", signed_int},
     {"int32", signed_int},

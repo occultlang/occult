@@ -3,7 +3,7 @@ fn main() i64 {
     i64 y = true;
     i64 b = 1;
     i64 a = 1;
-    u32 test = 42949672921342;
+    i64 test = 123123;
     
     if y == true && x == true || !(b == a) { 
         return 13;

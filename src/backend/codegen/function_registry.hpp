@@ -1,3 +1,4 @@
+#pragma once
 #include "ir_gen.hpp"
 #include "x86_64_codegen.hpp"
 #include <tuple>
@@ -44,6 +45,15 @@ namespace occult {
     }; \
     ret name params
 
+#define OCCULT_FUNC_DECL_STATIC(ret, name, params, ...) \
+    static ret name params; \
+    template <> struct occult::function_registry::function_reflection_from_ptr<&name> { \
+        using return_type = ret; \
+        using args = std::tuple<__VA_ARGS__>; \
+        static constexpr const char* name_str = #name; \
+    }; \
+    static ret name params
+
 /*
 How to use:
     OCCULT_FUNC_DECL(ReturnType, func_name, (Type param1, Type param2) Type, Type) { *Body* }
@@ -78,10 +88,28 @@ namespace occult {
             ir_functions.emplace_back(std::move(func));
         }
 
-        template <auto FuncPtr>
-        void register_function_to_codegen(occult::x86_64::codegen& codegen) {
+        template <auto FuncPtr, typename CodeGen>
+        void register_function_to_codegen(CodeGen& codegen) {
             using reflection = function_reflection_from_ptr<FuncPtr>;
             codegen.function_map[reflection::name_str] = reinterpret_cast<jit_function>(FuncPtr);
         }
     } // namespace function_registry
 } // namespace occult
+
+OCCULT_FUNC_DECL_STATIC(std::uint32_t, __cast_to_uint32__, (std::uint64_t d), std::uint64_t) {
+  std::uint32_t v = 0;
+  std::memcpy(&v, &d, sizeof(std::uint32_t));
+  return v;
+}
+
+OCCULT_FUNC_DECL_STATIC(std::uint32_t, __cast_to_uint64__, (std::uint64_t d), std::uint64_t) {
+  std::uint64_t v = 0;
+  std::memcpy(&v, &d, sizeof(std::uint64_t));
+  return v;
+}
+
+OCCULT_FUNC_DECL_STATIC(std::uint32_t, __cast_to_int64__, (std::int64_t d), std::int64_t) {
+  std::int64_t v = 0;
+  std::memcpy(&v, &d, sizeof(std::int64_t));
+  return v;
+}
