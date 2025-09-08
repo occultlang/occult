@@ -6,10 +6,11 @@
   <p align="center">An enigmatic programming language... <a href="https://occultlang.org" target="_blank">occultlang.org</a></p> <br>
 </div>
 
-> [!IMPORTANT]
-> Check the roadmap below! ✨ 
+### Development Roadmap
 
-### Roadmap
+> [!NOTE]
+> Minor-versions will be released as stable builds as new features are added and completed!
+
 **<ins>Alpha 3.0.0 Release</ins> (Early-mid 2026)**
 - Floating point numbers
 - Sized types :white_check_mark: 
@@ -25,8 +26,6 @@
 - New Intermediate Representation (SSA) for optimization pass
 - RISCV Support
 - ARM64 Support
-
-*Minor-versions will be released as stable builds as new features are added and completed!*
 
 _____________________________________________________________________________
 
