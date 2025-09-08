@@ -7,21 +7,27 @@
 </div>
 
 > [!IMPORTANT]
-> Working hard on Occult! ✨ <br>
-> #### - Anthony
+> Check the roadmap below! ✨ 
 
-### Things that need to be done (Highlighted has priority)
-- [ ] **Pointers**
-- [ ] **Arrays**
-- [ ] **Strings** 
-- [ ] **Floating point numbers**
-- [ ] **Foreach loops**
-- [ ] **Implicit boolean conversion**
-- [ ] Static Analysis
-- [ ] Windows support
-- [ ] Inline assembler based on a generic assembly language
-- [ ] Multi-platform support (RISCV, Arm64, etc.)
-- [ ] A new intermediate following the first IR stage to allow for optimizations on code, would be TAC or SSA. 
+### Roadmap
+**<ins>Alpha 3.0.0 Release</ins> (Early-mid 2026)**
+- Floating point numbers
+- Sized types :white_check_mark: 
+- Pointer syntax & implementation
+- Arrays & Strings
+- Foreach implementation
+- Structures
+- Implicit boolean conversions
+
+**<ins>Alpha 4.0.0 Release</ins> (Late 2026 - Early 2027)**
+- Static Analysis 
+- Borrow Checker
+- New Intermediate Representation (SSA) for optimization pass
+- RISCV Support
+- ARM64 Support
+- Testing & Bugfixing
+
+*Minor-versions will be released as stable builds as new features are added and completed!*
 
 _____________________________________________________________________________
 
