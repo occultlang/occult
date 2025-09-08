@@ -25,7 +25,6 @@
 - New Intermediate Representation (SSA) for optimization pass
 - RISCV Support
 - ARM64 Support
-- Testing & Bugfixing
 
 *Minor-versions will be released as stable builds as new features are added and completed!*
 
