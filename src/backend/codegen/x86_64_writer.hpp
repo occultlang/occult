@@ -152,6 +152,9 @@ namespace occult {
                         push_byte(rex_r);
                         CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
+                    else {
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
+                    }
 
                     push_byte(op8);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rebase_register(base)));
@@ -172,6 +175,9 @@ namespace occult {
                         push_byte(rex_r);
                         CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
+                    else {
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
+                    }
 
                     push_byte(op);
                     push_byte(modrm(mod_field::register_direct, rebase_register(dest), rebase_register(base)));
@@ -188,6 +194,9 @@ namespace occult {
                     }
                     else if (REG_RANGE(base, r8d, r15d)) {
                         push_byte(rex_r);
+                        CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
+                    }
+                    else {
                         CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
                     }
 
@@ -1295,7 +1304,7 @@ namespace occult {
             void emit_mov(SIGNED_IMM_TO_MEM_ARG) {
                 assert_imm_size<std::int64_t>(imm);
 
-                if (imm_fits<std::int16_t>(imm)) {
+                if (imm_fits<std::int16_t>(imm)) { 
                     emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), true, imm_mode::do_16);
                 }
                 else {
@@ -1644,6 +1653,56 @@ namespace occult {
 
             void emit_shr(REG_ARG) {
                 emit_reg_to_reg(opcode::SHR_rm8_CL, opcode::SHR_rm16_to_64_CL, _reg, static_cast<grp>(5), false);
+            }
+
+            /* only 8/16 bits ZERO EXTEND */
+            void emit_movzx(REG_TO_REG_ARG, bool is_8 = true) {
+                if (is_8) {
+                    emit_reg_to_reg(static_cast<opcode>(opcode_2b::MOVZX_r16_to_64_rm8), static_cast<opcode>(opcode_2b::MOVZX_r16_to_64_rm8), base, dest, true);
+                }
+                else {
+                    emit_reg_to_reg(static_cast<opcode>(opcode_2b::MOVZX_r16_to_64_rm16), static_cast<opcode>(opcode_2b::MOVZX_r16_to_64_rm16), base, dest, true);
+                }
+            }
+
+            /* only 8/16 bits ZERO EXTEND */
+            void emit_movzx(MEM_TO_REG_ARG, bool is_8 = true) {
+                if (is_8) {
+                    emit_reg_to_mem(static_cast<opcode>(opcode_2b::MOVZX_r16_to_64_rm8), static_cast<opcode>(opcode_2b::MOVZX_r16_to_64_rm8), base, dest, true);
+                }   
+                else {
+                    emit_reg_to_mem(static_cast<opcode>(opcode_2b::MOVZX_r16_to_64_rm16), static_cast<opcode>(opcode_2b::MOVZX_r16_to_64_rm16), base, dest, true);
+                }   
+            }
+
+            /* only 8/16 bits */
+            void emit_movsx(REG_TO_REG_ARG, bool is_8 = true) {
+                if (is_8) {
+                    emit_reg_to_reg(static_cast<opcode>(opcode_2b::MOVSX_r16_to_64_rm8), static_cast<opcode>(opcode_2b::MOVSX_r16_to_64_rm8), base, dest, true);
+                }
+                else {
+                    emit_reg_to_reg(static_cast<opcode>(opcode_2b::MOVSX_r16_to_64_rm16), static_cast<opcode>(opcode_2b::MOVSX_r16_to_64_rm16), base, dest, true);
+                }
+            }
+
+            /* only 8/16 bits */
+            void emit_movsx(MEM_TO_REG_ARG, bool is_8 = true) {
+                if (is_8) {
+                    emit_reg_to_mem(static_cast<opcode>(opcode_2b::MOVSX_r16_to_64_rm8), static_cast<opcode>(opcode_2b::MOVSX_r16_to_64_rm8), base, dest, true);
+                }   
+                else {
+                    emit_reg_to_mem(static_cast<opcode>(opcode_2b::MOVSX_r16_to_64_rm16), static_cast<opcode>(opcode_2b::MOVSX_r16_to_64_rm16), base, dest, true);
+                }                
+            }
+
+            /* 32 to 64 */
+            void emit_movsxd(REG_TO_REG_ARG) {
+                emit_reg_to_reg(opcode::MOVSXD_r64_or_32_rm32, opcode::MOVSXD_r64_or_32_rm32, base, dest);
+            }
+            
+            /* 32 to 64 */
+            void emit_movsxd(MEM_TO_REG_ARG) {
+                emit_reg_to_mem(opcode::MOVSXD_r64_or_32_rm32, opcode::MOVSXD_r64_or_32_rm32, base, dest);
             }
         };
     }

@@ -1,0 +1,9 @@
+fn main() i64 {
+    i64 orig = 10;
+
+    i64* pointer = &orig;
+
+    i64 val = *pointer;
+    
+    return val + orig;
+}

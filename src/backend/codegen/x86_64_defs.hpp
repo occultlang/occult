@@ -214,6 +214,7 @@ namespace occult {
             
             sib(const std::uint8_t& scale, const grp& index, const grp& base) : scale(scale), index(index), base(base) {}
             sib(const std::uint8_t& scale, const std::uint8_t& index, const grp& base) : scale(scale), index(static_cast<grp>(index)), base(base) {}
+            sib(const std::uint8_t& scale, const std::uint8_t& index, const std::uint8_t& base) : scale(scale), index(static_cast<grp>(index)), base(static_cast<grp>(base)) {}
 
             operator std::uint8_t() const {
               return (scale << 6) | (index << 3) | base;  
@@ -592,6 +593,9 @@ namespace occult {
 
             DECLARE_OPCODE(MOVZX_r16_to_64_rm8, 0xB6) // MOV r16_to_64, r/m8
             DECLARE_OPCODE(MOVZX_r16_to_64_rm16, 0xB7) // MOV r16_to_64, r/m16
+
+            DECLARE_OPCODE(MOVSX_r16_to_64_rm8, 0xBE) // MOV r16_to_64, r/m8
+            DECLARE_OPCODE(MOVSX_r16_to_64_rm16, 0xBF) // MOV r16_to_64, r/m16
         };
 
         // these require the k2ByteOpcodePrefix (0x0F) naming is the same

@@ -60,6 +60,8 @@ namespace occult {
     op_decl_array_type,
     op_mov,
     op_test,
+    op_reference,
+    op_dereference,
   };
   
   inline std::string opcode_to_string(ir_opcode op) {

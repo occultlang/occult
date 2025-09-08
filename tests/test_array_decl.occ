@@ -1,6 +1,6 @@
 fn main() i64 {
     array[5] i64 arr_test = {1, 2, 3, 4, 5};
-
+    
     i64 sum = 0;
 
     for i64 i = 0 when i < 5 do i = i + 1 {

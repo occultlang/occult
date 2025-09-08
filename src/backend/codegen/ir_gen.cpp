@@ -1080,7 +1080,7 @@ namespace occult {
         }
         case cst_type::uint8_datatype:
         case cst_type::uint16_datatype:
-        case cst_type::uint32_datatype:
+        case cst_type::uint32_datatype: 
         case cst_type::uint64_datatype: {
           auto node = c.get();
           

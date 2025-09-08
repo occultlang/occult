@@ -10,6 +10,17 @@
 
 namespace occult {
   namespace x86_64 {
+    static std::unordered_map<std::string, std::size_t> typename_sizes = {
+      {"int64", 8},
+      {"int32", 4},
+      {"int16", 2},
+      {"int8", 1},
+      {"uint64", 8},
+      {"uint32", 4},
+      {"uint16", 2},
+      {"uint8", 1},
+    }; /* we might have to use this instead of an 8-byte aligned stack, i'm not sure */
+
     class codegen {
       #ifdef __linux 
         bool is_systemv = true;
@@ -137,13 +148,14 @@ namespace occult {
         std::unordered_map<std::string, std::size_t> label_map;
         std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
         std::unordered_map<std::string, std::int64_t> local_variable_map;
-        
+        std::unordered_map<std::string, std::string> local_variable_map_types;
+
         std::int32_t totalsizes = 0;
 
         const grp sysv_regs[] = {rdi, rsi, rdx, rcx, r8, r9};
         
         for (std::size_t i = 0; i < func.args.size(); ++i) {
-          totalsizes += 8;
+          totalsizes += 8; // do correct sizes
           auto r = pool.alloc();
         
           if (is_systemv) {
@@ -161,15 +173,16 @@ namespace occult {
         
           pool.free(r);
           local_variable_map.insert({func.args[i].name, totalsizes});
+          local_variable_map_types.insert({func.args[i].name, func.args[i].type});
         }
 
         for (std::size_t i = 0; i < func.code.size(); i++) {
           const auto& code = func.code.at(i);
-
+          
           switch (code.op) {
             case ir_opcode::op_push: {
-              if (std::holds_alternative<int64_t>(code.operand)) {
-                int64_t val = std::get<int64_t>(code.operand);
+              if (std::holds_alternative<std::int64_t>(code.operand)) {
+                std::int64_t val = std::get<std::int64_t>(code.operand);
 
                 grp r = pool.alloc();
 
@@ -177,28 +190,42 @@ namespace occult {
 
                 pool.push(r);
               }
+              else if (std::holds_alternative<std::uint64_t>(code.operand)) {
+                std::uint64_t val = std::get<std::uint64_t>(code.operand);
 
+                grp r = pool.alloc();
+
+                w->emit_mov(r, val); 
+
+                pool.push(r);
+              }
+              
               break;
             }
             case ir_opcode::op_store: {
               auto var_name = std::get<std::string>(code.operand);
+              auto var_type = code.type;
               auto it = local_variable_map.find(var_name);
             
+              grp r = pool.pop();
+
+              /* might need to add some size stuff here */
+
               if (it == local_variable_map.end()) { // variable doesn't exist yet
                 if (debug) {
                   std::cout << BLUE << "[CODEGEN INFO] Emitting variable: " << RESET << var_name << std::endl;
+                  std::cout << "\tSize: " << typename_sizes[var_type] << std::endl;
                 }
 
                 totalsizes += 8;
 
-                grp r = pool.pop();
-
-                w->emit_sub(rsp, 8);
+                w->emit_sub(rsp, totalsizes);
                 w->emit_mov(mem{rbp, -totalsizes}, r);
 
                 pool.free(r);
                   
                 local_variable_map.insert({var_name, totalsizes});
+                local_variable_map_types.insert({var_name, var_type});
               }
               else {
                 if (debug) {
@@ -208,6 +235,8 @@ namespace occult {
                 std::int32_t offset = -it->second;
 
                 grp r = pool.pop();
+
+                /* might need to add some size stuff here */
 
                 w->emit_mov(mem{rbp, offset}, r);
 
@@ -222,7 +251,7 @@ namespace occult {
             }
             case ir_opcode::op_load: {
               const auto& var_name = std::get<std::string>(code.operand);
-
+              const auto& var_type = local_variable_map_types[var_name];
               auto it = local_variable_map.find(var_name);
 
               if (it == local_variable_map.end()) {
@@ -234,12 +263,32 @@ namespace occult {
               std::int32_t offset = -it->second;
         
               if (debug) {
-                std::cout << BLUE << "[CODEGEN INFO] Loading: " << RESET << var_name << "\n\tLocation: " << offset << std::endl;
+                std::cout << BLUE << "[CODEGEN INFO] Loading: " << RESET << var_name <<"\n\tLocation: " << offset << "\n\tType: " << YELLOW << var_type << RESET << std::endl;
               }
 
               auto r = pool.alloc();
-
-              w->emit_mov(r, mem{rbp, offset});
+              
+              if (var_type == "int8") {
+                w->emit_movsx(r, mem{rbp, offset});
+              }
+              else if (var_type == "uint8") {
+                w->emit_movzx(r, mem{rbp, offset});
+              }
+              else if (var_type == "int16") {
+                w->emit_movsx(r, mem{rbp, offset}, false);
+              }
+              else if (var_type == "uint16") {
+                w->emit_movzx(r, mem{rbp, offset}, false);
+              }
+              else if (var_type == "int32") {
+                w->emit_movsxd(r, mem{rbp, offset});
+              }
+              else if (var_type == "uint32") {
+                w->emit_mov(r, mem{rbp, offset});
+              }
+              else if (var_type == "int64" || var_type == "uint64") {
+                w->emit_mov(r, mem{rbp, offset});
+              }
 
               pool.push(r);
 

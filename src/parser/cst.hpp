@@ -153,6 +153,10 @@ namespace occult {
       if (do_not) {
         output += GREEN " (do_not = true)" RESET;
       }
+      
+      if (num_pointers > 0) {
+        output += YELLOW " (num_pointers = " + std::to_string(num_pointers) + ")" + RESET;
+      }
 
       std::cout << output << "\n";
     
