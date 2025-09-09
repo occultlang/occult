@@ -347,7 +347,7 @@ namespace occult {
             token.lexeme = "unary_minus";
           }
         }
-        else if (token.tt == bitwise_and_tt || token.tt == multiply_operator_tt) {
+        /*else if (token.tt == bitwise_and_tt || token.tt == multiply_operator_tt) {
           if (is_unary_context(previous_token_type)) {
             if (token.tt == bitwise_and_tt) {
               token.tt = reference_operator_tt;
@@ -358,7 +358,7 @@ namespace occult {
               token.lexeme = "dereference_operator"; // ptr dereference
             }
           }
-        }
+        }*/
 
         token_stream.push_back(token);
         previous_token_type = token.tt;

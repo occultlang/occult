@@ -120,6 +120,8 @@ namespace occult {
       case op_declare_where_to_store: return "declare_where_to_store";
       case op_mov: return "mov";
       case op_test: return "test";
+      case op_reference: return "reference";
+      case op_dereference: return "dereference";
       default:              return "unknown_opcode";
     }
   }

@@ -132,9 +132,7 @@ namespace occult {
   
   template<typename IntType>
   void ir_gen::generate_common(ir_function& function, cst* node) {
-    for (const auto& c : node->get_children()) {
-      generate_arith_and_bitwise_operators(function, c.get());
-      
+    for (const auto& c : node->get_children()) {      
       switch(c->get_type()) {
         case cst_type::number_literal: {
           function.code.emplace_back(op_push, from_numerical_string<IntType>(c->content));
@@ -207,7 +205,19 @@ namespace occult {
 
           break;
         }
+        case cst_type::reference: {
+          function.code.emplace_back(op_reference);
+
+          break;
+        }
+        case cst_type::dereference: {
+          function.code.emplace_back(op_dereference);
+
+          break;
+        }
         default: {
+          generate_arith_and_bitwise_operators(function, c.get());
+
           break;
         }
       }

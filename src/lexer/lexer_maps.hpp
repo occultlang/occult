@@ -28,7 +28,8 @@ namespace occult {
     {'&', bitwise_and_tt},
     {'~', unary_bitwise_not_tt},
     {'|', bitwise_or_tt},
-    {'=', assignment_tt}};
+    {'=', assignment_tt},
+    {'@', reference_operator_tt}};
 
   std::unordered_map<std::string, token_type> operator_map_double = {
     {"&&", and_operator_tt},
@@ -38,7 +39,8 @@ namespace occult {
     {">=", greater_than_or_equal_operator_tt},
     {"<=", less_than_or_equal_operator_tt},
     {"<<", bitwise_lshift_tt},
-    {">>", bitwise_rshift_tt}};
+    {">>", bitwise_rshift_tt},
+    {"<-", dereference_operator_tt}};
 
   std::unordered_map<char, token_type> delimiter_map = {
     {')', right_paren_tt},

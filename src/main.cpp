@@ -28,6 +28,19 @@ void display_help() {
             << "  -h,   --help              Show this message\n";
 }
 
+OCCULT_FUNC_DECL(std::int64_t, ref, (std::int64_t addr), std::int64_t) {
+    return (int64_t)reinterpret_cast<std::int64_t*>(addr);
+}
+
+OCCULT_FUNC_DECL(std::int64_t, deref, (std::int64_t addr), std::int64_t) {
+    return *reinterpret_cast<std::int64_t*>(addr);
+}
+
+OCCULT_FUNC_DECL(std::int64_t, printn, (std::int64_t addr), std::int64_t) {
+    std::printf("%li\n", addr);
+    return 0;
+}
+
 int main(int argc, char* argv[]) {  
   std::string input_file;
   std::string source_original;
@@ -120,6 +133,10 @@ int main(int argc, char* argv[]) {
   occult::function_registry::register_function_to_ir<&__cast_to_uint32__>(ir);
   occult::function_registry::register_function_to_ir<&__cast_to_int64__>(ir);
   occult::function_registry::register_function_to_ir<&__cast_to_uint64__>(ir);
+  occult::function_registry::register_function_to_ir<&ref>(ir);
+  occult::function_registry::register_function_to_ir<&deref>(ir);
+  occult::function_registry::register_function_to_ir<&printn>(ir);
+
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
@@ -134,6 +151,10 @@ int main(int argc, char* argv[]) {
   occult::function_registry::register_function_to_codegen<&__cast_to_uint32__>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&__cast_to_int64__>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&__cast_to_uint64__>(jit_runtime);
+  occult::function_registry::register_function_to_codegen<&ref>(jit_runtime);
+  occult::function_registry::register_function_to_codegen<&deref>(jit_runtime);
+  occult::function_registry::register_function_to_codegen<&printn>(jit_runtime);
+  
   jit_runtime.compile(jit);
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;

@@ -159,6 +159,8 @@ namespace occult {
         std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
         std::unordered_map<std::string, std::int64_t> local_variable_map;
         std::unordered_map<std::string, std::string> local_variable_map_types;
+        bool is_reference_next = false;
+        bool is_dereference_next = false;
 
         std::int32_t totalsizes = 0;
 
@@ -227,6 +229,15 @@ namespace occult {
 
                 totalsizes += 8;
 
+                if (is_reference_next) {
+                  std::cout << RED << "[CODEGEN ERROR] Cannot have reference in store." << RESET << std::endl;
+                }
+
+                if (is_dereference_next) {
+                  // work on here
+                  break;
+                }
+
                 w->emit_sub(rsp, totalsizes);
                 w->emit_mov(mem{rbp, -totalsizes}, r);
 
@@ -271,7 +282,27 @@ namespace occult {
               }
 
               auto r = pool.alloc();
-              
+
+              if (is_reference_next) {
+                w->emit_lea(r, mem{rbp, offset});
+                is_reference_next = false;
+
+                pool.push(r);
+
+                break;
+              }
+
+              if (is_dereference_next) {
+                w->emit_mov(r, mem{rbp, offset});
+                w->emit_mov(r, mem{r});
+
+                is_dereference_next = false;
+
+                pool.push(r);
+
+                break;
+              }
+
               if (var_type == "int8") {
                 w->emit_movsx(r, mem{rbp, offset});
               }
@@ -308,6 +339,15 @@ namespace occult {
 
               pool.push(r);
 
+              break;
+            }
+
+            case ir_opcode::op_reference: {
+              is_reference_next = true;
+              break;
+            }
+            case ir_opcode::op_dereference: {
+              is_dereference_next = true;
               break;
             }
 

@@ -1,9 +1,10 @@
 fn main() i64 {
     i64 orig = 10;
 
-    i64* pointer = &orig;
-
-    i64 val = *pointer;
+    i64* addr = @orig; // reference
     
-    return val + orig;
+    printn(addr);
+    printn(<-addr); // dereference
+    
+    return 0;
 }
