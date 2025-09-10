@@ -62,6 +62,8 @@ namespace occult {
     op_test,
     op_reference,
     op_dereference,
+    op_dereference_assign,
+    op_store_at_addr
   };
   
   inline std::string opcode_to_string(ir_opcode op) {
@@ -122,6 +124,8 @@ namespace occult {
       case op_test: return "test";
       case op_reference: return "reference";
       case op_dereference: return "dereference";
+      case op_dereference_assign: return "dereference_assign";
+      case op_store_at_addr: return "store_at_addr";
       default:              return "unknown_opcode";
     }
   }

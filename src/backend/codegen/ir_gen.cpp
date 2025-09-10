@@ -1156,6 +1156,21 @@ namespace occult {
           
           break;
         }
+        case cst_type::dereference: { // i think this shgould be good enough
+          auto node = c.get();
+          
+          auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get());
+          auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
+                    
+          function.code.emplace_back(op_dereference_assign);
+          function.code.emplace_back(op_load, identifier->content);
+
+          generate_common<std::int64_t>(function, assignment);
+
+          function.code.emplace_back(op_store_at_addr);
+
+          break;
+        }
         case cst_type::functioncall: {
           generate_function_call(function, c.get());
           

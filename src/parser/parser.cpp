@@ -905,12 +905,16 @@ namespace occult {
       return parse_integer_type<cst_int8>();
     }
     else if (match(peek(), dereference_operator_tt)) {
-      consume();
-      
+      auto deref_count = 0;
+      while (!match(peek(), identifier_tt)) {
+        deref_count++;
+        consume();
+      }
+
       if (match(peek(), identifier_tt)) {
         auto identifier = parse_identifier();
 
-        auto deref_node = cst::new_node<cst_dereference>();
+        auto deref_node = cst::new_node<cst_dereference>(std::to_string(deref_count));
 
         deref_node->add_child(std::move(identifier));
 

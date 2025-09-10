@@ -41,6 +41,15 @@ OCCULT_FUNC_DECL(std::int64_t, printn, (std::int64_t addr), std::int64_t) {
     return 0;
 }
 
+OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) {
+  return (int64_t)malloc(sz);
+}
+
+OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t sz), std::int64_t) {
+  free((int64_t*)sz);
+  return 0;
+}
+
 int main(int argc, char* argv[]) {  
   std::string input_file;
   std::string source_original;
@@ -136,6 +145,8 @@ int main(int argc, char* argv[]) {
   occult::function_registry::register_function_to_ir<&ref>(ir);
   occult::function_registry::register_function_to_ir<&deref>(ir);
   occult::function_registry::register_function_to_ir<&printn>(ir);
+  occult::function_registry::register_function_to_ir<&alloc>(ir);
+  occult::function_registry::register_function_to_ir<&del>(ir);
 
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
@@ -154,7 +165,9 @@ int main(int argc, char* argv[]) {
   occult::function_registry::register_function_to_codegen<&ref>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&deref>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&printn>(jit_runtime);
-  
+  occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
+  occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
+
   jit_runtime.compile(jit);
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;

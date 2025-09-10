@@ -155,12 +155,15 @@ namespace occult {
       
       void generate_code(ir_function& func, x86_64_writer* w, bool is_main, bool use_jit) {
         register_pool pool(w);
+        
         std::unordered_map<std::string, std::size_t> label_map;
         std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
         std::unordered_map<std::string, std::int64_t> local_variable_map;
         std::unordered_map<std::string, std::string> local_variable_map_types;
+
         bool is_reference_next = false;
         bool is_dereference_next = false;
+        bool is_dereference_assign_next = false;
 
         std::int32_t totalsizes = 0;
 
@@ -303,6 +306,16 @@ namespace occult {
                 break;
               }
 
+              if (is_dereference_assign_next) {
+                w->emit_mov(r, mem{rbp, offset});
+
+                is_dereference_assign_next = false;
+
+                pool.push(r);
+
+                break;
+              }
+
               if (var_type == "int8") {
                 w->emit_movsx(r, mem{rbp, offset});
               }
@@ -344,10 +357,35 @@ namespace occult {
 
             case ir_opcode::op_reference: {
               is_reference_next = true;
+
               break;
             }
             case ir_opcode::op_dereference: {
               is_dereference_next = true;
+              
+              break;
+            }
+            case ir_opcode::op_dereference_assign: {
+              is_dereference_assign_next = true;
+
+              break;
+            }
+            case ir_opcode::op_store_at_addr: {
+              auto val = pool.pop(func, i); 
+              auto addr = pool.pop(func, i); 
+
+              if (debug) {
+                std::cout << BLUE << "[CODEGEN INFO] Storing value in " << RESET <<  reg_to_string(val)
+                          << BLUE <<  " at address in " RESET << reg_to_string(addr) << std::endl;
+              }
+
+              w->emit_mov(mem{addr}, val); 
+
+              pool.free(val);
+              pool.free(addr);
+
+              is_dereference_next = false; 
+              
               break;
             }
 

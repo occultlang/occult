@@ -1,10 +1,21 @@
-fn main() i64 {
-    i64 orig = 10;
+fn main() i64 { // get double de referencing working properly
+    /*i64 orig = 10;
 
     i64* addr = @orig; // reference
+    i64** addr2 = @addr;
     
+    <-<-addr2 = 40;
+
     printn(addr);
-    printn(<-addr); // dereference
+    printn(<-<-addr2); // dereference*/
+
+    i64* p = alloc(8);
+    <-p = 10;
+
+    printn(p);
+    printn(<-p);
+    
+    del(p);
     
     return 0;
 }
