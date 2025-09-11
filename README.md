@@ -14,7 +14,7 @@
 **<ins>Alpha 3.0.0 Release</ins> (Early-mid 2026)**
 - Floating point numbers
 - Sized types :white_check_mark: 
-- Pointer syntax & implementation
+- Pointer syntax & implementation :white_check_mark: 
 - Arrays & Strings
 - Foreach implementation
 - Structures
