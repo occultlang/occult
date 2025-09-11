@@ -211,7 +211,8 @@ namespace occult {
           break;
         }
         case cst_type::dereference: {
-          function.code.emplace_back(op_dereference);
+          auto deref_count = from_numerical_string<std::int64_t>(c->content);
+          function.code.emplace_back(op_dereference, deref_count);
 
           break;
         }
@@ -1162,7 +1163,9 @@ namespace occult {
           auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get());
           auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
                     
-          function.code.emplace_back(op_dereference_assign);
+          auto deref_count = from_numerical_string<std::int64_t>(node->content);
+
+          function.code.emplace_back(op_dereference_assign, deref_count);
           function.code.emplace_back(op_load, identifier->content);
 
           generate_common<std::int64_t>(function, assignment);

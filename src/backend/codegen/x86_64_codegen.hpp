@@ -164,6 +164,8 @@ namespace occult {
         bool is_reference_next = false;
         bool is_dereference_next = false;
         bool is_dereference_assign_next = false;
+        std::size_t deref_count_normal = 0;
+        std::size_t deref_count_assign = 0;
 
         std::int32_t totalsizes = 0;
 
@@ -236,10 +238,10 @@ namespace occult {
                   std::cout << RED << "[CODEGEN ERROR] Cannot have reference in store." << RESET << std::endl;
                 }
 
-                if (is_dereference_next) {
+                /*if (is_dereference_next) {
                   // work on here
                   break;
-                }
+                }*/
 
                 w->emit_sub(rsp, totalsizes);
                 w->emit_mov(mem{rbp, -totalsizes}, r);
@@ -267,6 +269,31 @@ namespace occult {
 
               break;
             }
+ /* 
+  Don't worry about the variable locations and register
+  
+  Double dereference
+
+        mov     rax, QWORD PTR [rbp-8]
+        mov     rax, QWORD PTR [rax]
+        mov     rax, QWORD PTR [rax]
+
+  Dereference
+
+        mov     rax, QWORD PTR [rbp-24]
+        mov     rax, QWORD PTR [rax]
+
+  Double dereference assignment 
+
+        mov     rax, QWORD PTR [rbp-8]
+        mov     rax, QWORD PTR [rax]
+        mov     QWORD PTR [rax], 40
+
+  Dereference assignment
+
+        mov     rax, QWORD PTR [rbp-24]
+        mov     QWORD PTR [rax], 40
+ */
             case ir_opcode::op_load: {
               const auto& var_name = std::get<std::string>(code.operand);
               const auto& var_type = local_variable_map_types[var_name];
@@ -296,10 +323,18 @@ namespace occult {
               }
 
               if (is_dereference_next) {
-                w->emit_mov(r, mem{rbp, offset});
-                w->emit_mov(r, mem{r});
+                for (std::size_t i = 1; i <= deref_count_normal; i++) {
+                  if (i == 1) {
+                    w->emit_mov(r, mem{rbp, offset});
+                    w->emit_mov(r, mem{r});
+                  }
+                  else {
+                    w->emit_mov(r, mem{r});
+                  }
+                }
 
                 is_dereference_next = false;
+                deref_count_normal = 0;
 
                 pool.push(r);
 
@@ -307,8 +342,16 @@ namespace occult {
               }
 
               if (is_dereference_assign_next) {
-                w->emit_mov(r, mem{rbp, offset});
+                for (std::size_t i = 1; i <= deref_count_assign; i++) {
+                  if (i == 1) {
+                    w->emit_mov(r, mem{rbp, offset});
+                  }
+                  else {
+                    w->emit_mov(r, mem{r});
+                  }
+                }
 
+                deref_count_assign = 0;
                 is_dereference_assign_next = false;
 
                 pool.push(r);
@@ -361,12 +404,26 @@ namespace occult {
               break;
             }
             case ir_opcode::op_dereference: {
-              is_dereference_next = true;
+              auto operand = std::get<std::int64_t>(code.operand);
               
+              if (debug) {
+                std::cout << BLUE << "[CODEGEN INFO] Dereference count: " << RESET << operand << std::endl;
+              }
+
+              is_dereference_next = true;
+              deref_count_normal = operand;
+
               break;
             }
             case ir_opcode::op_dereference_assign: {
+              auto operand = std::get<std::int64_t>(code.operand);
+              
+              if (debug) {
+                std::cout << BLUE << "[CODEGEN INFO] Dereference (assignment) count: " << RESET << operand << std::endl;
+              }
+
               is_dereference_assign_next = true;
+              deref_count_assign = operand;
 
               break;
             }

@@ -259,9 +259,34 @@ namespace occult {
       if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt || t.tt == comma_tt) {
         break; // end of expr
       } 
-      else if (t.tt == reference_operator_tt || t.tt == dereference_operator_tt) {
-        expr_cst.push_back(cst_map[t.tt](t.lexeme));
+      
+      else if (t.tt == reference_operator_tt) {
+        auto count = 0;
+
+        while (expr.at(i).tt == reference_operator_tt) {
+          i++;
+          count++;
+        }
+
+        i--; // fix align
+        
+        expr_cst.push_back(cst_map[t.tt](std::to_string(count)));
       }
+      else if (t.tt == dereference_operator_tt) {
+        auto count = 0;
+
+        while (expr.at(i).tt == dereference_operator_tt) {
+          i++;
+          count++;
+        }
+
+        i--; // fix align
+
+        expr_cst.push_back(cst_map[t.tt](std::to_string(count)));
+      }
+      /*else if (t.tt == reference_operator_tt || t.tt == dereference_operator_tt) {
+        expr_cst.push_back(cst_map[t.tt](t.lexeme));
+      }*/
       else if (t.tt == identifier_tt) {
         if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) {
           parse_function_call_expr(expr_cst, expr, t, i);

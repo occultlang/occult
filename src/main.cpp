@@ -36,6 +36,14 @@ OCCULT_FUNC_DECL(std::int64_t, deref, (std::int64_t addr), std::int64_t) {
     return *reinterpret_cast<std::int64_t*>(addr);
 }
 
+OCCULT_FUNC_DECL(std::int64_t, deref_assign, (std::int64_t addr, std::int64_t val), std::int64_t, std::int64_t) {
+    // Treat addr as a pointer to int64_t, store val there
+    *reinterpret_cast<std::int64_t*>(addr) = val;
+
+    // Return the stored value (common in expression-style assignment)
+    return val;
+}
+
 OCCULT_FUNC_DECL(std::int64_t, printn, (std::int64_t addr), std::int64_t) {
     std::printf("%li\n", addr);
     return 0;
@@ -144,6 +152,8 @@ int main(int argc, char* argv[]) {
   occult::function_registry::register_function_to_ir<&__cast_to_uint64__>(ir);
   occult::function_registry::register_function_to_ir<&ref>(ir);
   occult::function_registry::register_function_to_ir<&deref>(ir);
+    occult::function_registry::register_function_to_ir<&deref_assign>(ir);
+
   occult::function_registry::register_function_to_ir<&printn>(ir);
   occult::function_registry::register_function_to_ir<&alloc>(ir);
   occult::function_registry::register_function_to_ir<&del>(ir);
@@ -164,6 +174,8 @@ int main(int argc, char* argv[]) {
   occult::function_registry::register_function_to_codegen<&__cast_to_uint64__>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&ref>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&deref>(jit_runtime);
+    occult::function_registry::register_function_to_codegen<&deref_assign>(jit_runtime);
+
   occult::function_registry::register_function_to_codegen<&printn>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
@@ -180,6 +192,8 @@ int main(int argc, char* argv[]) {
       std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
     }
   }
+
+  occult::x86_64::test_rebase();
 
   if (jit) {
     auto it = jit_runtime.function_map.find("main");
