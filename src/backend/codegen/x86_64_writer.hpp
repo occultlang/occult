@@ -380,12 +380,13 @@ namespace occult {
                     push_byte(modrm(mod_field::indirect, rm_field::rip_relative, rebase_register(base)));
                     emit_imm32(dest.disp);
                 }
-                else if (NOT_STACK_PTR(dest.reg) && NOT_STACK_BASE_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [reg]
-                    std::cout << "Emitting register based addressing for memory\n\tDest: " << reg_to_string(base) << "\n\tSource: [" << reg_to_string(dest.reg) << "]\n\tMode = mem_mode::reg;\n";
+                else if (NOT_STACK_PTR(dest.reg) && NOT_STACK_BASE_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [reg] (this was broken, i had to change to disp8???)
+                    //std::cout << "Emitting register based addressing for memory\n\tDest: " << reg_to_string(base) << "\n\tSource: [" << reg_to_string(dest.reg) << "]\n\tMode = mem_mode::reg;\n";
                     check_reg_r2m(op8, op, dest, base, is_2bOPC);
-                    std::cout << "Rebased (Source): " <<  reg_to_string(rebase_register(base)) << std::endl;
-                    std::cout << "Rebased (Dest): " <<  reg_to_string(rebase_register(dest.reg)) << std::endl;
-                    push_byte(modrm(mod_field::indirect, rebase_register(dest.reg), rebase_register(base)));
+                    //std::cout << "Rebased (Source): " <<  reg_to_string(rebase_register(base)) << std::endl;
+                    //std::cout << "Rebased (Dest): " <<  reg_to_string(rebase_register(dest.reg)) << std::endl;
+                    push_byte(modrm(mod_field::disp8, rebase_register(dest.reg), rebase_register(base)));
+                    push_byte(0);
                 } 
                 else if (IS_STACK_BASE_PTR(dest.reg) && NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) { // [rbp]
                     check_reg_r2m(op8, op, dest, base, is_2bOPC);

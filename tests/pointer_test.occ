@@ -1,4 +1,4 @@
-fn main() i64 { // get double de referencing working properly
+fn main() i64 { // yay this works :3
     i64 orig = 10;
 
     i64* addr = @orig; // reference
@@ -8,7 +8,7 @@ fn main() i64 { // get double de referencing working properly
 
     printn(addr);
     printn(<-addr);
-    printn(<-<-addr2); // dereference
+    printn(<-<-addr2); // dereference 
 
     /*i64* p = alloc(8);
     <-p = 10;

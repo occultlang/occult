@@ -189,13 +189,6 @@ namespace occult {
             }
         }
 
-                static void test_rebase() {
-            for (auto i = 0; i < rip; i++) {
-                std::cout << "Original: " << i << " " <<  reg_to_string(static_cast<grp>(i)) << std::endl;
-                std::cout << "Rebased: " << reg_to_string(rebase_register(static_cast<grp>(i))) << std::endl;
-            }
-        }
-
         // Mod R/M byte
         struct modrm {
             mod_field mod; // addressing mode 
