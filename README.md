@@ -19,6 +19,7 @@
 - Foreach implementation
 - Structures
 - Implicit boolean conversions
+- Re-do assignment to booleans with comparison expressions (using jumps)
 
 **<ins>Alpha 4.0.0 Release</ins> (Late 2026 - Early 2027)**
 - Static Analysis 
