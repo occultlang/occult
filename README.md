@@ -11,7 +11,7 @@
 > [!NOTE]
 > Minor-versions will be released as stable builds as new features are added and completed!
 
-**<ins>Alpha 3.0.0 Release</ins> (Early-mid 2026)**
+**<ins>Alpha 2.1.0 Release</ins> (Early-mid 2026)**
 - Floating point numbers
 - Sized types :white_check_mark: 
 - Pointer syntax & implementation :white_check_mark: 
@@ -21,7 +21,7 @@
 - Implicit boolean conversions
 - Re-do assignment to booleans with comparison expressions (using jumps)
 
-**<ins>Alpha 4.0.0 Release</ins> (Late 2026 - Early 2027)**
+**<ins>Alpha 3.0.0 Release</ins> (Late 2026 - Early 2027)**
 - Static Analysis 
 - Borrow Checker
 - New Intermediate Representation (SSA) for optimization pass
