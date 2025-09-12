@@ -11,7 +11,7 @@
 > [!NOTE]
 > Minor-versions will be released as stable builds as new features are added and completed!
 
-**<ins>Alpha 2.1.0 Release</ins> (Early-mid 2026)**
+**<ins>Alpha 2.1.0 Release</ins> (Late 2025 - Early 2026)**
 - Floating point numbers
 - Sized types :white_check_mark: 
 - Pointer syntax & implementation :white_check_mark: 
