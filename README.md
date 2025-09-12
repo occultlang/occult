@@ -21,7 +21,7 @@
 - Implicit boolean conversions
 - Re-do assignment to booleans with comparison expressions (using jumps)
 
-**<ins>Alpha 3.0.0 Release</ins> (Late 2026 - Early 2027)**
+**<ins>Alpha 3.0.0 Release</ins> (Mid 2026 - Early 2027)**
 - Static Analysis 
 - Borrow Checker
 - New Intermediate Representation (SSA) for optimization pass
