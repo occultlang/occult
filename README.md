@@ -3,7 +3,8 @@
     <img src="mascot.svg" width="240" alt="Occult Logo">
   </a>
   <h1 style="margin: 5px;">The Occult Programming Language</h1>
-  <p align="center">An enigmatic programming language... <a href="https://occultlang.org" target="_blank">occultlang.org</a></p> <br>
+  <p align="center">An enigmatic programming language...</p> <br>
+  <p><a href="https://discord.gg/Wv6tgPXezX" target="_blank">Community Discord</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://occultlang.org" target="_blank">occultlang.org</a></p>
 </div>
 
 ### Development Roadmap
