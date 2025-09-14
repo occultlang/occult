@@ -9,6 +9,9 @@ fn main() i64 { // yay this works :3
     printn(addr);
     printn(<-addr);
     printn(<-<-addr2); // dereference 
+    
+    return 0;
+}
 
     /*i64* p = alloc(8);
     <-p = 10;
@@ -17,6 +20,3 @@ fn main() i64 { // yay this works :3
     printn(<-p);
     
     del(p);*/
-    
-    return 0;
-}

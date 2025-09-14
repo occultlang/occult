@@ -91,6 +91,32 @@ namespace occult {
             rip // ip
         };
 
+        static grp as_32(const grp& reg) {
+            if ((reg >= rax && reg <= rdi) || (reg >= r8 && reg <= r15)) {
+                switch (reg) {
+                    case rax:  return eax;
+                    case rbx:  return ebx;
+                    case rcx:  return ecx;
+                    case rdx:  return edx;
+                    case rsi:  return esi;
+                    case rdi:  return edi;
+                    case rbp:  return ebp;
+                    case rsp:  return esp;
+                    case r8:   return r8d;
+                    case r9:   return r9d;
+                    case r10:  return r10d;
+                    case r11:  return r11d;
+                    case r12:  return r12d;
+                    case r13:  return r13d;
+                    case r14:  return r14d;
+                    case r15:  return r15d;
+                    default:   break;  
+                }
+            }
+            
+            throw std::runtime_error("Can only be a 64-bit register when going to 32 bit.");
+        }
+
         // rebases register to the correct size
         static grp rebase_register(const grp& reg) {
             if (reg >= eax && reg <= edi) {

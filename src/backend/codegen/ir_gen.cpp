@@ -1,6 +1,7 @@
 #include "ir_gen.hpp"
 #include "../../lexer/number_parser.hpp"
 #include <algorithm>
+#include <functional>
 
 /*
  * This IR generation is really crappy and disorganized, I will make it organized later on, and I'll probably move to SSA or TAC
@@ -970,21 +971,22 @@ namespace occult {
       for (std::size_t i = 1; i < array_access_node->get_children().size() - (has_assigment) ? 1 : 0; i++) { 
         auto c = array_access_node->get_children().at(i).get();
 
-        generate_arith_and_bitwise_operators(function, c);
-
         switch(c->get_type()) {
           case cst_type::number_literal: {
             handle_push_types(function, c);
+            function.code.emplace_back(op_mark_for_array_access);
             
             break;
           }
           case cst_type::identifier: {
             function.code.emplace_back(op_load, c->content);
+            function.code.emplace_back(op_mark_for_array_access);
             
             break;
           }
           case cst_type::functioncall: {
             generate_function_call(function, c);
+            function.code.emplace_back(op_mark_for_array_access);
             
             break;
           }
@@ -1036,10 +1038,14 @@ namespace occult {
           }
           case cst_type::arrayaccess: {
             generate_array_access(function, cst::cast_raw<cst_arrayaccess>(c));
+            function.code.emplace_back(op_mark_for_array_access);
 
             break;
           }
           default: {
+            generate_arith_and_bitwise_operators(function, c);
+            function.code.emplace_back(op_mark_for_array_access);
+            
             break;
           }
         }
@@ -1067,8 +1073,141 @@ namespace occult {
         function.code.emplace_back(op_array_access_element, identifier->content);
       }
     }
-    else if (array_access_node->get_children().at(1)->get_type() == cst_type::arrayaccess) { // 2d+
-      // need to implement this
+    else if (array_access_node->get_children().front()->get_type() == cst_type::arrayaccess) { // 2d+
+      auto depth = 1;
+      std::vector<cst*> indices;
+      cst_assignment* assignment; 
+
+      std::function<void(cst*)> traverse_access_nodes([&, this](cst* node) -> void {
+        for (auto& child : node->get_children()) {
+          switch(child->get_type()) {
+            case cst_type::arrayaccess: {
+              depth++;
+
+              traverse_access_nodes(child.get());
+
+              break;
+            }
+            case cst_type::assignment: {
+              assignment = cst::cast_raw<cst_assignment>(child.get());
+
+              return;
+            }
+            default: {
+              indices.emplace_back(child.get());
+              traverse_access_nodes(child.get());
+
+              break;
+            }
+          }
+        }
+      });
+
+      traverse_access_nodes(array_access_node);
+
+      cst_identifier* array_name = cst::cast_raw<cst_identifier>(indices.front()); // ALWAYS FRONT
+      indices = std::vector(indices.begin() + 1, indices.end());
+
+      for (auto& c : indices) { // push indices in order
+        switch(c->get_type()) {
+          case cst_type::number_literal: {
+            handle_push_types(function, c);
+            function.code.emplace_back(op_mark_for_array_access);
+
+            break;
+          }
+          case cst_type::identifier: {
+            function.code.emplace_back(op_load, c->content);
+            function.code.emplace_back(op_mark_for_array_access);
+
+            break;
+          }
+          case cst_type::functioncall: {
+            generate_function_call(function, c);
+            function.code.emplace_back(op_mark_for_array_access);
+            
+            break;
+          }
+          case cst_type::or_operator: {
+            function.code.emplace_back(op_logical_or);
+
+            break;
+          }
+          case cst_type::and_operator: {
+            function.code.emplace_back(op_logical_and);
+
+            break;
+          }
+          case cst_type::equals_operator: {
+            function.code.emplace_back(op_cmp);
+            function.code.emplace_back(op_setz);
+            
+            break;
+          }
+          case cst_type::not_equals_operator: {
+            function.code.emplace_back(op_cmp);
+            function.code.emplace_back(op_setnz);
+          
+            break;
+          }
+          case cst_type::greater_than_operator: {
+            function.code.emplace_back(op_cmp);
+            function.code.emplace_back(op_setg);
+            
+            break;
+          }
+          case cst_type::less_than_operator: {
+            function.code.emplace_back(op_cmp);
+            function.code.emplace_back(op_setl);
+            
+            break;
+          }
+          case cst_type::greater_than_or_equal_operator: {
+            function.code.emplace_back(op_cmp);
+            function.code.emplace_back(op_setge);
+            
+            break;
+          }
+          case cst_type::less_than_or_equal_operator: {
+            function.code.emplace_back(op_cmp);
+            function.code.emplace_back(op_setle);
+            
+            break;
+          }
+          case cst_type::arrayaccess: {
+            generate_array_access(function, cst::cast_raw<cst_arrayaccess>(c));
+            function.code.emplace_back(op_mark_for_array_access);
+
+            break;
+          }
+          default: {
+            generate_arith_and_bitwise_operators(function, c);
+            function.code.emplace_back(op_mark_for_array_access);
+
+            break;
+          }
+        }
+      }
+      
+      if (assignment) {
+        for (const auto& c : assignment->get_children()) {
+          switch(c->get_type()) { /* ADD OTHER TYPES AND CASES TO THIS */
+            case cst_type::number_literal: {
+              handle_push_types(function, c.get());
+
+              break;
+            }
+            default: {
+              break;
+            }
+          }
+        }
+        
+        function.code.emplace_back(op_array_store_element, array_name->content);
+      }
+      else {
+        function.code.emplace_back(op_array_access_element, array_name->content);
+      }
     }
   }
 

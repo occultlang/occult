@@ -95,21 +95,3 @@ namespace occult {
         }
     } // namespace function_registry
 } // namespace occult
-
-OCCULT_FUNC_DECL_STATIC(std::uint32_t, __cast_to_uint32__, (std::uint64_t d), std::uint64_t) {
-  std::uint32_t v = 0;
-  std::memcpy(&v, &d, sizeof(std::uint32_t));
-  return v;
-}
-
-OCCULT_FUNC_DECL_STATIC(std::uint32_t, __cast_to_uint64__, (std::uint64_t d), std::uint64_t) {
-  std::uint64_t v = 0;
-  std::memcpy(&v, &d, sizeof(std::uint64_t));
-  return v;
-}
-
-OCCULT_FUNC_DECL_STATIC(std::uint32_t, __cast_to_int64__, (std::int64_t d), std::int64_t) {
-  std::int64_t v = 0;
-  std::memcpy(&v, &d, sizeof(std::int64_t));
-  return v;
-}

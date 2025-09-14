@@ -6,6 +6,8 @@
 // will document as i go, more
 // based on https://ref.x86asm.net/coder64.html
 
+// disabled address_size_override 0x67, only calculate using 64-bit addressing for now. (has bug in codegen)
+
 #define REG_RANGE(to_cmp, start, end) \
     (to_cmp >= start && to_cmp <= end)
 
@@ -308,7 +310,7 @@ namespace occult {
                 }
 
                 if (dest_r8d || base_r8d || dest_32 || base_32) {
-                    push_byte(other_prefix::address_size_override);
+                    //push_byte(other_prefix::address_size_override);
 
                     uint8_t rex = rex::rex;
 
@@ -354,7 +356,7 @@ namespace occult {
                         push_byte(other_prefix::operand_size_override);
                     } 
                     else if (dest.reg == esp) {
-                        push_byte(other_prefix::address_size_override);
+                        //push_byte(other_prefix::address_size_override);
                     } 
                     else if (dest.reg == rsp || dest.reg == spl) {
                         push_byte(rex_w);

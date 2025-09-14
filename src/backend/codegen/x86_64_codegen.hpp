@@ -238,11 +238,6 @@ namespace occult {
                   std::cout << RED << "[CODEGEN ERROR] Cannot have reference in store." << RESET << std::endl;
                 }
 
-                /*if (is_dereference_next) {
-                  // work on here
-                  break;
-                }*/
-
                 w->emit_sub(rsp, totalsizes);
                 w->emit_mov(mem{rbp, -totalsizes}, r);
 
@@ -269,31 +264,6 @@ namespace occult {
 
               break;
             }
- /* 
-  Don't worry about the variable locations and register
-  
-  Double dereference
-
-        mov     rax, QWORD PTR [rbp-8]
-        mov     rax, QWORD PTR [rax]
-        mov     rax, QWORD PTR [rax]
-
-  Dereference
-
-        mov     rax, QWORD PTR [rbp-24]
-        mov     rax, QWORD PTR [rax]
-
-  Double dereference assignment 
-
-        mov     rax, QWORD PTR [rbp-8]
-        mov     rax, QWORD PTR [rax]
-        mov     QWORD PTR [rax], 40
-
-  Dereference assignment
-
-        mov     rax, QWORD PTR [rbp-24]
-        mov     QWORD PTR [rax], 40
- */
             case ir_opcode::op_load: {
               const auto& var_name = std::get<std::string>(code.operand);
               const auto& var_type = local_variable_map_types[var_name];
@@ -375,22 +345,10 @@ namespace occult {
                 w->emit_movsxd(r, mem{rbp, offset});
               }
               else if (var_type == "uint32") {
-                w->emit_mov(rdi, mem{rbp, offset}); // sysv_regs
-                w->emit_mov(rax, reinterpret_cast<std::int64_t>(&function_map["__cast_to_uint32__"]));
-                w->emit_call(mem{rax});
-                w->emit_mov(r, rax);
+                w->emit_mov(as_32(r), mem{rbp, offset});
               }
-              else if (var_type == "int64") {
-                w->emit_mov(rdi, mem{rbp, offset}); // sysv_regs
-                w->emit_mov(rax, reinterpret_cast<std::int64_t>(&function_map["__cast_to_int64__"]));
-                w->emit_call(mem{rax});
-                w->emit_mov(r, rax);
-              }
-              else if (var_type == "uint64") {
-                w->emit_mov(rdi, mem{rbp, offset}); // sysv_regs
-                w->emit_mov(rax, reinterpret_cast<std::int64_t>(&function_map["__cast_to_uint64__"]));
-                w->emit_call(mem{rax});
-                w->emit_mov(r, rax);
+              else if (var_type == "int64" || var_type == "uint64") {
+                w->emit_mov(r, mem{rbp, offset});
               }
 
               pool.push(r);

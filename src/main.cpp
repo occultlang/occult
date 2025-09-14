@@ -131,13 +131,6 @@ int main(int argc, char* argv[]) {
   start = std::chrono::high_resolution_clock::now();
   occult::ir_gen ir_gen(cst.get(), debug);
   auto ir = ir_gen.lower_to_stack();
-  occult::function_registry::register_function_to_ir<&__cast_to_uint32__>(ir);
-  occult::function_registry::register_function_to_ir<&__cast_to_int64__>(ir);
-  occult::function_registry::register_function_to_ir<&__cast_to_uint64__>(ir);
-  occult::function_registry::register_function_to_ir<&printn>(ir);
-  occult::function_registry::register_function_to_ir<&alloc>(ir);
-  occult::function_registry::register_function_to_ir<&del>(ir);
-
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
@@ -147,11 +140,13 @@ int main(int argc, char* argv[]) {
     ir_gen.visualize_stack_ir(ir);
   }
 
+  occult::function_registry::register_function_to_ir<&printn>(ir);
+  occult::function_registry::register_function_to_ir<&alloc>(ir);
+  occult::function_registry::register_function_to_ir<&del>(ir);
+
   start = std::chrono::high_resolution_clock::now();
   occult::x86_64::codegen jit_runtime(ir, debug);
-  occult::function_registry::register_function_to_codegen<&__cast_to_uint32__>(jit_runtime);
-  occult::function_registry::register_function_to_codegen<&__cast_to_int64__>(jit_runtime);
-  occult::function_registry::register_function_to_codegen<&__cast_to_uint64__>(jit_runtime);
+
   occult::function_registry::register_function_to_codegen<&printn>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
@@ -162,12 +157,12 @@ int main(int argc, char* argv[]) {
   if (showtime) {
     std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m" << duration.count() << "ms\n";
   }
-  if (debug && jit) {
+  /*if (debug && jit) {
     for (const auto& pair : jit_runtime.function_map) {
       std::cout << pair.first << std::endl;
       std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
     }
-  }
+  }*/
 
   if (jit) {
     auto it = jit_runtime.function_map.find("main");

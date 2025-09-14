@@ -63,7 +63,8 @@ namespace occult {
     op_reference,
     op_dereference,
     op_dereference_assign,
-    op_store_at_addr
+    op_store_at_addr,
+    op_mark_for_array_access,
   };
   
   inline std::string opcode_to_string(ir_opcode op) {
@@ -126,6 +127,7 @@ namespace occult {
       case op_dereference: return "dereference";
       case op_dereference_assign: return "dereference_assign";
       case op_store_at_addr: return "store_at_addr";
+      case op_mark_for_array_access: return "mark_for_array_access";
       default:              return "unknown_opcode";
     }
   }
