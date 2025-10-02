@@ -16,7 +16,8 @@
 - Floating point numbers
 - Sized types :white_check_mark: 
 - Pointer syntax & implementation :white_check_mark: 
-- Arrays & Strings
+- Arrays :white_check_mark: ***Somewhat Working***
+- Strings
 - Foreach implementation
 - Structures
 - Implicit boolean conversions
