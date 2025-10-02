@@ -217,6 +217,11 @@ namespace occult {
 
           break;
         }
+        case cst_type::arrayaccess: {
+          generate_array_access(function, cst::cast_raw<cst_arrayaccess>(c.get()));
+
+          break;
+        }
         default: {
           generate_arith_and_bitwise_operators(function, c.get());
 

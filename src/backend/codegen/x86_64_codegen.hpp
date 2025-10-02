@@ -895,6 +895,7 @@ namespace occult {
                 
               auto result = pool.alloc();
                               
+              w->emit_add(index, 1);
               w->emit_neg(index);    
               w->emit_mov(result, mem{rbp, index, 3, 0});
 

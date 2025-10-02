@@ -1,18 +1,17 @@
 fn main() i64 {
-    //array[2][2] i64 arr_test = {{1, 2}, {3, 4}};
-
-    /*bbbbbbbbbbb[5] = 1111;
-    aaaaaaaaaaa[8][y] = 2222;
-    ccccccccccc[9][7][x] = 3333;
+    array[4] i64 arr_test = {1, 2, 3, 4};
+    
     i64 sum = 0;
 
     for i64 i = 0 when i < 4 do i = i + 1 {
         sum = sum + arr_test[i];
     }
 
-    return sum;*/
+    printn(sum);
 
-    array[5] i64 test = {111, 222, 333, 444, 666};
-
-    return test[5]; 
+    return 0;
 }
+
+/*bbbbbbbbbbb[5] = 1111;
+aaaaaaaaaaa[8][y] = 2222;
+ccccccccccc[9][7][x] = 3333;*/
