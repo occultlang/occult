@@ -1,22 +1,14 @@
-fn main() i64 { // yay this works :3
+fn main() i64 {
     i64 orig = 10;
 
     i64* addr = @orig; // reference
     i64** addr2 = @addr;
     
-    <-<-addr2 = 40;
+    <-<-addr2 = 40; // how to dereference
 
-    printn(addr);
-    printn(<-addr);
-    printn(<-<-addr2); // dereference 
+    printn(addr); // raw address
+    printn(<-addr); // 40
+    printn(<-<-addr2); // 40
     
     return 0;
 }
-
-    /*i64* p = alloc(8);
-    <-p = 10;
-
-    printn(p);
-    printn(<-p);
-    
-    del(p);*/

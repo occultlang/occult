@@ -235,144 +235,101 @@ namespace occult {
                 };
 
                 const bool dest_r8b = REG_RANGE(dest.reg, r8b, r15b);
-                const bool base_r8b = REG_RANGE(base, r8b, r15b);
                 const bool dest_8 = REG_RANGE(dest.reg, al, dil);
-                const bool base_8 = REG_RANGE(base, al, dil);
-
                 const bool dest_r8w = REG_RANGE(dest.reg, r8w, r15w);
-                const bool base_r8w = REG_RANGE(base, r8w, r15w);
                 const bool dest_16 = REG_RANGE(dest.reg, ax, di);
-                const bool base_16 = REG_RANGE(base, ax, di);
-
                 const bool dest_r8d = REG_RANGE(dest.reg, r8d, r15d);
-                const bool base_r8d = REG_RANGE(base, r8d, r15d);
                 const bool dest_32 = REG_RANGE(dest.reg, eax, edi);
-                const bool base_32 = REG_RANGE(base, eax, edi);
-
                 const bool dest_r8q = REG_RANGE(dest.reg, r8, r15);
-                const bool base_r8q = REG_RANGE(base, r8, r15);
                 const bool dest_64 = REG_RANGE(dest.reg, rax, rdi);
+
+                const bool base_r8b = REG_RANGE(base, r8b, r15b);
+                const bool base_8 = REG_RANGE(base, al, dil);
+                const bool base_r8w = REG_RANGE(base, r8w, r15w);
+                const bool base_16 = REG_RANGE(base, ax, di);
+                const bool base_r8d = REG_RANGE(base, r8d, r15d);
+                const bool base_32 = REG_RANGE(base, eax, edi);
+                const bool base_r8q = REG_RANGE(base, r8, r15);
                 const bool base_64 = REG_RANGE(base, rax, rdi);
 
-                if ((dest_r8b || dest_8) || (base_r8b || base_8)) {
-                    bool needs_rex = false;
-                    std::uint8_t rex = rex::rex; 
+                const bool index_r8q = dest.mode == mem_mode::scaled_index && REG_RANGE(dest.index, r8, r15);
+                const bool index_64 = dest.mode == mem_mode::scaled_index && REG_RANGE(dest.index, rax, rdi);
 
-                    if (dest_r8b || base_r8b) {
-                        needs_rex = true;
+                std::uint8_t rex = rex::rex;
+                bool needs_rex = false;
 
-                        if (dest_r8b) {
-                            rex |= b; 
-                        }
-
-                        if (base_r8b) {
-                            rex |= r;
-                        }
-                    }
-
+                if (dest_r8b || dest_8 || base_r8b || base_8) {
+                    if (dest_r8b) rex |= rex_bits::b;
+                    if (base_r8b) rex |= rex_bits::r;
+                    if (index_r8q) rex |= rex_bits::x;
                     if (dest.reg == spl || dest.reg == bpl || dest.reg == sil || dest.reg == dil ||
                         base == spl || base == bpl || base == sil || base == dil) {
                         needs_rex = true;
                     }
-
-                    if (needs_rex) {
-                        push_byte(rex);
-                    }
+                    if (needs_rex) push_byte(rex);
 
                     emit_2b();
-
                     push_byte(op8);
 
                     return;
                 }
 
-                if (dest_r8w || base_r8w || dest_16 || base_16) {
+                if (dest_r8w || dest_16 || base_r8w || base_16) {
                     push_byte(other_prefix::operand_size_override);
+                    if (dest_r8w) rex |= rex_bits::b;
+                    if (base_r8w) rex |= rex_bits::r;
+                    if (index_r8q) rex |= rex_bits::x;
+                    if (rex != rex::rex) push_byte(rex);
 
-                    uint8_t rex = rex::rex;
-
-                    if (dest_r8w) {
-                        rex |= b;
-                    }
-
-                    if (base_r8w) {
-                        rex |= r;
-                    }
-
-                    if (rex != rex::rex) {
-                        push_byte(rex);
-                    }
                     emit_2b();
-
                     push_byte(op);
 
                     return;
                 }
 
-                if (dest_r8d || base_r8d || dest_32 || base_32) {
-                    //push_byte(other_prefix::address_size_override);
-
-                    uint8_t rex = rex::rex;
-
-                    if (dest_r8d) {
-                        rex |= b;
-                    }
-                    if (base_r8d) {
-                        rex |= r;
-                    }
-
-                    if (rex != rex::rex) {
-                        push_byte(rex);
-                    }
+                if (dest_r8d || dest_32 || base_r8d || base_32) {
+                    if (dest_r8d) rex |= rex_bits::b;
+                    if (base_r8d) rex |= rex_bits::r;
+                    if (index_r8q) rex |= rex_bits::x;
+                    if (rex != rex::rex) push_byte(rex);
 
                     emit_2b();
-
                     push_byte(op);
 
                     return;
                 }
 
-                if (dest_r8q || base_r8q || dest_64 || base_64) {
-                    uint8_t rex = rex_w;
-
-                    if (dest_r8q) {
-                        rex |= b;  
-                    }
-                    if (base_r8q) {
-                        rex |= r; 
-                    }
+                if (dest_r8q || dest_64 || base_r8q || base_64 || index_r8q || index_64) {
+                    rex |= rex_bits::w;
+                    if (dest_r8q) rex |= rex_bits::b;
+                    if (base_r8q) rex |= rex_bits::r;
+                    if (index_r8q) rex |= rex_bits::x;
 
                     push_byte(rex);
-
                     emit_2b();
-
                     push_byte(op);
 
                     return;
                 }
 
-                if (dest.reg == sp || dest.reg == esp || dest.reg == rsp || dest.reg == spl) {
-                    if (dest.reg == sp) {
+                if (dest.reg == sp || dest.reg == esp || dest.reg == rsp || dest.reg == spl ||
+                    base == sp || base == esp || base == rsp || base == spl) {
+                    if (dest.reg == sp || base == sp) {
                         push_byte(other_prefix::operand_size_override);
                     } 
-                    else if (dest.reg == esp) {
-                        //push_byte(other_prefix::address_size_override);
-                    } 
-                    else if (dest.reg == rsp || dest.reg == spl) {
-                        push_byte(rex_w);
+                    else if (dest.reg == rsp || dest.reg == spl || base == rsp || base == spl) {
+                        rex |= rex_bits::w;
+                        push_byte(rex);
                     }
 
                     emit_2b();
+                    push_byte((dest.reg == spl || base == spl) ? op8 : op);
 
-                    push_byte(dest.reg < spl ? op : op8);
-                    
                     return;
                 }
 
-                push_byte(rex_w);
-                
+                push_byte(rex_bits::w);
                 emit_2b();
-
                 push_byte(op);
             }
 

@@ -21,6 +21,12 @@ namespace occult {
       {"uint8", 1},
     }; /* we might have to use this instead of an 8-byte aligned stack, i'm not sure */
 
+    struct array_metadata {
+      std::string type;                    // e.g., "int64"
+      std::vector<std::uint64_t> dimensions; // e.g., [2, 2]
+      std::int32_t total_size;             // Total memory in bytes
+    };
+
     class codegen {
       #ifdef __linux 
         bool is_systemv = true;
@@ -160,6 +166,7 @@ namespace occult {
         std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
         std::unordered_map<std::string, std::int64_t> local_variable_map;
         std::unordered_map<std::string, std::string> local_variable_map_types;
+        std::unordered_map<std::string, array_metadata> local_array_metadata;
 
         bool is_reference_next = false;
         bool is_dereference_next = false;
@@ -195,7 +202,8 @@ namespace occult {
 
         for (std::size_t i = 0; i < func.code.size(); i++) {
           auto& code = func.code.at(i);
-          
+          std::uint64_t index_to_push;
+
           switch (code.op) {
             case ir_opcode::op_push: {
               if (std::holds_alternative<std::int64_t>(code.operand)) {
@@ -795,10 +803,110 @@ namespace occult {
             }
 
             /* arrays */
-            case op_array_decl: {
+            case ir_opcode::op_array_decl: {
+              auto name = std::get<std::string>(code.operand);
+              if (debug) {
+                  std::cout << BLUE << "[CODEGEN INFO] Got name of array: " << RESET << name << std::endl;
+              }
+
+              auto type = std::get<std::string>(func.code.at(++i).operand);
+              if (debug) {
+                  std::cout << BLUE << "[CODEGEN INFO] Array type: " << RESET << type << std::endl;
+              }
+
+              auto dimensions = std::get<std::uint64_t>(func.code.at(++i).operand);
+              if (debug) {
+                  std::cout << BLUE << "[CODEGEN INFO] Dimensions count: " << RESET << dimensions << std::endl;
+              }
+
+              std::vector<std::uint64_t> dimensions_vec;
+              for (std::size_t j = 0; j < dimensions; j++) {
+                  dimensions_vec.emplace_back(std::get<std::uint64_t>(func.code.at(++i).operand));
+              }
+
+              if (debug) {
+                int j = 0;
+                for (const auto& e : dimensions_vec) {
+                  std::cout << BLUE << "[CODEGEN INFO] Size in dimension (" << ++j << "): " << RESET << e << std::endl;
+                }
+              }
+
+              std::size_t element_size = 8; // tmp to align with what we got until i can figure out diff byte sizes 
+              std::size_t element_count = 1;
+              for (const auto& dim : dimensions_vec) {
+                element_count *= dim;
+              }
+
+              std::int32_t total_mem = element_count * element_size;
+              w->emit_sub(rsp, total_mem); 
+              std::int32_t base_offset = -totalsizes - total_mem; 
+              totalsizes += total_mem;
+
+              local_array_metadata[name] = {type, dimensions_vec, total_mem};
+              local_variable_map[name] = -base_offset; // store base address as positive offset from rbp
+
+              if (debug) {
+                  std::cout << BLUE << "[CODEGEN INFO] Allocated array: " << RESET << name << "\n"
+                            << BLUE << "               At index: " << RESET << -base_offset << std::endl;
+              }
+
               break;
             }
+            case ir_opcode::op_declare_where_to_store: {
+              auto index = std::get<std::uint64_t>(code.operand);
+              if (debug) {
+                  std::cout << BLUE << "[CODEGEN INFO] Declaring store index: " << RESET << index << std::endl;
+              }
 
+              index_to_push = index;
+
+              break;
+            }
+            case ir_opcode::op_array_store_element: {
+              auto content = pool.pop(func, i);
+              std::uint64_t index = index_to_push; 
+              std::int32_t scale = -8 * (index + 1);
+
+              auto array_name = std::get<std::string>(func.code.at(i).operand);
+              auto it = local_variable_map.find(array_name);
+
+              if (it == local_variable_map.end()) {
+                std::cerr << RED << "[CODEGEN ERROR] Array " << array_name << " not found" << RESET << std::endl;
+                return;
+              }
+
+              w->emit_mov(mem{rbp, scale}, content);
+
+              pool.free(content);
+
+              index_to_push = 0;
+                            
+              break;
+            }
+            case ir_opcode::op_array_access_element: {
+              auto index = pool.pop(func, i); 
+              auto array_name = std::get<std::string>(code.operand);
+                
+              auto it = local_variable_map.find(array_name);
+              if (it == local_variable_map.end()) {
+                std::cerr << RED << "[CODEGEN ERROR] Array " << array_name << " not found" << RESET << std::endl;
+                return;
+              }
+                
+              auto result = pool.alloc();
+                              
+              w->emit_neg(index);    
+              w->emit_mov(result, mem{rbp, index, 3, 0});
+
+              pool.push(result);
+              pool.free(index);
+                
+              if (debug) {
+                std::cout << BLUE << "[CODEGEN INFO] Array access: " << RESET << array_name << std::endl;
+              }
+
+              break;
+            }
             default: {
               break;
             }

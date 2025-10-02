@@ -105,60 +105,56 @@ namespace occult {
   }
 
   void parser::parse_array_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref) {
-    auto array_access_node = cst::new_node<cst_arrayaccess>();
-    array_access_node->add_child(cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
-  
-    i_ref++;
-    int bracket_depth = 1;
-    std::vector<token_t> index_tokens;
-  
-    while (i_ref + 1 < expr_ref.size() && bracket_depth > 0) {
-      i_ref++;
-      auto& tok = expr_ref.at(i_ref);
-  
-      if (tok.tt == left_bracket_tt) {
-        if (bracket_depth > 0) {
-          auto nested_array_access = cst::new_node<cst_arrayaccess>();
-          nested_array_access->add_child(std::move(array_access_node));
-          array_access_node = std::move(nested_array_access);
-        }
-        
-        bracket_depth++;
-        
-        if (bracket_depth > 1) {
+    std::unique_ptr<cst> base = cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme);
+
+    while (i_ref + 1 < expr_ref.size() && expr_ref[i_ref + 1].tt == left_bracket_tt) {
+      i_ref++; 
+      i_ref++; 
+
+      int bracket_depth = 1;
+      std::vector<token_t> index_tokens;
+
+      while (i_ref < expr_ref.size() && bracket_depth > 0) {
+        auto& tok = expr_ref.at(i_ref);
+
+        if (tok.tt == left_bracket_tt) {
+          bracket_depth++;
           index_tokens.push_back(tok);
-        }
-      } 
-      else if (tok.tt == right_bracket_tt) {
-        bracket_depth--;
-        if (bracket_depth == 0) {
-          if (!index_tokens.empty()) {
-            auto index_nodes = parse_expression(index_tokens);
-            for (auto& n : index_nodes) {
-              array_access_node->add_child(std::move(n));
-            }
-            index_tokens.clear();
+        } 
+        else if (tok.tt == right_bracket_tt) {
+          bracket_depth--;
+          
+          if (bracket_depth == 0) {
+            break; 
           }
+
+          index_tokens.push_back(tok);
         } 
         else {
           index_tokens.push_back(tok);
         }
-      } 
-      else if (tok.tt == comma_tt && bracket_depth == 1) {
-        if (!index_tokens.empty()) {
-          auto index_nodes = parse_expression(index_tokens);
-          for (auto& n : index_nodes) {
-            array_access_node->add_child(std::move(n));
-          }
-          index_tokens.clear();
-        }
-      } 
-      else {
-        index_tokens.push_back(tok);
+
+        i_ref++;
       }
+
+      if (bracket_depth != 0) {
+        throw parsing_error("unmatched [ in array access", expr_ref.at(i_ref), pos, std::source_location::current().function_name());
+      }
+
+      auto array_access_node = cst::new_node<cst_arrayaccess>();
+      array_access_node->add_child(std::move(base));
+
+      if (!index_tokens.empty()) {
+        auto index_nodes = parse_expression(index_tokens);
+        for (auto& n : index_nodes) {
+          array_access_node->add_child(std::move(n));
+        }
+      }
+
+      base = std::move(array_access_node);
     }
-  
-    expr_cst_ref.push_back(std::move(array_access_node));
+
+    expr_cst_ref.push_back(std::move(base));
   }
 
   void parser::shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref) {

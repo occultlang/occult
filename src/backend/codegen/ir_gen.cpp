@@ -889,17 +889,17 @@ namespace occult {
 
     auto dimensions_count_node = cst::cast_raw<cst_dimensions_count>(array_node->get_children().at(1).get());
     
-    std::vector<std::size_t> dimensions;
+    std::vector<std::uint64_t> dimensions;
     for (const auto& c : dimensions_count_node->get_children()) {
       if (c->get_type() == cst_type::dimension) {
-        dimensions.push_back(from_numerical_string<std::size_t>(c->content));
+        dimensions.push_back(from_numerical_string<std::uint64_t>(c->content));
       }
     }
 
-    function.code.emplace_back(op_array_dimensions, std::to_string(dimensions.size()));
+    function.code.emplace_back(op_array_dimensions, static_cast<std::uint64_t>(dimensions.size()));
 
     for (const auto& dim : dimensions) {
-      function.code.emplace_back(op_array_size, std::to_string(dim));
+      function.code.emplace_back(op_array_size, dim);
     }
 
     if (dimensions.size() > 1) {
@@ -908,9 +908,11 @@ namespace occult {
       if (first_array_node == nullptr) {
         return;
       }
-      
+
+      std::uint64_t k = 0;
       for (std::size_t i = 0; i < dimensions.size(); ++i) { 
         for (std::size_t j = 0; j < dimensions[i]; ++j) {
+          function.code.emplace_back(op_declare_where_to_store, static_cast<std::uint64_t>(++k));
           auto array_node = first_array_node->get_children().at(j).get();
           
           if (array_node->get_type() == cst_type::arraybody) {
@@ -928,7 +930,6 @@ namespace occult {
                 }
               }
             }
-
             function.code.emplace_back(op_array_store_element, identifier->content);
           }
         }
@@ -942,7 +943,8 @@ namespace occult {
       }
 
       for (std::size_t i = 0; i < dimensions.front(); ++i) {
-      
+        function.code.emplace_back(op_declare_where_to_store, static_cast<std::uint64_t>(i));
+
         auto element = cst::cast_raw<cst_arrayelement>(first_array_node->get_children().at(i).get());
 
         for (const auto& c : element->get_children()) {
@@ -974,19 +976,16 @@ namespace occult {
         switch(c->get_type()) {
           case cst_type::number_literal: {
             handle_push_types(function, c);
-            function.code.emplace_back(op_mark_for_array_access);
             
             break;
           }
           case cst_type::identifier: {
             function.code.emplace_back(op_load, c->content);
-            function.code.emplace_back(op_mark_for_array_access);
             
             break;
           }
           case cst_type::functioncall: {
             generate_function_call(function, c);
-            function.code.emplace_back(op_mark_for_array_access);
             
             break;
           }
@@ -1038,18 +1037,18 @@ namespace occult {
           }
           case cst_type::arrayaccess: {
             generate_array_access(function, cst::cast_raw<cst_arrayaccess>(c));
-            function.code.emplace_back(op_mark_for_array_access);
 
             break;
           }
           default: {
             generate_arith_and_bitwise_operators(function, c);
-            function.code.emplace_back(op_mark_for_array_access);
             
             break;
           }
-        }
+        }    
       }
+
+      function.code.emplace_back(op_mark_for_array_access);
 
       if (array_access_node->get_children().back()->get_type() == cst_type::assignment) {
         auto assignment = cst::cast_raw<cst_assignment>(array_access_node->get_children().back().get());
@@ -1085,7 +1084,7 @@ namespace occult {
               depth++;
 
               traverse_access_nodes(child.get());
-
+              
               break;
             }
             case cst_type::assignment: {
@@ -1112,19 +1111,19 @@ namespace occult {
         switch(c->get_type()) {
           case cst_type::number_literal: {
             handle_push_types(function, c);
-            function.code.emplace_back(op_mark_for_array_access);
+            //function.code.emplace_back(op_mark_for_array_access);
 
             break;
           }
           case cst_type::identifier: {
             function.code.emplace_back(op_load, c->content);
-            function.code.emplace_back(op_mark_for_array_access);
+            //function.code.emplace_back(op_mark_for_array_access);
 
             break;
           }
           case cst_type::functioncall: {
             generate_function_call(function, c);
-            function.code.emplace_back(op_mark_for_array_access);
+            //function.code.emplace_back(op_mark_for_array_access);
             
             break;
           }
@@ -1176,20 +1175,20 @@ namespace occult {
           }
           case cst_type::arrayaccess: {
             generate_array_access(function, cst::cast_raw<cst_arrayaccess>(c));
-            function.code.emplace_back(op_mark_for_array_access);
+            //function.code.emplace_back(op_mark_for_array_access);
 
             break;
           }
           default: {
             generate_arith_and_bitwise_operators(function, c);
-            function.code.emplace_back(op_mark_for_array_access);
+            //function.code.emplace_back(op_mark_for_array_access);
 
             break;
           }
         }
       }
       
-      if (assignment) {
+      if (!assignment) {
         for (const auto& c : assignment->get_children()) {
           switch(c->get_type()) { /* ADD OTHER TYPES AND CASES TO THIS */
             case cst_type::number_literal: {
