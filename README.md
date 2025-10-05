@@ -34,3 +34,6 @@ _____________________________________________________________________________
 
 ### [Building](https://github.com/occultlang/occult/blob/main/BUILDING.md)
 ### [Credits](https://github.com/occultlang/occult/blob/main/CREDITS.md)
+
+_____________________________________________________________________________
+*Note, we do not condone the actual practice of occultism.*
