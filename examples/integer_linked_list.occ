@@ -1,0 +1,82 @@
+/*
+    Test linked list using only pointers and integers
+    can't do <-(node + 8) (bug)
+    can't return a dereference (bug)
+*/
+
+fn alloc_node(i64 val) i64* {
+    i64* node = alloc(16); 
+    if (node == 0) {
+        return 0;
+    }
+
+    <-node = val;            // store value
+    i64* next_ptr = node + 8;
+    <-next_ptr = 0;          // initialize next to null
+
+    return node;
+}
+
+fn alloc_next_node(i64* prev_node, i64 val) i64* {
+    i64* new_node = alloc_node(val);
+    if (new_node == 0) {
+        return 0;
+    }
+
+    i64* next_ptr = prev_node + 8;
+    <-next_ptr = new_node;   // link prev to new
+
+    return new_node;         // return new node (for chaining)
+}
+
+fn free_list(i64* head) i64 {
+    i64* current = head;
+
+    while (current != 0) {
+        i64* next_field = current + 8;
+        i64* next_node = <-next_field;
+        del(current);
+        current = next_node;
+    }
+
+    return 0;
+}
+
+fn print_all_elems(i64* head) i64 {
+    i64* current = head;
+
+    while (current != 0) {
+        printn(<-current);
+        i64* next_field = current + 8;
+        current = <-next_field;
+    }
+
+    return 0;
+}
+
+fn sum_list(i64* head) i64 {
+    i64 sum = 0;
+    i64* current = head;
+
+    while (current != 0) {
+        sum = sum + <-current;
+        i64* next_field = current + 8;
+        current = <-next_field;
+    }
+
+    return sum;
+}
+
+fn main() i64 {
+    i64* head = alloc_node(10); // first val: 10
+    i64* n2 = alloc_next_node(head, 20); // 2nd val: 20
+    i64* n3 = alloc_next_node(n2, 30);  // 3rd val: 30
+    alloc_next_node(n3, 40); // 4th val: 40
+
+    printn(sum_list(head)); // sum: 100
+    print_all_elems(head); 
+
+    free_list(head);
+
+    return 0;
+}

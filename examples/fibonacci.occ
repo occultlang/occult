@@ -27,5 +27,8 @@ fn fib_while(i64 n) i64 {
 }
 
 fn main() i64 {
-  return fib_while(40);
+  i64 n = fib_recursion(45);
+  printn(n);
+  
+  return 0;
 }

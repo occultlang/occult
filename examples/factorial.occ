@@ -9,7 +9,7 @@ fn factorial(i64 n) i64 {
 fn main() i64 {
   i64 n = factorial(5);
   
-  // print(n + '0'); // get actual character to print...
+  printn(n);
   
   return 0;
 }
