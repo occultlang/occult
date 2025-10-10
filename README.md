@@ -14,11 +14,11 @@
 
 **<ins>Alpha 2.1.0 Release</ins> (Late 2025 - Early 2026)**
 - Floating point numbers
-- Sized types :white_check_mark: 
-- Pointer syntax & implementation :white_check_mark: 
-- Arrays :white_check_mark: ***Somewhat Working***
-- Strings
-- Foreach implementation
+- Sized types :white_check_mark: ***Some bugs most likely, but mostly implemented***
+- Pointer syntax & implementation :white_check_mark: ***Some bugs, but mostly implemented***
+- Arrays :white_check_mark: ***Somewhat working***
+- Strings :white_check_mark: ***Somewhat working***
+- Foreach implementation 
 - Structures
 - Implicit boolean conversions
 - Re-do assignment to booleans with comparison expressions (using jumps)
