@@ -18,7 +18,6 @@
 - Pointer syntax & implementation :white_check_mark: ***Some bugs, but mostly implemented***
 - Arrays :white_check_mark: ***Somewhat working***
 - Strings :white_check_mark: ***Somewhat working***
-- Foreach implementation 
 - Structures
 - Implicit boolean conversions
 - Re-do assignment to booleans with comparison expressions (using jumps)
@@ -29,6 +28,7 @@
 - New Intermediate Representation (SSA) for optimization pass
 - RISCV Support
 - ARM64 Support
+- Foreach implementation ***Moved here due to its non-importance at this current moment***
 
 _____________________________________________________________________________
 
