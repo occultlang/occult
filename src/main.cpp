@@ -28,17 +28,24 @@ void display_help() {
             << "  -h,   --help              Show this message\n";
 }
 
-OCCULT_FUNC_DECL(std::int64_t, printn, (std::int64_t addr), std::int64_t) {
-    std::printf("%li\n", addr);
-    return 0;
-}
-
 OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) {
   return (int64_t)malloc(sz);
 }
 
 OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t sz), std::int64_t) {
   free((int64_t*)sz);
+  return 0;
+}
+
+OCCULT_FUNC_DECL(std::int64_t, print_s, (std::int64_t sz), std::int64_t) {
+  std::printf("%s", sz);
+  
+  return 0;
+}
+
+OCCULT_FUNC_DECL(std::int64_t, print_i, (std::int64_t sz), std::int64_t) {
+  std::printf("%ld", sz);
+
   return 0;
 }
 
@@ -140,16 +147,18 @@ int main(int argc, char* argv[]) {
     ir_gen.visualize_stack_ir(ir);
   }
 
-  occult::function_registry::register_function_to_ir<&printn>(ir);
   occult::function_registry::register_function_to_ir<&alloc>(ir);
   occult::function_registry::register_function_to_ir<&del>(ir);
+  occult::function_registry::register_function_to_ir<&print_s>(ir);
+  occult::function_registry::register_function_to_ir<&print_i>(ir);
 
   start = std::chrono::high_resolution_clock::now();
   occult::x86_64::codegen jit_runtime(ir, debug);
 
-  occult::function_registry::register_function_to_codegen<&printn>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
   occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
+  occult::function_registry::register_function_to_codegen<&print_s>(jit_runtime);
+  occult::function_registry::register_function_to_codegen<&print_i>(jit_runtime);
 
   jit_runtime.compile(jit);
   end = std::chrono::high_resolution_clock::now();

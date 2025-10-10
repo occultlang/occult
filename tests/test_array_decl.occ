@@ -1,17 +1,20 @@
 fn main() i64 {
-    array[4] i64 arr_test = {1, 2, 3, 4};
+    array[16] i64 arr_test = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
     
     i64 sum = 0;
 
-    for i64 i = 0 when i < 4 do i = i + 1 {
+    for i64 i = 0 when i < 16 do i = i + 1 {
         sum = sum + arr_test[i];
     }
-
-    printn(sum);
-
+    
+    print_s("Sum for array is: ");
+    print_i(sum);
+    print_s("\n");
+    
     return 0;
 }
 
 /*bbbbbbbbbbb[5] = 1111;
 aaaaaaaaaaa[8][y] = 2222;
 ccccccccccc[9][7][x] = 3333;*/
+

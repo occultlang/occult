@@ -205,26 +205,53 @@ namespace occult {
           std::uint64_t index_to_push;
 
           switch (code.op) {
-            case ir_opcode::op_push: {
+           case ir_opcode::op_push: {
               if (std::holds_alternative<std::int64_t>(code.operand)) {
                 std::int64_t val = std::get<std::int64_t>(code.operand);
-
                 grp r = pool.alloc();
-
                 w->emit_mov(r, val);    
-
                 pool.push(r);
               }
               else if (std::holds_alternative<std::uint64_t>(code.operand)) {
                 std::uint64_t val = std::get<std::uint64_t>(code.operand);
-
                 grp r = pool.alloc();
-
                 w->emit_mov(r, val); 
-
                 pool.push(r);
               }
-              
+              else if (std::holds_alternative<std::string>(code.operand)) {
+                std::string str = std::get<std::string>(code.operand);
+                 
+                std::uint32_t num_chunks = (str.size() + 7) / 8;
+                 
+                std::uint32_t rounded_size = ((num_chunks * 8 + 15) / 16) * 16;
+                 
+                w->emit_sub(rsp, rounded_size);
+                 
+                grp temp_reg = pool.alloc();
+                for (std::size_t j = 0; j < num_chunks; ++j) {
+                  std::uint64_t chunk = 0;
+                  for (std::size_t k = 0; k < 8 && (j * 8 + k) < str.size(); ++k) {
+                    chunk |= static_cast<std::uint64_t>(static_cast<std::uint8_t>(str[j * 8 + k])) << (k * 8);
+                  }
+                  
+                  w->emit_mov(temp_reg, chunk);
+                  w->emit_mov(mem{rsp, static_cast<std::int32_t>(j * 8)}, temp_reg);
+                }
+                
+                pool.free(temp_reg);
+                
+                grp r = pool.alloc();
+                w->emit_mov(r, rsp);
+                pool.push(r);
+                
+                totalsizes += rounded_size;
+                if (debug) {
+                  std::cout << BLUE << "[CODEGEN INFO] Pushed string: " << RESET << "\"" << str << "\"\n"
+                            << "\tSize: " << str.size() << "\n\tChunks: " << num_chunks
+                            << "\n\tRounded: " << rounded_size << "\n\tStored at [rsp], "
+                            << "address in " << reg_to_string(r) << std::endl;
+                }
+              }
               break;
             }
             case ir_opcode::op_store: {
