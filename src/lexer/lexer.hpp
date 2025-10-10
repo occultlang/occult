@@ -100,6 +100,8 @@ namespace occult {
     pointer_keyword_tt,  // ptr
     true_keyword_tt,     // true
     false_keyword_tt,    // false
+    struct_keyword_tt,   // struct
+
     unary_minus_operator_tt,
     unary_plus_operator_tt,
     reference_operator_tt, // &

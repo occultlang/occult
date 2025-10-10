@@ -83,7 +83,8 @@ namespace occult {
     {"ptr", pointer_keyword_tt},
     {"false", false_keyword_tt},
     {"true", true_keyword_tt},
-    {"in", in_keyword_tt}};
+    {"in", in_keyword_tt},
+    {"struct", struct_keyword_tt}};
 
   std::unordered_map<token_type, std::string> token_typename_map = {
     {whitespace_tt, "whitespace"},
@@ -162,7 +163,8 @@ namespace occult {
     {end_of_file_tt, "end_of_file"},
     {unkown_tt, "unknown"},
     {function_call_parser_tt, "function_call_parser"},
-    {argument_count_tt, "argument_count"}};
+    {argument_count_tt, "argument_count"},
+    {struct_keyword_tt, "struct"}};
     
     std::unordered_set<char> alnumeric_set = {
       'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',

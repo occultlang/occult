@@ -79,7 +79,8 @@ namespace occult {
     dereference,
     reference,
     expr_start,
-    expr_end
+    expr_end,
+    structure
   };
   
   class cst {
@@ -238,6 +239,7 @@ namespace occult {
   NODE(charliteral, cst_charliteral)
   NODE(label, cst_label)
   NODE(array, cst_array)
+  NODE(structure, cst_struct)
   NODE(dimensions_count, cst_dimensions_count)
   NODE(dimension, cst_dimension)
   NODE(arraybody, cst_arraybody)

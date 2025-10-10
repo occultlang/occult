@@ -1,3 +1,8 @@
+struct point {
+    i64 x;
+    i64 y;
+}
+
 fn main() i64 {
     array[16] i64 arr_test = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
     
@@ -10,7 +15,7 @@ fn main() i64 {
     print_s("Sum for array is: ");
     print_i(sum);
     print_s("\n");
-    
+
     return 0;
 }
 

@@ -19,7 +19,8 @@ namespace occult {
     std::vector<token_t> stream;
     std::uintptr_t pos = 0;
     state parser_state = state::neutral;
-    
+    std::unordered_set<std::string> custom_type_set; // used for structures
+
     token_t peek(std::uintptr_t pos = 0);
     token_t previous();
     void consume(std::uintptr_t amt = 1);
@@ -51,6 +52,7 @@ namespace occult {
     std::unique_ptr<cst_breakstmt> parse_break();
     std::unique_ptr<cst_returnstmt> parse_return();
     std::unique_ptr<cst_array> parse_array();
+    std::unique_ptr<cst_struct> parse_struct();
     void synchronize(std::string what);
   public:
     parser(std::vector<token_t> stream) : root(cst::new_node<cst_root>()), stream(stream) {}

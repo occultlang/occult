@@ -851,6 +851,41 @@ namespace occult {
     return node;
   }
 
+  std::unique_ptr<cst_struct> parser::parse_struct() {
+    consume(); // consume struct
+
+    auto struct_node = cst::new_node<cst_struct>();
+
+    auto identifier_node = parse_identifier();
+    custom_type_set.insert(identifier_node->content);
+
+    struct_node->add_child(std::move(identifier_node));
+
+    if (match(peek(), left_curly_bracket_tt)) {
+      consume(); 
+
+      while (!match(peek(), right_curly_bracket_tt)) {
+        struct_node->add_child(parse_datatype());
+
+        if (match(peek(), semicolon_tt)) {
+          consume();
+        }
+        else {
+          throw parsing_error("expected semicolon in datatype expression", peek(), pos, std::source_location::current().function_name());
+        }
+      }
+
+      if (match(peek(), right_curly_bracket_tt)) {
+        consume();
+      }
+
+      return struct_node;
+    }
+    else {
+      throw parsing_error("expected left curly bracket in struct declaration", peek(), pos, std::source_location::current().function_name());
+    }
+  }
+
   std::unique_ptr<cst> parser::parse_keyword(bool nested_function) {
     if (nested_function) {
       if (match(peek(), function_keyword_tt)) {
@@ -1020,6 +1055,9 @@ namespace occult {
     }
     else if (match(peek(), array_keyword_tt)) {
       return parse_array();
+    }
+    else if (match(peek(), struct_keyword_tt)) {
+      return parse_struct();
     }
     else if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
       auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
