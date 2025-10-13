@@ -66,6 +66,7 @@ namespace occult {
     left_curly_bracket_tt,
     semicolon_tt,
     comma_tt,
+    period_tt,
 
     // identifier + keywords
     identifier_tt,       // anything else that is not a keyword or in this list

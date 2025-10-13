@@ -50,7 +50,8 @@ namespace occult {
     {'}', right_curly_bracket_tt},
     {'{', left_curly_bracket_tt},
     {';', semicolon_tt},
-    {',', comma_tt}};
+    {',', comma_tt}, 
+    {'.', period_tt}};
 
   std::unordered_map<std::string, token_type> keyword_map = {
     {"fn", function_keyword_tt},
@@ -164,7 +165,8 @@ namespace occult {
     {unkown_tt, "unknown"},
     {function_call_parser_tt, "function_call_parser"},
     {argument_count_tt, "argument_count"},
-    {struct_keyword_tt, "struct"}};
+    {struct_keyword_tt, "struct"},
+    {period_tt, "period"}};
     
     std::unordered_set<char> alnumeric_set = {
       'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',

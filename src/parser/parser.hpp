@@ -19,7 +19,7 @@ namespace occult {
     std::vector<token_t> stream;
     std::uintptr_t pos = 0;
     state parser_state = state::neutral;
-    std::unordered_set<std::string> custom_type_set; // used for structures
+    std::unordered_map<std::string, cst*> custom_type_map; // used for structures
 
     token_t peek(std::uintptr_t pos = 0);
     token_t previous();
@@ -27,6 +27,7 @@ namespace occult {
     bool match(token_t t, token_type tt);
     void parse_function_call_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref);
     void parse_array_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref);
+    void parse_struct_member_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref);
     void shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref);
     void shunting_yard_stack_cleanup(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref);
     std::vector<std::unique_ptr<cst>> parse_expression(std::vector<token_t> expr);
@@ -41,6 +42,7 @@ namespace occult {
     std::unique_ptr<IntegercstType> parse_integer_type();
     std::unique_ptr<cst_string> parse_string();
     std::unique_ptr<cst> parse_keyword(bool nested_function = false);
+    std::unique_ptr<cst_struct> parse_custom_type();
     std::unique_ptr<cst_ifstmt> parse_if();
     std::unique_ptr<cst_elseifstmt> parse_elseif();
     std::unique_ptr<cst_elsestmt> parse_else();

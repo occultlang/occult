@@ -157,6 +157,30 @@ namespace occult {
     expr_cst_ref.push_back(std::move(base));
   }
 
+  void parser::parse_struct_member_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, std::vector<token_t>& expr_ref, token_t& curr_tok_ref, std::size_t& i_ref) {
+    auto member_access_node = cst::new_node<cst_memberaccess>();
+    member_access_node->add_child(cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
+
+    i_ref++; // next tok
+
+    while (i_ref < expr_ref.size() && expr_ref[i_ref].tt == period_tt) {
+      i_ref++; // consume period
+
+      if (i_ref >= expr_ref.size() || expr_ref[i_ref].tt != identifier_tt) {
+        throw parsing_error("identifier after period", i_ref < expr_ref.size() ? expr_ref[i_ref] : expr_ref.back(), pos, std::source_location::current().function_name());
+      }
+
+      member_access_node->add_child(cst_map[identifier_tt](expr_ref[i_ref].lexeme));
+      i_ref++; // next tok
+    }
+
+    if (i_ref > 0 && expr_ref[i_ref - 1].tt == identifier_tt) { // backtrack if identifier
+      i_ref--;
+    }
+
+    expr_cst_ref.push_back(std::move(member_access_node));
+  }
+
   void parser::shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, token_t& curr_tok_ref) {
     switch (curr_tok_ref.tt) {
       case number_literal_tt:
@@ -290,6 +314,9 @@ namespace occult {
         else if (i + 1 < expr.size() && expr.at(i + 1).tt == left_bracket_tt) {
           parse_array_access_expr(expr_cst, expr, t, i);
         } 
+        else if (i + 1 < expr.size() && expr.at(i + 1).tt == period_tt) {
+          parse_struct_member_access_expr(expr_cst, expr, t, i);
+        } 
         else {
           expr_cst.push_back(cst_map[t.tt](t.lexeme));
         }
@@ -305,54 +332,66 @@ namespace occult {
   }
 
   std::unique_ptr<cst> parser::parse_datatype() {     
-   auto it = datatype_map.find(peek().tt);
-   
-   if (it != datatype_map.end()) {
-     consume();  
-     auto node = it->second();  // create the cst node
-
-     if (match(peek(), multiply_operator_tt)) { 
-      while (match(peek(), multiply_operator_tt)) {
-        consume();
-        node->num_pointers++;
-      }
-     }
-
-     if (peek().tt == identifier_tt) {
-       node->add_child(parse_identifier());
-     }
-     
-     return node;
-   }
-   else if (match(peek(), array_keyword_tt)) {
-    consume();
-
-    auto node = cst::new_node<cst_array>();
-
-    auto dimension_count = 0;
-    while (match(peek(), left_bracket_tt) && match(peek(1), right_bracket_tt)) {
-      consume(2);
-      dimension_count++;
-    }
-
-    node->add_child(cst::new_node<cst_dimensions_count>(std::to_string(dimension_count)));
-
-    it = datatype_map.find(peek().tt);
+    auto it = datatype_map.find(peek().tt);
+    
     if (it != datatype_map.end()) {
       consume();  
-      auto datatype_node = it->second();
+      auto node = it->second(); 
 
+      if (match(peek(), multiply_operator_tt)) { 
+        while (match(peek(), multiply_operator_tt)) {
+          consume();
+          node->num_pointers++;
+        } 
+      }
+
+      if (match(peek(), identifier_tt)) {
+        node->add_child(parse_identifier());
+      }
+        
+      return node;
+    }
+    else if (match(peek(), identifier_tt) && custom_type_map.find(peek().lexeme) != custom_type_map.end()) {
+      auto type_name = peek().lexeme;
+      consume();  
+
+      auto node = cst::new_node<cst_struct>();
+      node->content = type_name;  
+
+      if (match(peek(), multiply_operator_tt)) { 
+        while (match(peek(), multiply_operator_tt)) {
+          consume();
+          node->num_pointers++;
+        }
+      }
+
+      if (match(peek(), identifier_tt)) {
+        node->add_child(parse_identifier());
+      }
+        
+      return node;
+    }
+    else if (match(peek(), array_keyword_tt)) {
+      consume();
+
+      auto node = cst::new_node<cst_array>();
+
+      auto dimension_count = 0;
+      while (match(peek(), left_bracket_tt) && match(peek(1), right_bracket_tt)) {
+        consume(2);
+        dimension_count++;
+      }
+
+      node->add_child(cst::new_node<cst_dimensions_count>(std::to_string(dimension_count)));
+
+      auto datatype_node = parse_datatype();
       node->add_child(std::move(datatype_node));
 
       return node;
     }
     else {
-      throw parsing_error("<dataype>", peek(), pos, std::source_location::current().function_name());
+      throw parsing_error("<datatype>", peek(), pos, std::source_location::current().function_name());
     }
-   }
-   else {
-     throw parsing_error("<dataype>", peek(), pos, std::source_location::current().function_name());
-   }
   }
 
   std::unique_ptr<cst_identifier> parser::parse_identifier() {
@@ -510,6 +549,47 @@ namespace occult {
     }
     
     return return_node;
+  }
+
+  std::unique_ptr<cst_struct> parser::parse_custom_type() {
+    auto type_name = peek().lexeme;
+    consume(); // consume identifier
+
+    auto node = cst::new_node<cst_struct>();
+    node->content = type_name;
+
+    if (match(peek(), multiply_operator_tt)) { 
+      while (match(peek(), multiply_operator_tt)) {
+        consume();
+        node->num_pointers++;
+      }
+    }
+
+    if (match(peek(), identifier_tt)) {
+      node->add_child(parse_identifier()); // add identifier as a child node
+    }
+    else {
+      throw parsing_error("<identifier>", peek(), pos, std::source_location::current().function_name());
+    }
+
+    if (match(peek(), assignment_tt)) {
+      node->add_child(parse_assignment());
+        
+      if (match(peek(), semicolon_tt)) {
+        throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+      }
+
+      parse_expression_until(node->get_children().at(1).get(), semicolon_tt); // parse the expression until the semicolon
+    }
+
+    if (match(peek(), semicolon_tt)) { // end of declaration
+      consume();
+    }
+    else {
+      throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+    }
+
+    return node;
   }
   
   std::unique_ptr<cst_ifstmt> parser::parse_if() {
@@ -857,7 +937,7 @@ namespace occult {
     auto struct_node = cst::new_node<cst_struct>();
 
     auto identifier_node = parse_identifier();
-    custom_type_set.insert(identifier_node->content);
+    custom_type_map.insert({identifier_node->content, struct_node.get()});
 
     struct_node->add_child(std::move(identifier_node));
 
@@ -871,18 +951,21 @@ namespace occult {
           consume();
         }
         else {
-          throw parsing_error("expected semicolon in datatype expression", peek(), pos, std::source_location::current().function_name());
+          throw parsing_error("; in datatype expression", peek(), pos, std::source_location::current().function_name());
         }
       }
 
       if (match(peek(), right_curly_bracket_tt)) {
         consume();
       }
+      else {
+        throw parsing_error("} in struct declaration", peek(), pos, std::source_location::current().function_name());
+      }
 
       return struct_node;
     }
     else {
-      throw parsing_error("expected left curly bracket in struct declaration", peek(), pos, std::source_location::current().function_name());
+      throw parsing_error("{ in struct declaration", peek(), pos, std::source_location::current().function_name());
     }
   }
 
@@ -959,6 +1042,9 @@ namespace occult {
     }
     else if (match(peek(), boolean_keyword_tt)) {
       return parse_integer_type<cst_int8>();
+    }
+    else if (match(peek(), identifier_tt) && custom_type_map.find(peek().lexeme) != custom_type_map.end()) {
+      return parse_custom_type();
     }
     else if (match(peek(), dereference_operator_tt)) {
       auto deref_count = 0;
@@ -1163,9 +1249,44 @@ namespace occult {
     
       return array_access_node;
     }
+    else if (match(peek(), identifier_tt) && peek(1).tt == period_tt) {
+      auto member_access_node = cst::new_node<cst_memberaccess>();
+      member_access_node->add_child(parse_identifier());
+
+      while (match(peek(), period_tt)) {
+        consume();
+        
+        if (!match(peek(), identifier_tt)) {
+          throw parsing_error("identifier after period operator", peek(), pos, std::source_location::current().function_name());
+        }
+
+        member_access_node->add_child(parse_identifier());
+      }
+
+      if (match(peek(), assignment_tt)) {
+        auto assignment = parse_assignment();
+
+        if (match(peek(), semicolon_tt)) {
+          throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+        }
+
+        parse_expression_until(assignment.get(), semicolon_tt);
+
+        member_access_node->add_child(std::move(assignment));
+      }
+
+      if (match(peek(), semicolon_tt)) {
+        consume();
+      } 
+      else {
+        throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+      }
+
+      return member_access_node;
+    }
     else if (match(peek(), identifier_tt)) {
       auto id = parse_identifier();
-      
+
       if (match(peek(), assignment_tt)) {
         id->add_child(parse_assignment());
         

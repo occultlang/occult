@@ -80,7 +80,9 @@ namespace occult {
     reference,
     expr_start,
     expr_end,
-    structure
+    structure,
+    customtype,
+    memberaccess,
   };
   
   class cst {
@@ -249,4 +251,6 @@ namespace occult {
   NODE(reference, cst_reference)
   NODE(expr_start, cst_expr_start) // not used
   NODE(expr_end, cst_expr_end) // used to mark an end of an expression for comparisons
+  NODE(customtype, cst_customtype)
+  NODE(memberaccess, cst_memberaccess)
 } // namespace occult

@@ -3,8 +3,12 @@ struct point {
     i64 y;
 }
 
+fn ret_point() point {
+    return 0;
+}
+
 fn main() i64 {
-    array[16] i64 arr_test = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
+    /*array[16] i64 arr_test = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
     
     i64 sum = 0;
 
@@ -12,10 +16,17 @@ fn main() i64 {
         sum = sum + arr_test[i];
     }
     
-    print_s("Sum for array is: ");
+    print_s("Sum for array is:  ");
     print_i(sum);
-    print_s("\n");
-
+    print_s("\n");*/
+    
+    point p; 
+    p.x = 10; 
+    p.y = 40;  
+    p.u.a = 1;  
+    p.u = p.a;
+    p.y.y = p.a.u;
+ 
     return 0;
 }
 
