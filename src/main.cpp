@@ -136,14 +136,16 @@ int main(int argc, char* argv[]) {
   }
 
   start = std::chrono::high_resolution_clock::now();
-  occult::ir_gen ir_gen(cst.get(), debug);
-  auto ir = ir_gen.lower_to_stack();
+  occult::ir_gen ir_gen(cst.get(), parser.get_custom_type_map(), debug);
+  auto ir_structs = ir_gen.lower_structs();
+  auto ir = ir_gen.lower_functions();
   end = std::chrono::high_resolution_clock::now();
   duration = end - start;
   if (showtime) {
-     std::cout << GREEN << "[OCCULTC] Completed generating IR \033[0m" << duration.count() << "ms\n";
+    std::cout << GREEN << "[OCCULTC] Completed generating IR \033[0m" << duration.count() << "ms\n";
   }
   if (debug) {
+    ir_gen.visualize_structs(ir_structs);
     ir_gen.visualize_stack_ir(ir);
   }
 
@@ -151,7 +153,7 @@ int main(int argc, char* argv[]) {
   occult::function_registry::register_function_to_ir<&del>(ir);
   occult::function_registry::register_function_to_ir<&print_s>(ir);
   occult::function_registry::register_function_to_ir<&print_i>(ir);
-
+  
   start = std::chrono::high_resolution_clock::now();
   occult::x86_64::codegen jit_runtime(ir, debug);
 

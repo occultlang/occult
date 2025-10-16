@@ -60,6 +60,7 @@ namespace occult {
     parser(std::vector<token_t> stream) : root(cst::new_node<cst_root>()), stream(stream) {}
     
     std::unique_ptr<cst_root> parse();
+    std::unordered_map<std::string, cst*> get_custom_type_map() const;
     state get_state() const { return parser_state; }
   };
 } // namespace occult

@@ -65,6 +65,11 @@ namespace occult {
     op_dereference_assign,
     op_store_at_addr,
     op_mark_for_array_access,
+    op_struct_decl,
+    op_member_access,
+    op_member_store,
+    op_struct_load,
+    op_struct_store
   };
   
   inline std::string opcode_to_string(ir_opcode op) {
@@ -128,6 +133,11 @@ namespace occult {
       case op_dereference_assign: return "dereference_assign";
       case op_store_at_addr: return "store_at_addr";
       case op_mark_for_array_access: return "mark_for_array_access";
+      case op_struct_decl: return "struct_decl";
+      case op_member_access: return "member_access";
+      case op_member_store: return "member_store";
+      case op_struct_load: return "struct_load";
+      case op_struct_store: return "struct_store";
       default:              return "unknown_opcode";
     }
   }
@@ -158,31 +168,22 @@ namespace occult {
     std::string type;
   };
 
-  enum class ir_register : std::uint8_t {
-    r0, r1, r2, r3,
-    r4, r5, r6, r7, 
-    r8, r9, r10, r11, 
-    r12, r13, r14, r15
-  }; // 16 registers
+  struct ir_struct_member {
+    std::string datatype; // name of the datatype / or structure for custom datatype
+    std::string name; // name of the member variable
 
-  using reg_ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, double, float, std::string, ir_register>;
-
-  struct ir_reg_instr {
-    ir_opcode op;
-    reg_ir_operand dest;
-    reg_ir_operand src;
-    std::string type;
-
-    ir_reg_instr() = default;
+    ir_struct_member() = default;
+    ir_struct_member(std::string datatype, std::string name) : datatype(datatype), name(name) {}
   };
 
-  struct ir_reg_function {
-    std::vector<ir_reg_instr> code;
-    std::vector<ir_argument> args;
-    std::string name;
-    std::string type;
+  struct ir_struct { // used for custom data types (structures in the IR)
+    std::string datatype; // name of the structure / custom data type
+    std::vector<ir_struct_member> members; // list of members
+
+    ir_struct() = default;
+    ir_struct(std::string datatype, std::vector<ir_struct_member> members) : datatype(datatype), members(members) {} 
   };
-  
+
   enum ir_typename {
     signed_int,
     unsigned_int,
@@ -215,54 +216,6 @@ namespace occult {
     {"char", unsigned_int}, 
     {"str", string}}; 
 
-  enum class reg_usage : std::uint8_t {
-      not_in_use,
-      in_use
-  }; // just did an enum class because its more readable than true or false  
-  
-  class ir_register_pool {
-    std::array<reg_usage, 16> pool; // registers in use (index corresponds with the register)
-  public:
-    ir_register_pool() { pool.fill(reg_usage::not_in_use); }
-    
-    ir_register allocate() {
-      for (std::size_t i = 0; i < pool.size(); i++) {
-        if (pool.at(i) == reg_usage::not_in_use) {
-          pool.at(i) = reg_usage::in_use;
-
-          return static_cast<ir_register>(i);
-        }
-      }
-      
-      throw std::runtime_error("all virtual registers are in use");
-    }
-
-    void free(const ir_register& r) {
-      pool.at(static_cast<std::size_t>(r)) = reg_usage::not_in_use;
-    }
-
-    reg_usage is_in_use(const ir_register& r) {
-      for (std::size_t i = 0; i < pool.size(); i++) {
-        if (i == static_cast<std::size_t>(r) && pool.at(i) == reg_usage::in_use) {
-          return reg_usage::in_use;
-        }
-      }
-
-      return reg_usage::not_in_use;
-    }
-
-    void visualize_allocated_registers() {
-      for (std::size_t i = 0; i < pool.size(); i++) {
-        if (pool.at(i) == reg_usage::in_use) {
-          std::cout << "r" << i << ": in use\n";
-        }
-        else {
-          std::cout << "r" << i << ": not in use\n";
-        }
-      }
-    }
-  };
-
   class ir_gen { // conversion into a linear IR
     cst_root* root;
     int label_count;
@@ -271,6 +224,7 @@ namespace occult {
     std::unordered_map<std::string, int> label_map;
     std::unordered_map<std::string, int> temp_var_map;
     bool debug;
+    std::unordered_map<std::string, cst*> custom_type_map;
 
     ir_function generate_function(cst_function* func_node);
     void generate_function_args(ir_function& function, cst_functionargs* func_args_node);
@@ -292,16 +246,18 @@ namespace occult {
     void generate_for(ir_function& function, cst_forstmt* for_node);
     void generate_array_decl(ir_function& function, cst_array* array_node);
     void generate_array_access(ir_function& function, cst_arrayaccess* array_access_node);
+    void generate_struct_decl(ir_function& function, cst_struct* struct_node);
     void generate_block(ir_function& function, cst_block* block_node, std::string current_break_label = "", std::string current_loop_start = "");
     std::string create_label();
     std::string create_temp_var();
     void place_label(ir_function& function, std::string label_name);
     void place_temp_var(ir_function& function, std::string var_name);
   public:
-    ir_gen(cst_root* root, bool debug = false) : root(root), label_count(0), temp_var_count(0), debug(debug) {}
+    ir_gen(cst_root* root, std::unordered_map<std::string, cst*> custom_type_map, bool debug = false) 
+     : root(root), label_count(0), temp_var_count(0), debug(debug), custom_type_map(custom_type_map) {}
     void visualize_stack_ir(std::vector<ir_function> funcs);
-    std::vector<ir_function> lower_to_stack();
-    void visualize_register_ir(std::vector<ir_reg_function> funcs);
-    //std::vector<ir_reg_function> translate_to_register(std::vector<ir_function> funcs);
+    void visualize_structs(std::vector<ir_struct> structs);
+    std::vector<ir_function> lower_functions();
+    std::vector<ir_struct> lower_structs();
   };
 } // namespace occult

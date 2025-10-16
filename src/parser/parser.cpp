@@ -1328,6 +1328,10 @@ namespace occult {
       lcst_pos = pos;
     }
   }
+
+   std::unordered_map<std::string, cst*> parser::get_custom_type_map() const {
+    return custom_type_map;
+   }
   
   std::unique_ptr<cst_root> parser::parse() {
     while (!match(peek(), end_of_file_tt)) {

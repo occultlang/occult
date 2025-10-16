@@ -29,18 +29,27 @@ namespace occult {
         case cst_type::uint64_datatype:
         case cst_type::string_datatype: {
             function.type = c->to_string().substr(4, c->to_string().size());
+
             break;
+        }
+        case cst_type::structure: {
+          function.type = c->content;
+
+          break;
         }
         case cst_type::functionarguments: {
             generate_function_args(function, cst::cast_raw<cst_functionargs>(c.get()));
+
             break;
         }
         case cst_type::identifier: {
             function.name = c->content;
+
             break;
         }
         case cst_type::block: {
             generate_block(function, cst::cast_raw<cst_block>(c.get()));
+
             break;
         }
         default: {
@@ -1215,6 +1224,19 @@ namespace occult {
     }
   }
 
+  void ir_gen::generate_struct_decl(ir_function& function, cst_struct* struct_node) {
+    function.code.emplace_back(op_struct_decl, struct_node->content);
+    
+    if (struct_node->get_children().size() > 1) { // assignment
+
+    }
+    else {
+      auto id = struct_node->get_children().front().get(); // identifier
+      
+      function.code.emplace_back(op_struct_store, id->content);
+    }
+  }
+
   void ir_gen::generate_block(ir_function& function, cst_block* block_node, std::string current_break_label, std::string current_loop_start) {
     for (const auto& c : block_node->get_children()) {
       switch(c->get_type()) {
@@ -1290,6 +1312,11 @@ namespace occult {
         }
         case cst_type::arrayaccess: {
           generate_array_access(function, cst::cast_raw<cst_arrayaccess>(c.get()));
+
+          break;
+        }
+        case cst_type::structure: {
+          generate_struct_decl(function, cst::cast_raw<cst_struct>(c.get()));
 
           break;
         }
@@ -1389,25 +1416,41 @@ namespace occult {
   }
   
   void ir_gen::visualize_stack_ir(std::vector<ir_function> funcs) {
+    std::cout << CYAN << "Function(s): \n" << RESET;
     for (auto& func : funcs) {
-      std::cout << "\n" << func.type << "\n";
-      std::cout << func.name << "\n";
+      std::cout << "Type: " << func.type << "\n";
+      std::cout << "Name: " << func.name << "\n";
       
-      std::cout << "args:\n";
+      std::cout << "Args:\n";
       for (auto& arg : func.args) {
-        std::cout << "\t" << arg.type << "\n";
-        std::cout << "\t" << arg.name << "\n";
+        std::cout << "  " << arg.type << "\n";
+        std::cout << "  " << arg.name << "\n";
       }
       
-      std::cout << "code:\n";
+      std::cout << "Code:\n";
       for (auto& i : func.code) {
-        std::cout << occult::opcode_to_string(i.op) << " ";
+        std::cout << "  " << occult::opcode_to_string(i.op) << " ";
         std::visit(visitor_stack(), i.operand);
       }
+      std::cout << "\n";
+    }
+  }
+
+  void ir_gen::visualize_structs(std::vector<ir_struct> structs) {
+    std::cout << CYAN << "Struct(s): \n" << RESET;
+    for (auto& s : structs) {
+      std::cout << "Type: " << s.datatype << "\n";
+      
+      std::cout << "Members: \n";
+      for (auto& m : s.members) {
+        std::cout << "  " << m.datatype << "\n";
+        std::cout << "  " << m.name << "\n";
+      }
+      std::cout << "\n";
     }
   }
   
-  std::vector<ir_function> ir_gen::lower_to_stack() {
+  std::vector<ir_function> ir_gen::lower_functions() {
     std::vector<ir_function> functions;
     
     for (const auto& c : root->get_children()) {
@@ -1440,35 +1483,88 @@ namespace occult {
     return functions;
   }
 
-  struct reg_visitor {
-    void operator()(const float& v){ std::cout << v; };
-    void operator()(const double& v){ std::cout << v; };
-    void operator()(const std::int64_t& v){ std::cout << v; };
-    void operator()(const std::uint64_t& v){ std::cout << v; };
-    void operator()(const std::string& v){ std::cout << v; };
-    void operator()(std::monostate){ std::cout << ""; };
-    void operator()(ir_register v){ std::cout << "r" << static_cast<int>(v); };
-  };
-  
-  void ir_gen::visualize_register_ir(std::vector<ir_reg_function> funcs) {
-    for (auto& func : funcs) {
-      std::cout << "\n" << func.type << "\n";
-      std::cout << func.name << "\n";
-      
-      std::cout << "args:\n";
-      for (auto& arg : func.args) {
-        std::cout << "\t" << arg.type << "\n";
-        std::cout << "\t" << arg.name << "\n";
+  std::vector<ir_struct> ir_gen::lower_structs() {
+    std::vector<ir_struct> structs;
+
+    auto handle_struct = [](std::string name, cst* child) -> ir_struct {
+      ir_struct ir_s;
+
+      ir_s.datatype = name;
+
+      for (auto& c : child->get_children()) {
+        switch(c->get_type()) {
+          case cst_type::int8_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"int8", c->get_children().front()->content});
+
+            break;
+          }
+          case cst_type::int16_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"int16", c->get_children().front()->content});
+
+            break;
+          }
+          case cst_type::int32_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"int32", c->get_children().front()->content});
+
+            break;
+          }
+          case cst_type::int64_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"int64", c->get_children().front()->content});
+            
+            break;
+          }
+          case cst_type::uint8_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"uint8", c->get_children().front()->content});
+
+            break;
+          }
+          case cst_type::uint16_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"uint16", c->get_children().front()->content});
+
+            break;
+          }
+          case cst_type::uint32_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"uint32", c->get_children().front()->content});
+
+            break;
+          }
+          case cst_type::uint64_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"uint64", c->get_children().front()->content});
+
+            break;
+          }
+          case cst_type::float32_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"float32", c->get_children().front()->content});
+
+            break;
+          }
+          case cst_type::float64_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"float64", c->get_children().front()->content});
+            
+            break;
+          }
+          case cst_type::string_datatype: {
+            ir_s.members.emplace_back(ir_struct_member{"str", c->get_children().front()->content});
+
+            break;
+          }
+          default: {
+            if (c->get_children().size() == 1){
+              ir_s.members.emplace_back(ir_struct_member{c->content, c->get_children().front()->content});
+            }
+
+            break;
+          }
+        }
       }
-      
-      std::cout << "code:\n";
-      for (auto& i : func.code) {
-        std::cout << occult::opcode_to_string(i.op) << " ";
-        std::visit(reg_visitor(), i.dest);
-        std::cout << " ";
-        std::visit(reg_visitor(), i.src);
-        std::cout << "\n";
-      }
+
+      return ir_s;
+    };
+
+    for (auto& [name, child] :  custom_type_map) {
+      structs.emplace_back(handle_struct(name, child));
     }
+
+    return structs;
   }
 } // namespace occult

@@ -1,0 +1,34 @@
+/*fn create_3d_point(i64 x, i64 y, i64 z) point_3d {
+    point_3d p;
+
+    p.x = x;
+    p.y = y;
+    p.z = z;
+
+    return p;
+}*/
+
+/*fn print_point3d(point_3d p) i64 {
+    print_i(p.x);
+    print_s("\n");
+
+    print_i(p.y);
+    print_s("\n");
+
+    print_i(p.z);
+    print_s("\n");
+
+    return 0;
+}*/
+
+struct point_3d {
+    i64 x;
+    i64 y;
+    i64 z;
+}
+
+fn main() i64 {
+    point_3d p; // this is in IR now
+
+    return 0;
+}
