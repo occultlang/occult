@@ -14,26 +14,24 @@
 */
 
 const std::unordered_map<std::string, std::string> cpp_to_occult_type_map = {
-    {typeid(int).name(), "int32"},          
-    {typeid(long).name(), "int64"},          
-    {typeid(long long).name(), "int64"},          
-    {typeid(short).name(), "int16"},          
-    {typeid(char).name(), "int8"},           
-    {typeid(unsigned int).name(), "int32"},          
-    {typeid(unsigned long).name(), "int64"},          
-    {typeid(unsigned short).name(), "int16"},          
-    {typeid(unsigned char).name(), "int8"},          
-    {typeid(float).name(), "int32"},          
-    {typeid(double).name(), "int64"},         
+    {typeid(int).name(), "int32"},
+    {typeid(long).name(), "int64"},
+    {typeid(long long).name(), "int64"},
+    {typeid(short).name(), "int16"},
+    {typeid(char).name(), "int8"},
+    {typeid(unsigned int).name(), "int32"},
+    {typeid(unsigned long).name(), "int64"},
+    {typeid(unsigned short).name(), "int16"},
+    {typeid(unsigned char).name(), "int8"},
+    {typeid(float).name(), "int32"},
+    {typeid(double).name(), "int64"},
     {typeid(bool).name(), "int64"},
-    {typeid(char*).name(), "str"} 
+    {typeid(char *).name(), "str"}
 };
 
-namespace occult {
-  namespace function_registry {
-    template <auto F>
-    struct function_reflection_from_ptr; 
-  }
+namespace occult::function_registry {
+    template<auto F>
+    struct function_reflection_from_ptr;
 }
 
 #define OCCULT_FUNC_DECL(ret, name, params, ...) \
@@ -62,36 +60,34 @@ How to register:
     occult::function_registry::register_function_to_codegen<&func_name>(<codegen_instance>); *This is second*
 */
 
-namespace occult {
-    namespace function_registry {
-        template <auto FuncPtr>
-        void register_function_to_ir(std::vector<occult::ir_function>& ir_functions) {
-            using reflection = function_reflection_from_ptr<FuncPtr>;
-            occult::ir_function func;
-            func.name = reflection::name_str;
+namespace occult::function_registry {
+    template<auto FuncPtr>
+    void register_function_to_ir(std::vector<occult::ir_function> &ir_functions) {
+        using reflection = function_reflection_from_ptr<FuncPtr>;
+        occult::ir_function func;
+        func.name = reflection::name_str;
 
-            std::string return_type = typeid(typename reflection::return_type).name();
-            auto it = cpp_to_occult_type_map.find(return_type);
-            func.type = (it != cpp_to_occult_type_map.end()) ? it->second : "unknown";
+        std::string return_type = typeid(typename reflection::return_type).name();
+        auto it = cpp_to_occult_type_map.find(return_type);
+        func.type = (it != cpp_to_occult_type_map.end()) ? it->second : "unknown";
 
-            constexpr std::size_t N = std::tuple_size<typename reflection::args>::value;
-            [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-                (([&] {
-                    using ArgType = std::tuple_element_t<Is, typename reflection::args>;
-                    std::string type_name = typeid(ArgType).name();
-                    auto type_it = cpp_to_occult_type_map.find(type_name);
-                    std::string occult_type = (type_it != cpp_to_occult_type_map.end()) ? type_it->second : "unknown";
-                    func.args.emplace_back("arg" + std::to_string(Is), occult_type);
-                }()), ...);
-            }(std::make_index_sequence<N>{});
+        constexpr std::size_t N = std::tuple_size<typename reflection::args>::value;
+        [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+            (([&] {
+                using ArgType = std::tuple_element_t<Is, typename reflection::args>;
+                std::string type_name = typeid(ArgType).name();
+                auto type_it = cpp_to_occult_type_map.find(type_name);
+                std::string occult_type = (type_it != cpp_to_occult_type_map.end()) ? type_it->second : "unknown";
+                func.args.emplace_back("arg" + std::to_string(Is), occult_type);
+            }()), ...);
+        }(std::make_index_sequence<N>{});
 
-            ir_functions.emplace_back(std::move(func));
-        }
+        ir_functions.emplace_back(std::move(func));
+    }
 
-        template <auto FuncPtr, typename CodeGen>
-        void register_function_to_codegen(CodeGen& codegen) {
-            using reflection = function_reflection_from_ptr<FuncPtr>;
-            codegen.function_map[reflection::name_str] = reinterpret_cast<jit_function>(FuncPtr);
-        }
-    } // namespace function_registry
-} // namespace occult
+    template<auto FuncPtr, typename CodeGen>
+    void register_function_to_codegen(CodeGen &codegen) {
+        using reflection = function_reflection_from_ptr<FuncPtr>;
+        codegen.function_map[reflection::name_str] = reinterpret_cast<jit_function>(FuncPtr);
+    }
+}

@@ -1,8 +1,7 @@
   #pragma once
 #include <vector>
 #include <memory>
-#include <variant>
-
+#include "../util/color_defs.hpp"
 #include "../lexer/lexer.hpp"
 
 namespace occult {
@@ -88,6 +87,8 @@ namespace occult {
   class cst {
     std::vector<std::unique_ptr<cst>> children;
   public:
+    virtual ~cst() = default;
+
     cst() = default;
     
     std::string content = ""; // base class
@@ -170,7 +171,7 @@ namespace occult {
   };
   
   #define NODE(tt, nn)  \
-  class nn : public cst { \
+  class nn final : public cst { \
     public: \
     cst_type get_type() override { \
       return cst_type::tt; \

@@ -11,5 +11,5 @@
 #include <Windows.h>
 
 namespace occult {
-	void generate_pe_header();
+    void generate_pe_header();
 };

@@ -1,6 +1,10 @@
 #pragma once
 #include "../../parser/cst.hpp"
 
+#include <unordered_map>
+#include <variant>
+#include <stack>
+
 // write assignment for booleans (comparison w OR, and AND)
 
 namespace occult {

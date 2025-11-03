@@ -1,6 +1,5 @@
 #pragma once
-#include <charconv> 
-#include <cstdio>
+#include <charconv>
 #include <string>
 #include <stdexcept>
 #include <optional>
@@ -12,63 +11,51 @@
 #define HEX_BASE 16
 
 namespace occult {
-  inline bool is_octal(const char& c) {
-    return (c >= '0' && c <= '7');
-  }
-  
-  inline bool is_hex(const char& c) {
-    return (std::isdigit(c) || (std::tolower(c) >= 'a' && std::tolower(c) <= 'f'));
-  }
+    inline bool is_octal(const char &c) { return (c >= '0' && c <= '7'); }
 
-  inline bool is_binary(const char& c) {
-    return (c == '0' || c == '1');
-  }
-  
-  template<typename ValueType>
-  constexpr std::string to_parsable_type(const std::string& number, std::optional<std::uintptr_t> base = std::nullopt) {
-    ValueType value;
-    
-    if constexpr (std::is_floating_point_v<ValueType>) {
-      auto result = std::from_chars(number.data(), number.data() + number.size(), value);
-      
-      if (result.ec != std::errc()) {
-        throw std::runtime_error("failed parsing number");
-      }
+    inline bool is_hex(const char &c) {
+        return (std::isdigit(c) || (std::tolower(c) >= 'a' && std::tolower(c) <= 'f'));
     }
-    else if constexpr (std::is_integral_v<ValueType>) {
-      if (!base.has_value()) {
-        throw std::runtime_error("base is required parsing integers");
-      }
-      
-      auto result = std::from_chars(number.data(), number.data() + number.size(), value, static_cast<int>(base.value()));
-      
-      if (result.ec != std::errc()) {
-        throw std::runtime_error("failed parsing number");
-      }
+
+    inline bool is_binary(const char &c) { return (c == '0' || c == '1'); }
+
+    template<typename ValueType>
+    constexpr std::string to_parsable_type(const std::string &number,
+                                           std::optional<std::uintptr_t> base = std::nullopt) {
+        ValueType value;
+
+        if constexpr (std::is_floating_point_v<ValueType>) {
+            auto result = std::from_chars(number.data(), number.data() + number.size(), value);
+
+            if (result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+        }
+        else if constexpr (std::is_integral_v<ValueType>) {
+            if (!base.has_value()) { throw std::runtime_error("base is required parsing integers"); }
+
+            auto result = std::from_chars(number.data(), number.data() + number.size(), value,
+                                          static_cast<int>(base.value()));
+
+            if (result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+        }
+
+        return std::to_string(value);
     }
-    
-    return std::to_string(value);
-  }
-  
-  template<typename ValueType>
-  constexpr ValueType from_numerical_string(const std::string& number) {
-    ValueType value;
-    
-    if constexpr (std::is_floating_point_v<ValueType>) {
-      auto result = std::from_chars(number.data(), number.data() + number.size(), value);
-      
-      if (result.ec != std::errc()) {
-        throw std::runtime_error("failed parsing number");
-      }
+
+    template<typename ValueType>
+    constexpr ValueType from_numerical_string(const std::string &number) {
+        ValueType value;
+
+        if constexpr (std::is_floating_point_v<ValueType>) {
+            auto result = std::from_chars(number.data(), number.data() + number.size(), value);
+
+            if (result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+        }
+        else if constexpr (std::is_integral_v<ValueType>) {
+            auto result = std::from_chars(number.data(), number.data() + number.size(), value, 10);
+
+            if (result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+        }
+
+        return value;
     }
-    else if constexpr (std::is_integral_v<ValueType>) {
-      auto result = std::from_chars(number.data(), number.data() + number.size(), value, 10);
-      
-      if (result.ec != std::errc()) {
-        throw std::runtime_error("failed parsing number");
-      }
-    }
-    
-    return value;
-  }
 } // namespace occult
