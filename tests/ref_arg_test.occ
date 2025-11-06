@@ -1,0 +1,17 @@
+/*
+    Implicit return 0
+    Defaults to i64 return type now
+*/
+
+fn add(i64@ to, i64 by) {
+    <-to = <-to + by;
+}
+
+fn main() {
+    i64 to = 10;
+    i64 by = 50;
+
+    add(to, by);
+
+    print_i(to); print_s("\n");
+}

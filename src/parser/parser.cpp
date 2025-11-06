@@ -317,6 +317,8 @@ namespace occult {
             consume();
             auto node = it->second();
 
+            if (match(peek(), reference_operator_tt)) { consume(); node->content = "reference"; }
+
             if (match(peek(), multiply_operator_tt)) {
                 while (match(peek(), multiply_operator_tt)) {
                     consume();
@@ -365,7 +367,7 @@ namespace occult {
             return node;
         }
 
-        throw parsing_error("<datatype>", peek(), pos, std::source_location::current().function_name());
+        return nullptr;
     }
 
     std::unique_ptr<cst_identifier> parser::parse_identifier() {
@@ -410,10 +412,23 @@ namespace occult {
         }
         else { throw parsing_error("(", peek(), pos, std::source_location::current().function_name()); }
 
-        auto return_type = parse_datatype();
-        func_node->add_child(std::move(return_type));
+        if (auto return_type = parse_datatype(); return_type) {
+            func_node->add_child(std::move(return_type));
+        }
+        else { func_node->add_child(cst::new_node<cst_int64>()); }
 
         auto body = parse_block();
+
+        bool has_return = false;
+        for (const auto& child : body->get_children()) { if (child->get_type() == cst_type::returnstmt) has_return = true; }
+
+        if (!has_return) { // implicit return 0
+            auto return_node = cst::new_node<cst_returnstmt>();
+            return_node->add_child(cst::new_node<cst_numberliteral>("0"));
+
+            body->add_child(std::move(return_node));
+        }
+
         func_node->add_child(std::move(body));
 
         return func_node;
@@ -507,7 +522,7 @@ namespace occult {
     }
 
     std::unique_ptr<cst_struct> parser::parse_custom_type() {
-        auto type_name = peek().lexeme;
+        const auto type_name = peek().lexeme;
         consume(); // consume identifier
 
         auto node = cst::new_node<cst_struct>();

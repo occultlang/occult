@@ -56,13 +56,23 @@ namespace occult {
             }
         }
 
+        func_map.emplace(function.name, function);
+
         return function;
     }
 
     void ir_gen::generate_function_args(ir_function &function, cst_functionargs *func_args_node) {
         for (const auto &arg: func_args_node->get_children()) {
+            bool is_ref = false;
+            if (arg->content == "reference") { is_ref = true; }
+
             for (const auto &c: arg->get_children()) {
-                function.args.emplace_back(c->content, arg->to_string().substr(4, arg->to_string().size()));
+                auto type = arg->to_string().substr(4, arg->to_string().size()) + ((is_ref) ? "_reference" : "");
+                auto variable_name = c->content;
+
+                if (debug) { std::cout << CYAN << "[IR GEN] Arg (type, name): " << RESET << "(" << type << ", " << variable_name << ")" << std::endl; }
+
+                function.args.emplace_back(variable_name, type);
             }
         }
     }
@@ -237,9 +247,7 @@ namespace occult {
     }
 
     void ir_gen::handle_push_types(ir_function &function, cst *c) {
-        auto it = ir_typemap.find(function.type);
-
-        if (it != ir_typemap.end()) {
+        if (const auto it = ir_typemap.find(function.type); it != ir_typemap.end()) {
             switch (it->second) {
                 case signed_int: {
                     function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(c->content));
@@ -271,9 +279,7 @@ namespace occult {
     }
 
     void ir_gen::handle_push_types_common(ir_function &function, cst *c) {
-        auto it = ir_typemap.find(function.type);
-
-        if (it != ir_typemap.end()) {
+        if (auto it = ir_typemap.find(function.type); it != ir_typemap.end()) {
             switch (it->second) {
                 case signed_int: {
                     generate_common<std::int64_t>(function, c);
@@ -305,22 +311,90 @@ namespace occult {
         }
     }
 
-    void ir_gen::generate_function_call(ir_function &function, cst *c) {
-        auto node = cst::cast_raw<cst_functioncall>(c);
+    void ir_gen::handle_push_types_func_args(ir_function &function, cst *c, std::string type) {
+        bool is_ref = false;
 
-        auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name of call
+        if (type.find("_reference") != std::string::npos) { is_ref = true; }
+        type = type.substr(0, type.find("_reference"));
+
+        if (auto it = ir_typemap.find(type); it != ir_typemap.end()) {
+            if (is_ref) { function.code.emplace_back(op_reference); }
+
+            switch (it->second) {
+            case signed_int: {
+                generate_common<std::int64_t>(function, c);
+
+                break;
+            }
+            case unsigned_int: {
+                generate_common<std::uint64_t>(function, c);
+
+                break;
+            }
+            case floating_point64: {
+                generate_common<double>(function, c);
+
+                break;
+            }
+
+            case floating_point32: {
+                generate_common<float>(function, c);
+
+                break;
+            }
+            case string: {
+                generate_common<std::string>(function, c);
+
+                break;
+            }
+            }
+        }
+    }
+
+    void ir_gen::generate_function_call(ir_function &function, cst *c) {
+    const auto node = cst::cast_raw<cst_functioncall>(c);
+
+    const auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name of call
+
+    const auto func_it = func_map.find(identifier->content);
+    if (func_it == func_map.end()) {
+        if (debug) { std::cout << CYAN << "[IR GEN] External/built-in function call: " << identifier->content << RESET << std::endl; }
 
         auto arg_location = 1;
         while (node->get_children().at(arg_location).get()->content != "end_call") {
-            auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(arg_location).get());
+            const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(arg_location).get());
 
-            handle_push_types_common(function, arg_node);
+            handle_push_types_func_args(function, arg_node, "int64");
 
-            arg_location++;
+            ++arg_location;
         }
 
         function.code.emplace_back(op_call, identifier->content);
+
+        return;
     }
+
+    if (debug) {
+        std::cout << CYAN << "[IR GEN] Args for call " << identifier->content << ": " << RESET << func_it->second.args.size() << std::endl; }
+
+    auto arg_location = 1;
+    while (node->get_children().at(arg_location).get()->content != "end_call") {
+        const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(arg_location).get());
+
+        const auto argument_type = func_it->second.args.at(arg_location - 1).type;
+
+        if (debug) {
+            std::cout << CYAN << "[IR GEN] Generating argument for call (type, loc): "
+                     << RESET << "(" << argument_type << ", " << arg_location - 1 << ")" << std::endl;
+        }
+
+        handle_push_types_func_args(function, arg_node, argument_type);
+
+        ++arg_location;
+    }
+
+    function.code.emplace_back(op_call, identifier->content);
+}
 
     void ir_gen::generate_return(ir_function &function, cst_returnstmt *return_node) {
         for (const auto &c: return_node->get_children()) {

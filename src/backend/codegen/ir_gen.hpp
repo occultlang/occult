@@ -306,10 +306,11 @@ namespace occult {
         std::unordered_map<std::string, int> temp_var_map;
         bool debug;
         std::unordered_map<std::string, cst *> custom_type_map;
+        std::unordered_map<std::string, ir_function> func_map;
 
         ir_function generate_function(cst_function *func_node);
 
-        static void generate_function_args(ir_function &function, cst_functionargs *func_args_node);
+        void generate_function_args(ir_function &function, cst_functionargs *func_args_node);
 
         static void generate_arith_and_bitwise_operators(ir_function &function, cst *c);
 
@@ -320,17 +321,19 @@ namespace occult {
 
         void handle_push_types_common(ir_function &function, cst *c);
 
+        void handle_push_types_func_args(ir_function& function, cst* c, std::string type);
+
         void generate_function_call(ir_function &function, cst *c);
 
         void generate_return(ir_function &function, cst_returnstmt *return_node);
 
-        static void generate_or_jump(ir_function &function, cst *comparison, const std::string &true_label);
+        void generate_or_jump(ir_function &function, cst *comparison, const std::string &true_label);
 
-        static void generate_and_jump(ir_function &function, cst *comparison, const std::string &false_label);
+        void generate_and_jump(ir_function &function, cst *comparison, const std::string &false_label);
 
-        static void generate_inverted_jump(ir_function &function, cst *comparison, const std::string &false_label);
+        void generate_inverted_jump(ir_function &function, cst *comparison, const std::string &false_label);
 
-        static void generate_normal_jump(ir_function &function, cst *comparison, const std::string &false_label);
+        void generate_normal_jump(ir_function &function, cst *comparison, const std::string &false_label);
 
         void generate_condition(ir_function &function, cst *node, const std::string &false_label,
                                 const std::string &true_label);
@@ -345,11 +348,11 @@ namespace occult {
 
         void generate_for(ir_function &function, cst_forstmt *for_node);
 
-        static void generate_array_decl(ir_function &function, cst_array *array_node);
+        void generate_array_decl(ir_function &function, cst_array *array_node);
 
         void generate_array_access(ir_function &function, cst_arrayaccess *array_access_node);
 
-        static void generate_struct_decl(ir_function &function, cst_struct *struct_node);
+        void generate_struct_decl(ir_function &function, cst_struct *struct_node);
 
         void generate_block(ir_function &function, cst_block *block_node, std::string current_break_label = "",
                             std::string current_loop_start = "");
@@ -358,9 +361,9 @@ namespace occult {
 
         std::string create_temp_var();
 
-        static void place_label(ir_function &function, std::string label_name);
+        void place_label(ir_function &function, std::string label_name);
 
-        static void place_temp_var(ir_function &function, std::string var_name);
+        void place_temp_var(ir_function &function, std::string var_name);
 
     public:
         ir_gen(cst_root *root, std::unordered_map<std::string, cst *> custom_type_map, const bool debug = false) :
