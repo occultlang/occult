@@ -17,7 +17,7 @@ namespace occult {
     private:
         std::unique_ptr<cst_root> root;
         std::vector<token_t> stream;
-        std::uintptr_t pos = 0;
+        std::size_t pos = 0;
         state parser_state = state::neutral;
         std::unordered_map<std::string, cst *> custom_type_map; // used for structures
 
@@ -27,24 +27,27 @@ namespace occult {
 
         void consume(std::uintptr_t amt = 1);
 
-        bool match(const token_t &t, token_type tt);
+        static bool match(const token_t &t, token_type tt);
 
-        void parse_function_call_expr(std::vector<std::unique_ptr<cst> > &expr_cst_ref, std::vector<token_t> &expr_ref,
+        void parse_function_call_expr(std::vector<std::unique_ptr<cst>> &expr_cst_ref,
+                                      const std::vector<token_t> &expr_ref,
                                       const token_t &curr_tok_ref, std::size_t &i_ref);
 
-        void parse_array_access_expr(std::vector<std::unique_ptr<cst> > &expr_cst_ref, std::vector<token_t> &expr_ref,
-                                     token_t &curr_tok_ref, std::size_t &i_ref);
+        void parse_array_access_expr(std::vector<std::unique_ptr<cst>> &expr_cst_ref,
+                                     const std::vector<token_t> &expr_ref,
+                                     const token_t &curr_tok_ref, std::size_t &i_ref);
 
-        void parse_struct_member_access_expr(std::vector<std::unique_ptr<cst> > &expr_cst_ref,
-                                             std::vector<token_t> &expr_ref, token_t &curr_tok_ref, std::size_t &i_ref) const;
+        void parse_struct_member_access_expr(std::vector<std::unique_ptr<cst>> &expr_cst_ref,
+                                             const std::vector<token_t> &expr_ref, const token_t &curr_tok_ref,
+                                             std::size_t &i_ref) const;
 
-        void shunting_yard(std::stack<token_t> &stack_ref, std::vector<std::unique_ptr<cst> > &expr_cst_ref,
-                           token_t &curr_tok_ref) const;
+        void shunting_yard(std::stack<token_t> &stack_ref, std::vector<std::unique_ptr<cst>> &expr_cst_ref,
+                           const token_t &curr_tok_ref) const;
 
         void shunting_yard_stack_cleanup(std::stack<token_t> &stack_ref,
-                                         std::vector<std::unique_ptr<cst> > &expr_cst_ref) const;
+                                         std::vector<std::unique_ptr<cst>> &expr_cst_ref) const;
 
-        std::vector<std::unique_ptr<cst> > parse_expression(std::vector<token_t> expr);
+        std::vector<std::unique_ptr<cst>> parse_expression(const std::vector<token_t> &expr);
 
         std::unique_ptr<cst_function> parse_function();
 
@@ -92,10 +95,11 @@ namespace occult {
 
         std::unique_ptr<cst_struct> parse_struct();
 
-        void synchronize(std::string what);
+        void synchronize(const std::string &what);
 
     public:
-        explicit parser(const std::vector<token_t> &stream) : root(cst::new_node<cst_root>()), stream(stream) {}
+        explicit parser(const std::vector<token_t> &stream) :
+            root(cst::new_node<cst_root>()), stream(stream) {}
 
         std::unique_ptr<cst_root> parse();
 

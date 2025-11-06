@@ -414,7 +414,8 @@ namespace occult {
         }
     }
 
-    void ir_gen::generate_condition(ir_function &function, cst *node, std::string false_label, std::string true_label) {
+    void ir_gen::generate_condition(ir_function &function, cst *node, const std::string &false_label,
+                                    const std::string &true_label) {
         auto handle_internal_push = [&, this](cst *expr) -> void {
             switch (expr->get_type()) {
                 case cst_type::number_literal: {
@@ -464,7 +465,7 @@ namespace occult {
                     break;
                 }
                 case cst_type::expr_start: {
-                    std::size_t curr_pos = i;
+                    const std::size_t curr_pos = i;
 
                     if (i > 0 && node->get_children().at(i - 1)->get_type() == cst_type::unary_not_operator) {
                         // pre-process not's (ONLY BINARY COMPARISONS FOR NOW)
@@ -477,9 +478,9 @@ namespace occult {
                             not_count++;
                         }
 
-                        bool apply_not = not_count % 2 != 0;
+                        const bool apply_not = not_count % 2 != 0;
 
-                        for (int j = curr_pos; j >= 0; j--) {
+                        for (int j = static_cast<int>(curr_pos); j >= 0; j--) {
                             const auto &curr_node = node->get_children().at(j);
 
                             if (curr_node->get_type() == cst_type::expr_end) { break; }
@@ -500,23 +501,23 @@ namespace occult {
 
         if (debug && !logic_stack.empty()) {
             std::cout << BLUE << "[IR GEN] Filled logic stack:" << RESET << std::endl;
-            for (auto &n: logic_stack) { n->visualize(2); }
+            for (const auto &n: logic_stack) { n->visualize(2); }
             std::cout << BLUE << "[IR GEN] Logic stack size: " << RESET << logic_stack.size() << std::endl;
         }
 
         if (debug && !eval_stack.empty()) {
             std::cout << BLUE << "[IR GEN] Filled eval stack:" << RESET << std::endl;
-            for (auto &n: eval_stack) { n->visualize(2); }
+            for (const auto &n: eval_stack) { n->visualize(2); }
             std::cout << BLUE << "[IR GEN] Eval stack size: " << RESET << eval_stack.size() << std::endl;
         }
 
-        std::vector<std::vector<cst *> > eval_stack_m; // to easier parse expressions (multidimensional)
+        std::vector<std::vector<cst *>> eval_stack_m; // to easier parse expressions (multidimensional)
 
         std::vector<cst *> current_expr;
-        for (size_t i = 0; i < eval_stack.size(); ++i) {
-            current_expr.push_back(eval_stack[i]);
+        for (auto &i: eval_stack) {
+            current_expr.push_back(i);
 
-            if (is_logical(eval_stack[i])) {
+            if (is_logical(i)) {
                 eval_stack_m.push_back(current_expr);
                 current_expr.clear();
             }
@@ -526,7 +527,7 @@ namespace occult {
             std::cout << BLUE << "[IR GEN] Filled eval stack (m):" << RESET << std::endl;
             for (auto &arr: eval_stack_m) {
                 std::cout << CYAN << "{" << RESET << std::endl;
-                for (auto &n: arr) { n->visualize(2); }
+                for (const auto &n: arr) { n->visualize(2); }
                 std::cout << CYAN << "}" << RESET << std::endl;
             }
             std::cout << BLUE << "[IR GEN] Eval stack (m) size: " << RESET << eval_stack.size() << std::endl;
@@ -535,13 +536,11 @@ namespace occult {
         if (!logic_stack.empty()) { // if condition with logical operations (2+)
             std::size_t eval_index = 0;
 
-            for (std::size_t i = 0; i < logic_stack.size(); i++) {
-                auto c = logic_stack.at(i);
-
+            for (const auto c: logic_stack) {
                 switch (c->get_type()) {
                     case cst_type::or_operator: {
                         if (eval_index < eval_stack_m.size()) {
-                            auto expr = eval_stack_m[eval_index];
+                            const auto &expr = eval_stack_m[eval_index];
 
                             for (size_t j = 0; j < expr.size() - 1; j++) { handle_internal_push(expr[j]); }
 
@@ -556,7 +555,7 @@ namespace occult {
                     }
                     case cst_type::and_operator: {
                         if (eval_index < eval_stack_m.size()) {
-                            auto expr = eval_stack_m[eval_index];
+                            const auto &expr = eval_stack_m[eval_index];
 
                             for (size_t j = 0; j < expr.size() - 1; j++) { handle_internal_push(expr[j]); }
 
@@ -575,7 +574,7 @@ namespace occult {
 
             // handle remaining expressions
             while (eval_index < eval_stack_m.size()) {
-                auto expr = eval_stack_m[eval_index];
+                const auto &expr = eval_stack_m[eval_index];
 
                 for (size_t j = 0; j < expr.size() - 1; j++) { handle_internal_push(expr[j]); }
 
@@ -589,7 +588,7 @@ namespace occult {
         }
         else { // if condition with normal comparisons (1)
             if (!eval_stack_m.empty()) {
-                auto expr = eval_stack_m[0];
+                const auto &expr = eval_stack_m[0];
 
                 for (size_t j = 0; j < expr.size() - 1; j++) { handle_internal_push(expr[j]); }
 
@@ -601,10 +600,10 @@ namespace occult {
         }
     }
 
-    void ir_gen::generate_if(ir_function &function, cst_ifstmt *if_node, std::string current_break_label,
-                             std::string current_loop_start) {
-        std::string false_label = create_label(); // exit / else or whatever
-        std::string true_label = create_label(); // block
+    void ir_gen::generate_if(ir_function &function, cst_ifstmt *if_node, const std::string &current_break_label,
+                             const std::string &current_loop_start) {
+        const std::string false_label = create_label(); // exit / else or whatever
+        const std::string true_label = create_label(); // block
 
         generate_condition(function, if_node, false_label, true_label);
 
@@ -763,7 +762,7 @@ namespace occult {
 
     void ir_gen::generate_loop(ir_function &function, cst_loopstmt *loop_node) {
         auto L1 = create_label();
-        auto B1 = create_label();
+        const auto B1 = create_label();
 
         place_label(function, L1);
 
@@ -780,7 +779,7 @@ namespace occult {
 
     void ir_gen::generate_while(ir_function &function, cst_whilestmt *while_node) {
         std::string loop_label = create_label();
-        std::string break_label = create_label();
+        const std::string break_label = create_label();
 
         place_label(function, loop_label);
 
@@ -798,17 +797,17 @@ namespace occult {
     }
 
     void ir_gen::generate_for(ir_function &function, cst_forstmt *for_node) {
-        auto first_node = for_node->get_children().front().get();
-        auto condition = for_node->get_children().at(1).get();
-        auto body = for_node->get_children().back().get();
+        const auto first_node = for_node->get_children().front().get();
+        const auto condition = for_node->get_children().at(1).get();
+        const auto body = for_node->get_children().back().get();
 
         switch (for_node->get_children().front()->get_type()) {
             case cst_type::int8_datatype:
             case cst_type::int16_datatype:
             case cst_type::int32_datatype:
             case cst_type::int64_datatype: {
-                auto identifier = cst::cast_raw<cst_identifier>(first_node->get_children().front().get()); // name
-                auto assignment = cst::cast_raw<cst_assignment>(first_node->get_children().back().get());
+                const auto identifier = cst::cast_raw<cst_identifier>(first_node->get_children().front().get()); // name
+                const auto assignment = cst::cast_raw<cst_assignment>(first_node->get_children().back().get());
                 // expression stuff
 
                 generate_common<std::int64_t>(function, assignment);
@@ -822,8 +821,8 @@ namespace occult {
             case cst_type::uint16_datatype:
             case cst_type::uint32_datatype:
             case cst_type::uint64_datatype: {
-                auto identifier = cst::cast_raw<cst_identifier>(first_node->get_children().front().get());
-                auto assignment = cst::cast_raw<cst_assignment>(first_node->get_children().back().get());
+                const auto identifier = cst::cast_raw<cst_identifier>(first_node->get_children().front().get());
+                const auto assignment = cst::cast_raw<cst_assignment>(first_node->get_children().back().get());
 
                 generate_common<std::uint64_t>(function, assignment);
 
@@ -836,7 +835,7 @@ namespace occult {
         }
 
         auto L1 = create_label();
-        auto B1 = create_label();
+        const auto B1 = create_label();
 
         place_label(function, L1); // L1 START
 
@@ -844,7 +843,7 @@ namespace occult {
 
         generate_block(function, cst::cast_raw<cst_block>(body), B1, L1);
 
-        auto new_block = cst::new_node<cst_block>(); // swapping parent
+        const auto new_block = cst::new_node<cst_block>(); // swapping parent
         for (auto &c: for_node->get_children().at(2)->get_children()) { new_block->add_child(std::move(c)); }
 
         generate_block(function, new_block.get()); // iterator
@@ -856,13 +855,13 @@ namespace occult {
 
     void ir_gen::generate_array_decl(ir_function &function, cst_array *array_node) {
         /* maybe we need some metadata for the actual location in the CST to make it easier to map it to proper codegen...? */
-        auto type = array_node->get_children().front().get();
-        auto identifier = cst::cast_raw<cst_identifier>(type->get_children().front().get()); // name
+        const auto type = array_node->get_children().front().get();
+        const auto identifier = cst::cast_raw<cst_identifier>(type->get_children().front().get()); // name
 
         function.code.emplace_back(op_array_decl, identifier->content);
         function.code.emplace_back(op_decl_array_type, type->to_string().substr(4, type->to_string().size()));
 
-        auto dimensions_count_node = cst::cast_raw<cst_dimensions_count>(array_node->get_children().at(1).get());
+        const auto dimensions_count_node = cst::cast_raw<cst_dimensions_count>(array_node->get_children().at(1).get());
 
         std::vector<std::uint64_t> dimensions;
         for (const auto &c: dimensions_count_node->get_children()) {
@@ -876,7 +875,7 @@ namespace occult {
         for (const auto &dim: dimensions) { function.code.emplace_back(op_array_size, dim); }
 
         if (dimensions.size() > 1) {
-            auto first_array_node = cst::cast_raw<cst_arraybody>(array_node->get_children().back().get());
+            const auto first_array_node = cst::cast_raw<cst_arraybody>(array_node->get_children().back().get());
 
             if (first_array_node == nullptr) { return; }
 
@@ -884,12 +883,12 @@ namespace occult {
             for (std::size_t i = 0; i < dimensions.size(); ++i) {
                 for (std::size_t j = 0; j < dimensions[i]; ++j) {
                     function.code.emplace_back(op_declare_where_to_store, static_cast<std::uint64_t>(++k));
-                    auto array_node = first_array_node->get_children().at(j).get();
 
-                    if (array_node->get_type() == cst_type::arraybody) {
-                        auto element = cst::cast_raw<cst_arrayelement>(array_node->get_children().at(i).get());
-
-                        for (const auto &c: element->get_children()) {
+                    if (const auto _array_node = first_array_node->get_children().at(j).get();
+                        _array_node->get_type() == cst_type::arraybody) {
+                        for (const auto element = cst::cast_raw<
+                                 cst_arrayelement>(array_node->get_children().at(i).get()); const auto &c: element->
+                             get_children()) {
                             switch (c->get_type()) { /* ADD OTHER TYPES AND CASES TO THIS */
                                 case cst_type::number_literal: {
                                     handle_push_types(function, c.get());
@@ -905,16 +904,15 @@ namespace occult {
             }
         }
         else if (dimensions.size() == 1) {
-            auto first_array_node = cst::cast_raw<cst_arraybody>(array_node->get_children().back().get());
+            const auto first_array_node = cst::cast_raw<cst_arraybody>(array_node->get_children().back().get());
 
             if (first_array_node == nullptr) { return; }
 
             for (std::size_t i = 0; i < dimensions.front(); ++i) {
                 function.code.emplace_back(op_declare_where_to_store, static_cast<std::uint64_t>(i));
 
-                auto element = cst::cast_raw<cst_arrayelement>(first_array_node->get_children().at(i).get());
-
-                for (const auto &c: element->get_children()) {
+                for (auto element = cst::cast_raw<cst_arrayelement>(first_array_node->get_children().at(i).get()); const
+                     auto &c: element->get_children()) {
                     switch (c->get_type()) { /* ADD OTHER TYPES AND CASES TO THIS */
                         case cst_type::number_literal: {
                             handle_push_types(function, c.get());
@@ -933,13 +931,12 @@ namespace occult {
     void ir_gen::generate_array_access(ir_function &function, cst_arrayaccess *array_access_node) {
         if (array_access_node->get_children().front()->get_type() == cst_type::identifier) {
             // 1-dimensional array access
-            auto identifier = cst::cast_raw<cst_identifier>(array_access_node->get_children().front().get());
-            auto has_assigment = array_access_node->get_children().back()->get_type() == cst_type::assignment;
+            const auto identifier = cst::cast_raw<cst_identifier>(array_access_node->get_children().front().get());
+            const auto has_assigment = array_access_node->get_children().back()->get_type() == cst_type::assignment;
 
-            for (std::size_t i = 1; i < array_access_node->get_children().size() - (has_assigment) ? 1 : 0; i++) {
-                auto c = array_access_node->get_children().at(i).get();
-
-                switch (c->get_type()) {
+            for (std::size_t i = 1; i < array_access_node->get_children().size() - (has_assigment) ? true : false; i
+                 ++) {
+                switch (const auto c = array_access_node->get_children().at(i).get(); c->get_type()) {
                     case cst_type::number_literal: {
                         handle_push_types(function, c);
 
@@ -1017,9 +1014,9 @@ namespace occult {
             function.code.emplace_back(op_mark_for_array_access);
 
             if (array_access_node->get_children().back()->get_type() == cst_type::assignment) {
-                auto assignment = cst::cast_raw<cst_assignment>(array_access_node->get_children().back().get());
-
-                for (const auto &c: assignment->get_children()) {
+                for (const auto assignment = cst::cast_raw<
+                         cst_assignment>(array_access_node->get_children().back().get()); const auto &c: assignment->
+                     get_children()) {
                     switch (c->get_type()) { /* ADD OTHER TYPES AND CASES TO THIS */
                         case cst_type::number_literal: {
                             handle_push_types(function, c.get());
@@ -1039,7 +1036,7 @@ namespace occult {
             std::vector<cst *> indices;
             cst_assignment *assignment;
 
-            std::function<void(cst *)> traverse_access_nodes([&, this](cst *node) -> void {
+            std::function<void(cst *)> traverse_access_nodes([&](cst *node) -> void {
                 for (auto &child: node->get_children()) {
                     switch (child->get_type()) {
                         case cst_type::arrayaccess: {
@@ -1066,10 +1063,10 @@ namespace occult {
 
             traverse_access_nodes(array_access_node);
 
-            cst_identifier *array_name = cst::cast_raw<cst_identifier>(indices.front()); // ALWAYS FRONT
+            auto *array_name = cst::cast_raw<cst_identifier>(indices.front()); // ALWAYS FRONT
             indices = std::vector(indices.begin() + 1, indices.end());
 
-            for (auto &c: indices) { // push indices in order
+            for (const auto &c: indices) { // push indices in order
                 switch (c->get_type()) {
                     case cst_type::number_literal: {
                         handle_push_types(function, c);
@@ -1174,7 +1171,7 @@ namespace occult {
         if (struct_node->get_children().size() > 1) { // assignment
         }
         else {
-            auto id = struct_node->get_children().front().get(); // identifier
+            const auto id = struct_node->get_children().front().get(); // identifier
 
             function.code.emplace_back(op_struct_store, id->content);
         }
@@ -1188,9 +1185,9 @@ namespace occult {
                 case cst_type::int16_datatype:
                 case cst_type::int32_datatype:
                 case cst_type::int64_datatype: {
-                    auto node = c.get();
-                    auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name
-                    auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
+                    const auto node = c.get();
+                    const auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name
+                    const auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
                     // expression stuff
 
                     generate_common<std::int64_t>(function, assignment);
@@ -1363,20 +1360,20 @@ namespace occult {
         function.code.emplace_back(op_store, var_name);
     }
 
-    void ir_gen::visualize_stack_ir(std::vector<ir_function> funcs) {
+    void ir_gen::visualize_stack_ir(const std::vector<ir_function> &funcs) {
         std::cout << CYAN << "Function(s): \n" << RESET;
-        for (auto &func: funcs) {
-            std::cout << "Type: " << func.type << "\n";
-            std::cout << "Name: " << func.name << "\n";
+        for (const auto &[code, args, name, type]: funcs) {
+            std::cout << "Type: " << type << "\n";
+            std::cout << "Name: " << name << "\n";
 
             std::cout << "Args:\n";
-            for (auto &arg: func.args) {
+            for (auto &arg: args) {
                 std::cout << "  " << arg.type << "\n";
                 std::cout << "  " << arg.name << "\n";
             }
 
             std::cout << "Code:\n";
-            for (auto &i: func.code) {
+            for (auto &i: code) {
                 std::cout << "  " << occult::opcode_to_string(i.op) << " ";
                 std::visit(visitor_stack(), i.operand);
             }
@@ -1384,7 +1381,7 @@ namespace occult {
         }
     }
 
-    void ir_gen::visualize_structs(std::vector<ir_struct> structs) {
+    void ir_gen::visualize_structs(const std::vector<ir_struct> &structs) {
         std::cout << CYAN << "Struct(s): \n" << RESET;
         for (auto &s: structs) {
             std::cout << "Type: " << s.datatype << "\n";
@@ -1402,9 +1399,7 @@ namespace occult {
         std::vector<ir_function> functions;
 
         for (const auto &c: root->get_children()) {
-            auto type = c->get_type();
-
-            if (type == cst_type::function) {
+            if (const auto type = c->get_type(); type == cst_type::function) {
                 functions.emplace_back(generate_function(cst::cast_raw<cst_function>(c.get())));
             }
         }
@@ -1431,71 +1426,71 @@ namespace occult {
     std::vector<ir_struct> ir_gen::lower_structs() {
         std::vector<ir_struct> structs;
 
-        auto handle_struct = [](std::string name, cst *child) -> ir_struct {
+        auto handle_struct = [](const std::string &name, cst *child) -> ir_struct {
             ir_struct ir_s;
 
             ir_s.datatype = name;
 
-            for (auto &c: child->get_children()) {
+            for (const auto &c: child->get_children()) {
                 switch (c->get_type()) {
                     case cst_type::int8_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"int8", c->get_children().front()->content});
+                        ir_s.members.emplace_back("int8", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::int16_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"int16", c->get_children().front()->content});
+                        ir_s.members.emplace_back("int16", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::int32_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"int32", c->get_children().front()->content});
+                        ir_s.members.emplace_back("int32", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::int64_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"int64", c->get_children().front()->content});
+                        ir_s.members.emplace_back("int64", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::uint8_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"uint8", c->get_children().front()->content});
+                        ir_s.members.emplace_back("uint8", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::uint16_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"uint16", c->get_children().front()->content});
+                        ir_s.members.emplace_back("uint16", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::uint32_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"uint32", c->get_children().front()->content});
+                        ir_s.members.emplace_back("uint32", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::uint64_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"uint64", c->get_children().front()->content});
+                        ir_s.members.emplace_back("uint64", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::float32_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"float32", c->get_children().front()->content});
+                        ir_s.members.emplace_back("float32", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::float64_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"float64", c->get_children().front()->content});
+                        ir_s.members.emplace_back("float64", c->get_children().front()->content);
 
                         break;
                     }
                     case cst_type::string_datatype: {
-                        ir_s.members.emplace_back(ir_struct_member{"str", c->get_children().front()->content});
+                        ir_s.members.emplace_back("str", c->get_children().front()->content);
 
                         break;
                     }
                     default: {
                         if (c->get_children().size() == 1) {
-                            ir_s.members.emplace_back(ir_struct_member{c->content, c->get_children().front()->content});
+                            ir_s.members.emplace_back(c->content, c->get_children().front()->content);
                         }
 
                         break;

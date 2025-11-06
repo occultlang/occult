@@ -21,13 +21,12 @@ namespace occult {
 
     template<typename ValueType>
     constexpr std::string to_parsable_type(const std::string &number,
-                                           std::optional<std::uintptr_t> base = std::nullopt) {
+                                           const std::optional<std::uintptr_t> base = std::nullopt) {
         ValueType value;
 
         if constexpr (std::is_floating_point_v<ValueType>) {
-            auto result = std::from_chars(number.data(), number.data() + number.size(), value);
-
-            if (result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+            if (auto result = std::from_chars(number.data(), number.data() + number.size(), value);
+                result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
         }
         else if constexpr (std::is_integral_v<ValueType>) {
             if (!base.has_value()) { throw std::runtime_error("base is required parsing integers"); }
@@ -46,14 +45,12 @@ namespace occult {
         ValueType value;
 
         if constexpr (std::is_floating_point_v<ValueType>) {
-            auto result = std::from_chars(number.data(), number.data() + number.size(), value);
-
-            if (result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+            if (auto result = std::from_chars(number.data(), number.data() + number.size(), value);
+                result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
         }
         else if constexpr (std::is_integral_v<ValueType>) {
-            auto result = std::from_chars(number.data(), number.data() + number.size(), value, 10);
-
-            if (result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+            if (auto result = std::from_chars(number.data(), number.data() + number.size(), value, 10);
+                result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
         }
 
         return value;

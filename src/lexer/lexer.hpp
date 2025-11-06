@@ -117,8 +117,9 @@ namespace occult {
         static std::string get_typename(const token_type &tt);
 
         explicit token_t(const std::uintptr_t &line = 0, const std::uintptr_t &column = 0, std::string lexeme = "",
-                         const token_type &tt = token_type::unkown_tt) : line(line), column(column),
-                                                                         lexeme(std::move(lexeme)), tt(tt) {}
+                         const token_type &tt = token_type::unkown_tt) :
+            line(line), column(column),
+            lexeme(std::move(lexeme)), tt(tt) {}
     } token_t; // token structure
 
     class lexer {
@@ -156,11 +157,12 @@ namespace occult {
         token_t get_next_token();
 
     public:
-        explicit lexer(const std::string &source, const bool use_whitespace = false) : source(source), pos(0), line(1),
+        explicit lexer(const std::string &source, const bool use_whitespace = false) :
+            source(source), pos(0), line(1),
             column(1), use_whitespace(use_whitespace) {}
 
         std::vector<token_t> analyze();
 
-        void visualize(const std::optional<std::vector<token_t> > &o_s = std::nullopt) const;
+        void visualize(const std::optional<std::vector<token_t>> &o_s = std::nullopt) const;
     };
 } // namespace occult

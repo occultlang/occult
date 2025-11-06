@@ -52,7 +52,7 @@ namespace occult {
     }
 
     token_t lexer::handle_whitespace_with_token() {
-        std::string lexeme = "";
+        std::string lexeme;
 
         if (whitespace_map.contains(source[pos])) {
             lexeme += source[pos];
@@ -68,7 +68,7 @@ namespace occult {
     }
 
     std::string lexer::handle_escape_sequences(const char &type) {
-        std::string lexeme = "";
+        std::string lexeme;
 
         while (pos < source.length() && source[pos] != type) {
             if (source[pos] == '\\') {
@@ -195,15 +195,9 @@ namespace occult {
     }
 
     token_t lexer::handle_operator(const bool &is_double) {
-        if (pos + 1 < source.size()) {
-            if (source[pos] == '/' && source[pos + 1] == '/') {
-                handle_comment();
-                return get_next_token(); // skip, goto next token
-            }
-            else if (source[pos] == '/' && source[pos + 1] == '*') {
-                handle_comment();
-                return get_next_token(); // skip, goto next token
-            }
+        if (pos + 1 < source.size() && source[pos] == '/' && (source[pos + 1] == '*' || source[pos] == '/')) {
+            handle_comment();
+            return get_next_token(); // skip, goto next token
         }
 
         if (is_double) {
@@ -323,7 +317,7 @@ namespace occult {
         return token_stream;
     }
 
-    void lexer::visualize(const std::optional<std::vector<token_t> > &o_s) const {
+    void lexer::visualize(const std::optional<std::vector<token_t>> &o_s) const {
         if (!o_s.has_value()) {
             for (size_t i = 0; i < stream.size(); ++i) {
                 auto s = stream.at(i);

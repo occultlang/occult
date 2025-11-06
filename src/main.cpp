@@ -27,10 +27,10 @@ void display_help() {
             << "  -h,   --help              Show this message\n";
 }
 
-OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) { return (int64_t) malloc(sz); }
+OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) { return reinterpret_cast<int64_t>(malloc(sz)); }
 
 OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t sz), std::int64_t) {
-    free((int64_t *) sz);
+    free(reinterpret_cast<int64_t *>(sz));
     return 0;
 }
 
@@ -58,9 +58,7 @@ int main(int argc, char *argv[]) {
     std::string filenameout;
 
     for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-
-        if (arg == "-d" || arg == "--debug") {
+        if (std::string arg = argv[i]; arg == "-d" || arg == "--debug") {
             debug = true;
             verbose = true;
             showtime = true;
@@ -115,7 +113,8 @@ int main(int argc, char *argv[]) {
         std::cout << RED << "[OCCULTC] Parsing failed" << RESET << std::endl;
         return 1;
     }
-    else if (showtime) { std::cout << GREEN << "[OCCULTC] Completed parsing \033[0m" << duration.count() << "ms\n"; }
+
+    if (showtime) { std::cout << GREEN << "[OCCULTC] Completed parsing \033[0m" << duration.count() << "ms\n"; }
     if (debug && verbose) { cst->visualize(); }
 
     start = std::chrono::high_resolution_clock::now();
@@ -126,8 +125,8 @@ int main(int argc, char *argv[]) {
     duration = end - start;
     if (showtime) { std::cout << GREEN << "[OCCULTC] Completed generating IR \033[0m" << duration.count() << "ms\n"; }
     if (debug) {
-        ir_gen.visualize_structs(ir_structs);
-        ir_gen.visualize_stack_ir(ir);
+        occult::ir_gen::visualize_structs(ir_structs);
+        occult::ir_gen::visualize_stack_ir(ir);
     }
 
     occult::function_registry::register_function_to_ir<&alloc>(ir);
@@ -157,8 +156,7 @@ int main(int argc, char *argv[]) {
     }*/
 
     if (jit) {
-        auto it = jit_runtime.function_map.find("main");
-        if (it != jit_runtime.function_map.end()) {
+        if (auto it = jit_runtime.function_map.find("main"); it != jit_runtime.function_map.end()) {
             start = std::chrono::high_resolution_clock::now();
 
             auto res = reinterpret_cast<std::int64_t(*)()>(it->second)();

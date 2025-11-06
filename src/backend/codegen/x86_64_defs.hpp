@@ -138,13 +138,12 @@ namespace occult::x86_64 {
     // rebases register to the correct size
     static grp rebase_register(const grp &reg) {
         if (reg >= eax && reg <= edi) { return static_cast<grp>(reg - eax + rax); }
-        else if (reg >= ax && reg <= di) { return static_cast<grp>(reg - ax + rax); }
-        else if (reg >= al && reg <= dil) { return static_cast<grp>(reg - al + rax); }
-        else if (reg >= r8 && reg <= r15) { return static_cast<grp>(reg - r8 + rax); }
-        else if (reg >= r8d && reg <= r15d) { return static_cast<grp>(reg - r8d + rax); }
-        else if (reg >= r8w && reg <= r15w) { return static_cast<grp>(reg - r8w + rax); }
-        else
-            if (reg >= r8b && reg <= r15b) { return static_cast<grp>(reg - r8b + rax); }
+        if (reg >= ax && reg <= di) { return static_cast<grp>(reg - ax + rax); }
+        if (reg >= al && reg <= dil) { return static_cast<grp>(reg - al + rax); }
+        if (reg >= r8 && reg <= r15) { return static_cast<grp>(reg - r8 + rax); }
+        if (reg >= r8d && reg <= r15d) { return static_cast<grp>(reg - r8d + rax); }
+        if (reg >= r8w && reg <= r15w) { return static_cast<grp>(reg - r8w + rax); }
+        if (reg >= r8b && reg <= r15b) { return static_cast<grp>(reg - r8b + rax); }
 
         return reg;
     }
@@ -292,15 +291,19 @@ namespace occult::x86_64 {
         grp reg; // register
         rm_field rm; // addressing method (register/memory operand)
 
-        explicit modrm(const mod_field &mod, const rm_field &rm, const grp &reg) : mod(mod), reg(reg), rm(rm) {}
+        explicit modrm(const mod_field &mod, const rm_field &rm, const grp &reg) :
+            mod(mod), reg(reg), rm(rm) {}
 
-        explicit modrm(const mod_field &mod, const grp &rm, const grp &reg) : mod(mod), reg(reg),
-                                                                              rm(static_cast<rm_field>(rm)) {}
-
-        explicit modrm(const mod_field &mod, const grp &rm, const rm_field &reg) : mod(mod), reg(static_cast<grp>(reg)),
+        explicit modrm(const mod_field &mod, const grp &rm, const grp &reg) :
+            mod(mod), reg(reg),
             rm(static_cast<rm_field>(rm)) {}
 
-        explicit modrm(const mod_field &mod, const rm_field &rm, const rm_field &reg) : mod(mod),
+        explicit modrm(const mod_field &mod, const grp &rm, const rm_field &reg) :
+            mod(mod), reg(static_cast<grp>(reg)),
+            rm(static_cast<rm_field>(rm)) {}
+
+        explicit modrm(const mod_field &mod, const rm_field &rm, const rm_field &reg) :
+            mod(mod),
             reg(static_cast<grp>(reg)),
             rm(static_cast<rm_field>(rm)) {}
 
@@ -317,12 +320,15 @@ namespace occult::x86_64 {
         grp base; // base register
 
         explicit sib(const std::uint8_t &scale, const grp &index,
-                     const grp &base) : scale(scale), index(index), base(base) {}
+                     const grp &base) :
+            scale(scale), index(index), base(base) {}
 
-        explicit sib(const std::uint8_t &scale, const std::uint8_t &index, const grp &base) : scale(scale),
+        explicit sib(const std::uint8_t &scale, const std::uint8_t &index, const grp &base) :
+            scale(scale),
             index(static_cast<grp>(index)), base(base) {}
 
-        explicit sib(const std::uint8_t &scale, const std::uint8_t &index, const std::uint8_t &base) : scale(scale),
+        explicit sib(const std::uint8_t &scale, const std::uint8_t &index, const std::uint8_t &base) :
+            scale(scale),
             index(static_cast<grp>(index)), base(static_cast<grp>(base)) {}
 
         operator std::uint8_t() const { return (scale << 6) | (index << 3) | base; }

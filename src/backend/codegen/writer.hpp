@@ -29,7 +29,8 @@ namespace occult {
         void *memory = nullptr;
 
 #ifdef __linux__
-        writer() : page_size(sysconf(_SC_PAGE_SIZE)), allocated_size(page_size) {
+        writer() :
+            page_size(sysconf(_SC_PAGE_SIZE)), allocated_size(page_size) {
             memory = mmap(nullptr, page_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
             if (memory == MAP_FAILED) { throw std::runtime_error("Memory allocation failed"); }
@@ -38,11 +39,12 @@ namespace occult {
         ~writer() { if (memory) { munmap(memory, allocated_size); } }
 #endif
 #ifdef _WIN64
-        writer() : page_size([] {
-            SYSTEM_INFO si;
-            GetSystemInfo(&si);
-            return si.dwPageSize;
-        }()), allocated_size(page_size) {
+        writer() :
+            page_size([] {
+                SYSTEM_INFO si;
+                GetSystemInfo(&si);
+                return si.dwPageSize;
+            }()), allocated_size(page_size) {
             // Equivalent to mmap with PROT_READ | PROT_WRITE | PROT_EXEC
             memory = VirtualAlloc(nullptr, page_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 

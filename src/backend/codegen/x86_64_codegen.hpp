@@ -3,6 +3,7 @@
 #include "x86_64_writer.hpp"
 #include "ir_gen.hpp"
 
+#include <ranges>
 #include <unordered_map>
 #include <unordered_set>
 #include <map>
@@ -14,20 +15,20 @@
 
 namespace occult::x86_64 {
     static std::unordered_map<std::string, std::size_t> typename_sizes = {
-        {"int64", 8},
-        {"int32", 4},
-        {"int16", 2},
-        {"int8", 1},
-        {"uint64", 8},
-        {"uint32", 4},
-        {"uint16", 2},
-        {"uint8", 1},
+            {"int64", 8},
+            {"int32", 4},
+            {"int16", 2},
+            {"int8", 1},
+            {"uint64", 8},
+            {"uint32", 4},
+            {"uint16", 2},
+            {"uint8", 1},
     }; /* we might have to use this instead of an 8-byte aligned stack, i'm not sure */
 
     struct array_metadata {
         std::string type; // e.g., "int64"
         std::vector<std::uint64_t> dimensions; // e.g., [2, 2]
-        std::int32_t total_size; // Total memory in bytes
+        std::int32_t total_size{}; // Total memory in bytes
     };
 
     class codegen {
@@ -43,9 +44,10 @@ namespace occult::x86_64 {
             x86_64_writer *writer;
 
         public:
-            register_pool(x86_64_writer *w) : writer(w) {
+            explicit register_pool(x86_64_writer *w) :
+                writer(w) {
                 free_regs = {
-                    r10, r11, r12, r13, r14, r15
+                        r10, r11, r12, r13, r14, r15
                 };
             }
 
@@ -59,9 +61,9 @@ namespace occult::x86_64 {
                 return r;
             }
 
-            void free(grp r) { free_regs.push_back(r); }
+            void free(const grp r) { free_regs.push_back(r); }
 
-            void push(grp r) { reg_stack.push_back(r); }
+            void push(const grp r) { reg_stack.push_back(r); }
 
             grp pop(ir_function &func, std::size_t i) {
                 if (reg_stack.empty()) {
@@ -72,7 +74,7 @@ namespace occult::x86_64 {
                         ir_instr &code = func.code.at(j);
                         std::cout << opcode_to_string(code.op) << " ";
                         std::visit(visitor_stack(), code.operand);
-                        if (code.type != "")
+                        if (!code.type.empty())
                             std::cout << "(type = " << code.type << ")" << std::endl;
                     }
 
@@ -83,7 +85,7 @@ namespace occult::x86_64 {
                 return r;
             }
 
-            grp top() const {
+            [[nodiscard]] grp top() const {
                 if (reg_stack.empty()) {
                     writer->print_bytes();
                     throw std::runtime_error("stack empty");
@@ -94,25 +96,26 @@ namespace occult::x86_64 {
             void reset() {
                 reg_stack.clear();
                 free_regs = {
-                    r10, r11, r12, r13, r14, r15
+                        r10, r11, r12, r13, r14, r15
                 };
             }
 
-            bool empty() const { return reg_stack.empty(); }
+            [[nodiscard]] bool empty() const { return reg_stack.empty(); }
 
-            size_t stack_size() const { return reg_stack.size(); }
+            [[nodiscard]] size_t stack_size() const { return reg_stack.size(); }
 
-            const std::vector<grp> &get_stack() const { return reg_stack; }
+            [[nodiscard]] const std::vector<grp> &get_stack() const { return reg_stack; }
         };
 
         std::vector<ir_function> ir_funcs;
-        std::vector<std::unique_ptr<x86_64_writer> > writers;
+        std::vector<std::unique_ptr<x86_64_writer>> writers;
         std::unordered_map<std::string, std::int32_t> cleanup_size_map;
 
         bool debug;
 
-        void backpatch_jump(ir_opcode op, std::size_t location, std::size_t label_location, x86_64_writer *w) {
-            std::int32_t offset = label_location - (location + ((op == ir_opcode::op_jmp) ? 5 : 6));
+        static void backpatch_jump(const ir_opcode op, const std::size_t location, std::size_t label_location,
+                                   x86_64_writer *w) {
+            const std::int32_t offset = label_location - (location + ((op == ir_opcode::op_jmp) ? 5 : 6));
             auto &code = w->get_code();
 
             switch (op) {
@@ -147,39 +150,17 @@ namespace occult::x86_64 {
                     return;
             }
 
-            std::size_t offset_start = (op == ir_opcode::op_jmp) ? 1 : 2;
+            const std::size_t offset_start = (op == ir_opcode::op_jmp) ? 1 : 2;
             for (int i = 0; i < 4; ++i) {
                 code[location + offset_start + i] = static_cast<std::uint8_t>((offset >> (i * 8)) & 0xFF);
             }
-        }
-
-        void emit_temporary_zero_extend(const grp &reg, x86_64_writer *w) {
-            // this is temporary until i put proper zero extend into the writer
-            w->push_byte(0x45);
-            w->push_byte(k2ByteOpcodePrefix);
-            w->push_byte(opcode_2b::MOVZX_r16_to_64_rm8);
-            w->push_byte(modrm(mod_field::register_direct, reg, reg));
-        }
-
-        void emit_temporary_cmovz(const grp &reg, const grp &reg2, x86_64_writer *w) {
-            w->push_byte(0x45);
-            w->push_byte(k2ByteOpcodePrefix);
-            w->push_byte(static_cast<opcode_2b>(0x44));
-            w->push_byte(modrm(mod_field::register_direct, reg2, reg));
-        }
-
-        void emit_temporary_cmovnz(const grp &reg, const grp &reg2, x86_64_writer *w) {
-            w->push_byte(0x45);
-            w->push_byte(k2ByteOpcodePrefix);
-            w->push_byte(static_cast<opcode_2b>(0x45));
-            w->push_byte(modrm(mod_field::register_direct, reg2, reg));
         }
 
         void generate_code(ir_function &func, x86_64_writer *w, bool is_main, bool use_jit) {
             register_pool pool(w);
 
             std::unordered_map<std::string, std::size_t> label_map;
-            std::vector<std::pair<ir_instr, std::size_t> > jump_instructions;
+            std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
             std::unordered_map<std::string, std::int64_t> local_variable_map;
             std::unordered_map<std::string, std::string> local_variable_map_types;
             std::unordered_map<std::string, array_metadata> local_array_metadata;
@@ -192,7 +173,7 @@ namespace occult::x86_64 {
 
             std::int32_t totalsizes = 0;
 
-            const grp sysv_regs[] = {rdi, rsi, rdx, rcx, r8, r9};
+            constexpr grp sysv_regs[] = {rdi, rsi, rdx, rcx, r8, r9};
 
             for (std::size_t i = 0; i < func.args.size(); ++i) {
                 totalsizes += 8; // do correct sizes
@@ -350,8 +331,8 @@ namespace occult::x86_64 {
                         }
 
                         if (is_dereference_next) {
-                            for (std::size_t i = 1; i <= deref_count_normal; i++) {
-                                if (i == 1) {
+                            for (std::size_t size = 1; size <= deref_count_normal; size++) {
+                                if (size == 1) {
                                     w->emit_mov(r, mem{rbp, offset});
                                     w->emit_mov(r, mem{r});
                                 }
@@ -367,8 +348,8 @@ namespace occult::x86_64 {
                         }
 
                         if (is_dereference_assign_next) {
-                            for (std::size_t i = 1; i <= deref_count_assign; i++) {
-                                if (i == 1) { w->emit_mov(r, mem{rbp, offset}); }
+                            for (std::size_t size = 1; size <= deref_count_assign; size++) {
+                                if (size == 1) { w->emit_mov(r, mem{rbp, offset}); }
                                 else { w->emit_mov(r, mem{r}); }
                             }
 
@@ -627,7 +608,7 @@ namespace occult::x86_64 {
 
                         w->push_bytes({opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP});
 
-                        jump_instructions.push_back({jump_instr, w->get_code().size() - 5});
+                        jump_instructions.emplace_back(jump_instr, w->get_code().size() - 5);
 
                         break;
                     }
@@ -641,9 +622,9 @@ namespace occult::x86_64 {
                         jump_instr.operand = std::get<std::string>(code.operand);
 
                         w->push_bytes(
-                            {opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP});
+                                {opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP});
 
-                        jump_instructions.push_back({jump_instr, w->get_code().size() - 6});
+                        jump_instructions.emplace_back(jump_instr, w->get_code().size() - 6);
 
                         break;
                     }
@@ -662,7 +643,7 @@ namespace occult::x86_64 {
                         auto target = pool.alloc();
 
                         w->emit_setz(target);
-                        emit_temporary_zero_extend(target, w);
+                        w->emit_mov(target, target);
 
                         pool.push(target);
 
@@ -672,7 +653,7 @@ namespace occult::x86_64 {
                         auto target = pool.alloc();
 
                         w->emit_setnz(target);
-                        emit_temporary_zero_extend(target, w);
+                        w->emit_mov(target, target);
 
                         pool.push(target);
 
@@ -682,7 +663,7 @@ namespace occult::x86_64 {
                         auto target = pool.alloc();
 
                         w->emit_setl(target);
-                        emit_temporary_zero_extend(target, w);
+                        w->emit_mov(target, target);
 
                         pool.push(target);
 
@@ -692,7 +673,7 @@ namespace occult::x86_64 {
                         auto target = pool.alloc();
 
                         w->emit_setle(target);
-                        emit_temporary_zero_extend(target, w);
+                        w->emit_mov(target, target);
 
                         pool.push(target);
 
@@ -702,7 +683,7 @@ namespace occult::x86_64 {
                         auto target = pool.alloc();
 
                         w->emit_setnl(target);
-                        emit_temporary_zero_extend(target, w);
+                        w->emit_mov(target, target);
 
                         pool.push(target);
 
@@ -712,7 +693,7 @@ namespace occult::x86_64 {
                         auto target = pool.alloc();
 
                         w->emit_setnle(target);
-                        emit_temporary_zero_extend(target, w);
+                        w->emit_mov(target, target);
 
                         pool.push(target);
 
@@ -735,10 +716,10 @@ namespace occult::x86_64 {
                                     << RESET;
                         }
 
-                        auto it = std::find_if(ir_funcs.begin(), ir_funcs.end(),
-                                               [&](const ir_function &f) { // lazy compilation
-                                                   return f.name == func_name;
-                                               });
+                        auto it = std::ranges::find_if(ir_funcs,
+                                                       [&](const ir_function &f) { // lazy compilation
+                                                           return f.name == func_name;
+                                                       });
 
                         if (it != ir_funcs.end()) { compile_function(*it, use_jit); }
 
@@ -763,7 +744,7 @@ namespace occult::x86_64 {
                         std::vector<grp> reg_stack_copy = pool.get_stack();
 
                         std::vector<grp> args;
-                        for (int i = 0; i < arg_count; i++) {
+                        for (int i1 = 0; i1 < arg_count; i1++) {
                             if (pool.empty()) {
                                 std::cout << RED <<
                                         "[CODEGEN ERROR] Not enough arguments on stack for function call: " <<
@@ -774,10 +755,10 @@ namespace occult::x86_64 {
 
                             if (debug) {
                                 std::cout << BLUE << "[CODEGEN INFO] Popping argument: " << RESET << reg_to_string(
-                                    pool.top()) << std::endl;
+                                        pool.top()) << std::endl;
                             }
 
-                            args.push_back(pool.pop(func, i));
+                            args.push_back(pool.pop(func, i1));
                         }
 
                         std::reverse(args.begin(), args.end());
@@ -786,27 +767,26 @@ namespace occult::x86_64 {
                             w->emit_sub(rsp, 32); // shadow space for x64 MICROSOFT ABI
                         }
 
-                        for (std::size_t i = 0; i < args.size(); i++) {
+                        for (std::size_t size = 0; size < args.size(); size++) {
                             if (is_systemv) {
-                                const grp sysv_regs[] = {rdi, rsi, rdx, rcx, r8, r9};
-
-                                if (i < sizeof(sysv_regs) / sizeof(grp)) {
+                                if (constexpr grp sysv_arg_regs[] = {rdi, rsi, rdx, rcx, r8, r9};
+                                    size < sizeof(sysv_arg_regs) / sizeof(grp)) {
                                     if (debug) {
                                         std::cout << BLUE << "[CODEGEN INFO] Pushing argument: " << RESET <<
-                                                reg_to_string(sysv_regs[i]) << std::endl;
+                                                reg_to_string(sysv_arg_regs[size]) << std::endl;
                                     }
 
-                                    w->emit_mov(sysv_regs[i], args[i]);
+                                    w->emit_mov(sysv_arg_regs[size], args[size]);
                                 }
-                                else { w->emit_push(args[i]); }
+                                else { w->emit_push(args[size]); }
                             }
 
-                            pool.free(args[i]);
+                            pool.free(args[size]);
                         }
 
                         std::vector<grp> caller_saved_used;
                         if (is_systemv) {
-                            const grp caller_saved[] = {r10, r11, r12, r13, r14, r15};
+                            constexpr grp caller_saved[] = {r10, r11, r12, r13, r14, r15};
                             std::vector<grp> used;
 
                             for (auto reg: caller_saved) {
@@ -824,13 +804,12 @@ namespace occult::x86_64 {
                         w->emit_call(mem{rax});
 
                         if (is_systemv) {
-                            for (auto it = caller_saved_used.rbegin(); it != caller_saved_used.rend(); ++it) {
-                                w->emit_pop(*it);
-                            }
+                            for (auto &grp: std::ranges::reverse_view(caller_saved_used)) { w->emit_pop(grp); }
                         }
 
-                        std::size_t reg_limit = is_systemv ? 6 : 4;
-                        if (args.size() > reg_limit) { w->emit_add(rsp, (args.size() - reg_limit) * 8); }
+                        if (const std::size_t reg_limit = is_systemv ? 6 : 4; args.size() > reg_limit) {
+                            w->emit_add(rsp, (args.size() - reg_limit) * 8);
+                        }
 
                         auto ret_reg = pool.alloc();
                         w->emit_mov(ret_reg, rax);
@@ -957,10 +936,10 @@ namespace occult::x86_64 {
                         jump_instructions.size() << std::endl;
             }
 
-            for (auto &jump: jump_instructions) {
+            for (auto &[fst, snd]: jump_instructions) {
                 if (debug) { std::cout << BLUE << "[CODEGEN INFO] Jump Backpatching:\n" << RESET; }
 
-                auto &instr = jump.first;
+                auto &instr = fst;
                 auto jump_type = instr.op;
                 auto label_name = std::get<std::string>(instr.operand);
 
@@ -969,9 +948,7 @@ namespace occult::x86_64 {
                     std::cout << "\tLocation: " << label_map[label_name] << RESET << std::endl;
                 }
 
-                if (label_map.contains(label_name)) {
-                    backpatch_jump(jump_type, jump.second, label_map[label_name], w);
-                }
+                if (label_map.contains(label_name)) { backpatch_jump(jump_type, snd, label_map[label_name], w); }
                 else {
                     std::cout << RED << "[CODEGEN ERROR] Label \"" << label_name << "\" not found." << RESET <<
                             std::endl;
@@ -981,7 +958,7 @@ namespace occult::x86_64 {
             }
         }
 
-        void compile_function(ir_function &func, bool use_jit) {
+        void compile_function(ir_function &func, const bool use_jit) {
             static std::unordered_set<std::string> compiling_functions;
 
             if (debug && function_map.contains(func.name)) {
@@ -1022,9 +999,10 @@ namespace occult::x86_64 {
 
     public:
         std::unordered_map<std::string, jit_function> function_map;
-        std::map<std::string, std::vector<std::uint8_t> > function_raw_code_map;
+        std::map<std::string, std::vector<std::uint8_t>> function_raw_code_map;
 
-        explicit codegen(const std::vector<ir_function> &ir_funcs, const bool debug = false) : ir_funcs(ir_funcs),
+        explicit codegen(const std::vector<ir_function> &ir_funcs, const bool debug = false) :
+            ir_funcs(ir_funcs),
             debug(debug) {}
 
         ~codegen() { writers.clear(); }

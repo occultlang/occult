@@ -6,22 +6,23 @@
 #include "../lexer/number_parser.hpp"
 
 namespace occult {
-    token_t parser::peek(std::uintptr_t _pos) { return stream[this->pos + _pos]; }
+    token_t parser::peek(const std::uintptr_t _pos) { return stream[this->pos + _pos]; }
 
     token_t parser::previous() {
         if ((pos - 1) != 0) { return stream[pos - 1]; }
         else { throw std::runtime_error("Out of bounds parser::previous"); }
     }
 
-    void parser::consume(std::uintptr_t amt) { pos += amt; }
+    void parser::consume(const std::uintptr_t amt) { pos += amt; }
 
     bool parser::match(const token_t &t, const token_type tt) {
         if (t.tt == tt) { return true; }
         else { return false; }
     }
 
-    void parser::parse_function_call_expr(std::vector<std::unique_ptr<cst> > &expr_cst_ref,
-                                          std::vector<token_t> &expr_ref, const token_t &curr_tok_ref, std::size_t &i_ref) {
+    void parser::parse_function_call_expr(std::vector<std::unique_ptr<cst>> &expr_cst_ref,
+                                          const std::vector<token_t> &expr_ref, const token_t &curr_tok_ref,
+                                          std::size_t &i_ref) {
         i_ref++;
 
         auto start_node = cst_map[function_call_parser_tt]("start_call"); // start call
@@ -34,7 +35,7 @@ namespace occult {
         while (i_ref + 1 < expr_ref.size() && 0 < paren_depth) {
             i_ref++;
 
-            auto current_token = expr_ref.at(i_ref);
+            const auto &current_token = expr_ref.at(i_ref);
 
             if (current_token.tt == left_paren_tt) {
                 paren_depth++;
@@ -86,8 +87,9 @@ namespace occult {
         expr_cst_ref.push_back(std::move(start_node));
     }
 
-    void parser::parse_array_access_expr(std::vector<std::unique_ptr<cst> > &expr_cst_ref,
-                                         std::vector<token_t> &expr_ref, token_t &curr_tok_ref, std::size_t &i_ref) {
+    void parser::parse_array_access_expr(std::vector<std::unique_ptr<cst>> &expr_cst_ref,
+                                         const std::vector<token_t> &expr_ref, const token_t &curr_tok_ref,
+                                         std::size_t &i_ref) {
         std::unique_ptr<cst> base = cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme);
 
         while (i_ref + 1 < expr_ref.size() && expr_ref[i_ref + 1].tt == left_bracket_tt) {
@@ -98,9 +100,7 @@ namespace occult {
             std::vector<token_t> index_tokens;
 
             while (i_ref < expr_ref.size() && bracket_depth > 0) {
-                auto &tok = expr_ref.at(i_ref);
-
-                if (tok.tt == left_bracket_tt) {
+                if (auto &tok = expr_ref.at(i_ref); tok.tt == left_bracket_tt) {
                     bracket_depth++;
                     index_tokens.push_back(tok);
                 }
@@ -125,8 +125,9 @@ namespace occult {
             array_access_node->add_child(std::move(base));
 
             if (!index_tokens.empty()) {
-                auto index_nodes = parse_expression(index_tokens);
-                for (auto &n: index_nodes) { array_access_node->add_child(std::move(n)); }
+                for (auto index_nodes = parse_expression(index_tokens); auto &n: index_nodes) {
+                    array_access_node->add_child(std::move(n));
+                }
             }
 
             base = std::move(array_access_node);
@@ -135,8 +136,8 @@ namespace occult {
         expr_cst_ref.push_back(std::move(base));
     }
 
-    void parser::parse_struct_member_access_expr(std::vector<std::unique_ptr<cst> > &expr_cst_ref,
-                                                 std::vector<token_t> &expr_ref, token_t &curr_tok_ref,
+    void parser::parse_struct_member_access_expr(std::vector<std::unique_ptr<cst>> &expr_cst_ref,
+                                                 const std::vector<token_t> &expr_ref, const token_t &curr_tok_ref,
                                                  std::size_t &i_ref) const {
         auto member_access_node = cst::new_node<cst_memberaccess>();
         member_access_node->add_child(cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
@@ -163,8 +164,8 @@ namespace occult {
         expr_cst_ref.push_back(std::move(member_access_node));
     }
 
-    void parser::shunting_yard(std::stack<token_t> &stack_ref, std::vector<std::unique_ptr<cst> > &expr_cst_ref,
-                               token_t &curr_tok_ref) const {
+    void parser::shunting_yard(std::stack<token_t> &stack_ref, std::vector<std::unique_ptr<cst>> &expr_cst_ref,
+                               const token_t &curr_tok_ref) const {
         switch (curr_tok_ref.tt) {
             case number_literal_tt:
             case float_literal_tt:
@@ -235,7 +236,7 @@ namespace occult {
     }
 
     void parser::shunting_yard_stack_cleanup(std::stack<token_t> &stack_ref,
-                                             std::vector<std::unique_ptr<cst> > &expr_cst_ref) const {
+                                             std::vector<std::unique_ptr<cst>> &expr_cst_ref) const {
         while (!stack_ref.empty()) {
             if (stack_ref.top().tt == left_paren_tt) {
                 throw parsing_error("unmatched left parenthesis", stack_ref.top(), pos,
@@ -253,18 +254,18 @@ namespace occult {
 
       if you think about it, more verbosity is a double edged sword. its a weird language thing for now... until i actually add singular comparisons
     */
-    std::vector<std::unique_ptr<cst> > parser::parse_expression(std::vector<token_t> expr) {
-        std::vector<std::unique_ptr<cst> > expr_cst;
+    std::vector<std::unique_ptr<cst>> parser::parse_expression(const std::vector<token_t> &expr) {
+        std::vector<std::unique_ptr<cst>> expr_cst;
         std::stack<token_t> operator_stack;
 
         for (std::size_t i = 0; i < expr.size(); i++) {
-            auto t = expr.at(i);
+            const auto &t = expr.at(i);
 
             if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt || t.tt == comma_tt) {
                 break; // end of expr
             }
 
-            else if (t.tt == reference_operator_tt) {
+            if (t.tt == reference_operator_tt) {
                 auto count = 0;
 
                 while (expr.at(i).tt == reference_operator_tt) {
@@ -312,9 +313,7 @@ namespace occult {
     }
 
     std::unique_ptr<cst> parser::parse_datatype() {
-        auto it = datatype_map.find(peek().tt);
-
-        if (it != datatype_map.end()) {
+        if (const auto it = datatype_map.find(peek().tt); it != datatype_map.end()) {
             consume();
             auto node = it->second();
 
@@ -329,8 +328,8 @@ namespace occult {
 
             return node;
         }
-        if (match(peek(), identifier_tt) && custom_type_map.find(peek().lexeme) != custom_type_map.end()) {
-            auto type_name = peek().lexeme;
+        if (match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme)) {
+            const auto type_name = peek().lexeme;
             consume();
 
             auto node = cst::new_node<cst_struct>();
@@ -448,13 +447,13 @@ namespace occult {
     }
 
     template<typename ParentNode>
-    void parser::parse_expression_until(ParentNode *parent, token_type t) {
-        auto first_pos = find_first_token(stream.begin() + pos, stream.end(), t);
-        std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_pos + 1};
+    void parser::parse_expression_until(ParentNode *parent, const token_type t) {
+        const auto first_pos = find_first_token(stream.begin() + pos, stream.end(), t);
+        const std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_pos + 1};
         pos += first_pos;
-        auto converted_rpn = parse_expression(sub_stream);
 
-        for (auto &c: converted_rpn) { parent->add_child(std::move(c)); }
+        for (auto converted_rpn = parse_expression(sub_stream);
+             auto &c: converted_rpn) { parent->add_child(std::move(c)); }
     }
 
     template<typename IntegerCstType>
@@ -466,7 +465,7 @@ namespace occult {
         if (match(peek(), multiply_operator_tt)) {
             while (match(peek(), multiply_operator_tt)) {
                 consume();
-                node->num_pointers++;
+                ++node->num_pointers;
             }
         }
 
@@ -667,7 +666,7 @@ namespace occult {
 
     std::unique_ptr<cst_forstmt> parser::parse_regular_for(std::unique_ptr<cst_forstmt> existing_for_node) {
         // for expr when condition do expr {}
-        auto when_pos = find_first_token(stream.begin() + pos, stream.end(), when_keyword_tt);
+        const auto when_pos = find_first_token(stream.begin() + pos, stream.end(), when_keyword_tt);
         stream.insert(stream.begin() + pos + when_pos,
                       token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
 
@@ -676,7 +675,7 @@ namespace occult {
         if (match(peek(), when_keyword_tt)) {
             consume(); // consume when
 
-            auto do_pos = find_first_token(stream.begin() + pos, stream.end(), do_keyword_tt);
+            const auto do_pos = find_first_token(stream.begin() + pos, stream.end(), do_keyword_tt);
             stream.insert(stream.begin() + pos + do_pos,
                           token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
             std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + do_pos + 2};
@@ -692,8 +691,8 @@ namespace occult {
             if (match(peek(), do_keyword_tt)) {
                 consume(); // consume do
 
-                auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(),
-                                                               left_curly_bracket_tt);
+                const auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(),
+                                                                     left_curly_bracket_tt);
                 stream.insert(stream.begin() + pos + left_curly_bracket_pos,
                               token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
 
@@ -723,9 +722,9 @@ namespace occult {
             return parse_regular_for(std::move(for_node));
         }
 
-        auto in_pos = find_first_token(stream.begin() + pos, stream.end(), in_keyword_tt);
-        // we're going to insert a semicolon
+        const auto in_pos = find_first_token(stream.begin() + pos, stream.end(), in_keyword_tt);
 
+        // we're going to insert a semicolon
         stream.insert(stream.begin() + pos + in_pos,
                       token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
 
@@ -738,8 +737,8 @@ namespace occult {
                 for_node->add_child(parse_identifier());
             }
             else {
-                auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(),
-                                                               left_curly_bracket_tt);
+                const auto left_curly_bracket_pos = find_first_token(stream.begin() + pos, stream.end(),
+                                                                     left_curly_bracket_tt);
                 stream.insert(stream.begin() + pos + left_curly_bracket_pos,
                               token_t(stream.at(pos).line, stream.at(pos).column + 1, ";", semicolon_tt));
 
@@ -769,7 +768,7 @@ namespace occult {
                                     std::source_location::current().function_name());
             }
 
-            std::size_t dimension_size = from_numerical_string<std::size_t>(peek().lexeme);
+            const auto dimension_size = from_numerical_string<std::size_t>(peek().lexeme);
             // get dimension and store for later
             dimensions.push_back(dimension_size);
             consume(); // consume the number literal
@@ -835,9 +834,9 @@ namespace occult {
                         while (!(match(peek(), comma_tt) && paren_depth == 0) &&
                                !(match(peek(), right_curly_bracket_tt) && paren_depth == 0)) {
                             if (match(peek(), left_paren_tt) || match(peek(), left_bracket_tt) || match(
-                                    peek(), left_curly_bracket_tt)) { paren_depth++; }
+                                        peek(), left_curly_bracket_tt)) { paren_depth++; }
                             else if (match(peek(), right_paren_tt) || match(peek(), right_bracket_tt) || match(
-                                         peek(), right_curly_bracket_tt)) { paren_depth--; }
+                                             peek(), right_curly_bracket_tt)) { paren_depth--; }
 
                             element_tokens.push_back(peek());
                             consume();
@@ -907,13 +906,14 @@ namespace occult {
         }
 
         throw parsing_error("{ in struct declaration", peek(), pos,
-                               std::source_location::current().function_name());
+                            std::source_location::current().function_name());
     }
 
     std::unique_ptr<cst> parser::parse_keyword(bool nested_function) {
         if (nested_function) { if (match(peek(), function_keyword_tt)) { return parse_function(); } }
 
-        if (match(peek(), include_keyword_tt)) { // this is slower than it could be, but it works for now. will change later on
+        if (match(peek(), include_keyword_tt)) {
+            // this is slower than it could be, but it works for now. will change later on
             consume();
 
             if (match(peek(), string_literal_tt)) {
@@ -954,9 +954,7 @@ namespace occult {
         if (match(peek(), string_keyword_tt)) { return parse_string(); }
         if (match(peek(), char_keyword_tt)) { return parse_integer_type<cst_int8>(); }
         if (match(peek(), boolean_keyword_tt)) { return parse_integer_type<cst_int8>(); }
-        if (match(peek(), identifier_tt) && custom_type_map.find(peek().lexeme) != custom_type_map.end()) {
-            return parse_custom_type();
-        }
+        if (match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme)) { return parse_custom_type(); }
         if (match(peek(), dereference_operator_tt)) {
             auto deref_count = 0;
             while (!match(peek(), identifier_tt)) {
@@ -1069,8 +1067,8 @@ namespace occult {
                         bracket_depth--;
                         if (bracket_depth == 0) {
                             if (!index_tokens.empty()) {
-                                auto index_nodes = parse_expression(index_tokens);
-                                for (auto &n: index_nodes) { new_array_access->add_child(std::move(n)); }
+                                for (auto index_nodes = parse_expression(index_tokens);
+                                     auto &n: index_nodes) { new_array_access->add_child(std::move(n)); }
                                 index_tokens.clear();
                             }
                         }
@@ -1079,8 +1077,8 @@ namespace occult {
                     }
                     else if (match(peek(), comma_tt) && bracket_depth == 1) {
                         if (!index_tokens.empty()) {
-                            auto index_nodes = parse_expression(index_tokens);
-                            for (auto &n: index_nodes) { new_array_access->add_child(std::move(n)); }
+                            for (auto index_nodes = parse_expression(index_tokens);
+                                 auto &n: index_nodes) { new_array_access->add_child(std::move(n)); }
                             index_tokens.clear();
                         }
                         consume();
@@ -1165,13 +1163,13 @@ namespace occult {
         throw parsing_error("<UKN_KEYWORD>", peek(), pos, std::source_location::current().function_name());
     }
 
-    void parser::synchronize(std::string what) {
+    void parser::synchronize(const std::string &what) {
         std::cout << RED << what << RESET << std::endl;
 
         std::uintptr_t lcst_pos = pos;
         while (!match(peek(), end_of_file_tt)) {
             if (match(peek(), semicolon_tt) || match(peek(), left_curly_bracket_tt) || match(
-                    peek(), right_curly_bracket_tt)) {
+                        peek(), right_curly_bracket_tt)) {
                 consume();
 
                 return;
@@ -1188,9 +1186,7 @@ namespace occult {
     std::unique_ptr<cst_root> parser::parse() {
         while (!match(peek(), end_of_file_tt)) {
             try {
-                auto node = parse_keyword(true);
-
-                if (node->get_type() == cst_type::root) {
+                if (auto node = parse_keyword(true); node->get_type() == cst_type::root) {
                     for (auto &child: node->get_children()) {
                         root->add_child(std::move(child)); // nested
                     }
