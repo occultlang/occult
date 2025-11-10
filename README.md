@@ -23,7 +23,8 @@
 - Re-do assignment to booleans with comparison expressions (using jumps)
 
 **<ins>Alpha 3.0.0 Release</ins> (Mid 2026 - Early 2027)**
-- Static Analysis 
+- Static Analysis
+- Fix Linker 
 - Borrow Checker
 - New Intermediate Representation (SSA) for optimization pass
 - RISCV Support
