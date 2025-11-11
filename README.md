@@ -19,7 +19,7 @@
 - Arrays :white_check_mark: ***Somewhat working***
 - Strings :white_check_mark: ***Somewhat working***
 - Structures
-- Implicit boolean conversions
+- ~~Implicit boolean conversions~~ ❎
 - Re-do assignment to booleans with comparison expressions (using jumps)
 
 **<ins>Alpha 3.0.0 Release</ins> (Mid 2026 - Early 2027)**
