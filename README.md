@@ -12,14 +12,13 @@
 > [!NOTE]
 > Minor-versions will be released as stable builds as new features are added and completed!
 
-**<ins>Alpha 2.1.0 Release</ins> (Late 2025 - Early 2026)**
+**<ins>Alpha 2.1.0 Release</ins>**
 - Floating point numbers
 - Sized types :white_check_mark: ***Some bugs most likely, but mostly implemented***
 - Pointer syntax & implementation :white_check_mark: ***Some bugs, but mostly implemented***
 - Arrays :white_check_mark: ***Somewhat working***
 - Strings :white_check_mark: ***Somewhat working***
 - Structures
-- ~~Implicit boolean conversions~~ ❎
 - Re-do assignment to booleans with comparison expressions (using jumps)
 
 **<ins>Alpha 3.0.0 Release</ins> (Mid 2026 - Early 2027)**
@@ -30,6 +29,7 @@
 - RISCV Support
 - ARM64 Support
 - Foreach implementation ***Moved here due to its non-importance at this current moment***
+- Implicit Boolean Conversions
 
 _____________________________________________________________________________
 
