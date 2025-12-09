@@ -27,9 +27,10 @@
 - Borrow Checker
 - New Intermediate Representation (SSA) for optimization pass
 - RISCV Support
-- ARM64 Support
-- Foreach implementation ***Moved here due to its non-importance at this current moment***
-- Implicit Boolean Conversions
+- ARM64 Support <br><br>
+***Things moved here due to its non-importance at this current moment:***
+  - Foreach implementation 
+  - Implicit Boolean Conversions
 
 _____________________________________________________________________________
 
