@@ -4,7 +4,7 @@
 */
 
 fn add(i64@ to, i64 by) {
-    <-to = <-to + by;
+    $to = $to + by;
 }
 
 fn main() {

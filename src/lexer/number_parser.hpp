@@ -1,9 +1,10 @@
 #pragma once
+
 #include <charconv>
-#include <string>
-#include <stdexcept>
-#include <optional>
 #include <cstdint>
+#include <optional>
+#include <stdexcept>
+#include <string>
 
 #define BINARY_BASE 2
 #define DECIMAL_BASE 10
@@ -11,48 +12,76 @@
 #define HEX_BASE 16
 
 namespace occult {
-    inline bool is_octal(const char &c) { return (c >= '0' && c <= '7'); }
+class num_parser_error final : public std::runtime_error {
+    mutable std::string message;
+    std::string details;
 
-    inline bool is_hex(const char &c) {
-        return (std::isdigit(c) || (std::tolower(c) >= 'a' && std::tolower(c) <= 'f'));
+public:
+    explicit num_parser_error(std::string details_str)
+        : std::runtime_error("[NUM_PARSE ERROR] "), details(std::move(details_str)) {}
+
+    const char* what() const noexcept override {
+        message = std::runtime_error::what();
+        message += details;
+        return message.c_str();
+    }
+};
+
+inline bool is_octal(const char& c) { return (c >= '0' && c <= '7'); }
+
+inline bool is_hex(const char& c) {
+    return (std::isdigit(c) || (std::tolower(c) >= 'a' && std::tolower(c) <= 'f'));
+}
+
+inline bool is_binary(const char& c) { return (c == '0' || c == '1'); }
+
+template <typename ValueType>
+constexpr std::string to_parsable_type(const std::string& number,
+                                       const std::optional<std::uintptr_t> base = std::nullopt) {
+    ValueType value;
+
+    if constexpr (std::is_floating_point_v<ValueType>) {
+        if (auto result = std::from_chars(number.data(), number.data() + number.size(), value);
+            result.ec != std::errc()) {
+            throw std::runtime_error("failed parsing number");
+        }
+    } else if constexpr (std::is_integral_v<ValueType>) {
+        if (!base.has_value()) {
+            throw std::runtime_error("base is required parsing integers");
+        }
+
+        auto result = std::from_chars(number.data(), number.data() + number.size(), value,
+                                      static_cast<int>(base.value()));
+
+        if (result.ec != std::errc()) {
+            throw std::runtime_error("failed parsing number");
+        }
     }
 
-    inline bool is_binary(const char &c) { return (c == '0' || c == '1'); }
+    return std::to_string(value);
+}
 
-    template<typename ValueType>
-    constexpr std::string to_parsable_type(const std::string &number,
-                                           const std::optional<std::uintptr_t> base = std::nullopt) {
-        ValueType value;
+template <typename ValueType>
+constexpr ValueType from_numerical_string(const std::string& number,
+                                          std::optional<std::string> identifier = std::nullopt) {
+    ValueType value;
 
-        if constexpr (std::is_floating_point_v<ValueType>) {
-            if (auto result = std::from_chars(number.data(), number.data() + number.size(), value);
-                result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+    if constexpr (std::is_floating_point_v<ValueType>) {
+        if (auto result = std::from_chars(number.data(), number.data() + number.size(), value);
+            result.ec != std::errc()) {
+            if (result.ec == std::errc::result_out_of_range) {
+                throw num_parser_error("Number out of range");
+            }
         }
-        else if constexpr (std::is_integral_v<ValueType>) {
-            if (!base.has_value()) { throw std::runtime_error("base is required parsing integers"); }
-
-            auto result = std::from_chars(number.data(), number.data() + number.size(), value,
-                                          static_cast<int>(base.value()));
-
-            if (result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
+    } else if constexpr (std::is_integral_v<ValueType>) {
+        if (auto result = std::from_chars(number.data(), number.data() + number.size(), value, 10);
+            result.ec != std::errc()) {
+            if (result.ec == std::errc::result_out_of_range) {
+                throw num_parser_error("Number out of range");
+            }
         }
-
-        return std::to_string(value);
     }
 
-    template<typename ValueType>
-    constexpr ValueType from_numerical_string(const std::string &number) {
-        ValueType value;
-
-        if constexpr (std::is_floating_point_v<ValueType>) {
-            if (auto result = std::from_chars(number.data(), number.data() + number.size(), value);
-                result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
-        }
-        else if constexpr (std::is_integral_v<ValueType>) {
-            if (auto result = std::from_chars(number.data(), number.data() + number.size(), value, 10);
-                result.ec != std::errc()) { throw std::runtime_error("failed parsing number"); }
-        }
-
-        return value;
-    }
+    return value;
+}
 } // namespace occult

@@ -1,4 +1,5 @@
 #pragma once
+#include <bit>
 #include <cstdint>
 #include <string>
 
@@ -7,710 +8,983 @@
     based on https://ref.x86asm.net/coder64.html
 */
 
-#define DECLARE_OPCODE(name, value) \
-    name = value,
+#define DECLARE_OPCODE(name, value) name = value,
 
 namespace occult::x86_64 {
-    enum rex_bits : std::uint8_t {
-        none = 0,
-        b = 1 << 0,
-        x = 1 << 1,
-        r = 1 << 2,
-        w = 1 << 3
-    };
+enum rex_bits : std::uint8_t { none = 0, b = 1 << 0, x = 1 << 1, r = 1 << 2, w = 1 << 3 };
 
-    /*
-        to clarify:
+/*
+    to clarify:
 
-        w is the 64-bit operand size (extended register size for 64 bit) rAX to rSP
-        r is extending the reg field in the ModR/M byte (+8 to register number i.e r8-15) e.g add r9, rax (rax is base)
-        x is extending the index field in the SIB byte (+8 to index register)
-        b is extending the rm or base field in ModR/M or SIB byte (+8 to the base register)
-    */
-    enum rex : std::uint8_t {
-        rex = 0x40, // access to extended registers in 64-bit mode
-        rex_b = rex | b, // access to extended base register
-        rex_x = rex | x, // access to extended SIB index
-        rex_xb = rex | x | b, // access to extended SIB index and extended base register
-        rex_r = rex | r, // access to extended modrm reg
-        rex_rb = rex | r | b, // access to extended modrm reg and extended base register
-        rex_rx = rex | r | x, // access to extended modrm reg and extended SIB index
-        rex_rxb = rex | r | x | b, // access to extended modrm reg, extended SIB index and extended base register
-        rex_w = rex | w, // 64-bit operand size
-        rex_wb = rex | w | b, // 64-bit operand size and extended base register
-        rex_wx = rex | w | x, // 64-bit operand size and extended SIB index
-        rex_wxb = rex | w | x | b, // 64-bit operand size, extended SIB index and extended base register
-        rex_wr = rex | w | r, // 64-bit operand size and extended modrm reg
-        rex_wrb = rex | w | r | b, // 64-bit operand size, extended modrm reg and extended base register
-        rex_wrx = rex | w | r | x, // 64-bit operand size, extended modrm reg and extended SIB index
-        rex_wrxb = rex | w | r | x | b
-        // 64-bit operand size, extended modrm reg, extended SIB index and extended base register
-    };
+    w is the 64-bit operand size (extended register size for 64 bit) rAX to rSP
+    r is extending the reg field in the ModR/M byte (+8 to register number i.e r8-15) e.g add r9,
+   rax (rax is base) x is extending the index field in the SIB byte (+8 to index register) b is
+   extending the rm or base field in ModR/M or SIB byte (+8 to the base register)
+*/
+enum rex : std::uint8_t {
+    rex = 0x40,           // access to extended registers in 64-bit mode
+    rex_b = rex | b,      // access to extended base register
+    rex_x = rex | x,      // access to extended SIB index
+    rex_xb = rex | x | b, // access to extended SIB index and extended base register
+    rex_r = rex | r,      // access to extended modrm reg
+    rex_rb = rex | r | b, // access to extended modrm reg and extended base register
+    rex_rx = rex | r | x, // access to extended modrm reg and extended SIB index
+    rex_rxb = rex | r | x |
+              b,     // access to extended modrm reg, extended SIB index and extended base register
+    rex_w = rex | w, // 64-bit operand size
+    rex_wb = rex | w | b,      // 64-bit operand size and extended base register
+    rex_wx = rex | w | x,      // 64-bit operand size and extended SIB index
+    rex_wxb = rex | w | x | b, // 64-bit operand size, extended SIB index and extended base register
+    rex_wr = rex | w | r,      // 64-bit operand size and extended modrm reg
+    rex_wrb = rex | w | r | b, // 64-bit operand size, extended modrm reg and extended base register
+    rex_wrx = rex | w | r | x, // 64-bit operand size, extended modrm reg and extended SIB index
+    rex_wrxb =
+        rex | w | r | x |
+        b // 64-bit operand size, extended modrm reg, extended SIB index and extended base register
+};
 
-    enum other_prefix : std::uint8_t {
-        fs_segment_override = 0x64,
-        gs_segment_override = 0x65,
-        operand_size_override = 0x66, // 16-bit operand size (also includes precision override)
-        address_size_override = 0x67,
-    };
+enum other_prefix : std::uint8_t {
+    fs_segment_override = 0x64,
+    gs_segment_override = 0x65,
+    operand_size_override = 0x66, // 16-bit operand size (also includes precision override)
+    address_size_override = 0x67,
+};
 
-    constexpr std::uint8_t k2ByteOpcodePrefix = 0x0F;
-    constexpr std::uint8_t kSpecialSIBIndex = 0b100;
+constexpr std::uint8_t k2ByteOpcodePrefix = 0x0F;
+constexpr std::uint8_t kSpecialSIBIndex = 0b100;
+constexpr std::uint8_t kREP_Prefix = 0xF3;
+constexpr std::uint8_t kREPNE_Prefix = 0xF2;
 
-    // addressing method
-    enum class rm_field : std::uint8_t { // in order already
-        immediate = 0b000, // 0b000 operand is a constant value (e.g., mov rax, 42)
-        reg = 0b001, // 0b001 operand is a register (e.g., mov rax, rbx)
-        direct = 0b010, // 0b010 operand is a memory address (e.g., mov rax, [0x1234])
-        indirect = 0b011, // 0b011 operand is a memory address in a register (e.g., mov rax, [rbx])
-        indexed = 0b100, // 0b100 operand uses base + index (e.g., mov rax, [rbx + rsi])
-        rip_relative = 0b101, // 0b110 operand is relative to instruction pointer (e.g., mov rax, [rip + offset])
-        scaled_index = 0b110,
-        // 0b101 operand uses base + index * scale (e.g., mov rax, [rbx + rsi*4]) NOT SURE IF RIGHT
-        segment_offset = 0b111
-        // 0b111 operand uses segment register offset (e.g., mov rax, fs:[0x10]) NOT SURE IF RIGHT
-    };
+// addressing method
+enum class rm_field : std::uint8_t { // in order already
+    immediate = 0b000,               // 0b000 operand is a constant value (e.g., mov rax, 42)
+    reg = 0b001,                     // 0b001 operand is a register (e.g., mov rax, rbx)
+    direct = 0b010,                  // 0b010 operand is a memory address (e.g., mov rax, [0x1234])
+    indirect = 0b011, // 0b011 operand is a memory address in a register (e.g., mov rax, [rbx])
+    indexed = 0b100,  // 0b100 operand uses base + index (e.g., mov rax, [rbx + rsi])
+    rip_relative =
+        0b101, // 0b110 operand is relative to instruction pointer (e.g., mov rax, [rip + offset])
+    scaled_index = 0b110,  // 0b101 operand uses base + index * scale (e.g., mov rax, [rbx + rsi*4])
+                           // NOT SURE IF RIGHT
+    segment_offset = 0b111 // 0b111 operand uses segment register offset (e.g., mov rax, fs:[0x10])
+                           // NOT SURE IF RIGHT
+};
 
-    // addressing modes
-    enum class mod_field : std::uint8_t {
-        indirect = 0b00, // [reg] — no displacement (except special case RIP-relative)
-        disp8 = 0b01, // [reg + disp8] — 8-bit displacement
-        disp32 = 0b10, // [reg + disp32] — 32-bit displacement
-        register_direct = 0b11 // reg — register to register (no memory)
-    };
+// addressing modes
+enum class mod_field : std::uint8_t {
+    indirect = 0b00,       // [reg] — no displacement (except special case RIP-relative)
+    disp8 = 0b01,          // [reg + disp8] — 8-bit displacement
+    disp32 = 0b10,         // [reg + disp32] — 32-bit displacement
+    register_direct = 0b11 // reg — register to register (no memory)
+};
 
-    // general purpose registers
-    enum grp : std::uint8_t {
-        rax, rcx, rdx, rbx, rsp, rbp, rsi, rdi,
-        eax, ecx, edx, ebx, esp, ebp, esi, edi,
-        ax, cx, dx, bx, sp, bp, si, di,
-        al, cl, dl, bl, spl, bpl, sil, dil,
-        r8, r9, r10, r11, r12, r13, r14, r15,
-        r8d, r9d, r10d, r11d, r12d, r13d, r14d, r15d,
-        r8w, r9w, r10w, r11w, r12w, r13w, r14w, r15w,
-        r8b, r9b, r10b, r11b, r12b, r13b, r14b, r15b,
-        rip // ip
-    };
+// general purpose registers
+enum grp : std::uint8_t {
+    rax,
+    rcx,
+    rdx,
+    rbx,
+    rsp,
+    rbp,
+    rsi,
+    rdi,
+    eax,
+    ecx,
+    edx,
+    ebx,
+    esp,
+    ebp,
+    esi,
+    edi,
+    ax,
+    cx,
+    dx,
+    bx,
+    sp,
+    bp,
+    si,
+    di,
+    al,
+    cl,
+    dl,
+    bl,
+    spl,
+    bpl,
+    sil,
+    dil,
+    r8,
+    r9,
+    r10,
+    r11,
+    r12,
+    r13,
+    r14,
+    r15,
+    r8d,
+    r9d,
+    r10d,
+    r11d,
+    r12d,
+    r13d,
+    r14d,
+    r15d,
+    r8w,
+    r9w,
+    r10w,
+    r11w,
+    r12w,
+    r13w,
+    r14w,
+    r15w,
+    r8b,
+    r9b,
+    r10b,
+    r11b,
+    r12b,
+    r13b,
+    r14b,
+    r15b,
+    rip // ip
+};
 
-    static grp as_32(const grp &reg) {
-        if ((reg >= rax && reg <= rdi) || (reg >= r8 && reg <= r15)) {
-            switch (reg) {
-                case rax:
-                    return eax;
-                case rbx:
-                    return ebx;
-                case rcx:
-                    return ecx;
-                case rdx:
-                    return edx;
-                case rsi:
-                    return esi;
-                case rdi:
-                    return edi;
-                case rbp:
-                    return ebp;
-                case rsp:
-                    return esp;
-                case r8:
-                    return r8d;
-                case r9:
-                    return r9d;
-                case r10:
-                    return r10d;
-                case r11:
-                    return r11d;
-                case r12:
-                    return r12d;
-                case r13:
-                    return r13d;
-                case r14:
-                    return r14d;
-                case r15:
-                    return r15d;
-                default:
-                    break;
-            }
-        }
+// simd registers (already rebased)
+enum simd128 : std::uint8_t {
+    xmm0,
+    xmm1,
+    xmm2,
+    xmm3,
+    xmm4,
+    xmm5,
+    xmm6,
+    xmm7,
+    xmm8,
+    xmm9,
+    xmm10,
+    xmm11,
+    xmm12,
+    xmm13,
+    xmm14,
+    xmm15
+};
 
-        throw std::runtime_error("Can only be a 64-bit register when going to 32 bit.");
-    }
-
-    // rebases register to the correct size
-    static grp rebase_register(const grp &reg) {
-        if (reg >= eax && reg <= edi) { return static_cast<grp>(reg - eax + rax); }
-        if (reg >= ax && reg <= di) { return static_cast<grp>(reg - ax + rax); }
-        if (reg >= al && reg <= dil) { return static_cast<grp>(reg - al + rax); }
-        if (reg >= r8 && reg <= r15) { return static_cast<grp>(reg - r8 + rax); }
-        if (reg >= r8d && reg <= r15d) { return static_cast<grp>(reg - r8d + rax); }
-        if (reg >= r8w && reg <= r15w) { return static_cast<grp>(reg - r8w + rax); }
-        if (reg >= r8b && reg <= r15b) { return static_cast<grp>(reg - r8b + rax); }
-
-        return reg;
-    }
-
-    static std::string reg_to_string(const grp &reg) {
+static grp as_32(const grp& reg) {
+    if ((reg >= rax && reg <= rdi) || (reg >= r8 && reg <= r15)) {
         switch (reg) {
-            case rax:
-                return "rax";
-            case rcx:
-                return "rcx";
-            case rdx:
-                return "rdx";
-            case rbx:
-                return "rbx";
-            case rsp:
-                return "rsp";
-            case rbp:
-                return "rbp";
-            case rsi:
-                return "rsi";
-            case rdi:
-                return "rdi";
-            case rip:
-                return "rip";
-            case r8:
-                return "r8";
-            case r9:
-                return "r9";
-            case r10:
-                return "r10";
-            case r11:
-                return "r11";
-            case r12:
-                return "r12";
-            case r13:
-                return "r13";
-            case r14:
-                return "r14";
-            case r15:
-                return "r15";
-            case eax:
-                return "eax";
-            case ecx:
-                return "ecx";
-            case edx:
-                return "edx";
-            case ebx:
-                return "ebx";
-            case esp:
-                return "esp";
-            case ebp:
-                return "ebp";
-            case esi:
-                return "esi";
-            case edi:
-                return "edi";
-            case ax:
-                return "ax";
-            case cx:
-                return "cx";
-            case dx:
-                return "dx";
-            case bx:
-                return "bx";
-            case sp:
-                return "sp";
-            case bp:
-                return "bp";
-            case si:
-                return "si";
-            case di:
-                return "di";
-            case al:
-                return "al";
-            case cl:
-                return "cl";
-            case dl:
-                return "dl";
-            case bl:
-                return "bl";
-            case spl:
-                return "spl";
-            case bpl:
-                return "bpl";
-            case sil:
-                return "sil";
-            case dil:
-                return "dil";
-            case r8d:
-                return "r8d";
-            case r9d:
-                return "r9d";
-            case r10d:
-                return "r10d";
-            case r11d:
-                return "r11d";
-            case r12d:
-                return "r12d";
-            case r13d:
-                return "r13d";
-            case r14d:
-                return "r14d";
-            case r15d:
-                return "r15d";
-            case r8w:
-                return "r8w";
-            case r9w:
-                return "r9w";
-            case r10w:
-                return "r10w";
-            case r11w:
-                return "r11w";
-            case r12w:
-                return "r12w";
-            case r13w:
-                return "r13w";
-            case r14w:
-                return "r14w";
-            case r15w:
-                return "r15w";
-            case r8b:
-                return "r8b";
-            case r9b:
-                return "r9b";
-            case r10b:
-                return "r10b";
-            case r11b:
-                return "r11b";
-            case r12b:
-                return "r12b";
-            case r13b:
-                return "r13b";
-            case r14b:
-                return "r14b";
-            case r15b:
-                return "r15b";
-            default:
-                return "unknown";
+        case rax:
+            return eax;
+        case rbx:
+            return ebx;
+        case rcx:
+            return ecx;
+        case rdx:
+            return edx;
+        case rsi:
+            return esi;
+        case rdi:
+            return edi;
+        case rbp:
+            return ebp;
+        case rsp:
+            return esp;
+        case r8:
+            return r8d;
+        case r9:
+            return r9d;
+        case r10:
+            return r10d;
+        case r11:
+            return r11d;
+        case r12:
+            return r12d;
+        case r13:
+            return r13d;
+        case r14:
+            return r14d;
+        case r15:
+            return r15d;
+        default:
+            break;
         }
     }
 
-    // Mod R/M byte
-    struct modrm {
-        mod_field mod; // addressing mode
-        grp reg; // register
-        rm_field rm; // addressing method (register/memory operand)
-
-        explicit modrm(const mod_field &mod, const rm_field &rm, const grp &reg) :
-            mod(mod), reg(reg), rm(rm) {}
-
-        explicit modrm(const mod_field &mod, const grp &rm, const grp &reg) :
-            mod(mod), reg(reg),
-            rm(static_cast<rm_field>(rm)) {}
-
-        explicit modrm(const mod_field &mod, const grp &rm, const rm_field &reg) :
-            mod(mod), reg(static_cast<grp>(reg)),
-            rm(static_cast<rm_field>(rm)) {}
-
-        explicit modrm(const mod_field &mod, const rm_field &rm, const rm_field &reg) :
-            mod(mod),
-            reg(static_cast<grp>(reg)),
-            rm(static_cast<rm_field>(rm)) {}
-
-        operator std::uint8_t() const {
-            return (static_cast<std::uint8_t>(mod) << 6) | (reg << 3) | static_cast<std::uint8_t>(rm);
-        }
-    };
-
-    // SIB byte
-    // Scale, Index, Base
-    struct sib {
-        std::uint8_t scale; // scaling factor (1, 2, 4 etc.)
-        grp index; // index register
-        grp base; // base register
-
-        explicit sib(const std::uint8_t &scale, const grp &index,
-                     const grp &base) :
-            scale(scale), index(index), base(base) {}
-
-        explicit sib(const std::uint8_t &scale, const std::uint8_t &index, const grp &base) :
-            scale(scale),
-            index(static_cast<grp>(index)), base(base) {}
-
-        explicit sib(const std::uint8_t &scale, const std::uint8_t &index, const std::uint8_t &base) :
-            scale(scale),
-            index(static_cast<grp>(index)), base(static_cast<grp>(base)) {}
-
-        operator std::uint8_t() const { return (scale << 6) | (index << 3) | base; }
-    };
-
-    /*
-        naming scheme for opcodes:
-        <operation>_<destination>_<source>
-        where <operation> is the operation being performed
-        <destination> is the destination of the operation
-        <source> is the source of the operation
-
-        for example:
-        ADD_rm8_r8 = 0x00
-
-        add is the operation
-        rm8 is the destination (register/memory 8-bit)
-        r8 is the source (register 8-bit)
-
-        another example:
-        ADD_rm16_to_64_r16_to_64 = 0x01
-
-        add is the operation
-        rm16_to_64 is the destination (register/memory 16-bit to 64-bit)
-        r16_to_64 is the source (register 16-bit to 64-bit)
-
-        more examples:
-        ADD_al_imm8 = 0x04
-
-        add is the operation
-        al is the destination (accumulator register 8-bit)
-        imm8 is the source (immediate 8-bit)
-
-        ADD_rAX_imm16_to_32 = 0x05
-
-        add is the operation
-        rAX is the destination (accumulator register 16-bit to 32-bit)
-        imm16_to_32 is the source (immediate 16-bit to 32-bit)
-    */
-
-    enum opcode : std::uint8_t {
-        DECLARE_OPCODE(ADD_rm8_r8, 0x00) // ADD r/m8, r8
-        DECLARE_OPCODE(ADD_rm16_to_64_r16_to_64, 0x01) // ADD r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(ADD_r8_rm8, 0x02) // ADD r8, r/m8
-        DECLARE_OPCODE(ADD_r16_to_64_rm16_to_64, 0x03) // ADD r16_to_64, r/m16_to_64
-        DECLARE_OPCODE(ADD_al_imm8, 0x04) // ADD AL, imm8
-        DECLARE_OPCODE(ADD_rAX_imm16_to_32, 0x05) // ADD rAX, imm16_to_32
-
-        DECLARE_OPCODE(OR_rm8_r8, 0x08) // OR r/m8, r8
-        DECLARE_OPCODE(OR_rm16_to_64_r16_to_64, 0x09) // OR r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(OR_r8_rm8, 0x0A) // OR r8, r/m8
-        DECLARE_OPCODE(OR_r16_to_64_rm16_to_64, 0x0B) // OR r16_to_64, r/m16_to_64
-        DECLARE_OPCODE(OR_al_imm8, 0x0C) // OR AL, imm8
-        DECLARE_OPCODE(OR_rAX_imm16_to_32, 0x0D) // OR rAX, imm16_to_32
-
-        DECLARE_OPCODE(ADC_rm8_r8, 0x10) // ADC r/m8, r8
-        DECLARE_OPCODE(ADC_rm16_to_64_r16_to_64, 0x11) // ADC r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(ADC_r8_rm8, 0x12) // ADC r8, r/m8
-        DECLARE_OPCODE(ADC_r16_to_64_rm16_to_64, 0x13) // ADC r16_to_64, r/m16_to_64
-        DECLARE_OPCODE(ADC_al_imm8, 0x14) // ADC AL, imm8
-        DECLARE_OPCODE(ADC_rAX_imm16_to_32, 0x15) // ADC rAX, imm16_to_32
-
-        DECLARE_OPCODE(SBB_rm8_r8, 0x18) // SBB r/m8, r8
-        DECLARE_OPCODE(SBB_rm16_to_64_r16_to_64, 0x19) // SBB r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(SBB_r8_rm8, 0x1A) // SBB r8, r/m8
-        DECLARE_OPCODE(SBB_r16_to_64_rm16_to_64, 0x1B) // SBB r16_to_64, r/m16_to_64
-        DECLARE_OPCODE(SBB_al_imm8, 0x1C) // SBB AL, imm8
-        DECLARE_OPCODE(SBB_rAX_imm16_to_32, 0x1D) // SBB rAX, imm16_to_32
-
-        DECLARE_OPCODE(AND_rm8_r8, 0x20) // AND r/m8, r8
-        DECLARE_OPCODE(AND_rm16_to_64_r16_to_64, 0x21) // AND r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(AND_r8_rm8, 0x22) // AND r8, r/m8
-        DECLARE_OPCODE(AND_r16_to_64_rm16_to_64, 0x23) // AND r16_to_64, r/m16_to_64
-        DECLARE_OPCODE(AND_al_imm8, 0x24) // AND AL, imm8
-        DECLARE_OPCODE(AND_rAX_imm16_to_32, 0x25) // AND rAX, imm16_to_32
-
-        DECLARE_OPCODE(SUB_rm8_r8, 0x28) // SUB r/m8, r8
-        DECLARE_OPCODE(SUB_rm16_to_64_r16_to_64, 0x29) // SUB r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(SUB_r8_rm8, 0x2A) // SUB r8, r/m8
-        DECLARE_OPCODE(SUB_r16_to_64_rm16_to_64, 0x2B) // SUB r16_to_64, r/m16_to_64
-        DECLARE_OPCODE(SUB_al_imm8, 0x2C) // SUB AL, imm8
-        DECLARE_OPCODE(SUB_rAX_imm16_to_32, 0x2D) // SUB rAX, imm16_to_32
-
-        DECLARE_OPCODE(XOR_rm8_r8, 0x30) // XOR r/m8, r8
-        DECLARE_OPCODE(XOR_rm16_to_64_r16_to_64, 0x31) // XOR r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(XOR_r8_rm8, 0x32) // XOR r8, r/m8
-        DECLARE_OPCODE(XOR_r16_to_64_rm16_to_64, 0x33) // XOR r16_to_64, r/m16_to_64
-        DECLARE_OPCODE(XOR_al_imm8, 0x34) // XOR AL, imm8
-        DECLARE_OPCODE(XOR_rAX_imm16_to_32, 0x35) // XOR rAX, imm16_to_32
-
-        DECLARE_OPCODE(CMP_rm8_r8, 0x38) // CMP r/m8, r8
-        DECLARE_OPCODE(CMP_rm16_to_64_r16_to_64, 0x39) // CMP r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(CMP_r8_rm8, 0x3A) // CMP r8, r/m8
-        DECLARE_OPCODE(CMP_r16_to_64_rm16_to_64, 0x3B) // CMP r16_to_64, r/m16_to_64
-        DECLARE_OPCODE(CMP_al_imm8, 0x3C) // CMP AL, imm8
-        DECLARE_OPCODE(CMP_rAX_imm16_to_32, 0x3D) // CMP rAX, imm16_to_32
-
-        DECLARE_OPCODE(PUSH_r64_or_16, 0x50) // PUSH r64_or_16
-        DECLARE_OPCODE(POP_r64_or_16, 0x58) // POP r64_or_16
-
-        DECLARE_OPCODE(MOVSXD_r64_or_32_rm32, 0x63) // MOVSXD r64_or_32, rm32
-        DECLARE_OPCODE(PUSH_imm16_or_32, 0x68) // PUSH imm16_or_32
-        DECLARE_OPCODE(IMUL_r16_to_64_rm16_to_64_imm16_to_32, 0x69) // IMUL r16_to_64, r16_to_64, imm16_to_32
-        DECLARE_OPCODE(PUSH_imm8, 0x6A) // PUSH imm8
-        DECLARE_OPCODE(IMUL_r16_to_64_rm16_to_64_imm8, 0x6B) // IMUL r16_to_64, r16_to_64, imm8
-
-        DECLARE_OPCODE(INS_m8_DX, 0x6C) // INS m8, DX
-        DECLARE_OPCODE(INS_m16_DX, 0x6D) // INS m16, DX
-        DECLARE_OPCODE(INS_m16_or_32_DX, 0x6D) // INS m16_or_32, DX
-        DECLARE_OPCODE(OUTS_DX_m8, 0x6E) // OUTS DX, m8
-        DECLARE_OPCODE(OUTS_DX_m16, 0x6F) // OUTS DX, m16
-        DECLARE_OPCODE(OUTS_DX_m16_or_32, 0x6F) // OUTS DX, m16_or_32
-
-        DECLARE_OPCODE(JO_rel8, 0x70) // JO rel8
-        DECLARE_OPCODE(JNO_rel8, 0x71) // JNO rel8
-        DECLARE_OPCODE(JB_rel8, 0x72) // JB rel8
-        DECLARE_OPCODE(JNB_rel8, 0x73) // JNB rel8
-        DECLARE_OPCODE(JZ_rel8, 0x74) // JZ rel8
-        DECLARE_OPCODE(JNZ_rel8, 0x75) // JNZ rel8
-        DECLARE_OPCODE(JBE_rel8, 0x76) // JBE rel8
-        DECLARE_OPCODE(JNBE_rel8, 0x77) // JNBE rel8
-        DECLARE_OPCODE(JS_rel8, 0x78) // JS rel8
-        DECLARE_OPCODE(JNS_rel8, 0x79) // JNS rel8
-        DECLARE_OPCODE(JP_rel8, 0x7A) // JP rel8
-        DECLARE_OPCODE(JNP_rel8, 0x7B) // JNP rel8
-        DECLARE_OPCODE(JL_rel8, 0x7C) // JL rel8
-        DECLARE_OPCODE(JNL_rel8, 0x7D) // JNL rel8
-        DECLARE_OPCODE(JLE_rel8, 0x7E) // JLE rel8
-        DECLARE_OPCODE(JNLE_rel8, 0x7F) // JNLE rel8
-
-        DECLARE_OPCODE(ADD_rm8_imm8, 0x80) // ADD r/m8, imm8
-        DECLARE_OPCODE(OR_rm8_imm8, 0x80) // OR r/m8, imm8
-        DECLARE_OPCODE(ADC_rm8_imm8, 0x80) // ADC r/m8, imm8
-        DECLARE_OPCODE(SBB_rm8_imm8, 0x80) // SBB r/m8, imm8
-        DECLARE_OPCODE(AND_rm8_imm8, 0x80) // AND r/m8, imm8
-        DECLARE_OPCODE(SUB_rm8_imm8, 0x80) // SUB r/m8, imm8
-        DECLARE_OPCODE(XOR_rm8_imm8, 0x80) // XOR r/m8, imm8
-        DECLARE_OPCODE(CMP_rm8_imm8, 0x80) // CMP r/m8, imm8
-
-        DECLARE_OPCODE(ADD_rm8_to_64_imm16_or_32, 0x81) // ADD r/m16/32/64, imm16_or_32
-        DECLARE_OPCODE(OR_rm8_to_64_imm16_or_32, 0x81) // OR r/m16/32/64, imm16_or_32
-        DECLARE_OPCODE(ADC_rm8_to_64_imm16_or_32, 0x81) // ADC r/m16/32/64, imm16_or_32
-        DECLARE_OPCODE(SBB_rm8_to_64_imm16_or_32, 0x81) // SBB r/m16/32/64, imm16_or_32
-        DECLARE_OPCODE(AND_rm8_to_64_imm16_or_32, 0x81) // AND r/m16/32/64, imm16_or_32
-        DECLARE_OPCODE(SUB_rm8_to_64_imm16_or_32, 0x81) // SUB r/m16/32/64, imm16_or_32
-        DECLARE_OPCODE(XOR_rm8_to_64_imm16_or_32, 0x81) // XOR r/m16/32/64, imm16_or_32
-        DECLARE_OPCODE(CMP_rm8_to_64_imm16_or_32, 0x81) // CMP r/m16/32/64, imm16_or_32
-
-        DECLARE_OPCODE(ADD_rm8_to_64_imm8, 0x83) // ADD r/m16/32/64, imm8
-        DECLARE_OPCODE(OR_rm8_to_64_imm8, 0x83) // OR r/m16/32/64, imm8
-        DECLARE_OPCODE(ADC_rm8_to_64_imm8, 0x83) // ADC r/m16/32/64, imm8
-        DECLARE_OPCODE(SBB_rm8_to_64_imm8, 0x83) // SBB r/m16/32/64, imm8
-        DECLARE_OPCODE(AND_rm8_to_64_imm8, 0x83) // AND r/m16/32/64, imm8
-        DECLARE_OPCODE(SUB_rm8_to_64_imm8, 0x83) // SUB r/m16/32/64, imm8
-        DECLARE_OPCODE(XOR_rm8_to_64_imm8, 0x83) // XOR r/m16/32/64, imm8
-        DECLARE_OPCODE(CMP_rm8_to_64_imm8, 0x83) // CMP r/m16/32/64, imm8
-
-        DECLARE_OPCODE(TEST_rm8_r8, 0x84) // TEST r/m8, r8
-        DECLARE_OPCODE(TEST_rm16_to_64_r16_to_64, 0x85) // TEST r/m16_to_64, r16_to_64
-
-        DECLARE_OPCODE(XCHG_r8_rm8, 0x86) // XCHG r/8, rm8
-        DECLARE_OPCODE(XCHG_r16_to_64_rm16_to_64, 0x87) // XCHG r16_to_64, r/m16_to_64
-
-        DECLARE_OPCODE(MOV_rm8_r8, 0x88) // MOV r/m8, r8
-        DECLARE_OPCODE(MOV_rm16_to_64_r16_to_64, 0x89) // MOV r/m16_to_64, r16_to_64
-        DECLARE_OPCODE(MOV_r8_rm8, 0x8A) // MOV r8, r/m8
-        DECLARE_OPCODE(MOV_r16_to_64_rm16_to_64, 0x8B) // MOV r16_to_64, r/m16_to_64
-
-        // skipping MOV, rm, sreg (its 0x8C)
-
-        DECLARE_OPCODE(LEA_r16_to_64_mem, 0x8D) // LEA r16_to_64, mem
-
-        // skipping MOV sreg, r/m16_to_64 (its 0x8E)
-
-        DECLARE_OPCODE(POP_rm16_to_64, 0x8F) // POP r/m16_to_64
-
-        DECLARE_OPCODE(XCHG_r16_to_64_rAX, 0x90) // XCHG r16_to_64, rAX : 90 + grp
-
-        DECLARE_OPCODE(NOP, 0x90) // NOP
-
-        DECLARE_OPCODE(CBW, 0x98) // CBW
-        DECLARE_OPCODE(CWD, 0x99) // CWD
-
-        DECLARE_OPCODE(FWAIT, 0x9B) // FWAIT
-        DECLARE_OPCODE(WAIT, 0x9B) // CLD
-
-        DECLARE_OPCODE(PUSHF, 0x9C) // PUSHF
-        DECLARE_OPCODE(POPF, 0x9D) // POPF
-
-        DECLARE_OPCODE(SAHF_AH, 0x9E) // SAHF AH
-        DECLARE_OPCODE(LAHF_AH, 0x9F) // LAHF AH
-
-        DECLARE_OPCODE(MOV_AL_moffs8, 0xA0) // MOV AL, moffs8
-        DECLARE_OPCODE(MOV_rAX_moffs16_to_32, 0xA1) // MOV rAX, moffs16_to_32
-        DECLARE_OPCODE(MOV_moffs8_AL, 0xA2) // MOV moffs8, AL
-        DECLARE_OPCODE(MOV_moffs16_to_32_rAX, 0xA3) // MOV moffs16_to_32, rAX
-        DECLARE_OPCODE(MOVS_m8_m8, 0xA4) // MOVS m8, m8
-        DECLARE_OPCODE(MOVS_m16_to_32_m16_to_32, 0xA5) // MOVS m16_to_32, m16_to_32
-        DECLARE_OPCODE(CMPS_m8_m8, 0xA6) // CMPS m8, m8
-        DECLARE_OPCODE(CMPS_m16_to_32_m16_to_32, 0xA7) // CMPS m16_to_32, m16_to_32
-
-        DECLARE_OPCODE(TEST_AL_imm8, 0xA8) // TEST AL, imm8
-        DECLARE_OPCODE(TEST_rAX_imm16_to_32, 0xA9) // TEST rAX, imm16_to_32
-        DECLARE_OPCODE(STOS_m8_AL, 0xAA) // STOS m8 AL
-        DECLARE_OPCODE(STOS_m16_to_32_rAX, 0xAB) // STOS m16_to_32 rAX
-        DECLARE_OPCODE(LODS_AL_m8, 0xAC) // LODS AL, m8
-        DECLARE_OPCODE(LODS_rAX_m16_to_32, 0xAD) // LODS rAX, m16_to_32
-        DECLARE_OPCODE(SCAS_m8_AL, 0xAE) // SCAS m8, AL
-        DECLARE_OPCODE(SCAS_rAX_m16_to_32, 0xAF) // SCAS rAX, m16_to_32
-
-        DECLARE_OPCODE(MOV_r8_imm8, 0xB0) // MOV r8, imm8
-        DECLARE_OPCODE(MOV_r16_to_64_imm16_to_64, 0xB8) // MOV r/m16_to_64, imm16_to_64
-
-        DECLARE_OPCODE(ROL_rm8_imm8, 0xC0) // ROL r/m8, imm8
-        DECLARE_OPCODE(ROR_rm8_imm8, 0xC0) // ROR r/m8, imm8
-        DECLARE_OPCODE(RCL_rm8_imm8, 0xC0) // RCL r/m8, imm8
-        DECLARE_OPCODE(RCR_rm8_imm8, 0xC0) // RCR r/m8, imm8
-        DECLARE_OPCODE(SHL_rm8_imm8, 0xC0) // SHL r/m8, imm8
-        DECLARE_OPCODE(SAL_rm8_imm8, 0xC0) // SAL r/m8, imm8
-        DECLARE_OPCODE(SHR_rm8_imm8, 0xC0) // SHR r/m8, imm8
-        DECLARE_OPCODE(SAR_rm8_imm8, 0xC0) // SAR r/m8, imm8
-
-        DECLARE_OPCODE(ROL_rm16_to_64_imm8, 0xC1) // ROL r/m16_to_64, imm8
-        DECLARE_OPCODE(ROR_rm16_to_64_imm8, 0xC1) // ROR r/m16_to_64, imm8
-        DECLARE_OPCODE(RCL_rm16_to_64_imm8, 0xC1) // RCL r/m16_to_64, imm8
-        DECLARE_OPCODE(RCR_rm16_to_64_imm8, 0xC1) // RCR r/m16_to_64, imm8
-        DECLARE_OPCODE(SHL_rm16_to_64_imm8, 0xC1) // SHL r/m16_to_64, imm8
-        DECLARE_OPCODE(SAL_rm16_to_64_imm8, 0xC1) // SAL r/m16_to_64, imm8
-        DECLARE_OPCODE(SHR_rm16_to_64_imm8, 0xC1) // SHR r/m16_to_64, imm8
-        DECLARE_OPCODE(SAR_rm16_to_64_imm8, 0xC1) // SAR r/m16_to_64, imm8
-
-        DECLARE_OPCODE(RETN_imm16, 0xC2) // RETN imm16
-        DECLARE_OPCODE(RETN, 0xC3) // RETN (return near)
-
-        DECLARE_OPCODE(MOV_rm8_imm8, 0xC6) // MOV r/m8, imm8
-        DECLARE_OPCODE(MOV_rm16_to_64_imm16_or_32, 0xC7) // MOV r/m16_to_64, imm16_or_32
-
-        DECLARE_OPCODE(ENTER_rBP_imm16_imm8, 0xC8) // ENTER rBP, imm16, imm8
-        DECLARE_OPCODE(LEAVE_rBP, 0xC9) // LEAVE rBP
-
-        DECLARE_OPCODE(RETF_imm16, 0xCA) // RETNF imm16
-        DECLARE_OPCODE(RETF, 0xCB) // RETNF
-
-        DECLARE_OPCODE(INT3_eFlags, 0xCC) // INT3 eFlags
-        DECLARE_OPCODE(INT_imm8, 0xCD) // INT imm8
-        DECLARE_OPCODE(INTO_eFlags, 0xCE) // INTO eFlags
-        DECLARE_OPCODE(IRET_eFlags, 0xCF) // IRET eFlags
-
-        DECLARE_OPCODE(ROL_rm8_1, 0xD0) // ROL r/m8, 1
-        DECLARE_OPCODE(ROR_rm8_1, 0xD0) // ROR r/m8, 1
-        DECLARE_OPCODE(RCL_rm8_1, 0xD0) // RCL r/m8, 1
-        DECLARE_OPCODE(RCR_rm8_1, 0xD0) // RCR r/m8, 1
-        DECLARE_OPCODE(SHL_rm8_1, 0xD0) // SHL r/m8, 1
-        DECLARE_OPCODE(SAL_rm8_1, 0xD0) // SAL r/m8, 1
-        DECLARE_OPCODE(SHR_rm8_1, 0xD0) // SHR r/m8, 1
-        DECLARE_OPCODE(SAR_rm8_1, 0xD0) // SAR r/m8, 1
-        DECLARE_OPCODE(ROL_rm16_to_64_1, 0xD1) // ROL r/m16_to_64, 1
-        DECLARE_OPCODE(ROR_rm16_to_64_1, 0xD1) // ROR r/m16_to_64, 1
-        DECLARE_OPCODE(RCL_rm16_to_64_1, 0xD1) // RCL r/m16_to_64, 1
-        DECLARE_OPCODE(RCR_rm16_to_64_1, 0xD1) // RCR r/m16_to_64, 1
-        DECLARE_OPCODE(SHL_rm16_to_64_1, 0xD1) // SHL r/m16_to_64, 1
-        DECLARE_OPCODE(SAL_rm16_to_64_1, 0xD1) // SAL r/m16_to_64, 1
-        DECLARE_OPCODE(SHR_rm16_to_64_1, 0xD1) // SHR r/m16_to_64, 1
-        DECLARE_OPCODE(SAR_rm16_to_64_1, 0xD1) // SAR r/m16_to_64, 1
-        DECLARE_OPCODE(ROL_rm8_CL, 0xD2) // ROL r/m8, CL
-        DECLARE_OPCODE(ROR_rm8_CL, 0xD2) // ROR r/m8, CL
-        DECLARE_OPCODE(RCL_rm8_CL, 0xD2) // RCL r/m8, CL
-        DECLARE_OPCODE(RCR_rm8_CL, 0xD2) // RCR r/m8, CL
-        DECLARE_OPCODE(SHL_rm8_CL, 0xD2) // SHL r/m8, CL
-        DECLARE_OPCODE(SAL_rm8_CL, 0xD2) // SAL r/m8, CL
-        DECLARE_OPCODE(SHR_rm8_CL, 0xD2) // SHR r/m8, CL
-        DECLARE_OPCODE(SAR_rm8_CL, 0xD2) // SAR r/m8, CL
-        DECLARE_OPCODE(ROL_rm16_to_64_CL, 0xD3) // ROL r/m16_to_64, CL
-        DECLARE_OPCODE(ROR_rm16_to_64_CL, 0xD3) // ROR r/m16_to_64, CL
-        DECLARE_OPCODE(RCL_rm16_to_64_CL, 0xD3) // RCL r/m16_to_64, CL
-        DECLARE_OPCODE(RCR_rm16_to_64_CL, 0xD3) // RCR r/m16_to_64, CL
-        DECLARE_OPCODE(SHL_rm16_to_64_CL, 0xD3) // SHL r/m16_to_64, CL
-        DECLARE_OPCODE(SAL_rm16_to_64_CL, 0xD3) // SAL r/m16_to_64, CL
-        DECLARE_OPCODE(SHR_rm16_to_64_CL, 0xD3) // SHR r/m16_to_64, CL
-        DECLARE_OPCODE(SAR_rm16_to_64_CL, 0xD3) // SAR r/m16_to_64, CL
-
-        DECLARE_OPCODE(XLAT_AL_m8, 0xD7) // XLAT AL, m8
-
-        DECLARE_OPCODE(IN_AL_imm8, 0xE4) // IN AL, imm8
-        DECLARE_OPCODE(IN_eAX_imm8, 0xE5) // IN rAX, imm8
-        DECLARE_OPCODE(OUT_imm8_AL, 0xE6) // OUT imm8, AL
-        DECLARE_OPCODE(OUT_imm8_eAX, 0xE7) // OUT imm8, rAX
-
-        DECLARE_OPCODE(INT1_eFlags, 0xF1) // INT1 eFlags
-
-        DECLARE_OPCODE(HLT, 0xF4) // HLT
-        DECLARE_OPCODE(CMC, 0xF5) // CMC
-
-        DECLARE_OPCODE(TEST_rm8_imm8, 0xF6) // TEST r/m8, imm8
-        DECLARE_OPCODE(NOT_rm8, 0xF6) // NOT r/m8
-        DECLARE_OPCODE(NEG_rm8, 0xF6) // NEG r/m8
-        DECLARE_OPCODE(MUL_AX_AL_rm8, 0xF6) // MUL rAX, r/m8
-        DECLARE_OPCODE(IMUL_AX_AL_rm8, 0xF6) // IMUL rAX, r/m8
-        DECLARE_OPCODE(DIV_AL_AH_AX_rm8, 0xF6) // DIV rAX, r/m8
-        DECLARE_OPCODE(IDIV_AL_AH_AX_rm8, 0xF6) // IDIV rAX, r/m8
-        DECLARE_OPCODE(TEST_rm16_to_64_imm16_or_32, 0xF7) // TEST r/m16_to_64, imm16_or_32
-        DECLARE_OPCODE(NOT_rm16_to_64, 0xF7) // NOT r/m16_to_64
-        DECLARE_OPCODE(NEG_rm16_to_64, 0xF7) // NEG r/m16_to_64
-        DECLARE_OPCODE(MUL_rDX_rAX_rm16_to_64, 0xF7) // MUL rAX, r/m16_to_64
-        DECLARE_OPCODE(IMUL_rDX_rAX_rm16_to_64, 0xF7) // IMUL rAX, r/m16_to_64
-        DECLARE_OPCODE(DIV_rDX_rAX_rm16_to_64, 0xF7) // DIV rAX, r/m16_to_64
-        DECLARE_OPCODE(IDIV_rDX_rAX_rm16_to_64, 0xF7) // IDIV rAX, r/m16_to_64
-
-        DECLARE_OPCODE(CLC, 0xF8) // CLR CARRY
-        DECLARE_OPCODE(STC, 0xF9) // SET CARRY
-        DECLARE_OPCODE(CLI, 0xFA) // CLEAR INTERRUPT
-        DECLARE_OPCODE(STI, 0xFB) // SET INTERRUPT
-        DECLARE_OPCODE(CLD, 0xFC) // CLEAR DIRECTION
-        DECLARE_OPCODE(STD, 0xFD) // SET DIRECTION
-
-        DECLARE_OPCODE(INC_rm8, 0xFE) // INC r/m8
-        DECLARE_OPCODE(DEC_rm8, 0xFE) // DEC r/m8
-        DECLARE_OPCODE(INC_rm16_to_64, 0xFF) // INC r/m16_to_64
-        DECLARE_OPCODE(DEC_rm16_to_64, 0xFF) // DEC r/m16_to_64
-
-        DECLARE_OPCODE(CALL_rm16_or_32, 0xFF) // CALL r/m16_or_32
-        DECLARE_OPCODE(CALL_rm64, 0xFF) // CALL r/m64
-
-        DECLARE_OPCODE(JMP_rm16_or_32, 0xFF) // JMP r/m16_or_32
-        DECLARE_OPCODE(JMP_rm64, 0xFF) // JMP r/m64
-
-        DECLARE_OPCODE(PUSH_rm16_or_32, 0xFF) // PUSH r/m16_or_32
-        DECLARE_OPCODE(PUSH_rm64, 0xFF) // PUSH r/m64
-
-        DECLARE_OPCODE(CALL_rel32, 0xE8)
-        DECLARE_OPCODE(JMP_rel8, 0xEB)
-        DECLARE_OPCODE(JMP_rel32, 0xE9)
-    };
-
-    // naming scheme is the same, these require the k2ByteOpcodePrefix (0x0F)
-    enum opcode_2b : std::uint8_t { // 2 bytes
-        DECLARE_OPCODE(SYSCALL, 0x05) // SYSCALL RCX R11 SS
-        DECLARE_OPCODE(SYSRET, 0x07) // SYSRET RAX EFlags SS
-        DECLARE_OPCODE(SYSENTER, 0x34) // SYSENTER SS RSP IA32_SYSENTER_EIP
-        DECLARE_OPCODE(SYSEXIT, 0x35) // SYSEXIT SS RSP IA32_SYSENTER_EIP
-
-        DECLARE_OPCODE(JO_rel32, 0x80) // JO rel16/32
-        DECLARE_OPCODE(JNO_rel32, 0x81) // JNO rel16/32
-        DECLARE_OPCODE(JB_rel32, 0x82) // JB rel16/32
-        DECLARE_OPCODE(JNB_rel32, 0x83) // JNB rel16/32
-        DECLARE_OPCODE(JZ_rel32, 0x84) // JZ rel16/32
-        DECLARE_OPCODE(JNZ_rel32, 0x85) // JNZ rel16/32
-        DECLARE_OPCODE(JBE_rel32, 0x86) // JBE rel16/32
-        DECLARE_OPCODE(JNBE_rel32, 0x87) // JNBE rel16/32
-        DECLARE_OPCODE(JS_rel32, 0x88) // JS rel16/32
-        DECLARE_OPCODE(JNS_rel32, 0x89) // JNS rel16/32
-        DECLARE_OPCODE(JP_rel32, 0x8A) // JP rel16/32
-        DECLARE_OPCODE(JNP_rel32, 0x8B) // JNP rel16/32
-        DECLARE_OPCODE(JL_rel32, 0x8C) // JL rel16/32
-        DECLARE_OPCODE(JNL_rel32, 0x8D) // JNL rel16/32
-        DECLARE_OPCODE(JLE_rel32, 0x8E) // JLE rel16/32
-        DECLARE_OPCODE(JNLE_rel32, 0x8F) // JNLE rel16/32
-
-        DECLARE_OPCODE(SETO_rm8, 0x90) // SETO rm8
-        DECLARE_OPCODE(SETNO_rm8, 0x91) // SETNO rm8
-        DECLARE_OPCODE(SETB_rm8, 0x92) // SETB rm8
-        DECLARE_OPCODE(SETNB_rm8, 0x93) // SETNB rm8
-        DECLARE_OPCODE(SETZ_rm8, 0x94) // SETZ rm8
-        DECLARE_OPCODE(SETNZ_rm8, 0x95) // SETNZ rm8
-        DECLARE_OPCODE(SETBE_rm8, 0x96) // SETBE rm8
-        DECLARE_OPCODE(SETNBE_rm8, 0x97) // SETNBE rm8
-        DECLARE_OPCODE(SETS_rm8, 0x99) // SETS rm8
-        DECLARE_OPCODE(SETNS_rm8, 0x99) // SETNS rm8
-        DECLARE_OPCODE(SETP_rm8, 0x9A) // SETP rm8
-        DECLARE_OPCODE(SETNP_rm8, 0x9B) // SETNP rm8
-        DECLARE_OPCODE(SETL_rm8, 0x9C) // SETL rm8
-        DECLARE_OPCODE(SETNL_rm8, 0x9D) // SETNL rm8
-        DECLARE_OPCODE(SETLE_rm8, 0x9E) // SETLE rm8
-        DECLARE_OPCODE(SETNLE_rm8, 0x9F) // SETNLE rm8
-
-        DECLARE_OPCODE(MOVZX_r16_to_64_rm8, 0xB6) // MOV r16_to_64, r/m8
-        DECLARE_OPCODE(MOVZX_r16_to_64_rm16, 0xB7) // MOV r16_to_64, r/m16
-
-        DECLARE_OPCODE(MOVSX_r16_to_64_rm8, 0xBE) // MOV r16_to_64, r/m8
-        DECLARE_OPCODE(MOVSX_r16_to_64_rm16, 0xBF) // MOV r16_to_64, r/m16
-    };
-
-    // these require the k2ByteOpcodePrefix (0x0F) naming is the same
-    enum float_opcode_2b : std::uint8_t {};
+    throw std::runtime_error("Can only be a 64-bit register when going to 32 bit.");
 }
+
+static grp as_8(const grp& reg) {
+    if ((reg >= rax && reg <= rdi) || (reg >= r8 && reg <= r15)) {
+        switch (reg) {
+        case rax:
+            return al;
+        case rbx:
+            return bl;
+        case rcx:
+            return cl;
+        case rdx:
+            return dl;
+        case rsi:
+            return sil;
+        case rdi:
+            return dil;
+        case rbp:
+            return bpl;
+        case rsp:
+            return spl;
+        case r8:
+            return r8b;
+        case r9:
+            return r9b;
+        case r10:
+            return r10b;
+        case r11:
+            return r11b;
+        case r12:
+            return r12b;
+        case r13:
+            return r13b;
+        case r14:
+            return r14b;
+        case r15:
+            return r15b;
+        default:
+            break;
+        }
+    }
+
+    throw std::runtime_error("Can only convert 64-bit register to 8-bit.");
+}
+
+static grp as_16(const grp& reg) {
+    if ((reg >= rax && reg <= rdi) || (reg >= r8 && reg <= r15)) {
+        switch (reg) {
+        case rax:
+            return ax;
+        case rbx:
+            return bx;
+        case rcx:
+            return cx;
+        case rdx:
+            return dx;
+        case rsi:
+            return si;
+        case rdi:
+            return di;
+        case rbp:
+            return bp;
+        case rsp:
+            return sp;
+        case r8:
+            return r8w;
+        case r9:
+            return r9w;
+        case r10:
+            return r10w;
+        case r11:
+            return r11w;
+        case r12:
+            return r12w;
+        case r13:
+            return r13w;
+        case r14:
+            return r14w;
+        case r15:
+            return r15w;
+        default:
+            break;
+        }
+    }
+
+    throw std::runtime_error("Can only convert 64-bit register to 16-bit.");
+}
+
+static std::uint32_t float_to_bits(float f) { return std::bit_cast<std::uint32_t>(f); }
+
+static std::uint64_t double_to_bits(double d) { return std::bit_cast<std::uint64_t>(d); }
+
+// rebases register to the correct size
+static grp rebase_register(const grp& reg) {
+    if (reg >= eax && reg <= edi) {
+        return static_cast<grp>(reg - eax + rax);
+    }
+    if (reg >= ax && reg <= di) {
+        return static_cast<grp>(reg - ax + rax);
+    }
+    if (reg >= al && reg <= dil) {
+        return static_cast<grp>(reg - al + rax);
+    }
+    if (reg >= r8 && reg <= r15) {
+        return static_cast<grp>(reg - r8 + rax);
+    }
+    if (reg >= r8d && reg <= r15d) {
+        return static_cast<grp>(reg - r8d + rax);
+    }
+    if (reg >= r8w && reg <= r15w) {
+        return static_cast<grp>(reg - r8w + rax);
+    }
+    if (reg >= r8b && reg <= r15b) {
+        return static_cast<grp>(reg - r8b + rax);
+    }
+
+    return reg;
+}
+
+static constexpr std::string reg_to_string(grp r) {
+    switch (r) {
+    case grp::rax:
+        return "rax";
+    case grp::rcx:
+        return "rcx";
+    case grp::rdx:
+        return "rdx";
+    case grp::rbx:
+        return "rbx";
+    case grp::rsp:
+        return "rsp";
+    case grp::rbp:
+        return "rbp";
+    case grp::rsi:
+        return "rsi";
+    case grp::rdi:
+        return "rdi";
+    case grp::rip:
+        return "rip";
+    case grp::r8:
+        return "r8";
+    case grp::r9:
+        return "r9";
+    case grp::r10:
+        return "r10";
+    case grp::r11:
+        return "r11";
+    case grp::r12:
+        return "r12";
+    case grp::r13:
+        return "r13";
+    case grp::r14:
+        return "r14";
+    case grp::r15:
+        return "r15";
+    case grp::eax:
+        return "eax";
+    case grp::ecx:
+        return "ecx";
+    case grp::edx:
+        return "edx";
+    case grp::ebx:
+        return "ebx";
+    case grp::esp:
+        return "esp";
+    case grp::ebp:
+        return "ebp";
+    case grp::esi:
+        return "esi";
+    case grp::edi:
+        return "edi";
+    case grp::ax:
+        return "ax";
+    case grp::cx:
+        return "cx";
+    case grp::dx:
+        return "dx";
+    case grp::bx:
+        return "bx";
+    case grp::sp:
+        return "sp";
+    case grp::bp:
+        return "bp";
+    case grp::si:
+        return "si";
+    case grp::di:
+        return "di";
+    case grp::al:
+        return "al";
+    case grp::cl:
+        return "cl";
+    case grp::dl:
+        return "dl";
+    case grp::bl:
+        return "bl";
+    case grp::spl:
+        return "spl";
+    case grp::bpl:
+        return "bpl";
+    case grp::sil:
+        return "sil";
+    case grp::dil:
+        return "dil";
+    case grp::r8d:
+        return "r8d";
+    case grp::r9d:
+        return "r9d";
+    case grp::r10d:
+        return "r10d";
+    case grp::r11d:
+        return "r11d";
+    case grp::r12d:
+        return "r12d";
+    case grp::r13d:
+        return "r13d";
+    case grp::r14d:
+        return "r14d";
+    case grp::r15d:
+        return "r15d";
+    case grp::r8w:
+        return "r8w";
+    case grp::r9w:
+        return "r9w";
+    case grp::r10w:
+        return "r10w";
+    case grp::r11w:
+        return "r11w";
+    case grp::r12w:
+        return "r12w";
+    case grp::r13w:
+        return "r13w";
+    case grp::r14w:
+        return "r14w";
+    case grp::r15w:
+        return "r15w";
+    case grp::r8b:
+        return "r8b";
+    case grp::r9b:
+        return "r9b";
+    case grp::r10b:
+        return "r10b";
+    case grp::r11b:
+        return "r11b";
+    case grp::r12b:
+        return "r12b";
+    case grp::r13b:
+        return "r13b";
+    case grp::r14b:
+        return "r14b";
+    case grp::r15b:
+        return "r15b";
+    default:
+        return "???";
+    }
+}
+
+static constexpr std::string simd_to_string(simd128 r) {
+    switch (r) {
+    case simd128::xmm0:
+        return "xmm0";
+    case simd128::xmm1:
+        return "xmm1";
+    case simd128::xmm2:
+        return "xmm2";
+    case simd128::xmm3:
+        return "xmm3";
+    case simd128::xmm4:
+        return "xmm4";
+    case simd128::xmm5:
+        return "xmm5";
+    case simd128::xmm6:
+        return "xmm6";
+    case simd128::xmm7:
+        return "xmm7";
+    case simd128::xmm8:
+        return "xmm8";
+    case simd128::xmm9:
+        return "xmm9";
+    case simd128::xmm10:
+        return "xmm10";
+    case simd128::xmm11:
+        return "xmm11";
+    case simd128::xmm12:
+        return "xmm12";
+    case simd128::xmm13:
+        return "xmm13";
+    case simd128::xmm14:
+        return "xmm14";
+    case simd128::xmm15:
+        return "xmm15";
+    }
+    return "???";
+}
+
+// Mod R/M byte
+struct modrm {
+    mod_field mod; // addressing mode
+    grp reg;       // register
+    rm_field rm;   // addressing method (register/memory operand)
+
+    explicit modrm(const mod_field& mod, const rm_field& rm, const grp& reg)
+        : mod(mod), reg(reg), rm(rm) {}
+
+    explicit modrm(const mod_field& mod, const grp& rm, const grp& reg)
+        : mod(mod), reg(reg), rm(static_cast<rm_field>(rm)) {}
+
+    explicit modrm(const mod_field& mod, const grp& rm, const rm_field& reg)
+        : mod(mod), reg(static_cast<grp>(reg)), rm(static_cast<rm_field>(rm)) {}
+
+    explicit modrm(const mod_field& mod, const rm_field& rm, const rm_field& reg)
+        : mod(mod), reg(static_cast<grp>(reg)), rm(static_cast<rm_field>(rm)) {}
+
+    explicit modrm(const mod_field& mod, const simd128& reg, const simd128& rm)
+        : mod(mod), reg(static_cast<grp>(reg)), rm(static_cast<rm_field>(rm)) {} // hate simd
+
+    explicit modrm(const mod_field& mod, const simd128& reg, const grp& rm)
+        : mod(mod), reg(static_cast<grp>(reg)), rm(static_cast<rm_field>(rm)) {}
+
+    explicit modrm(const mod_field& mod, const grp& reg, const simd128& rm)
+        : mod(mod), reg(reg), rm(static_cast<rm_field>(rm)) {}
+
+    explicit modrm(const mod_field& mod, const rm_field& rm_mode, const simd128& reg)
+        : mod(mod), reg(static_cast<grp>(reg)), rm(rm_mode) {}
+
+    operator std::uint8_t() const {
+        return (static_cast<std::uint8_t>(mod) << 6) | (reg << 3) | static_cast<std::uint8_t>(rm);
+    }
+};
+
+// SIB byte
+// Scale, Index, Base
+struct sib {
+    std::uint8_t scale; // scaling factor (1, 2, 4 etc.)
+    grp index;          // index register
+    grp base;           // base register
+
+    explicit sib(const std::uint8_t& scale, const grp& index, const grp& base)
+        : scale(scale), index(index), base(base) {}
+
+    explicit sib(const std::uint8_t& scale, const std::uint8_t& index, const grp& base)
+        : scale(scale), index(static_cast<grp>(index)), base(base) {}
+
+    explicit sib(const std::uint8_t& scale, const std::uint8_t& index, const std::uint8_t& base)
+        : scale(scale), index(static_cast<grp>(index)), base(static_cast<grp>(base)) {}
+
+    operator std::uint8_t() const { return (scale << 6) | (index << 3) | base; }
+};
+
+/*
+    naming scheme for opcodes:
+    <operation>_<destination>_<source>
+    where <operation> is the operation being performed
+    <destination> is the destination of the operation
+    <source> is the source of the operation
+
+    for example:
+    ADD_rm8_r8 = 0x00
+
+    add is the operation
+    rm8 is the destination (register/memory 8-bit)
+    r8 is the source (register 8-bit)
+
+    another example:
+    ADD_rm16_to_64_r16_to_64 = 0x01
+
+    add is the operation
+    rm16_to_64 is the destination (register/memory 16-bit to 64-bit)
+    r16_to_64 is the source (register 16-bit to 64-bit)
+
+    more examples:
+    ADD_al_imm8 = 0x04
+
+    add is the operation
+    al is the destination (accumulator register 8-bit)
+    imm8 is the source (immediate 8-bit)
+
+    ADD_rAX_imm16_to_32 = 0x05
+
+    add is the operation
+    rAX is the destination (accumulator register 16-bit to 32-bit)
+    imm16_to_32 is the source (immediate 16-bit to 32-bit)
+*/
+
+enum opcode : std::uint8_t {
+    DECLARE_OPCODE(ADD_rm8_r8, 0x00)               // ADD r/m8, r8
+    DECLARE_OPCODE(ADD_rm16_to_64_r16_to_64, 0x01) // ADD r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(ADD_r8_rm8, 0x02)               // ADD r8, r/m8
+    DECLARE_OPCODE(ADD_r16_to_64_rm16_to_64, 0x03) // ADD r16_to_64, r/m16_to_64
+    DECLARE_OPCODE(ADD_al_imm8, 0x04)              // ADD AL, imm8
+    DECLARE_OPCODE(ADD_rAX_imm16_to_32, 0x05)      // ADD rAX, imm16_to_32
+
+    DECLARE_OPCODE(OR_rm8_r8, 0x08)               // OR r/m8, r8
+    DECLARE_OPCODE(OR_rm16_to_64_r16_to_64, 0x09) // OR r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(OR_r8_rm8, 0x0A)               // OR r8, r/m8
+    DECLARE_OPCODE(OR_r16_to_64_rm16_to_64, 0x0B) // OR r16_to_64, r/m16_to_64
+    DECLARE_OPCODE(OR_al_imm8, 0x0C)              // OR AL, imm8
+    DECLARE_OPCODE(OR_rAX_imm16_to_32, 0x0D)      // OR rAX, imm16_to_32
+
+    DECLARE_OPCODE(ADC_rm8_r8, 0x10)               // ADC r/m8, r8
+    DECLARE_OPCODE(ADC_rm16_to_64_r16_to_64, 0x11) // ADC r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(ADC_r8_rm8, 0x12)               // ADC r8, r/m8
+    DECLARE_OPCODE(ADC_r16_to_64_rm16_to_64, 0x13) // ADC r16_to_64, r/m16_to_64
+    DECLARE_OPCODE(ADC_al_imm8, 0x14)              // ADC AL, imm8
+    DECLARE_OPCODE(ADC_rAX_imm16_to_32, 0x15)      // ADC rAX, imm16_to_32
+
+    DECLARE_OPCODE(SBB_rm8_r8, 0x18)               // SBB r/m8, r8
+    DECLARE_OPCODE(SBB_rm16_to_64_r16_to_64, 0x19) // SBB r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(SBB_r8_rm8, 0x1A)               // SBB r8, r/m8
+    DECLARE_OPCODE(SBB_r16_to_64_rm16_to_64, 0x1B) // SBB r16_to_64, r/m16_to_64
+    DECLARE_OPCODE(SBB_al_imm8, 0x1C)              // SBB AL, imm8
+    DECLARE_OPCODE(SBB_rAX_imm16_to_32, 0x1D)      // SBB rAX, imm16_to_32
+
+    DECLARE_OPCODE(AND_rm8_r8, 0x20)               // AND r/m8, r8
+    DECLARE_OPCODE(AND_rm16_to_64_r16_to_64, 0x21) // AND r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(AND_r8_rm8, 0x22)               // AND r8, r/m8
+    DECLARE_OPCODE(AND_r16_to_64_rm16_to_64, 0x23) // AND r16_to_64, r/m16_to_64
+    DECLARE_OPCODE(AND_al_imm8, 0x24)              // AND AL, imm8
+    DECLARE_OPCODE(AND_rAX_imm16_to_32, 0x25)      // AND rAX, imm16_to_32
+
+    DECLARE_OPCODE(SUB_rm8_r8, 0x28)               // SUB r/m8, r8
+    DECLARE_OPCODE(SUB_rm16_to_64_r16_to_64, 0x29) // SUB r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(SUB_r8_rm8, 0x2A)               // SUB r8, r/m8
+    DECLARE_OPCODE(SUB_r16_to_64_rm16_to_64, 0x2B) // SUB r16_to_64, r/m16_to_64
+    DECLARE_OPCODE(SUB_al_imm8, 0x2C)              // SUB AL, imm8
+    DECLARE_OPCODE(SUB_rAX_imm16_to_32, 0x2D)      // SUB rAX, imm16_to_32
+
+    DECLARE_OPCODE(XOR_rm8_r8, 0x30)               // XOR r/m8, r8
+    DECLARE_OPCODE(XOR_rm16_to_64_r16_to_64, 0x31) // XOR r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(XOR_r8_rm8, 0x32)               // XOR r8, r/m8
+    DECLARE_OPCODE(XOR_r16_to_64_rm16_to_64, 0x33) // XOR r16_to_64, r/m16_to_64
+    DECLARE_OPCODE(XOR_al_imm8, 0x34)              // XOR AL, imm8
+    DECLARE_OPCODE(XOR_rAX_imm16_to_32, 0x35)      // XOR rAX, imm16_to_32
+
+    DECLARE_OPCODE(CMP_rm8_r8, 0x38)               // CMP r/m8, r8
+    DECLARE_OPCODE(CMP_rm16_to_64_r16_to_64, 0x39) // CMP r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(CMP_r8_rm8, 0x3A)               // CMP r8, r/m8
+    DECLARE_OPCODE(CMP_r16_to_64_rm16_to_64, 0x3B) // CMP r16_to_64, r/m16_to_64
+    DECLARE_OPCODE(CMP_al_imm8, 0x3C)              // CMP AL, imm8
+    DECLARE_OPCODE(CMP_rAX_imm16_to_32, 0x3D)      // CMP rAX, imm16_to_32
+
+    DECLARE_OPCODE(PUSH_r64_or_16, 0x50) // PUSH r64_or_16
+    DECLARE_OPCODE(POP_r64_or_16, 0x58)  // POP r64_or_16
+
+    DECLARE_OPCODE(MOVSXD_r64_or_32_rm32, 0x63) // MOVSXD r64_or_32, rm32
+    DECLARE_OPCODE(PUSH_imm16_or_32, 0x68)      // PUSH imm16_or_32
+    DECLARE_OPCODE(IMUL_r16_to_64_rm16_to_64_imm16_to_32,
+                   0x69)                                 // IMUL r16_to_64, r16_to_64, imm16_to_32
+    DECLARE_OPCODE(PUSH_imm8, 0x6A)                      // PUSH imm8
+    DECLARE_OPCODE(IMUL_r16_to_64_rm16_to_64_imm8, 0x6B) // IMUL r16_to_64, r16_to_64, imm8
+
+    DECLARE_OPCODE(INS_m8_DX, 0x6C)         // INS m8, DX
+    DECLARE_OPCODE(INS_m16_DX, 0x6D)        // INS m16, DX
+    DECLARE_OPCODE(INS_m16_or_32_DX, 0x6D)  // INS m16_or_32, DX
+    DECLARE_OPCODE(OUTS_DX_m8, 0x6E)        // OUTS DX, m8
+    DECLARE_OPCODE(OUTS_DX_m16, 0x6F)       // OUTS DX, m16
+    DECLARE_OPCODE(OUTS_DX_m16_or_32, 0x6F) // OUTS DX, m16_or_32
+
+    DECLARE_OPCODE(JO_rel8, 0x70)   // JO rel8
+    DECLARE_OPCODE(JNO_rel8, 0x71)  // JNO rel8
+    DECLARE_OPCODE(JB_rel8, 0x72)   // JB rel8
+    DECLARE_OPCODE(JNB_rel8, 0x73)  // JNB rel8
+    DECLARE_OPCODE(JZ_rel8, 0x74)   // JZ rel8
+    DECLARE_OPCODE(JNZ_rel8, 0x75)  // JNZ rel8
+    DECLARE_OPCODE(JBE_rel8, 0x76)  // JBE rel8
+    DECLARE_OPCODE(JNBE_rel8, 0x77) // JNBE rel8
+    DECLARE_OPCODE(JS_rel8, 0x78)   // JS rel8
+    DECLARE_OPCODE(JNS_rel8, 0x79)  // JNS rel8
+    DECLARE_OPCODE(JP_rel8, 0x7A)   // JP rel8
+    DECLARE_OPCODE(JNP_rel8, 0x7B)  // JNP rel8
+    DECLARE_OPCODE(JL_rel8, 0x7C)   // JL rel8
+    DECLARE_OPCODE(JNL_rel8, 0x7D)  // JNL rel8
+    DECLARE_OPCODE(JLE_rel8, 0x7E)  // JLE rel8
+    DECLARE_OPCODE(JNLE_rel8, 0x7F) // JNLE rel8
+
+    DECLARE_OPCODE(ADD_rm8_imm8, 0x80) // ADD r/m8, imm8
+    DECLARE_OPCODE(OR_rm8_imm8, 0x80)  // OR r/m8, imm8
+    DECLARE_OPCODE(ADC_rm8_imm8, 0x80) // ADC r/m8, imm8
+    DECLARE_OPCODE(SBB_rm8_imm8, 0x80) // SBB r/m8, imm8
+    DECLARE_OPCODE(AND_rm8_imm8, 0x80) // AND r/m8, imm8
+    DECLARE_OPCODE(SUB_rm8_imm8, 0x80) // SUB r/m8, imm8
+    DECLARE_OPCODE(XOR_rm8_imm8, 0x80) // XOR r/m8, imm8
+    DECLARE_OPCODE(CMP_rm8_imm8, 0x80) // CMP r/m8, imm8
+
+    DECLARE_OPCODE(ADD_rm8_to_64_imm16_or_32, 0x81) // ADD r/m16/32/64, imm16_or_32
+    DECLARE_OPCODE(OR_rm8_to_64_imm16_or_32, 0x81)  // OR r/m16/32/64, imm16_or_32
+    DECLARE_OPCODE(ADC_rm8_to_64_imm16_or_32, 0x81) // ADC r/m16/32/64, imm16_or_32
+    DECLARE_OPCODE(SBB_rm8_to_64_imm16_or_32, 0x81) // SBB r/m16/32/64, imm16_or_32
+    DECLARE_OPCODE(AND_rm8_to_64_imm16_or_32, 0x81) // AND r/m16/32/64, imm16_or_32
+    DECLARE_OPCODE(SUB_rm8_to_64_imm16_or_32, 0x81) // SUB r/m16/32/64, imm16_or_32
+    DECLARE_OPCODE(XOR_rm8_to_64_imm16_or_32, 0x81) // XOR r/m16/32/64, imm16_or_32
+    DECLARE_OPCODE(CMP_rm8_to_64_imm16_or_32, 0x81) // CMP r/m16/32/64, imm16_or_32
+
+    DECLARE_OPCODE(ADD_rm8_to_64_imm8, 0x83) // ADD r/m16/32/64, imm8
+    DECLARE_OPCODE(OR_rm8_to_64_imm8, 0x83)  // OR r/m16/32/64, imm8
+    DECLARE_OPCODE(ADC_rm8_to_64_imm8, 0x83) // ADC r/m16/32/64, imm8
+    DECLARE_OPCODE(SBB_rm8_to_64_imm8, 0x83) // SBB r/m16/32/64, imm8
+    DECLARE_OPCODE(AND_rm8_to_64_imm8, 0x83) // AND r/m16/32/64, imm8
+    DECLARE_OPCODE(SUB_rm8_to_64_imm8, 0x83) // SUB r/m16/32/64, imm8
+    DECLARE_OPCODE(XOR_rm8_to_64_imm8, 0x83) // XOR r/m16/32/64, imm8
+    DECLARE_OPCODE(CMP_rm8_to_64_imm8, 0x83) // CMP r/m16/32/64, imm8
+
+    DECLARE_OPCODE(TEST_rm8_r8, 0x84)               // TEST r/m8, r8
+    DECLARE_OPCODE(TEST_rm16_to_64_r16_to_64, 0x85) // TEST r/m16_to_64, r16_to_64
+
+    DECLARE_OPCODE(XCHG_r8_rm8, 0x86)               // XCHG r/8, rm8
+    DECLARE_OPCODE(XCHG_r16_to_64_rm16_to_64, 0x87) // XCHG r16_to_64, r/m16_to_64
+
+    DECLARE_OPCODE(MOV_rm8_r8, 0x88)               // MOV r/m8, r8
+    DECLARE_OPCODE(MOV_rm16_to_64_r16_to_64, 0x89) // MOV r/m16_to_64, r16_to_64
+    DECLARE_OPCODE(MOV_r8_rm8, 0x8A)               // MOV r8, r/m8
+    DECLARE_OPCODE(MOV_r16_to_64_rm16_to_64, 0x8B) // MOV r16_to_64, r/m16_to_64
+
+    // skipping MOV, rm, sreg (its 0x8C)
+
+    DECLARE_OPCODE(LEA_r16_to_64_mem, 0x8D) // LEA r16_to_64, mem
+
+    // skipping MOV sreg, r/m16_to_64 (its 0x8E)
+
+    DECLARE_OPCODE(POP_rm16_to_64, 0x8F) // POP r/m16_to_64
+
+    DECLARE_OPCODE(XCHG_r16_to_64_rAX, 0x90) // XCHG r16_to_64, rAX : 90 + grp
+
+    DECLARE_OPCODE(NOP, 0x90) // NOP
+
+    DECLARE_OPCODE(CBW, 0x98) // CBW
+    DECLARE_OPCODE(CWD, 0x99) // CWD
+
+    DECLARE_OPCODE(FWAIT, 0x9B) // FWAIT
+    DECLARE_OPCODE(WAIT, 0x9B)  // CLD
+
+    DECLARE_OPCODE(PUSHF, 0x9C) // PUSHF
+    DECLARE_OPCODE(POPF, 0x9D)  // POPF
+
+    DECLARE_OPCODE(SAHF_AH, 0x9E) // SAHF AH
+    DECLARE_OPCODE(LAHF_AH, 0x9F) // LAHF AH
+
+    DECLARE_OPCODE(MOV_AL_moffs8, 0xA0)            // MOV AL, moffs8
+    DECLARE_OPCODE(MOV_rAX_moffs16_to_32, 0xA1)    // MOV rAX, moffs16_to_32
+    DECLARE_OPCODE(MOV_moffs8_AL, 0xA2)            // MOV moffs8, AL
+    DECLARE_OPCODE(MOV_moffs16_to_32_rAX, 0xA3)    // MOV moffs16_to_32, rAX
+    DECLARE_OPCODE(MOVS_m8_m8, 0xA4)               // MOVS m8, m8
+    DECLARE_OPCODE(MOVS_m16_to_32_m16_to_32, 0xA5) // MOVS m16_to_32, m16_to_32
+    DECLARE_OPCODE(CMPS_m8_m8, 0xA6)               // CMPS m8, m8
+    DECLARE_OPCODE(CMPS_m16_to_32_m16_to_32, 0xA7) // CMPS m16_to_32, m16_to_32
+
+    DECLARE_OPCODE(TEST_AL_imm8, 0xA8)         // TEST AL, imm8
+    DECLARE_OPCODE(TEST_rAX_imm16_to_32, 0xA9) // TEST rAX, imm16_to_32
+    DECLARE_OPCODE(STOS_m8_AL, 0xAA)           // STOS m8 AL
+    DECLARE_OPCODE(STOS_m16_to_32_rAX, 0xAB)   // STOS m16_to_32 rAX
+    DECLARE_OPCODE(LODS_AL_m8, 0xAC)           // LODS AL, m8
+    DECLARE_OPCODE(LODS_rAX_m16_to_32, 0xAD)   // LODS rAX, m16_to_32
+    DECLARE_OPCODE(SCAS_m8_AL, 0xAE)           // SCAS m8, AL
+    DECLARE_OPCODE(SCAS_rAX_m16_to_32, 0xAF)   // SCAS rAX, m16_to_32
+
+    DECLARE_OPCODE(MOV_r8_imm8, 0xB0)               // MOV r8, imm8
+    DECLARE_OPCODE(MOV_r16_to_64_imm16_to_64, 0xB8) // MOV r/m16_to_64, imm16_to_64
+
+    DECLARE_OPCODE(ROL_rm8_imm8, 0xC0) // ROL r/m8, imm8
+    DECLARE_OPCODE(ROR_rm8_imm8, 0xC0) // ROR r/m8, imm8
+    DECLARE_OPCODE(RCL_rm8_imm8, 0xC0) // RCL r/m8, imm8
+    DECLARE_OPCODE(RCR_rm8_imm8, 0xC0) // RCR r/m8, imm8
+    DECLARE_OPCODE(SHL_rm8_imm8, 0xC0) // SHL r/m8, imm8
+    DECLARE_OPCODE(SAL_rm8_imm8, 0xC0) // SAL r/m8, imm8
+    DECLARE_OPCODE(SHR_rm8_imm8, 0xC0) // SHR r/m8, imm8
+    DECLARE_OPCODE(SAR_rm8_imm8, 0xC0) // SAR r/m8, imm8
+
+    DECLARE_OPCODE(ROL_rm16_to_64_imm8, 0xC1) // ROL r/m16_to_64, imm8
+    DECLARE_OPCODE(ROR_rm16_to_64_imm8, 0xC1) // ROR r/m16_to_64, imm8
+    DECLARE_OPCODE(RCL_rm16_to_64_imm8, 0xC1) // RCL r/m16_to_64, imm8
+    DECLARE_OPCODE(RCR_rm16_to_64_imm8, 0xC1) // RCR r/m16_to_64, imm8
+    DECLARE_OPCODE(SHL_rm16_to_64_imm8, 0xC1) // SHL r/m16_to_64, imm8
+    DECLARE_OPCODE(SAL_rm16_to_64_imm8, 0xC1) // SAL r/m16_to_64, imm8
+    DECLARE_OPCODE(SHR_rm16_to_64_imm8, 0xC1) // SHR r/m16_to_64, imm8
+    DECLARE_OPCODE(SAR_rm16_to_64_imm8, 0xC1) // SAR r/m16_to_64, imm8
+
+    DECLARE_OPCODE(RETN_imm16, 0xC2) // RETN imm16
+    DECLARE_OPCODE(RETN, 0xC3)       // RETN (return near)
+
+    DECLARE_OPCODE(MOV_rm8_imm8, 0xC6)               // MOV r/m8, imm8
+    DECLARE_OPCODE(MOV_rm16_to_64_imm16_or_32, 0xC7) // MOV r/m16_to_64, imm16_or_32
+
+    DECLARE_OPCODE(ENTER_rBP_imm16_imm8, 0xC8) // ENTER rBP, imm16, imm8
+    DECLARE_OPCODE(LEAVE_rBP, 0xC9)            // LEAVE rBP
+
+    DECLARE_OPCODE(RETF_imm16, 0xCA) // RETNF imm16
+    DECLARE_OPCODE(RETF, 0xCB)       // RETNF
+
+    DECLARE_OPCODE(INT3_eFlags, 0xCC) // INT3 eFlags
+    DECLARE_OPCODE(INT_imm8, 0xCD)    // INT imm8
+    DECLARE_OPCODE(INTO_eFlags, 0xCE) // INTO eFlags
+    DECLARE_OPCODE(IRET_eFlags, 0xCF) // IRET eFlags
+
+    DECLARE_OPCODE(ROL_rm8_1, 0xD0)         // ROL r/m8, 1
+    DECLARE_OPCODE(ROR_rm8_1, 0xD0)         // ROR r/m8, 1
+    DECLARE_OPCODE(RCL_rm8_1, 0xD0)         // RCL r/m8, 1
+    DECLARE_OPCODE(RCR_rm8_1, 0xD0)         // RCR r/m8, 1
+    DECLARE_OPCODE(SHL_rm8_1, 0xD0)         // SHL r/m8, 1
+    DECLARE_OPCODE(SAL_rm8_1, 0xD0)         // SAL r/m8, 1
+    DECLARE_OPCODE(SHR_rm8_1, 0xD0)         // SHR r/m8, 1
+    DECLARE_OPCODE(SAR_rm8_1, 0xD0)         // SAR r/m8, 1
+    DECLARE_OPCODE(ROL_rm16_to_64_1, 0xD1)  // ROL r/m16_to_64, 1
+    DECLARE_OPCODE(ROR_rm16_to_64_1, 0xD1)  // ROR r/m16_to_64, 1
+    DECLARE_OPCODE(RCL_rm16_to_64_1, 0xD1)  // RCL r/m16_to_64, 1
+    DECLARE_OPCODE(RCR_rm16_to_64_1, 0xD1)  // RCR r/m16_to_64, 1
+    DECLARE_OPCODE(SHL_rm16_to_64_1, 0xD1)  // SHL r/m16_to_64, 1
+    DECLARE_OPCODE(SAL_rm16_to_64_1, 0xD1)  // SAL r/m16_to_64, 1
+    DECLARE_OPCODE(SHR_rm16_to_64_1, 0xD1)  // SHR r/m16_to_64, 1
+    DECLARE_OPCODE(SAR_rm16_to_64_1, 0xD1)  // SAR r/m16_to_64, 1
+    DECLARE_OPCODE(ROL_rm8_CL, 0xD2)        // ROL r/m8, CL
+    DECLARE_OPCODE(ROR_rm8_CL, 0xD2)        // ROR r/m8, CL
+    DECLARE_OPCODE(RCL_rm8_CL, 0xD2)        // RCL r/m8, CL
+    DECLARE_OPCODE(RCR_rm8_CL, 0xD2)        // RCR r/m8, CL
+    DECLARE_OPCODE(SHL_rm8_CL, 0xD2)        // SHL r/m8, CL
+    DECLARE_OPCODE(SAL_rm8_CL, 0xD2)        // SAL r/m8, CL
+    DECLARE_OPCODE(SHR_rm8_CL, 0xD2)        // SHR r/m8, CL
+    DECLARE_OPCODE(SAR_rm8_CL, 0xD2)        // SAR r/m8, CL
+    DECLARE_OPCODE(ROL_rm16_to_64_CL, 0xD3) // ROL r/m16_to_64, CL
+    DECLARE_OPCODE(ROR_rm16_to_64_CL, 0xD3) // ROR r/m16_to_64, CL
+    DECLARE_OPCODE(RCL_rm16_to_64_CL, 0xD3) // RCL r/m16_to_64, CL
+    DECLARE_OPCODE(RCR_rm16_to_64_CL, 0xD3) // RCR r/m16_to_64, CL
+    DECLARE_OPCODE(SHL_rm16_to_64_CL, 0xD3) // SHL r/m16_to_64, CL
+    DECLARE_OPCODE(SAL_rm16_to_64_CL, 0xD3) // SAL r/m16_to_64, CL
+    DECLARE_OPCODE(SHR_rm16_to_64_CL, 0xD3) // SHR r/m16_to_64, CL
+    DECLARE_OPCODE(SAR_rm16_to_64_CL, 0xD3) // SAR r/m16_to_64, CL
+
+    DECLARE_OPCODE(XLAT_AL_m8, 0xD7) // XLAT AL, m8
+
+    DECLARE_OPCODE(IN_AL_imm8, 0xE4)   // IN AL, imm8
+    DECLARE_OPCODE(IN_eAX_imm8, 0xE5)  // IN rAX, imm8
+    DECLARE_OPCODE(OUT_imm8_AL, 0xE6)  // OUT imm8, AL
+    DECLARE_OPCODE(OUT_imm8_eAX, 0xE7) // OUT imm8, rAX
+
+    DECLARE_OPCODE(INT1_eFlags, 0xF1) // INT1 eFlags
+
+    DECLARE_OPCODE(HLT, 0xF4) // HLT
+    DECLARE_OPCODE(CMC, 0xF5) // CMC
+
+    DECLARE_OPCODE(TEST_rm8_imm8, 0xF6)               // TEST r/m8, imm8
+    DECLARE_OPCODE(NOT_rm8, 0xF6)                     // NOT r/m8
+    DECLARE_OPCODE(NEG_rm8, 0xF6)                     // NEG r/m8
+    DECLARE_OPCODE(MUL_AX_AL_rm8, 0xF6)               // MUL rAX, r/m8
+    DECLARE_OPCODE(IMUL_AX_AL_rm8, 0xF6)              // IMUL rAX, r/m8
+    DECLARE_OPCODE(DIV_AL_AH_AX_rm8, 0xF6)            // DIV rAX, r/m8
+    DECLARE_OPCODE(IDIV_AL_AH_AX_rm8, 0xF6)           // IDIV rAX, r/m8
+    DECLARE_OPCODE(TEST_rm16_to_64_imm16_or_32, 0xF7) // TEST r/m16_to_64, imm16_or_32
+    DECLARE_OPCODE(NOT_rm16_to_64, 0xF7)              // NOT r/m16_to_64
+    DECLARE_OPCODE(NEG_rm16_to_64, 0xF7)              // NEG r/m16_to_64
+    DECLARE_OPCODE(MUL_rDX_rAX_rm16_to_64, 0xF7)      // MUL rAX, r/m16_to_64
+    DECLARE_OPCODE(IMUL_rDX_rAX_rm16_to_64, 0xF7)     // IMUL rAX, r/m16_to_64
+    DECLARE_OPCODE(DIV_rDX_rAX_rm16_to_64, 0xF7)      // DIV rAX, r/m16_to_64
+    DECLARE_OPCODE(IDIV_rDX_rAX_rm16_to_64, 0xF7)     // IDIV rAX, r/m16_to_64
+
+    DECLARE_OPCODE(CLC, 0xF8) // CLR CARRY
+    DECLARE_OPCODE(STC, 0xF9) // SET CARRY
+    DECLARE_OPCODE(CLI, 0xFA) // CLEAR INTERRUPT
+    DECLARE_OPCODE(STI, 0xFB) // SET INTERRUPT
+    DECLARE_OPCODE(CLD, 0xFC) // CLEAR DIRECTION
+    DECLARE_OPCODE(STD, 0xFD) // SET DIRECTION
+
+    DECLARE_OPCODE(INC_rm8, 0xFE)        // INC r/m8
+    DECLARE_OPCODE(DEC_rm8, 0xFE)        // DEC r/m8
+    DECLARE_OPCODE(INC_rm16_to_64, 0xFF) // INC r/m16_to_64
+    DECLARE_OPCODE(DEC_rm16_to_64, 0xFF) // DEC r/m16_to_64
+
+    DECLARE_OPCODE(CALL_rm16_or_32, 0xFF) // CALL r/m16_or_32
+    DECLARE_OPCODE(CALL_rm64, 0xFF)       // CALL r/m64
+
+    DECLARE_OPCODE(JMP_rm16_or_32, 0xFF) // JMP r/m16_or_32
+    DECLARE_OPCODE(JMP_rm64, 0xFF)       // JMP r/m64
+
+    DECLARE_OPCODE(PUSH_rm16_or_32, 0xFF) // PUSH r/m16_or_32
+    DECLARE_OPCODE(PUSH_rm64, 0xFF)       // PUSH r/m64
+
+    DECLARE_OPCODE(CALL_rel32, 0xE8) DECLARE_OPCODE(JMP_rel8, 0xEB) DECLARE_OPCODE(JMP_rel32, 0xE9)
+};
+
+// naming scheme is the same, these require the k2ByteOpcodePrefix (0x0F)
+enum opcode_2b : std::uint8_t {    // 2 bytes
+    DECLARE_OPCODE(SYSCALL, 0x05)  // SYSCALL RCX R11 SS
+    DECLARE_OPCODE(SYSRET, 0x07)   // SYSRET RAX EFlags SS
+    DECLARE_OPCODE(SYSENTER, 0x34) // SYSENTER SS RSP IA32_SYSENTER_EIP
+    DECLARE_OPCODE(SYSEXIT, 0x35)  // SYSEXIT SS RSP IA32_SYSENTER_EIP
+
+    DECLARE_OPCODE(JO_rel32, 0x80)   // JO rel16/32
+    DECLARE_OPCODE(JNO_rel32, 0x81)  // JNO rel16/32
+    DECLARE_OPCODE(JB_rel32, 0x82)   // JB rel16/32
+    DECLARE_OPCODE(JNB_rel32, 0x83)  // JNB rel16/32
+    DECLARE_OPCODE(JZ_rel32, 0x84)   // JZ rel16/32
+    DECLARE_OPCODE(JNZ_rel32, 0x85)  // JNZ rel16/32
+    DECLARE_OPCODE(JBE_rel32, 0x86)  // JBE rel16/32
+    DECLARE_OPCODE(JNBE_rel32, 0x87) // JNBE rel16/32
+    DECLARE_OPCODE(JS_rel32, 0x88)   // JS rel16/32
+    DECLARE_OPCODE(JNS_rel32, 0x89)  // JNS rel16/32
+    DECLARE_OPCODE(JP_rel32, 0x8A)   // JP rel16/32
+    DECLARE_OPCODE(JNP_rel32, 0x8B)  // JNP rel16/32
+    DECLARE_OPCODE(JL_rel32, 0x8C)   // JL rel16/32
+    DECLARE_OPCODE(JNL_rel32, 0x8D)  // JNL rel16/32
+    DECLARE_OPCODE(JLE_rel32, 0x8E)  // JLE rel16/32
+    DECLARE_OPCODE(JNLE_rel32, 0x8F) // JNLE rel16/32
+
+    DECLARE_OPCODE(SETO_rm8, 0x90)   // SETO rm8
+    DECLARE_OPCODE(SETNO_rm8, 0x91)  // SETNO rm8
+    DECLARE_OPCODE(SETB_rm8, 0x92)   // SETB rm8
+    DECLARE_OPCODE(SETNB_rm8, 0x93)  // SETNB rm8
+    DECLARE_OPCODE(SETZ_rm8, 0x94)   // SETZ rm8
+    DECLARE_OPCODE(SETNZ_rm8, 0x95)  // SETNZ rm8
+    DECLARE_OPCODE(SETBE_rm8, 0x96)  // SETBE rm8
+    DECLARE_OPCODE(SETNBE_rm8, 0x97) // SETNBE rm8
+    DECLARE_OPCODE(SETS_rm8, 0x99)   // SETS rm8
+    DECLARE_OPCODE(SETNS_rm8, 0x99)  // SETNS rm8
+    DECLARE_OPCODE(SETP_rm8, 0x9A)   // SETP rm8
+    DECLARE_OPCODE(SETNP_rm8, 0x9B)  // SETNP rm8
+    DECLARE_OPCODE(SETL_rm8, 0x9C)   // SETL rm8
+    DECLARE_OPCODE(SETNL_rm8, 0x9D)  // SETNL rm8
+    DECLARE_OPCODE(SETLE_rm8, 0x9E)  // SETLE rm8
+    DECLARE_OPCODE(SETNLE_rm8, 0x9F) // SETNLE rm8
+
+    DECLARE_OPCODE(MOVZX_r16_to_64_rm8, 0xB6)  // MOV r16_to_64, r/m8
+    DECLARE_OPCODE(MOVZX_r16_to_64_rm16, 0xB7) // MOV r16_to_64, r/m16
+
+    DECLARE_OPCODE(MOVSX_r16_to_64_rm8, 0xBE)  // MOV r16_to_64, r/m8
+    DECLARE_OPCODE(MOVSX_r16_to_64_rm16, 0xBF) // MOV r16_to_64, r/m16
+};
+
+// these require the k2ByteOpcodePrefix (0x0F), naming is the same
+// - packed single FP values don't need any prefix (only the k2ByteOpcodePrefix)
+// - packed double FP values need 0x66 (operand size override) prior to 0x0F
+// - scalar packed single FP values need 0xF3 (kREP_Prefix / REP prefix)
+// - scalar packed double FP values need 0xF2 (kREPNE_Prefix / REPNE prefix)
+enum float_opcode_2b : std::uint8_t {
+    DECLARE_OPCODE(ANDPS_xmm_to_xmm_or_m128,
+                   0x54) // Bitwise Logical AND of Packed Single-FP Values, xmm xmm/m128
+    DECLARE_OPCODE(ANDPD_xmm_to_xmm_or_m128,
+                   0x54) // Bitwise Logical AND of Packed Single-FP Values, xmm xmm/m128
+    DECLARE_OPCODE(ANDNPS_xmm_to_xmm_or_m128,
+                   0x55) // Bitwise Logical AND NOT of Packed Single-FP Values, xmm xmm/m128
+    DECLARE_OPCODE(ANDNPD_xmm_to_xmm_or_m128,
+                   0x55) // Bitwise Logical AND NOT of Packed Single-FP Values, xmm xmm/m128
+    DECLARE_OPCODE(ORPS_xmm_to_xmm_or_m128, 0x56) // bitwise or fp values
+    DECLARE_OPCODE(ORPD_xmm_to_xmm_or_m128, 0x56)
+        DECLARE_OPCODE(XORPS_xmm_to_xmm_or_m128, 0x57) // bitwise xor fp values
+    DECLARE_OPCODE(XORPD_xmm_to_xmm_or_m128, 0x57)
+
+        DECLARE_OPCODE(ADDPS_xmm_to_xmm_or_m128, 0x58) // add fp values
+    DECLARE_OPCODE(ADDSS_xmm_to_xmm_or_m32, 0x58)      // requires kREP_Prefix
+    DECLARE_OPCODE(ADDPD_xmm_to_xmm_or_m128, 0x58)     // requires operand size override
+    DECLARE_OPCODE(ADDSD_xmm_to_xmm_or_m64, 0x58)      // requires kREPNE_Prefix
+
+    DECLARE_OPCODE(MULPS_xmm_to_xmm_or_m128, 0x59) // mul fp values
+    DECLARE_OPCODE(MULSS_xmm_to_xmm_or_m32, 0x59)  // requires kREP_Prefix
+    DECLARE_OPCODE(MULPD_xmm_to_xmm_or_m128, 0x59) // requires operand size override
+    DECLARE_OPCODE(MULSD_xmm_to_xmm_or_m64, 0x59)  // requires kREPNE_Prefix
+
+    DECLARE_OPCODE(SUBPS_xmm_to_xmm_or_m128, 0x5C) // sub fp values
+    DECLARE_OPCODE(SUBSS_xmm_to_xmm_or_m32, 0x5C)  // requires kREP_Prefix
+    DECLARE_OPCODE(SUBPD_xmm_to_xmm_or_m128, 0x5C) // requires operand size override
+    DECLARE_OPCODE(SUBSD_xmm_to_xmm_or_m64, 0x5C)  // requires kREPNE_Prefix
+
+    DECLARE_OPCODE(DIVPS_xmm_to_xmm_or_m128, 0x5E) // div fp values
+    DECLARE_OPCODE(DIVSS_xmm_to_xmm_or_m32, 0x5E)  // requires kREP_Prefix
+    DECLARE_OPCODE(DIVPD_xmm_to_xmm_or_m128, 0x5E) // requires operand size override
+    DECLARE_OPCODE(DIVSD_xmm_to_xmm_or_m64, 0x5E)  // requires kREPNE_Prefix
+
+    DECLARE_OPCODE(MOVD_xmm_to_rm32_to_64, 0x6E) // requires operand size override
+    DECLARE_OPCODE(MOVQ_xmm_to_rm32_to_64,
+                   0x6E) // requires operand size override (for 64 bits also requires REX byte)
+    // ^^ btw this is better than the mmx one, this one is SSE2
+
+    DECLARE_OPCODE(MOVSS_xmm_to_xmm_or_m32, 0x11) // REP
+    DECLARE_OPCODE(MOVSD_xmm_to_xmm_or_m64, 0x11) // REPNE
+    DECLARE_OPCODE(MOVSS_xmm_or_m32_to_xmm, 0x10) // REP
+    DECLARE_OPCODE(MOVSD_xmm_or_m64_to_xmm, 0x10) // REPNE
+
+    DECLARE_OPCODE(CVTTSD2SI_xmm_or_m64_to_r32_to_64, 0x2C)
+        DECLARE_OPCODE(CVTSI2SD_rm32_to_64_to_xmm, 0x2A)
+
+            DECLARE_OPCODE(UCOMISS_xmm_or_m32_to_xmm, 0x2E) // cmp for floats
+    DECLARE_OPCODE(UCOMISD_xmm_or_m64_to_xmm, 0x2E)         // need operand size override
+};
+} // namespace occult::x86_64

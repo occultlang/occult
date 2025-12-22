@@ -1,20 +1,35 @@
-fn main() i64 {
+fn range(i64 from, i64 to) {
+    i64 len = (to - from) * 8;
+    i64* new = alloc(len); 
+
+    for i64 i = from when i < to do i = i + 1 {
+        i64* tmp = new + ((i - from) * 8);
+        <-tmp = i;
+    }
+
+    return new;
+}
+
+fn main() {
     array[16] i64 arr_test = {1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
-    
     i64 sum = 0;
 
     for i64 i = 0 when i < 16 do i = i + 1 {
         sum = sum + arr_test[i];
     }
-    
-    print_s("Sum for array is:  ");
+
+    print_s("Sum for array is: ");
     print_i(sum);
     print_s("\n");
 
-    return 0;
+    i64* ranged = range(0, sum);
+
+    for i64 i = 0 when i < sum do i = i + 1 {
+        i64* tmp = ranged + (i * 8);
+
+        print_i(<-tmp);
+        print_s("\n");
+    }
+
+    del(ranged);
 }
-
-/*bbbbbbbbbbb[5] = 1111;
-aaaaaaaaaaa[8][y] = 2222;
-ccccccccccc[9][7][x] = 3333;*/
-

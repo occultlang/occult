@@ -1,0 +1,24 @@
+fn main() {
+    i64 test = 10 * 5;
+    test = test / 2; // reuses type info 
+    return test;
+}
+
+/*
+Struct(s): 
+Function(s): 
+Type: int64
+Name: main
+Args:
+Code:
+  push 10
+  push 5
+  imul 
+  store test
+  load test
+  push 2
+  idiv 
+  store test
+  load test
+  ret 
+*/

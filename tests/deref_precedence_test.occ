@@ -1,0 +1,46 @@
+fn main() {
+    i64 v = alloc(16);
+
+    $v = 100;
+
+    $(v + 8) = 200; 
+
+    i64 total = $(v + 8) + $v; // 300
+
+    print_i(total);
+    print_s("\n");
+    
+    del(v);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+    
+    //array[6] i8 test = {104, 101, 108, 108, 111, 0}; // hello
+    string test2 = "hello\0";
+    //_print("Addr: %p\n", test);
+    _print("Addr: %p\n", test2);
+
+    //_print("%s\n", test);
+    _print("%s\n", test2);
+    */

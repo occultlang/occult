@@ -4,11 +4,14 @@ fn main() i64 {
     i64* addr = @orig; // reference
     i64** addr2 = @addr;
     
-    <-<-addr2 = 40; // how to dereference
+    $$addr2 = 40; // how to dereference
 
-    printn(addr); // raw address
-    printn(<-addr); // 40
-    printn(<-<-addr2); // 40
+    print_i(addr); // raw address 
+    print_s("\n");
+    print_i($addr); // 40
+    print_s("\n");
+    print_i($$addr2); // 40
+    print_s("\n");
     
     return 0;
 }

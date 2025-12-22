@@ -1,16 +1,17 @@
+#include "backend/codegen/function_registry.hpp"
+#include "backend/codegen/ir_gen.hpp"
+#include "backend/codegen/x86_64_codegen.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/cst.hpp"
 #include "parser/parser.hpp"
-#include "backend/codegen/ir_gen.hpp"
-#include "backend/codegen/x86_64_codegen.hpp"
-#include "backend/codegen/function_registry.hpp"
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <chrono>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #ifdef __linux
-#include <sys/stat.h>
 #include "backend/linker/linker.hpp"
+#include <sys/stat.h>
 #elif _WIN64
 #include "backend/pe_header.hpp"
 #endif
@@ -19,18 +20,20 @@
 
 void display_help() {
     std::cout << "Usage: occultc [options] <source.occ>\n"
-            << "Options:\n"
-            << "  -t,   --time              Show compilation time per stage\n"
-            << "  -d,   --debug             Enable debug mode (implies --time)\n"
-            << "  -o,   --output <file>     Output native binary\n"
-            << "  -j,   --jit               JIT compile (in memory)\n"
-            << "  -h,   --help              Show this message\n";
+              << "Options:\n"
+              << "  -t,   --time              Show compilation time per stage\n"
+              << "  -d,   --debug             Enable debug mode (implies --time)\n"
+              << "  -o,   --output <file>     Output native binary\n"
+              << "  -j,   --jit               JIT compile (in memory)\n"
+              << "  -h,   --help              Show this message\n";
 }
 
-OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) { return reinterpret_cast<int64_t>(malloc(sz)); }
+OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) {
+    return reinterpret_cast<int64_t>(malloc(sz));
+}
 
 OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t sz), std::int64_t) {
-    free(reinterpret_cast<int64_t *>(sz));
+    free(reinterpret_cast<int64_t*>(sz));
     return 0;
 }
 
@@ -40,20 +43,31 @@ OCCULT_FUNC_DECL(std::int64_t, print_s, (std::int64_t sz), std::int64_t) {
     return 0;
 }
 
+OCCULT_FUNC_DECL(std::int64_t, print, (char* fmt, std::int64_t s), char*, std::int64_t) {
+    std::printf(fmt, s);
+
+    return 0;
+}
 OCCULT_FUNC_DECL(std::int64_t, print_i, (std::int64_t sz), std::int64_t) {
     std::printf("%ld", sz);
 
     return 0;
 }
+OCCULT_FUNC_DECL(std::int64_t, print_d, (std::int64_t sz), std::int64_t) {
+    std::printf("%lf", sz);
 
-int main(int argc, char *argv[]) {
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
     std::string input_file;
     std::string source_original;
 
     bool debug = false;
     bool verbose = false;
     bool showtime = false;
-    bool jit = true; // we will default to JIT but still have the arg if anyone wants to use it /shrug
+    bool jit =
+        true; // we will default to JIT but still have the arg if anyone wants to use it /shrug
 
     std::string filenameout;
 
@@ -62,24 +76,26 @@ int main(int argc, char *argv[]) {
             debug = true;
             verbose = true;
             showtime = true;
-        }
-        else if (arg == "-t" || arg == "--time") { showtime = true; }
-        else if (arg == "-o" || arg == "--output") {
+        } else if (arg == "-t" || arg == "--time") {
+            showtime = true;
+        } else if (arg == "-o" || arg == "--output") {
             jit = false;
 
             if (i + 1 < argc) {
                 jit = false;
                 filenameout = argv[++i];
+            } else {
+                filenameout = "a.out";
             }
-            else { filenameout = "a.out"; }
-        }
-        else if (arg == "-j" || arg == "--jit") { jit = true; }
-        else if (arg == "-h" || arg == "--help") {
+        } else if (arg == "-j" || arg == "--jit") {
+            jit = true;
+        } else if (arg == "-h" || arg == "--help") {
             display_help();
 
             return 0;
+        } else {
+            input_file = arg;
         }
-        else { input_file = arg; }
     }
 
     std::ifstream file(input_file);
@@ -100,9 +116,12 @@ int main(int argc, char *argv[]) {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - start;
     if (showtime) {
-        std::cout << GREEN << "[OCCULTC] Completed lexical analysis \033[0m" << duration.count() << "ms\n";
+        std::cout << GREEN << "[OCCULTC] Completed lexical analysis \033[0m" << duration.count()
+                  << "ms\n";
     }
-    if (debug && verbose) { lexer.visualize(); }
+    if (debug && verbose) {
+        lexer.visualize();
+    }
 
     start = std::chrono::high_resolution_clock::now();
     occult::parser parser(tokens);
@@ -114,8 +133,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if (showtime) { std::cout << GREEN << "[OCCULTC] Completed parsing \033[0m" << duration.count() << "ms\n"; }
-    if (debug && verbose) { cst->visualize(); }
+    if (showtime) {
+        std::cout << GREEN << "[OCCULTC] Completed parsing \033[0m" << duration.count() << "ms\n";
+    }
+    if (debug && verbose) {
+        cst->visualize();
+    }
 
     start = std::chrono::high_resolution_clock::now();
     occult::ir_gen ir_gen(cst.get(), parser.get_custom_type_map(), debug);
@@ -123,7 +146,10 @@ int main(int argc, char *argv[]) {
     auto ir = ir_gen.lower_functions();
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
-    if (showtime) { std::cout << GREEN << "[OCCULTC] Completed generating IR \033[0m" << duration.count() << "ms\n"; }
+    if (showtime) {
+        std::cout << GREEN << "[OCCULTC] Completed generating IR \033[0m" << duration.count()
+                  << "ms\n";
+    }
     if (debug) {
         occult::ir_gen::visualize_structs(ir_structs);
         occult::ir_gen::visualize_stack_ir(ir);
@@ -133,25 +159,31 @@ int main(int argc, char *argv[]) {
     occult::function_registry::register_function_to_ir<&del>(ir);
     occult::function_registry::register_function_to_ir<&print_s>(ir);
     occult::function_registry::register_function_to_ir<&print_i>(ir);
+    occult::function_registry::register_function_to_ir<&print_d>(ir);
+    occult::function_registry::register_function_to_ir<&print>(ir);
 
     start = std::chrono::high_resolution_clock::now();
-    occult::x86_64::codegen jit_runtime(ir, debug);
+    occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
 
     occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
     occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
     occult::function_registry::register_function_to_codegen<&print_s>(jit_runtime);
     occult::function_registry::register_function_to_codegen<&print_i>(jit_runtime);
+    occult::function_registry::register_function_to_codegen<&print_d>(jit_runtime);
+    occult::function_registry::register_function_to_codegen<&print>(jit_runtime);
 
     jit_runtime.compile(jit);
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     if (showtime) {
-        std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m" << duration.count() << "ms\n";
+        std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m"
+                  << duration.count() << "ms\n";
     }
     /*if (debug && jit) {
       for (const auto& pair : jit_runtime.function_map) {
         std::cout << pair.first << std::endl;
-        std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
+        std::cout << "0x" << std::hex << reinterpret_cast<std::int64_t>(&pair.second) << std::dec <<
+    std::endl;
       }
     }*/
 
@@ -159,22 +191,25 @@ int main(int argc, char *argv[]) {
         if (auto it = jit_runtime.function_map.find("main"); it != jit_runtime.function_map.end()) {
             start = std::chrono::high_resolution_clock::now();
 
-            auto res = reinterpret_cast<std::int64_t(*)()>(it->second)();
+            auto res = reinterpret_cast<std::int64_t (*)()>(it->second)();
 
             end = std::chrono::high_resolution_clock::now();
             duration = end - start;
 
-            if (debug) { std::cout << "Main returned: " << res << std::endl; }
+            if (debug) {
+                std::cout << "Main returned: " << res << std::endl;
+            }
 
             if (showtime) {
-                std::cout << GREEN << "[OCCULTC] Completed executing jit code " << RESET << duration.count() << "ms\n";
+                std::cout << GREEN << "[OCCULTC] Completed executing jit code " << RESET
+                          << duration.count() << "ms\n";
             }
+        } else {
+            std::cerr << "Main function not found!" << std::endl;
         }
-        else { std::cerr << "Main function not found!" << std::endl; }
-    }
-    else if (!jit) {
-        occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map,
-                                               debug, showtime);
+    } else if (!jit) {
+        occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map,
+                                               jit_runtime.function_raw_code_map, debug, showtime);
 #ifdef __linux
         chmod(filenameout.c_str(), S_IRWXU);
 #endif

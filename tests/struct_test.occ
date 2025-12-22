@@ -1,34 +1,55 @@
-/*fn create_3d_point(i64 x, i64 y, i64 z) point_3d {
+struct point_2d {
+    i64 x;
+    i64 y;
+}
+
+struct point_3d {
+    point_2d p_2d;
+    i64 z;
+}
+
+struct node {
+    node* child;
+    point_3d val;
+}
+
+fn create_3d_point(i64 x, i64 y, i64 z) point_3d {
     point_3d p;
 
-    p.x = x;
-    p.y = y;
+    p.p_2d.x = x;
+    p.p_2d.y = y;
     p.z = z;
 
     return p;
-}*/
+}
 
-/*fn print_point3d(point_3d p) i64 {
-    print_i(p.x);
+fn print_point3d(point_3d p) {
+    print_i(p.p_2d.x);
     print_s("\n");
 
-    print_i(p.y);
+    print_i(p.p_2d.y);
     print_s("\n");
 
     print_i(p.z);
     print_s("\n");
-
-    return 0;
-}*/
-
-struct point_3d {
-    i64 x;
-    i64 y;
-    i64 z;
 }
 
-fn main() i64 {
-    point_3d p; // this is in IR now
+fn create_node(point_3d _val, node* _next) node* {
+    node* n = alloc(32);
 
-    return 0;
+    n.next = _next;
+    n.val = _val;
+
+    return n;
+}
+
+fn main() {
+    point_3d p = create_3d_point(10, 20, 30);
+
+   // print_point3d(p);
+
+    node* n = create_node(p, 0);
+    node b = <-n;
+
+    return 123;
 }

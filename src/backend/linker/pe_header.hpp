@@ -1,15 +1,15 @@
 /*
-	slowly starting to hate windows more and more
+    slowly starting to hate windows more and more
 */
 
 #pragma once
-#include <fstream>
-#include <iostream>
+#include <Windows.h>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
+#include <iostream>
 #include <vector>
-#include <Windows.h>
 
 namespace occult {
-    void generate_pe_header();
+void generate_pe_header();
 };

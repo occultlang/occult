@@ -2,7 +2,7 @@ fn main() i64 {
   for i64 i = 0 when i < 10 do i = i + 1 {
      i32 int_max = 2147483647;
   }
-  
+
   return i;
 }
 
