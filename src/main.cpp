@@ -13,7 +13,7 @@
 #include "backend/linker/linker.hpp"
 #include <sys/stat.h>
 #elif _WIN64
-#include "backend/pe_header.hpp"
+#include "backend/linker/pe_header.hpp"
 #endif
 
 #include <cstdlib>
@@ -207,13 +207,16 @@ int main(int argc, char* argv[]) {
         } else {
             std::cerr << "Main function not found!" << std::endl;
         }
-    } else if (!jit) {
+    }
+
+#ifdef __linux 
+    else if (!jit) {
         occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map,
                                                jit_runtime.function_raw_code_map, debug, showtime);
-#ifdef __linux
+
         chmod(filenameout.c_str(), S_IRWXU);
-#endif
     }
+#endif
 
     return 0;
 }
