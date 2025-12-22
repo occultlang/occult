@@ -965,7 +965,7 @@ class x86_64_writer : public writer {
 
     template <typename T>
     bool imm_fits(std::int64_t imm) {
-        return imm >= std::numeric_limits<T>::min() && imm <= std::numeric_limits<T>::max();
+        return imm >= (std::numeric_limits<T>::min)() && imm <= (std::numeric_limits<T>::max)();
     }
 
     bool debug;
