@@ -6,7 +6,7 @@
   <p align="center">An enigmatic systems programming language.</p> <br>
   
 [![Website](https://img.shields.io/badge/Website-occultlang.org-blue)](https://occultlang.org/)
-[![License](https://img.shields.io/github/license/occultlang/occult)](https://github.com/occultlang/occult/blob/main/LICENSE) <br> <br>
+[![License](https://img.shields.io/github/license/occultlang/occult)](https://github.com/occultlang/occult/blob/main/LICENSE.md) <br> <br>
 [![Stars](https://img.shields.io/github/stars/occultlang/occult?style=social)](https://github.com/occultlang/occult/stargazers)
 [![Forks](https://img.shields.io/github/forks/occultlang/occult?style=social)](https://github.com/occultlang/occult/network/members)
 </div>
