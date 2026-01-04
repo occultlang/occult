@@ -14,7 +14,7 @@
 ### What is Occult? 
 Occult is a systems programming language, meant to give the user the full control and power of a C-like language, but with a modern syntax with modern features, making it easy to write, read and learn. 
 
-### What Occult is capable of
+### What Occult is capable of?
 ```
 fn write(i64, string, i64) shellcode i64 { 0x55 0x48 0x89 0xe5 0x48 0xc7 0xc0 0x01 0x00 0x00 0x00 0x0f 0x05 0x48 0x31 0xc0 0x48 0x89 0xec 0x5d 0xc3 }
 
