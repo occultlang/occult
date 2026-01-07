@@ -5,7 +5,9 @@
 
 namespace occult {
 inline std::unordered_map<std::string, token_type> comment_map = {
-    {"//", comment_tt}, {"/*", multiline_comment_start_tt}, {"*/", multiline_comment_end_tt}};
+    {"//", comment_tt},
+    {"/*", multiline_comment_start_tt},
+    {"*/", multiline_comment_end_tt}};
 
 inline std::unordered_map<char, token_type> whitespace_map = {
     {' ', whitespace_tt},  {'\t', whitespace_tt}, {'\r', whitespace_tt},
@@ -39,15 +41,16 @@ inline std::unordered_map<std::string, token_type> operator_map_double = {
     {">>", bitwise_rshift_tt},
 };
 
-inline std::unordered_map<char, token_type> delimiter_map = {{')', right_paren_tt},
-                                                             {'(', left_paren_tt},
-                                                             {']', right_bracket_tt},
-                                                             {'[', left_bracket_tt},
-                                                             {'}', right_curly_bracket_tt},
-                                                             {'{', left_curly_bracket_tt},
-                                                             {';', semicolon_tt},
-                                                             {',', comma_tt},
-                                                             {'.', period_tt}};
+inline std::unordered_map<char, token_type> delimiter_map = {
+    {')', right_paren_tt},
+    {'(', left_paren_tt},
+    {']', right_bracket_tt},
+    {'[', left_bracket_tt},
+    {'}', right_curly_bracket_tt},
+    {'{', left_curly_bracket_tt},
+    {';', semicolon_tt},
+    {',', comma_tt},
+    {'.', period_tt}};
 
 inline std::unordered_map<std::string, token_type> keyword_map = {
     {"fn", function_keyword_tt},     {"if", if_keyword_tt},
@@ -75,7 +78,6 @@ inline std::unordered_map<token_type, std::string> token_typename_map = {
     {multiline_comment_end_tt, "multiline_comment_end"},
     {number_literal_tt, "number_literal"},
     {string_literal_tt, "string_literal"},
-    {char_literal_tt, "char_literal"},
     {float_literal_tt, "float_literal"},
     {add_operator_tt, "add_operator"},
     {subtract_operator_tt, "subtract_operator"},
@@ -152,10 +154,12 @@ inline std::unordered_map<token_type, std::string> token_typename_map = {
     {shellcode_denoter_tt, "denote_shellcode"}};
 
 inline std::unordered_set<char> alnumeric_set = {
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
-    'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F',
-    'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
-    'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_'};
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_'};
 
-inline std::unordered_set<char> numeric_set = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+inline std::unordered_set<char> numeric_set = {'0', '1', '2', '3', '4',
+                                               '5', '6', '7', '8', '9'};
 } // namespace occult
