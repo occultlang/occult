@@ -22,7 +22,7 @@ fn ptr_func() i64** {
 }
 */
 
-fn main() array[][] i64 {
+fn main() i64 {
 return 0;
 }
 

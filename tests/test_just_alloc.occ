@@ -1,0 +1,13 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Test 1: alloc\n");
+    i64 p = alloc(8);
+    $p = 999;
+    print_integer($p);
+    print_newline();
+    del(p);
+    
+    print_string("Done\n");
+    return 0;
+}

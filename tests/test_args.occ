@@ -1,10 +1,12 @@
+include "../lib/stdio.occ"
+
 fn get_str(string s) string {
   return s;
 }
 
 fn main() i64 {
   string s = get_str("what\n");
-  print(s);
+  print_string(s);
   
   return 0;
 }

@@ -1,0 +1,15 @@
+// Test case for print_string function
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    // Test basic string printing
+    print_string("Testing print_string function\n");
+    
+    // Test empty string
+    print_string("");
+    
+    // Test special characters
+    print_string("Test with spaces and symbols: !@#$%\n");
+    
+    return 0;
+}

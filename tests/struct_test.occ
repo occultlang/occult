@@ -1,3 +1,5 @@
+include "../lib/stdio.occ"
+
 struct point_2d {
     i64 x;
     i64 y;
@@ -24,20 +26,20 @@ fn create_3d_point(i64 x, i64 y, i64 z) point_3d {
 }
 
 fn print_point3d(point_3d p) {
-    print_i(p.p_2d.x);
-    print_s("\n");
+    print_integer(p.p_2d.x);
+    print_string("\n");
 
-    print_i(p.p_2d.y);
-    print_s("\n");
+    print_integer(p.p_2d.y);
+    print_string("\n");
 
-    print_i(p.z);
-    print_s("\n");
+    print_integer(p.z);
+    print_string("\n");
 }
 
 fn create_node(point_3d _val, node* _next) node* {
     node* n = alloc(32);
 
-    n.next = _next;
+    n.child = _next;
     n.val = _val;
 
     return n;

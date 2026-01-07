@@ -1,3 +1,5 @@
+include "../lib/stdio.occ"
+
 fn main() {
-  print_s("1234567890       ");
+  print_string("1234567890       ");
 }

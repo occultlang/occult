@@ -1,0 +1,29 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Test 1: Variables\n");
+    i64 x = 10;
+    i64 y = 20;
+    print_integer(x + y);
+    print_newline();
+    
+    print_string("Test 2: Array\n");
+    array[3] i64 arr;
+    arr[0] = 100;
+    print_integer(arr[0]);
+    print_newline();
+    
+    print_string("Test 3: Loop\n");
+    i64 i = 0;
+    loop {
+        if i >= 3 {
+            break;
+        }
+        i = i + 1;
+    }
+    print_integer(i);
+    print_newline();
+    
+    print_string("Done\n");
+    return 0;
+}

@@ -1,0 +1,7 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    i64 msg = "Test\n";
+    print_string(msg);
+    return 0;
+}

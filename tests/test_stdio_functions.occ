@@ -1,0 +1,27 @@
+// Test case for stdio with functions
+include "../lib/stdio.occ"
+
+fn greet(string name) i64 {
+    print_string("Hello, ");
+    print_string(name);
+    print_string("!");
+    print_newline();
+    return 0;
+}
+
+fn print_sum(i64 a, i64 b) i64 {
+    i64 sum = a + b;
+    print_string("Sum: ");
+    print_integer(sum);
+    print_newline();
+    return sum;
+}
+
+fn main() i64 {
+    greet("Occult");
+    
+    print_sum(10, 20);
+    print_sum(100, 200);
+    
+    return 0;
+}

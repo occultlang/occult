@@ -1,3 +1,5 @@
+include "../lib/stdio.occ"
+
 fn ret_float(f32 f) f32 {
     f32 a = f;
     return a;
@@ -8,10 +10,10 @@ fn main() {
     f32 test2 = ret_float(3.14);
 
     if test2 == test {
-        print_s("true\n");
+        print_string("true\n");
     }
     else {
-        print_s("false\n");
+        print_string("false\n");
     }
 
     return 0;

@@ -6,17 +6,27 @@ fn puts(string s) {
     write(1, s, strlen(s));
 }
 
-/*fn test_stack_args(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g) { 
-    return a + b + c + d + e + f + g;
-} // g is a stack arg */ 
-
 fn main() {
-    puts("1\n");
+    i64 value = 0;
+    array[2] i64 b = {-1, 1};
+    if b[0] <= 0 {
+        puts("lt\n");
+    }
+    else {
+       puts("gt\n");
+    }
+
     puts("2\n");
     puts("3\n");
     puts("4\n");
     puts("5\n");
-
-    // doesn't spill to stack properly
-    //return test_stack_args(1, 1, 1, 1, 1, 1, 2); 
 }
+
+
+/*fn test_stack_args(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g) { 
+    return a + b + c + d + e + f + g;
+} // g is a stack arg 
+
+// doesn't spill to stack properly
+//return test_stack_args(1, 1, 1, 1, 1, 1, 2); 
+*/ 

@@ -1,0 +1,103 @@
+include "../lib/stdio.occ"
+
+// Incremental Test - Step by step test of all features
+// This test verifies core language features work correctly
+
+fn main() i64 {
+    print_string("=== Incremental Test Suite ===\n");
+    
+    // Test 1: Basic variables
+    print_string("\n[TEST 1] Variables and arithmetic\n");
+    i64 x = 10;
+    i64 y = 20;
+    i64 z = x + y;
+    print_string("x + y = ");
+    print_integer(z);
+    print_newline();
+    
+    // Test 2: Arrays
+    print_string("\n[TEST 2] Array declaration and access\n");
+    array[5] i64 arr;
+    arr[0] = 100;
+    arr[1] = 200;
+    arr[2] = 300;
+    print_string("arr[1] = ");
+    print_integer(arr[1]);
+    print_newline();
+    
+    // Test 3: Loops
+    print_string("\n[TEST 3] Loop with counter\n");
+    i64 count = 0;
+    i64 i = 0;
+    loop {
+        if i >= 5 {
+            break;
+        }
+        count = count + i;
+        i = i + 1;
+    }
+    print_string("Sum 0-4 = ");
+    print_integer(count);
+    print_newline();
+    
+    // Test 4: Dynamic array indexing
+    print_string("\n[TEST 4] Dynamic array indexing\n");
+    array[10] i64 nums;
+    i64 idx = 0;
+    loop {
+        if idx >= 5 {
+            break;
+        }
+        nums[idx] = idx * 10;
+        idx = idx + 1;
+    }
+    print_string("nums[3] = ");
+    print_integer(nums[3]);
+    print_newline();
+    
+    // Test 5: Memory allocation and dereferencing
+    print_string("\n[TEST 5] Memory allocation\n");
+    i64 p = alloc(8);
+    $p = 999;
+    i64 value = $p;
+    print_string("Stored value = ");
+    print_integer(value);
+    print_newline();
+    del(p);
+    
+    // Test 6: Pointer arithmetic
+    print_string("\n[TEST 6] Pointer arithmetic\n");
+    i64 block = alloc(40);
+    $(block + 0) = 111;
+    $(block + 8) = 222;
+    $(block + 16) = 333;
+    print_string("block[2] = ");
+    print_integer($(block + 16));
+    print_newline();
+    del(block);
+    
+    // Test 7: Array with pointers
+    print_string("\n[TEST 7] Array storing pointers\n");
+    array[3] i64 addresses;
+    i64 node1 = alloc(16);
+    $node1 = 1;
+    $(node1 + 8) = 0;
+    
+    i64 node2 = alloc(16);
+    $node2 = 2;
+    $(node2 + 8) = 0;
+    
+    addresses[0] = node1;
+    addresses[1] = node2;
+    
+    i64 retrieved = addresses[0];
+    print_string("First node data = ");
+    print_integer($retrieved);
+    print_newline();
+    
+    del(node1);
+    del(node2);
+    
+    print_string("\n=== All Tests Complete ===\n");
+    return 0;
+}

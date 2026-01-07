@@ -1,0 +1,24 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Test 1: Variables\n");
+    i64 x = 10;
+    print_integer(x);
+    print_newline();
+    
+    print_string("Test 2: Dynamic array indexing\n");
+    array[5] i64 nums;
+    i64 idx = 0;
+    loop {
+        if idx >= 3 {
+            break;
+        }
+        nums[idx] = idx * 10;
+        idx = idx + 1;
+    }
+    print_integer(nums[2]);
+    print_newline();
+    
+    print_string("Done\n");
+    return 0;
+}

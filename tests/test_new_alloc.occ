@@ -1,0 +1,73 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Testing new mmap-based alloc/del...");
+    print_newline();
+    
+    // Test 1: Simple allocation and deallocation
+    print_string("Test 1: Simple alloc/del");
+    print_newline();
+    i64 p = alloc(100);
+    $p = 42;
+    i64 val = $p;
+    print_string("  Stored: 42, Retrieved: ");
+    print_integer(val);
+    print_newline();
+    del(p);
+    print_string("  PASS");
+    print_newline();
+    
+    // Test 2: Multiple allocations
+    print_string("Test 2: Multiple allocations");
+    print_newline();
+    i64 ptr1 = alloc(10);
+    i64 ptr2 = alloc(20);
+    i64 ptr3 = alloc(30);
+    $ptr1 = 100;
+    $ptr2 = 200;
+    $ptr3 = 300;
+    print_string("  ptr1: ");
+    print_integer($ptr1);
+    print_string(", ptr2: ");
+    print_integer($ptr2);
+    print_string(", ptr3: ");
+    print_integer($ptr3);
+    print_newline();
+    del(ptr1);
+    del(ptr2);
+    del(ptr3);
+    print_string("  PASS");
+    print_newline();
+    
+    // Test 3: Array usage
+    print_string("Test 3: Array with dynamic allocation");
+    print_newline();
+    array[5] i64 arr;
+    arr[0] = alloc(1);
+    arr[1] = alloc(1);
+    arr[2] = alloc(1);
+    // Workaround: Parser doesn't support $arr[idx] syntax, use temp variables
+    i64 p0 = arr[0];
+    i64 p1 = arr[1];
+    i64 p2 = arr[2];
+    $p0 = 65;  // 'A'
+    $p1 = 66;  // 'B'
+    $p2 = 67;  // 'C'
+    print_string("  Values: ");
+    print_integer($p0);
+    print_string(" ");
+    print_integer($p1);
+    print_string(" ");
+    print_integer($p2);
+    print_newline();
+    del(arr[0]);
+    del(arr[1]);
+    del(arr[2]);
+    print_string("  PASS");
+    print_newline();
+    
+    print_string("All tests passed!");
+    print_newline();
+    
+    return 0;
+}

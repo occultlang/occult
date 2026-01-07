@@ -2,12 +2,14 @@
   return 255;
 }*/
 
+include "../lib/stdio.occ"
+
 fn main() i64 {
   i64 a = 1 + 2 + 3;
   i64 b = 4;
 
   if a == b {
-    print("hi world");
+    print_string("hi world");
   }
 
   //f32 a = 3.14;

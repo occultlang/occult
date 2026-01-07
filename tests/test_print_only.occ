@@ -1,0 +1,78 @@
+fn malloc(i64 size) shellcode i64 { 0x55 0x48 0x89 0xE5 0x48 0x89 0xFE 0xB8 0x0C 0x00 0x00 0x00 0x48 0x31 0xFF 0x0F 0x05 0x48 0x89 0xC7 0x48 0x01 0xF7 0xB8 0x0C 0x00 0x00 0x00 0x0F 0x05 0x48 0x89 0xEC 0x5D 0xC3 }
+
+fn syscall_write(i64 fd, i64 buf, i64 count) shellcode i64 {
+    0x55
+    0x48 0x89 0xE5
+    0xB8 0x01 0x00 0x00 0x00
+    0x0F 0x05
+    0x48 0x89 0xEC
+    0x5D
+    0xC3
+}
+
+fn print_string(i64 str) {
+    i64 len = 0;
+    i64 temp = str;
+    loop {
+        i64 char_val = $temp;
+        if char_val == 0 {
+            break;
+        }
+        len = len + 1;
+        temp = temp + 1;
+    }
+    syscall_write(1, str, len);
+}
+
+fn alloc_char(i64 c) i64 {
+    i64 mem = alloc(1);
+    $mem = c;
+    return mem;
+}
+
+fn print_integer(i64 num) {
+    if num < 0 {
+        syscall_write(1, alloc_char(45), 1);
+        num = 0 - num;
+    }
+    
+    if num == 0 {
+        syscall_write(1, alloc_char(48), 1);
+        return 0;
+    }
+    
+    array[20] i64 digits;
+    i64 digit_count = 0;
+    
+    loop {
+        if num == 0 {
+            break;
+        }
+        i64 digit = num % 10;
+        digits[digit_count] = digit + 48;
+        digit_count = digit_count + 1;
+        num = num / 10;
+    }
+    
+    loop {
+        if digit_count == 0 {
+            break;
+        }
+        digit_count = digit_count - 1;
+        i64 char_val = digits[digit_count];
+        syscall_write(1, alloc_char(char_val), 1);
+    }
+    
+    return 0;
+}
+
+fn main() {
+    print_string("Test 1\n");
+    print_integer(123);
+    print_string("\n");
+    print_string("Test 2\n");
+    print_integer(456);
+    print_string("\n");
+    print_string("Test 3\n");
+    return 0;
+}

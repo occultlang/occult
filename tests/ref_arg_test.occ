@@ -3,6 +3,8 @@
     Defaults to i64 return type now
 */
 
+include "../lib/stdio.occ"
+
 fn add(i64@ to, i64 by) {
     $to = $to + by;
 }
@@ -13,5 +15,5 @@ fn main() {
 
     add(to, by);
 
-    print_i(to); print_s("\n");
+    print_integer(to); print_string("\n");
 }

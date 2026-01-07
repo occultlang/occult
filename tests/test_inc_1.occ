@@ -1,0 +1,12 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("=== Test 1 ===\n");
+    i64 x = 10;
+    i64 y = 20;
+    i64 z = x + y;
+    print_string("Result: ");
+    print_integer(z);
+    print_newline();
+    return 0;
+}

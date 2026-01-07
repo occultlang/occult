@@ -1,0 +1,25 @@
+// Test case for combined stdio functions
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    // Test combining all functions
+    print_string("Testing stdio library:");
+    print_newline();
+    
+    print_string("  Integer test: ");
+    print_integer(12345);
+    print_newline();
+    
+    print_string("  Negative test: ");
+    print_integer(0 - 678);
+    print_newline();
+    
+    print_string("  Zero test: ");
+    print_integer(0);
+    print_newline();
+    
+    print_string("All tests completed!");
+    print_newline();
+    
+    return 0;
+}

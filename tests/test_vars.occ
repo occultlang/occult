@@ -2,6 +2,7 @@
 full nesting works in occult 
 */
 
+include "../lib/stdio.occ"
 
 fn add(i64 a, i64 b) i64 {
   return a + b;
@@ -14,30 +15,30 @@ fn main() i64 {
     x = 1;
     
     if x != 0 { 
-      print("x aint 0\n");
+      print_string("x aint 0\n");
     }
     else {
-      print("WHAAA\n");
+      print_string("WHAAA\n");
     }
     
-    print("x is 64\n");
+    print_string("x is 64\n");
   }
   else if x == 128 {
     if x != 0 {
-      print("x aint 0\n");
+      print_string("x aint 0\n");
     }
     
-    print("x is 128\n");
+    print_string("x is 128\n");
   }
   else if x == 100 {
-    print("x is 100\n");
+    print_string("x is 100\n");
   }
   else {
     if x != 0 { 
-      print("x aint 0\n");
+      print_string("x aint 0\n");
     }
     
-    print("neither\n");
+    print_string("neither\n");
   }
   
   return x;

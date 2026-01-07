@@ -1,0 +1,69 @@
+// Regression test for stack corruption caused by unused function return values
+// When function calls in a loop don't capture their return values, the return
+// values were being left on the register stack, causing subsequent array
+// operations to read/write at incorrect locations.
+
+include "../lib/stdio.occ"
+
+fn main() {
+    // Setup: allocate memory and store values
+    i64 root = alloc(16);
+    $root = 100;
+    $(root + 8) = alloc(16);
+    
+    i64 node2 = $(root + 8);
+    $node2 = 200;
+    $(node2 + 8) = 0;
+    
+    // This loop has multiple unused return values from print calls
+    // Previously, these would corrupt the register stack
+    i64 curr = root;
+    loop {
+        i64 val = $curr;
+        print_string("Value: ");   // Unused return value
+        print_integer(val);        // Unused return value
+        print_string("\n");        // Unused return value
+        
+        i64 next = $(curr + 8);
+        if next == 0 {
+            break;
+        }
+        curr = next;
+    }
+    
+    // Array declared after the loop with unused return values
+    array[5] i64 nodes;
+    
+    // Store heap addresses in array
+    nodes[0] = root;
+    nodes[1] = node2;
+    
+    // Read back and verify - this was failing before the fix
+    print_string("\n=== Verification ===\n");
+    
+    i64 addr0 = nodes[0];
+    i64 addr1 = nodes[1];
+    
+    // Verify by dereferencing and checking values
+    i64 val0 = $addr0;
+    i64 val1 = $addr1;
+    
+    print_string("nodes[0] -> ");
+    print_integer(val0);
+    print_string(" (expected 100)\n");
+    
+    print_string("nodes[1] -> ");
+    print_integer(val1);
+    print_string(" (expected 200)\n");
+    
+    // Return success if values are correct
+    if val0 == 100 {
+        if val1 == 200 {
+            print_string("PASS\n");
+            return 0;
+        }
+    }
+    
+    print_string("FAIL\n");
+    return 1;
+}

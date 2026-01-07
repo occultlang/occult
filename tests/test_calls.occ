@@ -1,15 +1,17 @@
 // calling anywhere :cool:
 
+include "../lib/stdio.occ"
+
 fn main() i64 {
   test_call();
   
-  print("Hello, World!\n"); 
+  print_string("Hello, World!\n"); 
  
   return 0;
 }
 
 fn test_call() i64 {
-  print("aaaaaaaa\n");
+  print_string("aaaaaaaa\n");
   
   test_call2();
   
@@ -17,7 +19,7 @@ fn test_call() i64 {
 }
 
 fn test_call2() i64 {
-  print("whaatt\n");
+  print_string("whaatt\n");
   
   return 0;
 }

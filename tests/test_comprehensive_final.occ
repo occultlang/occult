@@ -1,0 +1,65 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("=== Comprehensive Test Suite ===");
+    print_newline();
+    
+    // Test 1: Variable declarations (both initialized and uninitialized)
+    print_string("Test 1: Variable declarations");
+    print_newline();
+    i64 uninit_var;
+    i64 init_var = 42;
+    uninit_var = 100;
+    print_integer(uninit_var);
+    print_newline();
+    print_integer(init_var);
+    print_newline();
+    
+    // Test 2: Arrays
+    print_string("Test 2: Arrays");
+    print_newline();
+    array[3] i64 arr;
+    arr[0] = 10;
+    arr[1] = 20;
+    arr[2] = 30;
+    print_integer(arr[0]);
+    print_newline();
+    print_integer(arr[1]);
+    print_newline();
+    print_integer(arr[2]);
+    print_newline();
+    
+    // Test 3: Dynamic array indexing
+    print_string("Test 3: Dynamic array indexing");
+    print_newline();
+    i64 idx = 1;
+    print_integer(arr[idx]);
+    print_newline();
+    
+    // Test 4: Memory allocation
+    print_string("Test 4: Memory allocation");
+    print_newline();
+    i64 addr = alloc(8);
+    $addr = 999;
+    print_integer($addr);
+    print_newline();
+    del(addr);
+    
+    // Test 5: Loops
+    print_string("Test 5: Loops");
+    print_newline();
+    i64 i = 0;
+    loop {
+        if i >= 3 {
+            break;
+        }
+        print_integer(arr[i]);
+        print_newline();
+        i = i + 1;
+    }
+    
+    print_string("All tests passed!");
+    print_newline();
+    
+    return 0;
+}

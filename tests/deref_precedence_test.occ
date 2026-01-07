@@ -1,3 +1,5 @@
+include "../lib/stdio.occ"
+
 fn main() {
     i64 v = alloc(16);
 
@@ -7,8 +9,8 @@ fn main() {
 
     i64 total = $(v + 8) + $v; // 300
 
-    print_i(total);
-    print_s("\n");
+    print_integer(total);
+    print_string("\n");
     
     del(v);
 }

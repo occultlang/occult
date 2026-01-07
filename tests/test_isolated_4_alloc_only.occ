@@ -1,0 +1,5 @@
+fn main() i64 {
+    i64 address;
+    address = alloc(8);
+    return 0;
+}

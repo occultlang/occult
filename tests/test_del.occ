@@ -1,0 +1,9 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Test\n");
+    print_integer(42);
+    i64 buf = alloc(8);
+    del(buf);
+    return 0;
+}

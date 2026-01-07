@@ -1,0 +1,26 @@
+// Test case for print_integer function
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    // Test positive numbers
+    print_string("Positive: ");
+    print_integer(42);
+    print_newline();
+    
+    // Test zero
+    print_string("Zero: ");
+    print_integer(0);
+    print_newline();
+    
+    // Test negative numbers
+    print_string("Negative: ");
+    print_integer(0 - 123);
+    print_newline();
+    
+    // Test large numbers
+    print_string("Large: ");
+    print_integer(999999);
+    print_newline();
+    
+    return 0;
+}

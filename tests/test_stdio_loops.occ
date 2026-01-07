@@ -1,0 +1,18 @@
+// Test case for stdio with loops
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Counting from 0 to 5:");
+    print_newline();
+    
+    for i64 i = 0 when i <= 5 do i = i + 1 {
+        print_string("  Count: ");
+        print_integer(i);
+        print_newline();
+    }
+    
+    print_string("Done!");
+    print_newline();
+    
+    return 0;
+}

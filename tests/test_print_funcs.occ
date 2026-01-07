@@ -1,0 +1,10 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Testing print_integer:\n");
+    print_integer(42);
+    print_string("\nTesting print_newline:");
+    print_newline();
+    print_string("Done\n");
+    return 0;
+}

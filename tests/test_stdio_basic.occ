@@ -1,0 +1,6 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Hello, World!\n");
+    return 0;
+}

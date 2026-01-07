@@ -1,0 +1,13 @@
+// Test case for print_newline function
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Line 1");
+    print_newline();
+    print_string("Line 2");
+    print_newline();
+    print_string("Line 3");
+    print_newline();
+    
+    return 0;
+}

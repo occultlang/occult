@@ -1,57 +1,59 @@
 // Test 1D Array
+include "../lib/stdio.occ"
+
 fn test_1d() {
-    print_s("=== Testing 1D Array ===\n");
+    print_string("=== Testing 1D Array ===\n");
     array[5] i64 arr_1d = {10, 20, 30, 40, 50};
     
     for i64 i = 0 when i < 5 do i = i + 1 {
-        print_s("["); print_i(i); print_s("] = ");
-        print_i(arr_1d[i]); print_s("\n");
+        print_string("["); print_integer(i); print_string("] = ");
+        print_integer(arr_1d[i]); print_string("\n"); 
     }
-    print_s("\n");
+    print_string("\n");
     
     return 0;
 }
 
 // Test 2D Array
 fn test_2d() {
-    print_s("=== Testing 2D Array ===\n");
+    print_string("=== Testing 2D Array ===\n");
     array[3][4] i64 arr_2d = {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}};
     
     for i64 i = 0 when i < 3 do i = i + 1 {
         for i64 j = 0 when j < 4 do j = j + 1 {
-            print_s("["); print_i(i); print_s("]");
-            print_s("["); print_i(j); print_s("] = ");
-            print_i(arr_2d[i][j]); print_s("\n");
+            print_string("["); print_integer(i); print_string("]");
+            print_string("["); print_integer(j); print_string("] = ");
+            print_integer(arr_2d[i][j]); print_string("\n");
         }
     }
-    print_s("\n");
+    print_string("\n");
     
     return 0;
 }
 
 // Test 3D Array
 fn test_3d() {
-    print_s("=== Testing 3D Array ===\n");
+    print_string("=== Testing 3D Array ===\n");
     array[2][3][2] i64 arr_3d = {{{1, 2}, {3, 4}, {5, 6}}, {{7, 8}, {9, 10}, {11, 12}}};
     
     for i64 i = 0 when i < 2 do i = i + 1 {
         for i64 j = 0 when j < 3 do j = j + 1 {
             for i64 k = 0 when k < 2 do k = k + 1 {
-                print_s("["); print_i(i); print_s("]");
-                print_s("["); print_i(j); print_s("]");
-                print_s("["); print_i(k); print_s("] = ");
-                print_i(arr_3d[i][j][k]); print_s("\n");
+                print_string("["); print_integer(i); print_string("]");
+                print_string("["); print_integer(j); print_string("]");
+                print_string("["); print_integer(k); print_string("] = ");
+                print_integer(arr_3d[i][j][k]); print_string("\n");
             }
         }
     }
-    print_s("\n");
+    print_string("\n");
     
     return 0;
 }
 
 // Test 4D Array
 fn test_4d() {
-    print_s("=== Testing 4D Array ===\n");
+    print_string("=== Testing 4D Array ===\n");
     // 4D array: [2][2][2][3]
     array[2][2][2][3] i64 arr_4d = {
         {
@@ -68,16 +70,16 @@ fn test_4d() {
         for i64 j = 0 when j < 2 do j = j + 1 {
             for i64 k = 0 when k < 2 do k = k + 1 {
                 for i64 l = 0 when l < 3 do l = l + 1 {
-                    print_s("["); print_i(i); print_s("]");
-                    print_s("["); print_i(j); print_s("]");
-                    print_s("["); print_i(k); print_s("]");
-                    print_s("["); print_i(l); print_s("] = ");
-                    print_i(arr_4d[i][j][k][l]); print_s("\n");
+                    print_string("["); print_integer(i); print_string("]");
+                    print_string("["); print_integer(j); print_string("]");
+                    print_string("["); print_integer(k); print_string("]");
+                    print_string("["); print_integer(l); print_string("] = ");
+                    print_integer(arr_4d[i][j][k][l]); print_string("\n");
                 }
             }
         }
     }
-    print_s("\n");
+    print_string("\n");
     
     return 0;
 }
@@ -89,7 +91,7 @@ fn main() {
     test_3d();
     test_4d();
     
-    print_s("=== All Array Tests Complete ===\n");
+    print_string("=== All Array Tests Complete ===\n");
     
     return 0;
 }

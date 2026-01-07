@@ -1,0 +1,9 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    i64 x;
+    x = 42;
+    print_integer(x);
+    print_newline();
+    return 0;
+}

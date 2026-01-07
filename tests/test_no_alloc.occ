@@ -1,0 +1,7 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Before alloc");
+    print_newline();
+    return 0;
+}

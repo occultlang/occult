@@ -1,0 +1,13 @@
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    print_string("Testing alloc...");
+    print_newline();
+    
+    i64 p = alloc(100);
+    print_string("Alloc returned: ");
+    print_integer(p);
+    print_newline();
+    
+    return 0;
+}
