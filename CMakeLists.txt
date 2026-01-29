@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 project(occult)
 # -O3 normally
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -std=c++23 -O0 -Wall -Wextra -g -fsanitize=address,undefined") # -fno-omit-frame-pointer
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -std=c++23 -O0 -Wall -Wextra -g") # -fsanitize=address,undefined -fno-omit-frame-pointer
 add_executable(occultc
 ./src/lexer/lexer.hpp
 ./src/lexer/lexer_maps.hpp
