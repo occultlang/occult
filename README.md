@@ -72,11 +72,10 @@ _____________________________________________________________________________
 
 ### Roadmap
 - Structs (Planned for v2.2-alpha)
+- New Linker (Planned for v2.2-alpha)
 - Generics
 - Foreach implementation 
-- Implicit Boolean Conversions
 - Static Analysis
-- New Linker 
 - Borrow Checker or RAII (Similar to C++ `std::unique_ptr`)
 - New Intermediate Representation (SSA) for optimization pass
 - RISCV Support
