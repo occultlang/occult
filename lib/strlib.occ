@@ -1,0 +1,44 @@
+fn strlen_fast(string str) { // uses prefix for string already builtin
+    i64 len = $(str - 8); 
+
+    return len;
+}
+
+fn strlen(string str) {
+    i64 len = 0;
+    i64* p = str;
+    char char_val = $p;
+    
+    while char_val != 0 {
+        len = len + 1;
+        p = p + 1;
+        char_val = $p;
+    }
+
+    return len;
+}
+
+fn strcmp(string str1, string str2) {
+    bool result = true;
+
+    i64* p1 = str1; 
+    char char1 = $p1; 
+
+    i64* p2 = str2; 
+    char char2 = $p2; 
+
+    while char1 != 0 && char2 != 0 {
+        if char1 != char2 {
+            result = false;
+            break;
+        }
+
+        p1 = p1 + 1;
+        p2 = p2 + 1;
+
+        char1 = $p1;
+        char2 = $p2;
+    }
+
+    return result;
+}
