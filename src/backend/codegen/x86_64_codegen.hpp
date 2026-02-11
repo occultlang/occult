@@ -396,7 +396,7 @@ class codegen {
 
     bool pushing_for_ret = false;
     bool push_single = false;
-    std::uint64_t index_to_push = std::numeric_limits<std::uint64_t>::max();
+    std::uint64_t index_to_push = (std::numeric_limits<std::uint64_t>::max)();
     for (std::size_t i = 0; i < func.code.size(); i++) {
       auto &code = func.code.at(i);
 
@@ -1889,7 +1889,7 @@ class codegen {
           }
 
           w->emit_mov(mem{rbp, element_offset}, content);
-          index_to_push = std::numeric_limits<std::uint64_t>::max();
+          index_to_push = (std::numeric_limits<std::uint64_t>::max)();
           pool.free(content);
         } else {
           if (inline_const_index.has_value()) {
@@ -1915,7 +1915,8 @@ class codegen {
             pool.free(content);
             break;
           }
-          if (index_to_push != std::numeric_limits<std::uint64_t>::max()) {
+          if (index_to_push != (std::numeric_limits<std::uint64_t>::max)())
+          {
             auto content = pool.pop(func, i);
             std::uint64_t index = index_to_push;
             std::int32_t element_offset = array_base_offset + 8 * index;
@@ -1930,7 +1931,7 @@ class codegen {
             }
 
             w->emit_mov(mem{rbp, element_offset}, content);
-            index_to_push = std::numeric_limits<std::uint64_t>::max();
+            index_to_push = (std::numeric_limits<std::uint64_t>::max)();
             pool.free(content);
             break;
           }
