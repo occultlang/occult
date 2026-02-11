@@ -1,0 +1,19 @@
+include "../lib/stdio.occ"
+
+struct point {
+    i64 x;
+    i64 y;
+}
+
+fn main() {
+    point p;
+    p.x = 10;
+    p.y = 20;
+    
+    print_integer(p.x);
+    print_string("\n");
+    print_integer(p.y);
+    print_string("\n");
+
+    return 0;
+}

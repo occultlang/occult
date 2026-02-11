@@ -1,0 +1,63 @@
+include "../lib/stdio.occ"
+
+struct node {
+    i64 val;
+    node* next;
+}
+
+fn create_node(i64 value) node* {
+    node* n = alloc(16);
+    n.val = value;
+    n.next = 0;
+    return n;
+}
+
+fn append_node(node* head, i64 value) node* {
+    node* new_node = create_node(value);
+    node* current = head;
+
+    while (current.next != 0) {
+        current = current.next;
+    }
+
+    current.next = new_node;
+    return new_node;
+}
+
+fn print_list(node* head) {
+    node* current = head;
+
+    while (current != 0) {
+        print_integer(current.val);
+        print_string("\n");
+        current = current.next;
+    }
+}
+
+fn sum_list(node* head) i64 {
+    i64 sum = 0;
+    node* current = head;
+
+    while (current != 0) {
+        sum = sum + current.val;
+        current = current.next;
+    }
+
+    return sum;
+}
+
+fn main() {
+    node* head = create_node(10);
+    append_node(head, 20);
+    append_node(head, 30);
+    append_node(head, 40);
+
+    print_list(head);
+
+    i64 total = sum_list(head);
+    print_string("sum: ");
+    print_integer(total);
+    print_string("\n");
+
+    return 0;
+}

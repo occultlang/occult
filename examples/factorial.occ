@@ -9,7 +9,8 @@ fn factorial(i64 n) i64 {
 fn main() i64 {
   i64 n = factorial(5);
   
-  printn(n);
+  print_integer(n);
+  print_string("\n");
   
   return 0;
 }

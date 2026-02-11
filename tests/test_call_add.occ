@@ -1,0 +1,42 @@
+include "../lib/stdio.occ"
+
+fn double_it(i64 n) i64 {
+    return n * 2;
+}
+
+fn add_one(i64 n) i64 {
+    return n + 1;
+}
+
+fn fib(i64 n) i64 {
+    if n == 0 {
+        return 0;
+    }
+    if n == 1 {
+        return 1;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+fn main() i64 {
+    // Test: f(a) + f(b) should add both results
+    i64 result = double_it(3) + double_it(4);
+    print_integer(result);
+    print_string("\n");
+
+    // Test: multiple call additions
+    i64 r2 = add_one(10) + add_one(20);
+    print_integer(r2);
+    print_string("\n");
+
+    // Test: fibonacci recursion
+    i64 f5 = fib(5);
+    print_integer(f5);
+    print_string("\n");
+
+    i64 f10 = fib(10);
+    print_integer(f10);
+    print_string("\n");
+
+    return 0;
+}

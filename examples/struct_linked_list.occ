@@ -1,0 +1,82 @@
+include "../lib/stdio.occ"
+
+struct node {
+    i64 val;
+    node* next;
+}
+
+fn alloc_node(i64 val) node* {
+    node* n = alloc(16);
+
+    n.val = val;
+    n.next = 0;
+
+    return n;
+}
+
+fn alloc_next_node(node* prev_node, i64 val) node* {
+    node* new_node = alloc_node(val);
+
+    node* current = prev_node;
+    while (current.next != 0) {
+        current = current.next;
+    }
+
+    current.next = new_node;
+
+    return new_node;
+}
+
+fn free_list(node* head) i64 {
+    node* current = head;
+
+    while (current != 0) {
+        node* next_node = current.next;
+        del(current);
+        current = next_node;
+    }
+
+    return 0;
+}
+
+fn print_all_elems(node* head) i64 {
+    node* current = head;
+
+    while (current != 0) {
+        print_integer(current.val);
+        print_string("\n");
+        current = current.next;
+    }
+
+    return 0;
+}
+
+fn sum_list(node* head) i64 {
+    i64 sum = 0;
+    node* current = head;
+
+    while (current != 0) {
+        sum = sum + current.val;
+        current = current.next;
+    }
+
+    return sum;
+}
+
+fn main() i64 {
+    node* head = alloc_node(10);
+    alloc_next_node(head, 20);
+    alloc_next_node(head, 30);
+    alloc_next_node(head, 40);
+
+    i64 total = sum_list(head);
+    print_string("Sum: ");
+    print_integer(total);
+    print_string("\n");
+
+    print_all_elems(head);
+
+    free_list(head);
+
+    return 0;
+}

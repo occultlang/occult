@@ -1,0 +1,22 @@
+include "../lib/stdio.occ"
+
+struct point {
+    i64 x;
+    i64 y;
+}
+
+fn get_x(point p) i64 {
+    return p.x;
+}
+
+fn main() {
+    point p;
+    p.x = 42;
+    p.y = 99;
+
+    i64 result = get_x(p);
+    print_integer(result);
+    print_string("\n");
+
+    return 0;
+}
