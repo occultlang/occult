@@ -36,6 +36,27 @@ struct array_metadata {
   std::int32_t total_size{};
 };
 
+struct struct_member_info {
+  std::string name;
+  std::string type;
+  std::int32_t offset; // offset from struct base (0, 8, 16, ...)
+};
+
+struct struct_layout {
+  std::string name;
+  std::vector<struct_member_info> members;
+  std::int32_t total_size{};
+
+  std::int32_t get_member_offset(const std::string &member_name) const {
+    for (const auto &m : members) {
+      if (m.name == member_name) {
+        return m.offset;
+      }
+    }
+    return -1;
+  }
+};
+
 class codegen {
 #ifdef __linux
   bool is_systemv = true;
@@ -183,6 +204,7 @@ class codegen {
   std::vector<std::unique_ptr<x86_64_writer>> writers;
   std::unordered_map<std::string, std::int32_t> cleanup_size_map;
   std::unordered_map<std::string, std::string> function_return_types;
+  std::unordered_map<std::string, struct_layout> struct_layouts;
 
   bool debug;
 
@@ -245,6 +267,10 @@ class codegen {
     std::unordered_map<std::string, std::string> local_variable_map_types;
 
     std::unordered_map<std::string, array_metadata> local_array_metadata;
+
+    // struct tracking: variable name -> struct type name
+    std::unordered_map<std::string, std::string> local_struct_var_types;
+    std::string pending_struct_type; // set by op_struct_decl, consumed by op_struct_store
 
     bool is_reference_next = false;
     bool is_dereference_next = false;
@@ -572,17 +598,37 @@ class codegen {
 
           std::int32_t offset = -it->second;
 
-          if (var_type == "int8" || var_type == "uint8") {
+          // Check if this is a struct reassignment (full struct, not pointer)
+          if (local_struct_var_types.contains(var_name)) {
+            auto struct_type = local_struct_var_types[var_name];
+            auto layout_it = struct_layouts.find(struct_type);
+            if (layout_it != struct_layouts.end()) {
+              // r contains a pointer to source struct data - copy it
+              grp tmp = pool.alloc();
+              std::int32_t actual_size = layout_it->second.total_size;
+              for (std::int32_t off = 0; off < actual_size; off += 8) {
+                w->emit_mov(tmp, mem{r, off});
+                w->emit_mov(mem{rbp, offset + off}, tmp);
+              }
+              pool.free(tmp);
+              pool.free(r);
+            } else {
+              w->emit_mov(mem{rbp, offset}, r);
+              pool.free(r);
+            }
+          } else if (var_type == "int8" || var_type == "uint8") {
             w->emit_mov(mem{bpl, offset}, as_8(r));
+            pool.free(r);
           } else if (var_type == "int16" || var_type == "uint16") {
             w->emit_mov(mem{bp, offset}, as_16(r));
+            pool.free(r);
           } else if (var_type == "int32" || var_type == "uint32") {
             w->emit_mov(mem{ebp, offset}, as_32(r));
+            pool.free(r);
           } else {
             w->emit_mov(mem{rbp, offset}, r);
+            pool.free(r);
           }
-
-          pool.free(r);
 
           if (debug) {
             std::cout << BLUE << "[CODEGEN INFO] Variable location: " << RESET
@@ -696,6 +742,13 @@ class codegen {
           simd_pool.push(simd_reg);
 
           break;
+        }
+
+        // Check if this is a struct variable (not a pointer to struct)
+        if (!loaded && local_struct_var_types.contains(var_name)) {
+          // For struct variables, load the base address (LEA)
+          w->emit_lea(r, mem{rbp, offset});
+          loaded = true;
         }
 
         if (!loaded) {
@@ -1488,13 +1541,19 @@ class codegen {
             (ret_it != function_return_types.end()) ? ret_it->second : "";
         bool ret_is_fp = (ret_type == "float32" || ret_type == "float64");
 
-        // only push return value if it will be consumed by the next instruction
-        // caused corruption in subsequent array/memory operations
+        // Determine whether this call's return value will be consumed.
+        // We simulate the register pool depth from this point forward:
+        // - ops that push values (push, load, call-with-return) increase depth
+        // - ops that consume values (add, store, etc.) decrease depth
+        // If the depth ever goes below 0, it means this call's return
+        // value was consumed as part of an expression (e.g., f(a) + f(b)).
+        // If we reach a label/jump or the depth never goes negative,
+        // the return value is not consumed (standalone call).
         bool should_push_return = false;
         if (!ret_type.empty() && i + 1 < func.code.size()) {
           auto next_op = func.code.at(i + 1).op;
-          switch (
-              next_op) { // these opcodes consume the top of the register stack
+          switch (next_op) {
+          // Opcodes that immediately consume the return value
           case ir_opcode::op_store:
           case ir_opcode::op_store_at_addr:
           case ir_opcode::op_array_store_element:
@@ -1537,8 +1596,124 @@ class codegen {
           case ir_opcode::op_ret:
           case ir_opcode::op_call: // nested function call uses return as
                                    // argument
+          case ir_opcode::op_struct_store:
+          case ir_opcode::op_struct_decl:
             should_push_return = true;
             break;
+          // When the next op is a value-producing op (push/load), do a
+          // depth-tracking scan to determine if this call's return value
+          // is eventually consumed as part of an expression like f(a)+f(b).
+          case ir_opcode::op_push:
+          case ir_opcode::op_push_single:
+          case ir_opcode::op_load: {
+            // depth tracks the number of values added to the pool AFTER
+            // this call's return value. If a consuming op would make
+            // depth go negative, it means our return value is needed.
+            int depth = 0;
+            for (std::size_t la = i + 1; la < func.code.size(); ++la) {
+              auto la_op = func.code.at(la).op;
+              // value-producing ops
+              if (la_op == ir_opcode::op_push ||
+                  la_op == ir_opcode::op_push_single ||
+                  la_op == ir_opcode::op_push_for_ret ||
+                  la_op == ir_opcode::op_load ||
+                  la_op == ir_opcode::op_member_access ||
+                  la_op == ir_opcode::op_array_access_element) {
+                depth++;
+              }
+              // call: consumes its arguments and produces one return value.
+              // Net change = 1 - arg_count. For a 1-arg call: net 0.
+              // For the pattern f(a)+f(b): push a → depth 1, call f(1 arg)
+              // → depth 1 (1-1+1=1). Then add consumes 2 → depth -1 < 0,
+              // meaning our return value is needed.
+              else if (la_op == ir_opcode::op_call) {
+                std::string call_name =
+                    std::get<std::string>(func.code.at(la).operand);
+                auto call_it = std::ranges::find_if(
+                    ir_funcs,
+                    [&](const ir_function &f) { return f.name == call_name; });
+                if (call_it != ir_funcs.end()) {
+                  int call_arg_count = call_it->args.size();
+                  depth -= call_arg_count; // consumed arguments
+                  depth += 1;              // produced return value
+                } else {
+                  // External/native function — can't determine arg count,
+                  // conservatively stop the scan here.
+                  break;
+                }
+              }
+              // binary ops: consume 2, produce 1 → net -1
+              else if (la_op == ir_opcode::op_add ||
+                       la_op == ir_opcode::op_sub ||
+                       la_op == ir_opcode::op_mul ||
+                       la_op == ir_opcode::op_div ||
+                       la_op == ir_opcode::op_mod ||
+                       la_op == ir_opcode::op_imul ||
+                       la_op == ir_opcode::op_idiv ||
+                       la_op == ir_opcode::op_imod ||
+                       la_op == ir_opcode::op_addf32 ||
+                       la_op == ir_opcode::op_subf32 ||
+                       la_op == ir_opcode::op_mulf32 ||
+                       la_op == ir_opcode::op_divf32 ||
+                       la_op == ir_opcode::op_modf32 ||
+                       la_op == ir_opcode::op_addf64 ||
+                       la_op == ir_opcode::op_subf64 ||
+                       la_op == ir_opcode::op_mulf64 ||
+                       la_op == ir_opcode::op_divf64 ||
+                       la_op == ir_opcode::op_modf64 ||
+                       la_op == ir_opcode::op_cmp ||
+                       la_op == ir_opcode::op_cmpf32 ||
+                       la_op == ir_opcode::op_cmpf64 ||
+                       la_op == ir_opcode::op_logical_and ||
+                       la_op == ir_opcode::op_logical_or ||
+                       la_op == ir_opcode::op_bitwise_and ||
+                       la_op == ir_opcode::op_bitwise_or ||
+                       la_op == ir_opcode::op_bitwise_xor ||
+                       la_op == ir_opcode::op_bitwise_lshift ||
+                       la_op == ir_opcode::op_bitwise_rshift) {
+                depth -= 1; // consumes 2, produces 1
+                if (depth < 0) {
+                  should_push_return = true;
+                  break;
+                }
+              }
+              // store/ret consume 1, produce 0
+              else if (la_op == ir_opcode::op_store ||
+                       la_op == ir_opcode::op_store_at_addr ||
+                       la_op == ir_opcode::op_ret ||
+                       la_op == ir_opcode::op_member_store ||
+                       la_op == ir_opcode::op_array_store_element ||
+                       la_op == ir_opcode::op_dereference_assign) {
+                depth -= 1;
+                if (depth < 0) {
+                  should_push_return = true;
+                  break;
+                }
+                break; // store/ret ends the expression
+              }
+              // unary ops: consume 1, produce 1 → net 0
+              else if (la_op == ir_opcode::op_negate ||
+                       la_op == ir_opcode::op_not ||
+                       la_op == ir_opcode::op_bitwise_not ||
+                       la_op == ir_opcode::op_dereference ||
+                       la_op == ir_opcode::op_reference) {
+                // net 0 change
+              }
+              // control flow breaks the analysis
+              else if (la_op == ir_opcode::op_jmp ||
+                       la_op == ir_opcode::op_jz ||
+                       la_op == ir_opcode::op_jnz ||
+                       la_op == ir_opcode::op_jl ||
+                       la_op == ir_opcode::op_jle ||
+                       la_op == ir_opcode::op_jg ||
+                       la_op == ir_opcode::op_jge) {
+                break; // can't analyze across jumps
+              }
+              // no-op markers: skip them
+              // (label, mark_for_array_access, array_decl, etc.)
+            }
+            break;
+          }
           default:
             should_push_return = false;
             break;
@@ -1946,17 +2121,209 @@ class codegen {
       }
       /* structures */
       case ir_opcode::op_struct_decl: {
+        pending_struct_type = std::get<std::string>(code.operand);
+
+        if (debug) {
+          std::cout << BLUE << "[CODEGEN INFO] Struct declaration of type: "
+                    << RESET << pending_struct_type << std::endl;
+        }
+
         break;
       }
       case ir_opcode::op_struct_store: {
+        auto var_name = std::get<std::string>(code.operand);
+
+        if (debug) {
+          std::cout << BLUE << "[CODEGEN INFO] Struct store variable: " << RESET
+                    << var_name << " of type: " << pending_struct_type
+                    << std::endl;
+        }
+
+        // check if this is a pointer to struct type
+        bool is_struct_ptr = false;
+        std::string base_struct_type = pending_struct_type;
+        const std::string ptr_suffix = kStructPtrSuffix;
+        if (pending_struct_type.ends_with(ptr_suffix)) {
+          is_struct_ptr = true;
+          base_struct_type = pending_struct_type.substr(
+              0, pending_struct_type.size() - ptr_suffix.size());
+        }
+
+        auto it = local_variable_map.find(var_name);
+        if (it == local_variable_map.end()) {
+          if (is_struct_ptr) {
+            // if pointer to struct type, just allocate 8 bytes like a regular var
+            totalsizes += 8;
+
+            if (!pool.empty()) {
+              grp r = pool.pop(func, i);
+              w->emit_mov(mem{rbp, -totalsizes}, r);
+              pool.free(r);
+            }
+
+            local_variable_map.insert({var_name, totalsizes});
+            local_variable_map_types.insert(
+                {var_name, pending_struct_type});
+          } else {
+            // allocate space
+            auto layout_it = struct_layouts.find(pending_struct_type);
+            if (layout_it == struct_layouts.end()) {
+              // ukn, just allocate 8 bytes like a regular var
+              totalsizes += 8;
+
+              if (!pool.empty()) {
+                grp r = pool.pop(func, i);
+                w->emit_mov(mem{rbp, -totalsizes}, r);
+                pool.free(r);
+              }
+
+              local_variable_map.insert({var_name, totalsizes});
+              local_variable_map_types.insert(
+                  {var_name, pending_struct_type});
+            } else {
+              // full struct, allocate space for all members
+              std::int32_t struct_size = layout_it->second.total_size;
+              // Align to 16 bytes
+              struct_size = ((struct_size + 15) / 16) * 16;
+              totalsizes += struct_size;
+
+              // if there's a value on the register pool from 
+              // an assignment or whatever it's a pointer to a source
+              // struct. then copy data
+              if (!pool.empty()) {
+                grp src = pool.pop(func, i);
+                grp tmp = pool.alloc();
+
+                // copy entire struct 8 bytes at a time
+                std::int32_t actual_size = layout_it->second.total_size;
+                for (std::int32_t off = 0; off < actual_size; off += 8) {
+                  w->emit_mov(tmp, mem{src, off});
+                  w->emit_mov(mem{rbp, -totalsizes + off}, tmp);
+                }
+
+                pool.free(tmp);
+                pool.free(src);
+              }
+
+              local_variable_map.insert({var_name, totalsizes});
+              local_variable_map_types.insert(
+                  {var_name, pending_struct_type});
+              local_struct_var_types.insert({var_name, pending_struct_type});
+            }
+          }
+        } else {
+          // bariable already exists, just update its value
+          if (!pool.empty()) {
+            grp r = pool.pop(func, i);
+            std::int32_t offset = -it->second;
+            w->emit_mov(mem{rbp, offset}, r);
+            pool.free(r);
+          }
+        }
+
+        if (debug) {
+          std::cout << BLUE << "[CODEGEN INFO] Struct variable " << RESET
+                    << var_name << " at offset -" << local_variable_map[var_name]
+                    << std::endl;
+        }
+
         break;
       }
 
       case ir_opcode::op_member_access: {
+        auto member_name = std::get<std::string>(code.operand);
+
+        if (debug) {
+          std::cout << BLUE << "[CODEGEN INFO] Member access: " << RESET
+                    << member_name << std::endl;
+        }
+
+        // the base address of the struct should be on the register pool
+        grp base = pool.pop(func, i);
+
+        // we need to figure out which struct type this variable is ^^^
+        // look through all struct layouts to find which one has this member.
+        std::int32_t member_offset = -1;
+        std::string member_struct_type;
+        std::string member_type_name;
+        for (const auto &[sname, slayout] : struct_layouts) {
+          auto off = slayout.get_member_offset(member_name);
+          if (off >= 0) {
+            member_offset = off;
+            member_struct_type = sname;
+            // Find the member's type
+            for (const auto &m : slayout.members) {
+              if (m.name == member_name) {
+                member_type_name = m.type;
+                break;
+              }
+            }
+            break;
+          }
+        }
+
+        if (member_offset < 0) {
+          std::cerr << RED << "[CODEGEN ERROR] Member " << member_name
+                    << " not found in any struct" << RESET << std::endl;
+          pool.push(base);
+          break;
+        }
+
+        // determine if this member is itself a struct type (not a pointer)
+        // if it is, we emit lea to compute its address
+        // if it's a scalar or pointer, we emit mov to load its value
+        bool member_is_nested_struct =
+            struct_layouts.contains(member_type_name);
+
+        if (member_is_nested_struct) {
+          // nested struct by value, compute address via LEA
+          w->emit_lea(base, mem{base, member_offset});
+        } else {
+          // scalar or pointer, load the actual value
+          w->emit_mov(base, mem{base, member_offset});
+        }
+
+        pool.push(base);
+
         break;
       }
 
       case ir_opcode::op_member_store: {
+        auto member_name = std::get<std::string>(code.operand);
+
+        if (debug) {
+          std::cout << BLUE << "[CODEGEN INFO] Member store: " << RESET
+                    << member_name << std::endl;
+        }
+
+        // value on top, then base address
+        grp val = pool.pop(func, i);
+        grp base = pool.pop(func, i);
+
+        // find the member offset
+        std::int32_t member_offset = -1;
+        for (const auto &[sname, slayout] : struct_layouts) {
+          auto off = slayout.get_member_offset(member_name);
+          if (off >= 0) {
+            member_offset = off;
+            break;
+          }
+        }
+
+        if (member_offset < 0) {
+          std::cerr << RED << "[CODEGEN ERROR] Member " << member_name
+                    << " not found in any struct for store" << RESET
+                    << std::endl;
+          pool.free(val);
+          pool.free(base);
+          break;
+        }
+
+        w->emit_mov(mem{base, member_offset}, val);
+
+        pool.free(val);
+        pool.free(base);
+
         break;
       }
       default: {
@@ -2119,7 +2486,46 @@ public:
                    const std::vector<ir_struct> &ir_structs,
                    const bool debug = false)
       : ir_funcs(ir_funcs), ir_structs(ir_structs), debug(debug) {
+    // create all layouts with preliminary sizes first
     for (const auto &s : ir_structs) {
+      struct_layout layout;
+      layout.name = s.datatype;
+      layout.total_size = 0;
+      for (const auto &m : s.members) {
+        layout.members.push_back({m.name, m.datatype, 0});
+      }
+      struct_layouts[s.datatype] = layout;
+    }
+
+    // resolve sizes (nested structs get their actual size) 2nd
+    constexpr int kMaxStructLayoutPasses = 10;
+    bool changed = true;
+    for (int pass = 0; pass < kMaxStructLayoutPasses && changed; ++pass) {
+      changed = false;
+      for (auto &[name, layout] : struct_layouts) {
+        std::int32_t offset = 0;
+        for (auto &member : layout.members) {
+          member.offset = offset;
+          auto nested_it = struct_layouts.find(member.type);
+          if (nested_it != struct_layouts.end() &&
+              nested_it->second.total_size > 0) {
+            offset += nested_it->second.total_size;
+          } else {
+            offset += 8; // scalar types are 8-byte aligned
+          }
+        }
+        if (offset != layout.total_size) {
+          layout.total_size = offset;
+          changed = true;
+        }
+      }
+    }
+
+    // ensure minimum size
+    for (auto &[name, layout] : struct_layouts) {
+      if (layout.total_size == 0) {
+        layout.total_size = 8;
+      }
     }
   }
 

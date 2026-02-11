@@ -8,6 +8,8 @@
 #include <variant>
 
 namespace occult {
+constexpr const char *kStructPtrSuffix = "_ptr";
+
 enum ir_opcode {
   null_op,
   op_push,

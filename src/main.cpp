@@ -81,10 +81,6 @@ OCCULT_FUNC_DECL(std::int64_t, print_newline, (), std::int64_t) {
   return 0;
 }
 
-// Note: print_s, print_i, print, and print_d have been removed
-// Use lib/stdio.occ instead with print_string, print_integer, print_newline
-// functions
-
 int main(int argc, char *argv[]) {
   std::string input_file;
   std::string source_original;

@@ -112,7 +112,13 @@ void ir_gen::generate_function_args(ir_function &function,
 
       // for struct types, use the actual struct name from content
       if (arg->get_type() == cst_type::structure) {
-        type = arg->content + ((is_ref) ? "_reference" : "");
+        type = arg->content;
+        if (arg->num_pointers > 0) {
+          type += kStructPtrSuffix;
+        }
+        if (is_ref) {
+          type += "_reference";
+        }
       }
 
       auto variable_name = c->content;
@@ -123,6 +129,8 @@ void ir_gen::generate_function_args(ir_function &function,
       }
 
       function.args.emplace_back(variable_name, type);
+      // register function arguments in local_variable_map for type tracking
+      local_variable_map[function][variable_name] = type;
     }
   }
 }
@@ -319,6 +327,10 @@ void ir_gen::generate_boolean_value(ir_function &function, cst *node,
       case cst_type::arrayaccess:
         generate_array_access(function,
                               cst::cast_raw<cst_arrayaccess>(c.get()));
+        break;
+      case cst_type::memberaccess:
+        generate_member_access(function,
+                               cst::cast_raw<cst_memberaccess>(c.get()));
         break;
       case cst_type::equals_operator:
         emit_comparison(function, expr_type);
@@ -748,6 +760,10 @@ void ir_gen::generate_condition(ir_function &function, cst *node,
     }
     case cst_type::arrayaccess: {
       generate_array_access(function, cst::cast_raw<cst_arrayaccess>(expr));
+      break;
+    }
+    case cst_type::memberaccess: {
+      generate_member_access(function, cst::cast_raw<cst_memberaccess>(expr));
       break;
     }
     default: {
@@ -1738,7 +1754,12 @@ void ir_gen::generate_array_access(ir_function &function,
 
 void ir_gen::generate_struct_decl(ir_function &function,
                                   cst_struct *struct_node) {
-  function.code.emplace_back(op_struct_decl, struct_node->content);
+  // Include pointer information in the struct type
+  std::string struct_type = struct_node->content;
+  if (struct_node->num_pointers > 0) {
+    struct_type += kStructPtrSuffix;
+  }
+  function.code.emplace_back(op_struct_decl, struct_type);
 
   if (struct_node->get_children().size() > 1) {
     // assignment
@@ -1749,10 +1770,14 @@ void ir_gen::generate_struct_decl(ir_function &function,
     generate_common_generic<std::int64_t>(function, assignment);
 
     function.code.emplace_back(op_struct_store, id->content);
+    // Register the variable in the local variable map
+    local_variable_map[function][id->content] = struct_type;
   } else {
     const auto id = struct_node->get_children().front().get(); // identifier
 
     function.code.emplace_back(op_struct_store, id->content);
+    // Register the variable in the local variable map
+    local_variable_map[function][id->content] = struct_type;
   }
 }
 
@@ -1835,8 +1860,6 @@ void ir_gen::generate_block(ir_function &function, cst_block *block_node,
       const auto identifier = cst::cast_raw<cst_identifier>(
           node->get_children().front().get()); // name
 
-      // Only process assignment if it exists (variable might be declared
-      // without initialization)
       if (node->get_children().size() > 1 &&
           node->get_children().back()->get_type() == cst_type::assignment) {
         const auto assignment =
@@ -1846,8 +1869,6 @@ void ir_gen::generate_block(ir_function &function, cst_block *block_node,
         function.code.emplace_back(op_store, identifier->content,
                                    type_with_ptrs);
       }
-      // If no assignment, just register the variable - space will be allocated
-      // on first use
 
       local_variable_map[function][identifier->content] = type_with_ptrs;
 
@@ -1865,8 +1886,6 @@ void ir_gen::generate_block(ir_function &function, cst_block *block_node,
       const auto identifier = cst::cast_raw<cst_identifier>(
           node->get_children().front().get()); // name
 
-      // Only process assignment if it exists (variable might be declared
-      // without initialization)
       if (node->get_children().size() > 1 &&
           node->get_children().back()->get_type() == cst_type::assignment) {
         const auto assignment =
@@ -1876,8 +1895,6 @@ void ir_gen::generate_block(ir_function &function, cst_block *block_node,
         function.code.emplace_back(op_store, identifier->content,
                                    type_with_ptrs);
       }
-      // If no assignment, just register the variable - space will be allocated
-      // on first use
 
       local_variable_map[function][identifier->content] = type_with_ptrs;
 
