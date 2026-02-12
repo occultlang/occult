@@ -1,0 +1,27 @@
+// nisan
+
+fn pow(i64 x, i64 n) { 
+  if n == 0 {
+    return 1;
+  }
+
+  if x < 0 {
+    return 1 / pow(x, -n);
+  }
+
+  return x * pow(x, n - 1);
+}
+
+fn floor_log10(i64 n) { 
+  if n == 0 { return -1; }  
+  if n < 10 { return 0; }
+
+  i64 exponent = 0;
+
+  while n >= 10 {
+    n = n / 10;
+    exponent = exponent + 1;
+  }
+
+  return exponent;
+}
