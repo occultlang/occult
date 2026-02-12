@@ -1,3 +1,5 @@
+include "casting.occ"
+
 fn print_float(f32 value) {
   print_integer(cast_f32_to_int(value));
   print_string(".");
