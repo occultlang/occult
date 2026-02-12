@@ -24,8 +24,20 @@ fn cast_f32_to_int(f32 value) {
 fn cast_f32_to_int_decimal(f32 value) { // extracts the decimal part of the float
   i64 to_return = cast_f32_to_int((value) * 1e9);
   
-  i32 digits = floor_log10(to_return) + 1;
-  i64 power = pow(10, digits - 1);
+  i64 decimal_count = llabs(cast_f32_to_int(value));
+  i64 count = 0;
+  while decimal_count > 0 {
+    decimal_count = decimal_count / 10;
+    count = count + 1;
+  }
+  
+  i32 digits = 0;
+  i64 power = 0;
+  for i64 i = 0 when i < count do i = i + 1 {
+    digits = floor_log10(to_return) + 1;
+    power = pow(10, digits - 1);
+    to_return = to_return % power;
+  }
 
-  return to_return % power;
+  return to_return;
 }

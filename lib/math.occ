@@ -25,3 +25,10 @@ fn floor_log10(i64 n) {
 
   return exponent;
 }
+
+fn llabs(i64 n) {
+  if n < 0 {
+    return -n;
+  }
+  else { return n; }
+}
