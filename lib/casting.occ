@@ -1,0 +1,31 @@
+include "math.occ"
+
+fn cast_f32_to_int(f32 value) {
+  i64* addr_float = @value;
+  i64 bits = $addr_float; // this has the floating point in IEEE-754
+
+  i64 sign = (bits >> 31) & 1;
+  i64 exp_bias = (bits >> 23) & 0xFF;
+  i64 mantissa = bits & 0x7FFFFF;
+
+  i64 exp = exp_bias - 127;
+  i64 sig = mantissa | 0x800000;
+
+  i64 abs_integer;
+
+  if exp >= 23 { abs_integer = sig << (exp - 23); } 
+  else if exp >= 0 { abs_integer = sig >> (23 - exp); } 
+  else { abs_integer = 0; }
+
+  if sign == 1 {  return -abs_integer; } 
+  else {  return abs_integer; }
+}
+
+fn cast_f32_to_int_decimal(f32 value) { // extracts the decimal part of the float
+  i64 to_return = cast_f32_to_int((value) * 1e9);
+  
+  i32 digits = floor_log10(to_return) + 1;
+  i64 power = pow(10, digits - 1);
+
+  return to_return % power;
+}
