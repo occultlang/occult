@@ -76,9 +76,10 @@ class codegen {
 
         x86_64_writer* writer = nullptr;
         std::int32_t* total_stack_size = nullptr;
+        bool r_debug;
 
       public:
-        explicit register_pool(x86_64_writer* w, std::initializer_list<RegT> initial_regs) : initial_free_regs(initial_regs), writer(w) {
+        explicit register_pool(x86_64_writer* w, std::initializer_list<RegT> initial_regs) : initial_free_regs(initial_regs), writer(w), r_debug(w->debug) {
             free_regs = initial_free_regs;
         }
 
@@ -131,20 +132,24 @@ class codegen {
 
         RegT pop(ir_function& func, std::size_t instr_index = 0) {
             if (reg_stack.empty()) {
-                writer->print_bytes();
+                if (r_debug) {
+                   writer->print_bytes();
+                }
                 RegT r = alloc();
                 if constexpr (std::is_same_v<RegT, grp>) {
                     writer->emit_xor(r, r);
 
-                    std::cout << "IR TRACE:\n";
-                    for (std::size_t j = instr_index; j < func.code.size(); ++j) {
-                        ir_instr& code = func.code.at(j);
-                        std::cout << opcode_to_string(code.op) << " ";
-                        std::visit(visitor_stack(), code.operand);
-                        if (!code.type.empty()) {
-                            std::cout << "(type = " << code.type << ")";
+                    if (r_debug) {
+                        std::cout << "IR TRACE:\n";
+                        for (std::size_t j = instr_index; j < func.code.size(); ++j) {
+                            ir_instr& code = func.code.at(j);
+                            std::cout << opcode_to_string(code.op) << " ";
+                            std::visit(visitor_stack(), code.operand);
+                            if (!code.type.empty()) {
+                                std::cout << "(type = " << code.type << ")";
+                            }
+                            std::cout << "\n";
                         }
-                        std::cout << "\n";
                     }
                 }
                 return r;
