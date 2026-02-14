@@ -8,8 +8,8 @@ fn ret_float(f32 f) f32 {
 fn main() {
     f32 test = 3.14;
     f32 test2 = ret_float(3.14);
-
-    if test2 == test {
+    
+    if test2 == test && test2 == 3.14 {
         print_string("true\n");
     }
     else {

@@ -1,0 +1,6 @@
+include "../lib/stdio.occ"
+
+fn main() {
+  print_float(256.319313, 4);
+  print_string("\n");
+}
