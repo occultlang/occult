@@ -1,43 +1,8 @@
-include "math.occ"
+fn __cast_f32_i64(f32) shellcode i64 { 0xF3 0x48 0x0F 0x2C 0xC0 0xC3 }
+fn __cast_f64_i64(f64) shellcode i64 { 0xF2 0x48 0x0F 0x2C 0xC0 0xC3 }
 
-fn cast_f32_to_int(f32 value) {
-  i64* addr_float = @value;
-  i64 bits = $addr_float; // this has the floating point in IEEE-754
+fn __systemv_cast_i64_f32(i64) shellcode f32 { 0xF3 0x48 0x0F 0x2A 0xC7 0xC3 }
+fn __win64_cast_i64_f32(i64) shellcode f32 { 0xF3 0x48 0x0F 0x2A 0xC1 0xC3 }
 
-  i64 sign = (bits >> 31) & 1;
-  i64 exp_bias = (bits >> 23) & 0xFF;
-  i64 mantissa = bits & 0x7FFFFF;
-
-  i64 exp = exp_bias - 127;
-  i64 sig = mantissa | 0x800000;
-
-  i64 abs_integer;
-
-  if exp >= 23 { abs_integer = sig << (exp - 23); } 
-  else if exp >= 0 { abs_integer = sig >> (23 - exp); } 
-  else { abs_integer = 0; }
-
-  if sign == 1 {  return -abs_integer; } 
-  else {  return abs_integer; }
-}
-
-fn cast_f32_to_int_decimal(f32 value) { // extracts the decimal part of the float
-  i64 to_return = cast_f32_to_int((value) * 1e9);
-  
-  i64 decimal_count = llabs(cast_f32_to_int(value));
-  i64 count = 0;
-  while decimal_count > 0 {
-    decimal_count = decimal_count / 10;
-    count = count + 1;
-  }
-  
-  i32 digits = 0;
-  i64 power = 0;
-  for i64 i = 0 when i < count do i = i + 1 {
-    digits = floor_log10(to_return) + 1;
-    power = pow(10, digits - 1);
-    to_return = to_return % power;
-  }
-
-  return to_return;
-}
+fn __systemv_cast_i64_f64(i64) shellcode f64 { 0xF2 0x48 0x0F 0x2A 0xC7 0xC3 }
+fn __win64_cast_i64_f64(i64) shellcode f64 { 0xF2 0x48 0x0F 0x2A 0xC1 0xC3 }

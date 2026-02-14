@@ -1,33 +1,38 @@
-fn __systemv_cast_f32_i64(f32) shellcode i64 { 0xF3 0x48 0x0F 0x2C 0xC0 0xC3 }
-fn __systemv_cast_i64_f32(i64) shellcode f32 { 0xF3 0x48 0x0F 0x2A 0xC7 0xC3 }
+include "../lib/casting.occ"
 
-fn __systemv_print_float(f32 value, i64 precision) {
-  i64 raw = __systemv_cast_f32_i64(value);
+fn print_float(f32 value, i64 precision) {
+  i64 raw = __cast_f32_i64(value);
   print_integer(raw);
   print_string(".");
   
-  f32 fractional_part = value - __systemv_cast_i64_f32(raw);  
+  f32 fractional_part;
+  if is_linux64 == true {
+    fractional_part = value - __systemv_cast_i64_f32(raw);  
+  }
+  else if is_win64 == true {
+    fractional_part = value - __win64_cast_i64_f32(raw);  
+  }
 
   if fractional_part < 0 {
     fractional_part = -fractional_part;
   }
 
   if precision == 1 {
-    print_integer(__systemv_cast_f32_i64(fractional_part * 1e1));
+    print_integer(__cast_f32_i64(fractional_part * 1e1));
   }
   else if precision == 2 {
-    print_integer(__systemv_cast_f32_i64(fractional_part * 1e2));
+    print_integer(__cast_f32_i64(fractional_part * 1e2));
   }
   else if precision == 3 {
-    print_integer(__systemv_cast_f32_i64(fractional_part * 1e3));
+    print_integer(__cast_f32_i64(fractional_part * 1e3));
   }
   else if precision == 4 {
-    print_integer(__systemv_cast_f32_i64(fractional_part * 1e4));
+    print_integer(__cast_f32_i64(fractional_part * 1e4));
   }
   else if precision == 5 {
-    print_integer(__systemv_cast_f32_i64(fractional_part * 1e5));
+    print_integer(__cast_f32_i64(fractional_part * 1e5));
   }
   else {
-    print_integer(__systemv_cast_f32_i64(fractional_part * 1e6));
+    print_integer(__cast_f32_i64(fractional_part * 1e6));
   }
 }

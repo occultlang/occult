@@ -20,69 +20,66 @@ namespace occult {
 using jit_function = void (*)();
 
 class writer {
-public:
-  std::vector<std::uint8_t> code;
-  std::size_t page_size;
-  size_t allocated_size;
-  std::unordered_map<std::string, std::size_t> string_locations;
-  void *memory = nullptr;
+  public:
+    std::vector<std::uint8_t> code;
+    std::size_t page_size;
+    size_t allocated_size;
+    std::unordered_map<std::string, std::size_t> string_locations;
+    void* memory = nullptr;
 
 #ifdef __linux__
-  writer()
-      : page_size(sysconf(_SC_PAGE_SIZE)), allocated_size(page_size * 256) {
-    memory = mmap(nullptr, allocated_size, PROT_READ | PROT_WRITE | PROT_EXEC,
-                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    writer() : page_size(sysconf(_SC_PAGE_SIZE)), allocated_size(page_size * 256) {
+        memory = mmap(nullptr, allocated_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-    if (memory == MAP_FAILED) {
-      throw std::runtime_error("Memory allocation failed");
+        if (memory == MAP_FAILED) {
+            throw std::runtime_error("Memory allocation failed");
+        }
     }
-  }
 
-  ~writer() {
-    if (memory) {
-      munmap(memory, allocated_size);
+    ~writer() {
+        if (memory) {
+            munmap(memory, allocated_size);
+        }
     }
-  }
 #endif
 #ifdef _WIN64
-  writer()
-      : page_size([] {
-          SYSTEM_INFO si;
-          GetSystemInfo(&si);
-          return si.dwPageSize;
-        }()),
-        allocated_size(page_size * 256) {
-    // equivalent to mmap with PROT_READ | PROT_WRITE | PROT_EXEC
-    memory = VirtualAlloc(nullptr, allocated_size, MEM_RESERVE | MEM_COMMIT,
-                          PAGE_EXECUTE_READWRITE);
+    writer()
+        : page_size([] {
+              SYSTEM_INFO si;
+              GetSystemInfo(&si);
+              return si.dwPageSize;
+          }()),
+          allocated_size(page_size * 256) {
+        // equivalent to mmap with PROT_READ | PROT_WRITE | PROT_EXEC
+        memory = VirtualAlloc(nullptr, allocated_size, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 
-    if (!memory) {
-      throw std::runtime_error("Memory allocation failed");
+        if (!memory) {
+            throw std::runtime_error("Memory allocation failed");
+        }
     }
-  }
 
-  ~writer() {
-    if (memory) {
-      VirtualFree(memory, 0, MEM_RELEASE);
+    ~writer() {
+        if (memory) {
+            VirtualFree(memory, 0, MEM_RELEASE);
+        }
     }
-  }
 #endif
-  void push_byte(const std::uint8_t &byte);
+    void push_byte(const std::uint8_t& byte);
 
-  void push_bytes(const std::initializer_list<std::uint8_t> &bytes);
+    void push_bytes(const std::initializer_list<std::uint8_t>& bytes);
 
-  void push_bytes(const std::vector<std::uint8_t> &bytes);
+    void push_bytes(const std::vector<std::uint8_t>& bytes);
 
-  static std::vector<std::uint8_t> string_to_bytes(const std::string &str);
+    static std::vector<std::uint8_t> string_to_bytes(const std::string& str);
 
-  std::size_t push_string(const std::string &str);
+    std::size_t push_string(const std::string& str);
 
-  jit_function setup_function();
+    jit_function setup_function();
 
-  std::vector<std::uint8_t> &get_code();
+    std::vector<std::uint8_t>& get_code();
 
-  void print_bytes() const;
+    void print_bytes() const;
 
-  const std::size_t &get_string_location(const std::string &str);
+    const std::size_t& get_string_location(const std::string& str);
 };
 } // namespace occult
