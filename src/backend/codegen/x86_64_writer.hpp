@@ -997,9 +997,9 @@ class x86_64_writer : public writer {
         return imm >= (std::numeric_limits<T>::min)() && imm <= (std::numeric_limits<T>::max)();
     }
 
-    bool debug;
+  public:   
+    bool debug; // this has to be like this :(
 
-  public:
     x86_64_writer(bool debug = false) : writer(), debug(debug) {
     }
 
@@ -2086,3 +2086,4 @@ class x86_64_writer : public writer {
     }
 };
 } // namespace occult::x86_64
+
