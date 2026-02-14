@@ -39,7 +39,8 @@ _____________________________________________________________________________
 ### Building Occult
 
 > [!NOTE]
-> **The highest C++ standard that Occult should use is C++20**
+> **The highest C++ standard that Occult should use is C++20** <br>
+> Also, the only architecture Occult supports is `amd64` as of now, obviously this will change!
 
 ### Building for Linux / MacOS
 ```bash
