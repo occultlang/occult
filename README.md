@@ -50,7 +50,9 @@ chmod +x build.sh
 ### Building for Visual Studio on Windows (You must install LLVM with clang inside Visual Studio Installer)
 ```bash
 git clone https://github.com/occultlang/occult.git && cd occult
-cmake -G "<YOUR VISUAL STUDIO VERSION>" # i.e "Visual Studio 18 2026" for V.S 2026, but running cmake -G should just give you options to choose from
+cmake -G "<YOUR VISUAL STUDIO VERSION>"
+# i.e "Visual Studio 18 2026" for V.S 2026
+# running cmake -G should just give you options to choose from
 ```
 Change the C++ Language Standard to the latest version
 
