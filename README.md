@@ -11,6 +11,9 @@
 [![Forks](https://img.shields.io/github/forks/occultlang/occult?style=social)](https://github.com/occultlang/occult/network/members)
 </div>
 
+> [!IMPORTANT]
+> There's a more in-depth guide on getting started at [https://occultlang.org/getting-started](https://occultlang.org/getting-started)
+
 ### What is Occult? 
 Occult is a systems programming language, meant to give the user the full control and power of a C-like language, but with a modern syntax with modern features, making it easy to write, read and learn. 
 
@@ -35,11 +38,10 @@ fn main() {
 This is an example of using raw x86_64 shellcode with the Linux write syscall to print out 1 to 5!
 _____________________________________________________________________________
 
-
 ### Building Occult
 
 > [!NOTE]
-> **The highest C++ standard that Occult should use is C++20** <br>
+> **The highest C++ standard that Occult should use is C++23** <br>
 > Also, the only architecture Occult supports is `amd64` as of now, obviously this will change!
 
 ### Building for Linux / MacOS
