@@ -12,7 +12,8 @@
 </div>
 
 > [!IMPORTANT]
-> There's a more in-depth guide on getting started at [https://occultlang.org/getting-started](https://occultlang.org/getting-started)
+> ### There's a more in-depth guide on getting started at [https://occultlang.org/getting-started](https://occultlang.org/getting-started) <br/>
+> ### Language specification is at [https://occultlang.org/language-specifications](https://occultlang.org/language-specifications)
 
 ### What is Occult? 
 Occult is a systems programming language, meant to give the user the full control and power of a C-like language, but with a modern syntax with modern features, making it easy to write, read and learn. 
