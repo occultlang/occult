@@ -2,53 +2,65 @@
 Language:          Cpp
 BasedOnStyle:      LLVM
 
-BreakBeforeBraces: Attach
+BreakBeforeBraces: Custom
+
+BraceWrapping:
+  AfterCaseLabel:      true
+
+  AfterControlStatement: false
+  AfterFunction:         false
+  AfterClass:            false
+  AfterStruct:           false
+  AfterEnum:             false
+  AfterNamespace:        false
+  BeforeLambdaBody:      false
+
+  BeforeElse:          true
+  BeforeCatch:         true
+  BeforeWhile:         true
+
+  AfterExternBlock:    false
+  SplitEmptyFunction:  true
+  SplitEmptyRecord:    true
+  SplitEmptyNamespace: true
 
 AccessModifierOffset:  -4
 IndentWidth:           4
 TabWidth:              4
-UseTab:                Never      
+UseTab:                Never
 
 ColumnLimit:           240
 
 PointerAlignment:      Left
-DerivePointerAlignment: false
 
 AllowShortBlocksOnASingleLine: true
-AllowShortIfStatementsOnASingleLine: false  
+AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine:  false
 
-AlwaysBreakAfterDefinitionReturnType: false
 AlwaysBreakTemplateDeclarations:      Yes
-
-BreakConstructorInitializers:       AfterColon
+BreakConstructorInitializers:         AfterColon
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
 
-IndentCaseBlocks:          true
-NamespaceIndentation:      All    
+IndentCaseBlocks:      true
+IndentCaseLabels:      false   
+
+NamespaceIndentation:  All
 
 SpacesInParentheses:       false
 SpacesInAngles:            false
-SpacesInCStyleCastParentheses: false
 SpaceInEmptyParentheses:   false
 SpacesInConditionalStatement: false
 
 AlignConsecutiveAssignments:   false
 AlignConsecutiveDeclarations:  false
-AlignOperands:                 false
-AlignTrailingComments:         false
 
 MaxEmptyLinesToKeep:       2
 InsertNewlineAtEOF:        true
 
 IncludeCategories:
-  - Regex:           '^<.*\.h>'
-    Priority:        1
   - Regex:           '^<.*'
-    Priority:        2
+    Priority:        1
   - Regex:           '^".*'
-    Priority:        3
+    Priority:        2
   - Regex:           '.*'
-    Priority:        4
-
-IncludeIsMainRegex: '([-_](test|unittest))?$'
+    Priority:        3
