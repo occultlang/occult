@@ -1,0 +1,103 @@
+// Helper function to check and report
+fn check(i64 expected, i64 actual, string desc) {
+    print_string("Checking ");
+    print_string(desc);
+    print_string(": ");
+
+    if expected == actual {
+        print_string("PASS\n");
+    } else {
+        print_string("FAIL - expected ");
+        print_integer(expected);
+        print_string(" but got ");
+        print_integer(actual);
+        print_string("\n");
+    }
+}
+
+// 1. Arithmetic compound assignments
+fn test_arithmetic() {
+    i64 n = 200;
+
+    n += 50;      check(250, n, "n += 50");
+    n -= 30;      check(220, n, "n -= 30");
+    n *= 4;       check(880, n, "n *= 4");
+    n /= 5;       check(176, n, "n /= 5");
+    n %= 13;      check(7,  n, "n %= 13");   // 176 % 13 = 7
+
+    print_string("arithmetic tests done\n");
+}
+
+// 2. Bitwise compound assignments
+fn test_bitwise() {
+    i64 bits = 0b10101100;   // 172
+
+    bits &= 0b11110000;      // 160
+    check(160, bits, "bits &= 0b11110000");
+
+    bits |= 0b00001111;      // 175
+    check(175, bits, "bits |= 0b00001111");
+
+    bits ^= 0b00110011;      // 156
+    check(156, bits, "bits ^= 0b00110011");
+
+    i64 shift = 1;
+    shift <<= 7;              // 128
+    check(128, shift, "shift <<= 7");
+
+    shift >>= 3;              // 16
+    check(16,  shift, "shift >>= 3");
+
+    print_string("bitwise tests done\n");
+}
+
+// 3. Compound ops with expressions on RHS
+fn test_expressions() {
+    i64 x = 10;
+    i64 y = 4;
+    i64 z = 3;
+
+    x += y * 5 - 2;       // 10 + 20 - 2 = 28
+    check(28, x, "x += y*5-2");
+
+    x *= z + 1;           // 28 * 4 = 112
+    check(112, x, "x *= z+1");
+
+    x -= y << 2;          // 112 - 16 = 96
+    check(96, x, "x -= y<<2");
+
+    print_string("expression rhs tests done\n");
+}
+
+// 4. Negative numbers and edge cases
+fn test_edges() {
+    i64 neg = -48;
+
+    neg += 60;            // 12
+    check(12, neg, "neg += 60");
+
+    neg -= -20;           // 32
+    check(32, neg, "neg -= -20");
+
+    neg *= -2;            // -64
+    check(-64, neg, "neg *= -2");
+
+    neg >>= 2;            // -16 (assuming arithmetic right shift)
+    check(-16, neg, "neg >>= 2");
+
+    neg <<= 1;            // -32
+    check(-32, neg, "neg <<= 1");
+
+    print_string("edge case tests done\n");
+}
+
+fn main() {
+    print_string("Starting compound assignment tests...\n\n");
+
+    test_arithmetic();
+    test_bitwise();
+    test_expressions();
+    test_edges();
+
+    print_string("\nAll compound op tests finished.\n");
+}
