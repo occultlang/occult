@@ -1,18 +1,18 @@
-#include "backend/codegen/function_registry.hpp"
-#include "backend/codegen/ir_gen.hpp"
-#include "backend/codegen/x86_64_codegen.hpp"
-#include "lexer/lexer.hpp"
-#include "parser/cst.hpp"
-#include "parser/parser.hpp"
 #include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include "backend/codegen/function_registry.hpp"
+#include "backend/codegen/ir_gen.hpp"
+#include "backend/codegen/x86_64_codegen.hpp"
+#include "lexer/lexer.hpp"
+#include "parser/cst.hpp"
+#include "parser/parser.hpp"
 #ifdef __linux
-#include "backend/linker/linker.hpp"
 #include <sys/stat.h>
+#include "backend/linker/linker.hpp"
 #elif _WIN64
 #include "backend/linker/pe_header.hpp"
 #endif

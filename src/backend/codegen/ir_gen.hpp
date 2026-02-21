@@ -8,90 +8,91 @@
 #include <variant>
 
 namespace occult {
-constexpr const char* kStructPtrSuffix = "_ptr";
+    constexpr const char* kStructPtrSuffix = "_ptr";
 
-enum ir_opcode {
-    null_op,
-    op_push,
-    op_push_for_ret,
-    op_push_single,
-    // op_pushf,
-    op_store,
-    op_load,
-    /*op_storef32,
-    op_loadf32,
-    op_storef64,
-    op_loadf64,*/
-    op_add,
-    op_div,
-    op_mod,
-    op_sub,
-    op_mul,
-    op_imul,
-    op_idiv,
-    op_imod,
-    op_logical_and,
-    op_logical_or,
-    op_bitwise_and,
-    op_bitwise_or,
-    op_bitwise_xor,
-    op_bitwise_not,
-    op_not,
-    op_bitwise_lshift,
-    op_bitwise_rshift,
-    op_negate,
-    op_jmp,
-    op_jz,  // je
-    op_jnz, // jne
-    op_jl,
-    op_jle,
-    op_jg,
-    op_jge,
-    op_setz,
-    op_setnz,
-    op_setl,
-    op_setle,
-    op_setg,
-    op_setge,
-    op_cmp,
-    op_cmpf32,
-    op_cmpf64,
-    op_ret,
-    op_call,
-    op_syscall,
-    op_addf32,
-    op_divf32,
-    op_subf32,
-    op_mulf32,
-    op_modf32,
-    op_addf64,
-    op_divf64,
-    op_subf64,
-    op_mulf64,
-    op_modf64,
-    label,
-    op_array_decl,
-    op_array_access_element,
-    op_array_store_element,
-    op_declare_where_to_store,
-    op_array_dimensions,
-    op_array_size,
-    op_decl_array_type,
-    op_reference,
-    op_dereference,
-    op_dereference_assign,
-    op_store_at_addr,
-    op_mark_for_array_access,
-    op_struct_decl,
-    op_member_access,
-    op_member_store,
-    op_struct_load,
-    op_struct_store,
-    op_push_shellcode,
-};
+    enum ir_opcode {
+        null_op,
+        op_push,
+        op_push_for_ret,
+        op_push_single,
+        // op_pushf,
+        op_store,
+        op_load,
+        /*op_storef32,
+        op_loadf32,
+        op_storef64,
+        op_loadf64,*/
+        op_add,
+        op_div,
+        op_mod,
+        op_sub,
+        op_mul,
+        op_imul,
+        op_idiv,
+        op_imod,
+        op_logical_and,
+        op_logical_or,
+        op_bitwise_and,
+        op_bitwise_or,
+        op_bitwise_xor,
+        op_bitwise_not,
+        op_not,
+        op_bitwise_lshift,
+        op_bitwise_rshift,
+        op_ibitwise_rshift,
+        op_negate,
+        op_jmp,
+        op_jz,  // je
+        op_jnz, // jne
+        op_jl,
+        op_jle,
+        op_jg,
+        op_jge,
+        op_setz,
+        op_setnz,
+        op_setl,
+        op_setle,
+        op_setg,
+        op_setge,
+        op_cmp,
+        op_cmpf32,
+        op_cmpf64,
+        op_ret,
+        op_call,
+        op_syscall,
+        op_addf32,
+        op_divf32,
+        op_subf32,
+        op_mulf32,
+        op_modf32,
+        op_addf64,
+        op_divf64,
+        op_subf64,
+        op_mulf64,
+        op_modf64,
+        label,
+        op_array_decl,
+        op_array_access_element,
+        op_array_store_element,
+        op_declare_where_to_store,
+        op_array_dimensions,
+        op_array_size,
+        op_decl_array_type,
+        op_reference,
+        op_dereference,
+        op_dereference_assign,
+        op_store_at_addr,
+        op_mark_for_array_access,
+        op_struct_decl,
+        op_member_access,
+        op_member_store,
+        op_struct_load,
+        op_struct_store,
+        op_push_shellcode,
+    };
 
-inline std::string opcode_to_string(ir_opcode op) {
-    switch (op) {
+    inline std::string opcode_to_string(ir_opcode op) {
+        switch (op) {
         case op_push:
             return "push";
         // case op_pushf:
@@ -142,6 +143,8 @@ inline std::string opcode_to_string(ir_opcode op) {
             return "bitwise_lshift";
         case op_bitwise_rshift:
             return "bitwise_rshift";
+        case op_ibitwise_rshift:
+            return "ibitwise_rshift";
         case op_negate:
             return "negate";
         case op_jmp:
@@ -246,205 +249,171 @@ inline std::string opcode_to_string(ir_opcode op) {
             return "push_shellcode";
         default:
             return "unknown_opcode";
-    }
-}
-
-struct ir_argument {
-    std::string name;
-    std::string type;
-
-    ir_argument(std::string name, std::string type) : name(std::move(name)), type(std::move(type)) {
-    }
-};
-
-using ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t, std::uint8_t, double, float, std::string>;
-
-struct ir_instr {
-    ir_opcode op;
-    ir_operand operand;
-    std::string type;
-
-    ir_instr(const ir_opcode op, ir_operand operand) : op(op), operand(std::move(operand)) {
+        }
     }
 
-    ir_instr(const ir_opcode op, ir_operand operand, std::string type) : op(op), operand(std::move(operand)), type(std::move(type)) {
-    }
+    struct ir_argument {
+        std::string name;
+        std::string type;
 
-    explicit ir_instr(const ir_opcode op) : op(op), operand(std::monostate()) {
-    }
-};
-
-struct ir_function {
-    std::vector<ir_instr> code;
-    std::vector<ir_argument> args;
-    std::string name;
-    std::string type;
-    bool uses_shellcode = false;
-    bool is_external = false;
-
-    bool operator==(const ir_function& other) const {
-        return name == other.name;
-    }
-};
-
-struct ir_function_hasher {
-    size_t operator()(const ir_function& ir_func) const {
-        return std::hash<std::string>{}(ir_func.name);
-    }
-};
-
-struct ir_struct_member {
-    std::string datatype; // name of the datatype / or structure for custom datatype
-    std::string name;     // name of the member variable
-
-    ir_struct_member() = default;
-
-    ir_struct_member(std::string datatype, std::string name) : datatype(std::move(datatype)), name(std::move(name)) {
-    }
-};
-
-struct ir_struct {                         // used for custom data types (structures in the IR)
-    std::string datatype;                  // name of the structure / custom data type
-    std::vector<ir_struct_member> members; // list of members
-
-    ir_struct() = default;
-
-    ir_struct(std::string datatype, std::vector<ir_struct_member> members) : datatype(std::move(datatype)), members(std::move(members)) {
-    }
-};
-
-enum ir_typename : std::uint8_t { int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, string, boolean };
-
-struct visitor_stack {
-    void operator()(const float& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(const double& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(const std::int64_t& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(const std::uint64_t& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(const std::int32_t& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(const std::uint32_t& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(const std::int16_t& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(const std::uint16_t& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(const std::int8_t& v) const {
-        std::cout << static_cast<int>(v) << "\n";
-    };
-    void operator()(const std::uint8_t& v) const {
-        std::cout << static_cast<int>(v) << "\n";
-    };
-    void operator()(const std::string& v) const {
-        std::cout << v << "\n";
-    };
-    void operator()(std::monostate) const {
-        std::cout << "\n";
-    };
-};
-
-const std::unordered_map<std::string, ir_typename> ir_typemap = {
-    {"int64", ir_typename::int64}, {"int32", ir_typename::int32},     {"int16", ir_typename::int16},     {"int8", ir_typename::int8},    {"uint64", ir_typename::uint64}, {"uint32", ir_typename::uint32}, {"uint16", ir_typename::uint16},
-    {"uint8", ir_typename::uint8}, {"float32", ir_typename::float32}, {"float64", ir_typename::float64}, {"bool", ir_typename::boolean}, {"char", ir_typename::int8},     {"str", ir_typename::string},
-};
-
-static std::unordered_map<std::string, bool> is_signed = {
-    {"int64", true}, {"int32", true}, {"int16", true}, {"int8", true}, {"uint64", false}, {"uint32", false}, {"uint16", false}, {"uint8", false}, {"bool", true}, {"char", true},
-};
-
-class ir_gen { // conversion into a linear IR
-    cst_root* root;
-    int label_count;
-    std::stack<std::string> label_stack;
-    std::unordered_map<std::string, int> label_map;
-    bool debug;
-    std::unordered_map<std::string, cst*> custom_type_map;
-    std::unordered_map<std::string, ir_function> func_map;
-    std::unordered_map<ir_function, std::unordered_map<std::string, std::string>,
-                       ir_function_hasher> local_variable_map; // function -> variable name -> type
-
-    std::unordered_map<ir_function, std::unordered_map<std::string, std::string>,
-                       ir_function_hasher> local_array_map; // function -> array name -> type
-
-    enum class type_of_push : std::uint8_t {
-        normal, // normal push (more than one register)
-        ret,    // pushes to return in codegen
-        single  // pushes to a single register in codegen
+        ir_argument(std::string name, std::string type) : name(std::move(name)), type(std::move(type)) {}
     };
 
-    ir_function generate_function(cst_function* func_node);
+    using ir_operand = std::variant<std::monostate, std::int64_t, std::uint64_t, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t, std::uint8_t, double, float, std::string>;
 
-    void generate_function_args(ir_function& function, cst_functionargs* func_args_node);
+    struct ir_instr {
+        ir_opcode op;
+        ir_operand operand;
+        std::string type;
 
-    void generate_arith_and_bitwise_operators(ir_function& function, cst* c, std::optional<std::string> type = std::nullopt);
+        ir_instr(const ir_opcode op, ir_operand operand) : op(op), operand(std::move(operand)) {}
 
-    void emit_comparison(ir_function& function, std::optional<std::string> type);
+        ir_instr(const ir_opcode op, ir_operand operand, std::string type) : op(op), operand(std::move(operand)), type(std::move(type)) {}
 
-    void generate_boolean_value(ir_function& function, cst* node, type_of_push type_push = type_of_push::normal);
+        explicit ir_instr(const ir_opcode op) : op(op), operand(std::monostate()) {}
+    };
 
-    template <typename IntType> void generate_common_generic(ir_function& function, cst* assignment_node, std::optional<std::string> type = std::nullopt, type_of_push type_push = type_of_push::normal);
+    struct ir_function {
+        std::vector<ir_instr> code;
+        std::vector<ir_argument> args;
+        std::string name;
+        std::string type;
+        bool uses_shellcode = false;
+        bool is_external = false;
 
-    void handle_push_types(ir_function& function, cst* c, std::optional<std::string> type = std::nullopt);
+        bool operator==(const ir_function& other) const { return name == other.name; }
+    };
 
-    void generate_common(ir_function& function, cst* c, std::string type, type_of_push type_push = type_of_push::normal);
+    struct ir_function_hasher {
+        size_t operator()(const ir_function& ir_func) const { return std::hash<std::string>{}(ir_func.name); }
+    };
 
-    void generate_function_call(ir_function& function, cst* c);
+    struct ir_struct_member {
+        std::string datatype; // name of the datatype / or structure for custom datatype
+        std::string name;     // name of the member variable
 
-    void generate_return(ir_function& function, cst_returnstmt* return_node);
+        ir_struct_member() = default;
 
-    void generate_or_jump(ir_function& function, cst* comparison, const std::string& true_label);
+        ir_struct_member(std::string datatype, std::string name) : datatype(std::move(datatype)), name(std::move(name)) {}
+    };
 
-    void generate_and_jump(ir_function& function, cst* comparison, const std::string& false_label);
+    struct ir_struct {                         // used for custom data types (structures in the IR)
+        std::string datatype;                  // name of the structure / custom data type
+        std::vector<ir_struct_member> members; // list of members
 
-    void generate_inverted_jump(ir_function& function, cst* comparison, const std::string& false_label);
+        ir_struct() = default;
 
-    void generate_normal_jump(ir_function& function, cst* comparison, const std::string& false_label);
+        ir_struct(std::string datatype, std::vector<ir_struct_member> members) : datatype(std::move(datatype)), members(std::move(members)) {}
+    };
 
-    void generate_condition(ir_function& function, cst* node, const std::string& false_label, const std::string& true_label);
+    enum ir_typename : std::uint8_t { int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, string, boolean };
 
-    void generate_if(ir_function& function, cst_ifstmt* if_node, const std::string& current_break_label = "", const std::string& current_loop_start = "");
+    struct visitor_stack {
+        void operator()(const float& v) const { std::cout << v << "\n"; };
+        void operator()(const double& v) const { std::cout << v << "\n"; };
+        void operator()(const std::int64_t& v) const { std::cout << v << "\n"; };
+        void operator()(const std::uint64_t& v) const { std::cout << v << "\n"; };
+        void operator()(const std::int32_t& v) const { std::cout << v << "\n"; };
+        void operator()(const std::uint32_t& v) const { std::cout << v << "\n"; };
+        void operator()(const std::int16_t& v) const { std::cout << v << "\n"; };
+        void operator()(const std::uint16_t& v) const { std::cout << v << "\n"; };
+        void operator()(const std::int8_t& v) const { std::cout << static_cast<int>(v) << "\n"; };
+        void operator()(const std::uint8_t& v) const { std::cout << static_cast<int>(v) << "\n"; };
+        void operator()(const std::string& v) const { std::cout << v << "\n"; };
+        void operator()(std::monostate) const { std::cout << "\n"; };
+    };
 
-    void generate_loop(ir_function& function, cst_loopstmt* loop_node);
+    const std::unordered_map<std::string, ir_typename> ir_typemap = {
+        {"int64", ir_typename::int64}, {"int32", ir_typename::int32},     {"int16", ir_typename::int16},     {"int8", ir_typename::int8},    {"uint64", ir_typename::uint64}, {"uint32", ir_typename::uint32}, {"uint16", ir_typename::uint16},
+        {"uint8", ir_typename::uint8}, {"float32", ir_typename::float32}, {"float64", ir_typename::float64}, {"bool", ir_typename::boolean}, {"char", ir_typename::int8},     {"str", ir_typename::string},
+    };
 
-    void generate_while(ir_function& function, cst_whilestmt* while_node);
+    static std::unordered_map<std::string, bool> is_signed = {
+        {"int64", true}, {"int32", true}, {"int16", true}, {"int8", true}, {"uint64", false}, {"uint32", false}, {"uint16", false}, {"uint8", false}, {"bool", true}, {"char", true},
+    };
 
-    void generate_for(ir_function& function, cst_forstmt* for_node);
+    class ir_gen { // conversion into a linear IR
+        cst_root* root;
+        int label_count;
+        std::stack<std::string> label_stack;
+        std::unordered_map<std::string, int> label_map;
+        bool debug;
+        std::unordered_map<std::string, cst*> custom_type_map;
+        std::unordered_map<std::string, ir_function> func_map;
+        std::unordered_map<ir_function, std::unordered_map<std::string, std::string>,
+                           ir_function_hasher> local_variable_map; // function -> variable name -> type
 
-    void generate_array_decl(ir_function& function, cst_array* array_node);
+        std::unordered_map<ir_function, std::unordered_map<std::string, std::string>,
+                           ir_function_hasher> local_array_map; // function -> array name -> type
 
-    void generate_array_access(ir_function& function, cst_arrayaccess* array_access_node);
+        enum class type_of_push : std::uint8_t {
+            normal, // normal push (more than one register)
+            ret,    // pushes to return in codegen
+            single  // pushes to a single register in codegen
+        };
 
-    void generate_struct_decl(ir_function& function, cst_struct* struct_node);
+        ir_function generate_function(cst_function* func_node);
 
-    void generate_member_access(ir_function& function, cst_memberaccess* member_access_node);
+        void generate_function_args(ir_function& function, cst_functionargs* func_args_node);
 
-    void generate_block(ir_function& function, cst_block* block_node, std::string current_break_label = "", std::string current_loop_start = "");
+        void generate_arith_and_bitwise_operators(ir_function& function, cst* c, std::optional<std::string> type = std::nullopt);
 
-    std::string create_label();
+        void emit_comparison(ir_function& function, std::optional<std::string> type);
 
-    void place_label(ir_function& function, std::string label_name);
+        void generate_boolean_value(ir_function& function, cst* node, type_of_push type_push = type_of_push::normal);
 
-  public:
-    ir_gen(cst_root* root, std::unordered_map<std::string, cst*> custom_type_map, const bool debug = false) : root(root), label_count(0), debug(debug), custom_type_map(std::move(custom_type_map)) {
-    }
+        template <typename IntType>
+        void generate_common_generic(ir_function& function, cst* assignment_node, std::optional<std::string> type = std::nullopt, type_of_push type_push = type_of_push::normal);
 
-    static void visualize_stack_ir(const std::vector<ir_function>& funcs);
+        void handle_push_types(ir_function& function, cst* c, std::optional<std::string> type = std::nullopt);
 
-    static void visualize_structs(const std::vector<ir_struct>& structs);
+        void generate_common(ir_function& function, cst* c, std::string type, type_of_push type_push = type_of_push::normal);
 
-    std::vector<ir_function> lower_functions();
+        void generate_function_call(ir_function& function, cst* c);
 
-    std::vector<ir_struct> lower_structs();
-};
+        void generate_return(ir_function& function, cst_returnstmt* return_node);
+
+        void generate_or_jump(ir_function& function, cst* comparison, const std::string& true_label);
+
+        void generate_and_jump(ir_function& function, cst* comparison, const std::string& false_label);
+
+        void generate_inverted_jump(ir_function& function, cst* comparison, const std::string& false_label);
+
+        void generate_normal_jump(ir_function& function, cst* comparison, const std::string& false_label);
+
+        void generate_condition(ir_function& function, cst* node, const std::string& false_label, const std::string& true_label);
+
+        void generate_if(ir_function& function, cst_ifstmt* if_node, const std::string& current_break_label = "", const std::string& current_loop_start = "");
+
+        void generate_loop(ir_function& function, cst_loopstmt* loop_node);
+
+        void generate_while(ir_function& function, cst_whilestmt* while_node);
+
+        void generate_for(ir_function& function, cst_forstmt* for_node);
+
+        void generate_array_decl(ir_function& function, cst_array* array_node);
+
+        void generate_array_access(ir_function& function, cst_arrayaccess* array_access_node);
+
+        void generate_struct_decl(ir_function& function, cst_struct* struct_node);
+
+        void generate_member_access(ir_function& function, cst_memberaccess* member_access_node);
+
+        void generate_block(ir_function& function, cst_block* block_node, std::string current_break_label = "", std::string current_loop_start = "");
+
+        std::string create_label();
+
+        void place_label(ir_function& function, std::string label_name);
+
+    public:
+        ir_gen(cst_root* root, std::unordered_map<std::string, cst*> custom_type_map, const bool debug = false) : root(root), label_count(0), debug(debug), custom_type_map(std::move(custom_type_map)) {}
+
+        static void visualize_stack_ir(const std::vector<ir_function>& funcs);
+
+        static void visualize_structs(const std::vector<ir_struct>& structs);
+
+        std::vector<ir_function> lower_functions();
+
+        std::vector<ir_struct> lower_structs();
+    };
 } // namespace occult
