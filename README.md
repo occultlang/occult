@@ -77,7 +77,8 @@ _____________________________________________________________________________
 > **Known Issue**: The `-o` (output native binary) flag is currently broken. Use JIT mode (default) for compilation and execution.
 
 ### Roadmap
-- Generics
+- Varadaric Arguments (v2.2.1-alpha)
+- Generics 
 - Foreach implementation 
 - RAII 
 - New Intermediate Representation (SSA) for optimization pass
