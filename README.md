@@ -73,9 +73,6 @@ Next, go into C/C++ -> Command Line, and then remove all the contents of the "Ad
 Afterwards, you should be good to go
 _____________________________________________________________________________
 
-> [!WARNING]
-> **Known Issue**: The `-o` (output native binary) flag is currently broken. Use JIT mode (default) for compilation and execution.
-
 ### Roadmap
 - Varadaric Arguments (v2.2.1-alpha)
 - Generics 
