@@ -77,11 +77,9 @@ _____________________________________________________________________________
 > **Known Issue**: The `-o` (output native binary) flag is currently broken. Use JIT mode (default) for compilation and execution.
 
 ### Roadmap
-- New Linker (Planned for v2.2-alpha)
 - Generics
 - Foreach implementation 
-- Static Analysis
-- Borrow Checker or RAII (Similar to C++ `std::unique_ptr`)
+- RAII 
 - New Intermediate Representation (SSA) for optimization pass
 - RISCV Support
 - ARM64 Support
