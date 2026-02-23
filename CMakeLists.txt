@@ -14,6 +14,8 @@ add_executable(occultc
 ./src/parser/error.cpp
 ./src/parser/parser.hpp
 ./src/parser/parser.cpp
+./src/code_analysis/linter.hpp
+./src/code_analysis/linter.cpp
 ./src/backend/codegen/writer.cpp
 ./src/backend/codegen/writer.hpp
 ./src/backend/linker/elf_header.cpp
