@@ -6,15 +6,15 @@
 #include "../parser/cst.hpp"
 
 
-        /*
-            todo:
-            unused variables
-            tracking return type + missing returns
-            unreachable code
-            dead assignments
-            array bounds
-            maybe some pointer stuff as well
-        */
+/*
+    todo:
+    unused variables
+    tracking return type + missing returns
+    unreachable code
+    dead assignments
+    array bounds
+    maybe some pointer stuff as well
+*/
 
 namespace occult {
     struct lint_error {
@@ -61,6 +61,7 @@ namespace occult {
         static bool is_type_node(cst_type t);
 
         void check_assignment_type(const std::string& decl_type, const std::string& rhs_type);
+
     public:
         explicit linter(cst_root* root, bool debug = false) : root(root), debug(debug) {}
 

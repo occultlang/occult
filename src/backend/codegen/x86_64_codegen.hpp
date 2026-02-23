@@ -1009,12 +1009,14 @@ namespace occult::x86_64 {
                         const bool target_is_float32 = (target_type == "float32");
                         const bool target_is_float64 = (target_type == "float64");
                         const bool target_is_float = target_is_float32 || target_is_float64;
-                        const bool source_is_float = pool.empty() && !simd_pool.empty();
 
                         // Determine source float type from IR type annotation (may be empty for unknown)
                         auto src_norm_it = cast_keyword_to_typename.find(code.type);
                         const std::string& src_type = (src_norm_it != cast_keyword_to_typename.end()) ? src_norm_it->second : code.type;
                         const bool source_is_f64 = (src_type == "float64");
+                        const bool source_is_f32 = (src_type == "float32");
+                        // Use the IR type annotation when available; fall back to pool heuristic
+                        const bool source_is_float = (src_type.empty()) ? (pool.empty() && !simd_pool.empty()) : (source_is_f32 || source_is_f64);
 
                         if (source_is_float && target_is_float) {
                             // float <-> float conversion
@@ -1484,7 +1486,7 @@ namespace occult::x86_64 {
                     {
                         auto target = pool.alloc();
 
-                        w->emit_setnl(target);
+                        w->emit_setnle(target);
                         w->emit_mov(target, target);
 
                         pool.push(target);
@@ -1495,7 +1497,7 @@ namespace occult::x86_64 {
                     {
                         auto target = pool.alloc();
 
-                        w->emit_setnle(target);
+                        w->emit_setnl(target);
                         w->emit_mov(target, target);
 
                         pool.push(target);
@@ -1824,7 +1826,11 @@ namespace occult::x86_64 {
                                             if (call_it != ir_funcs.end()) {
                                                 int call_arg_count = call_it->args.size();
                                                 depth -= call_arg_count; // consumed arguments
-                                                depth += 1;              // produced return value
+                                                if (depth < 0) {
+                                                    should_push_return = true;
+                                                    break;
+                                                }
+                                                depth += 1; // produced return value
                                             }
                                             else {
                                                 // External/native function — can't determine arg count,

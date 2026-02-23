@@ -343,6 +343,14 @@ namespace occult {
     }
 
     void linter::collect_functions() {
+        // register compiler built-in functions
+        static const char* builtins[] = {
+            "print_string", "print_integer", "print_newline", "alloc", "del",
+        };
+        for (const auto* name : builtins) {
+            known_functions.insert(name);
+        }
+
         for (const auto& c : root->get_children()) {
             if (c->get_type() == cst_type::function) {
                 for (const auto& child : c->get_children()) {

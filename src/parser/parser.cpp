@@ -254,7 +254,8 @@ namespace occult {
             }
         default:
             { // binary ops
-                while (!stack_ref.empty() && stack_ref.top().tt != left_paren_tt && precedence_map[curr_tok_ref.tt] > precedence_map[stack_ref.top().tt]) {
+                while (!stack_ref.empty() && stack_ref.top().tt != left_paren_tt &&
+                       (curr_tok_ref.tt == assignment_tt ? precedence_map[curr_tok_ref.tt] > precedence_map[stack_ref.top().tt] : precedence_map[curr_tok_ref.tt] >= precedence_map[stack_ref.top().tt])) {
                     auto it = cst_map.find(stack_ref.top().tt);
                     if (it == cst_map.end() || !it->second) {
                         throw parsing_error("valid operator or operand (possibly a missing ';' before this token)", stack_ref.top(), pos, std::source_location::current().function_name());
@@ -411,12 +412,14 @@ namespace occult {
                     // parse as a normal expression
                     auto inner_expr = parse_expression(arg_tokens);
 
-                    if (inner_expr.size() != 1) {
-                        throw parsing_error("cast expects exactly one expression in parentheses", expr.at(type_i), pos, std::source_location::current().function_name());
+                    if (inner_expr.empty()) {
+                        throw parsing_error("cast expects an expression in parentheses", expr.at(type_i), pos, std::source_location::current().function_name());
                     }
 
                     auto cast_node = cst::new_node<cst_cast_to_datatype>(expr.at(type_i).lexeme);
-                    cast_node->add_child(std::move(inner_expr[0]));
+                    for (auto& child : inner_expr) {
+                        cast_node->add_child(std::move(child));
+                    }
 
                     expr_cst.push_back(std::move(cast_node));
                 }

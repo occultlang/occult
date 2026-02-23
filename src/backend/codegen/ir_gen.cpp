@@ -179,7 +179,7 @@ namespace occult {
                     function.code.emplace_back(op_mulf64);
                 }
                 else {
-                    ir_opcode to_push = is_signed[type.value()] ? op_imul : op_mul;
+                    ir_opcode to_push = (type.has_value() && is_signed[type.value()]) ? op_imul : op_mul;
                     function.code.emplace_back(to_push);
                 }
 
@@ -194,7 +194,7 @@ namespace occult {
                     function.code.emplace_back(op_divf64);
                 }
                 else {
-                    ir_opcode to_push = is_signed[type.value()] ? op_idiv : op_div;
+                    ir_opcode to_push = (type.has_value() && is_signed[type.value()]) ? op_idiv : op_div;
                     function.code.emplace_back(to_push);
                 }
 
@@ -209,7 +209,7 @@ namespace occult {
                     function.code.emplace_back(op_modf64);
                 }
                 else {
-                    ir_opcode to_push = is_signed[type.value()] ? op_imod : op_mod;
+                    ir_opcode to_push = (type.has_value() && is_signed[type.value()]) ? op_imod : op_mod;
                     function.code.emplace_back(to_push);
                 }
 
@@ -306,11 +306,14 @@ namespace occult {
     void ir_gen::generate_boolean_value(ir_function& function, cst* node, type_of_push type_push) {
         bool has_logical = false;
         for (const auto& c : node->get_children()) {
-            if (is_logical(c.get())) {
+            // only && and || need branching for short-circuit evaluation;
+            // simple comparisons (==, !=, >, <, >=, <=) use cmp+setcc which
+            // avoids register pool corruption from label-based branching
+            if (c->get_type() == cst_type::and_operator || c->get_type() == cst_type::or_operator) {
                 has_logical = true;
 
                 if (debug) {
-                    std::cout << CYAN << "[IR GEN] Generating boolean value for comparison.\n" << RESET;
+                    std::cout << CYAN << "[IR GEN] Generating boolean value for logical operator.\n" << RESET;
                 }
 
                 break;
@@ -517,6 +520,10 @@ namespace occult {
                         else if (first_child->get_type() == cst_type::number_literal) {
                             src_type = "int64";
                         }
+                        else if (first_child->get_type() == cst_type::cast_to_datatype) {
+                            // nested cast: source type is the target type of the inner cast
+                            src_type = first_child->content;
+                        }
                     }
                     function.code.emplace_back(op_cast, c->content, src_type);
                     break;
@@ -529,8 +536,8 @@ namespace occult {
     }
 
     void ir_gen::handle_push_types(ir_function& function, cst* c, std::optional<std::string> type) {
-        if (!type.has_value()) {
-            type = function.type;
+        if (!type.has_value() || type.value().empty()) {
+            type = function.type.empty() ? "int64" : function.type;
         }
 
         if (auto it = ir_typemap.find(type.value()); it != ir_typemap.end()) {
