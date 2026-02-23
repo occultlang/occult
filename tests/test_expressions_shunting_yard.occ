@@ -1,0 +1,251 @@
+include "../lib/stdio.occ"
+
+// helper: prints PASS or FAIL with context
+fn check_i64(i64 expected, i64 actual, i64 test_num) {
+    print_string("  [");
+    print_integer(test_num);
+    print_string("] ");
+    if expected == actual {
+        print_string("PASS\n");
+    } else {
+        print_string("FAIL  expected=");
+        print_integer(expected);
+        print_string("  got=");
+        print_integer(actual);
+        print_string("\n");
+    }
+    return 0;
+}
+
+// 1. basic arithmetic
+fn test_basic_arithmetic() {
+    print_string("=== Basic Arithmetic ===\n");
+    check_i64(3,   1 + 2,       1);
+    check_i64(7,   10 - 3,      2);
+    check_i64(6,   2 * 3,       3);
+    check_i64(5,   10 / 2,      4);
+    check_i64(1,   10 % 3,      5);
+    check_i64(0,   0 + 0,       6);
+    check_i64(-5,  0 - 5,       7);
+    return 0;
+}
+
+// 2. precedence
+fn test_precedence() {
+    print_string("=== Precedence ===\n");
+    check_i64(7,   1 + 2 * 3,          1);
+    check_i64(4,   10 - 2 * 3,         2);
+    check_i64(26,  2 * 3 + 4 * 5,      3);
+    check_i64(4,   6 / 2 + 1,          4);
+    check_i64(14,  2 + 3 * 4,          5);
+    check_i64(1,   8 / 4 / 2,          6);
+    check_i64(5,   10 - 3 - 2,         7);
+    check_i64(9,   10 - 3 + 2,         8);
+    check_i64(10,  1 + 2 + 3 + 4,      9);
+    return 0;
+}
+
+// 3. parentheses
+fn test_parentheses() {
+    print_string("=== Parentheses ===\n");
+    check_i64(9,   (1 + 2) * 3,             1);
+    check_i64(14,  2 * (3 + 4),             2);
+    check_i64(45,  (2 + 3) * (4 + 5),       3);
+    check_i64(5,   ((((5)))),               4);
+    check_i64(46,  2 * (3 + (4 * 5)),       5);
+    check_i64(231, (1 + 2) * (3 + 4) * (5 + 6), 6);
+    check_i64(-7,  0 - (3 + 4),             7);
+    check_i64(1,   (10 - 3) - (2 + 4),      8);
+    return 0;
+}
+
+// 4. unary operators
+fn test_unary() {
+    print_string("=== Unary Operators ===\n");
+    check_i64(-1,  0 - 1,                1);
+    check_i64(1,   0 - 1 + 2,           2);
+    check_i64(-6,  0 - 2 * 3,           3);
+    check_i64(-20, (0 - (2 + 3)) * 4,   4);
+    check_i64(-5,  (0 - 2) + (0 - 3),   5);
+    return 0;
+}
+
+// 5. comparison operators
+fn test_comparisons() {
+    print_string("=== Comparisons ===\n");
+    check_i64(1,  1 == 1,                  1);
+    check_i64(0,  1 == 2,                  2);
+    check_i64(1,  1 + 1 == 2,              3);
+    check_i64(1,  2 * 3 == 5 + 1,          4);
+    check_i64(1,  (1 + 2) == (2 + 1),      5);
+    check_i64(1,  10 > 5,                  6);
+    check_i64(0,  5 > 10,                  7);
+    check_i64(1,  5 < 10,                  8);
+    check_i64(0,  10 < 5,                  9);
+    check_i64(1,  10 >= 10,               10);
+    check_i64(1,  10 <= 10,               11);
+    check_i64(1,  3 * 4 > 2 * 5,          12);
+    return 0;
+}
+
+// 6. bitwise operators
+fn test_bitwise() {
+    print_string("=== Bitwise Operators ===\n");
+    check_i64(1,   5 & 3,    1);
+    check_i64(7,   5 | 3,    2);
+    check_i64(6,   5 ^ 3,    3);
+    check_i64(8,   1 << 3,   4);
+    check_i64(4,   16 >> 2,  5);
+    check_i64(160, 172 & 240, 6);
+    return 0;
+}
+
+// 7. mixed complex expressions
+fn test_mixed() {
+    print_string("=== Mixed Complex Expressions ===\n");
+    check_i64(17,  2 + 3 * 5,               1);
+    check_i64(20,  (2 + 3) * 4,             2);
+    check_i64(6,   2 * (1 + 2),             3);
+    check_i64(10,  (3 + 2) * (4 - 2),       4);
+    check_i64(100, (2 + 3) * (4 * 5),       5);
+    check_i64(1,   10 / 2 / 5,              6);
+    check_i64(7,   1 + 2 * 4 - 2,           7);
+    check_i64(3,   10 % 7,                  8);
+    check_i64(1,   (10 + 5) % (2 + 5),      9);
+    check_i64(15,  3 * (2 + 3),            10);
+    return 0;
+}
+
+// 8. variables in expressions
+fn test_variables() {
+    print_string("=== Variables in Expressions ===\n");
+    i64 a = 10;
+    i64 b = 3;
+    i64 c = 7;
+
+    check_i64(13,  a + b,           1);
+    check_i64(7,   a - b,           2);
+    check_i64(30,  a * b,           3);
+    check_i64(3,   a / b,           4);
+    check_i64(1,   a % b,           5);
+    check_i64(31,  a + b * c,       6);
+    check_i64(91,  (a + b) * c,     7);
+    check_i64(16,  a + c - 1,       8);
+    check_i64(1,   a == 10,         9);
+    check_i64(0,   a == b,         10);
+    check_i64(1,   a > b,          11);
+    check_i64(1,   b < c,          12);
+    return 0;
+}
+
+// 9. array access in expressions
+fn test_array_expressions() {
+    print_string("=== Array Access in Expressions ===\n");
+    array[5] i64 arr = {10, 20, 30, 40, 50};
+
+    check_i64(11,  arr[0] + 1,              1);
+    check_i64(50,  arr[1] + arr[2],         2);
+    check_i64(200, arr[1] * arr[2] / 3,     3);
+    check_i64(1,   arr[4] == 50,            4);
+    check_i64(20,  arr[arr[0] / 10],        5);
+
+    i64 idx = 2;
+    check_i64(30,  arr[idx],                6);
+    check_i64(70,  arr[idx] + arr[idx + 1], 7);
+    return 0;
+}
+
+// 10. compound assignments
+fn test_compound_assignments() {
+    print_string("=== Compound Assignments ===\n");
+    i64 n = 100;
+    n += 50;   check_i64(150, n,  1);
+    n -= 30;   check_i64(120, n,  2);
+    n *= 2;    check_i64(240, n,  3);
+    n /= 4;    check_i64(60,  n,  4);
+    n %= 13;   check_i64(8,   n,  5);
+
+    i64 bits = 172;
+    bits &= 240;     check_i64(160, bits, 6);
+    bits |= 15;      check_i64(175, bits, 7);
+    bits ^= 51;      check_i64(156, bits, 8);
+
+    i64 s = 1;
+    s <<= 7;   check_i64(128, s,  9);
+    s >>= 3;   check_i64(16,  s, 10);
+    return 0;
+}
+
+// 11. casting in expressions
+fn test_casting() {
+    print_string("=== Casting in Expressions ===\n");
+    i64 x = 42;
+    i64 y = i64(f32(x));   check_i64(42,  y,  1);
+
+    f32 pi = 3.14;
+    i64 trunc = i64(pi);   check_i64(3,   trunc, 2);
+
+    i64 big = 300;
+    i64 narrow = i64(i8(big));
+    check_i64(44, narrow, 3);
+
+    i64 sum_cast = i64(f32(10)) + i64(f32(20));
+    check_i64(30, sum_cast, 4);
+    return 0;
+}
+
+// 12. function calls in expressions
+fn double_it(i64 n) {
+    return n * 2;
+}
+
+fn add_three(i64 a, i64 b, i64 c) {
+    return a + b + c;
+}
+
+fn test_calls_in_expressions() {
+    print_string("=== Function Calls in Expressions ===\n");
+    check_i64(6,   double_it(3),                       1);
+    check_i64(11,  double_it(3) + 5,                   2);
+    check_i64(60,  double_it(3) * double_it(5),        3);
+    check_i64(6,   add_three(1, 2, 3),                 4);
+    check_i64(16,  add_three(1, 2, 3) + double_it(5),  5);
+    check_i64(1,   double_it(5) == 10,                                      6);
+    check_i64(48,  add_three(double_it(1), double_it(2), double_it(3)) * 4, 7);
+    return 0;
+}
+
+// 13. associativity stress tests
+fn test_associativity() {
+    print_string("=== Associativity (key regression tests) ===\n");
+    check_i64(5,   10 - 3 - 2,              1);
+    check_i64(1,   100 / 10 / 2 / 5,        2);
+    check_i64(2,   16 / 4 / 2,              3);
+    check_i64(1,   27 / 9 / 3,              4);
+    check_i64(5,   20 - 10 - 5,             5);
+    check_i64(1,   8 % 5 % 2,              6);
+    check_i64(2,   10 - 3 - 2 - 3,          7);
+    return 0;
+}
+
+// main
+fn main() {
+    print_string("=== Occult Expression / Shunting Yard Tests ===\n\n");
+
+    test_basic_arithmetic();
+    test_precedence();
+    test_parentheses();
+    test_unary();
+    test_comparisons();
+    test_bitwise();
+    test_mixed();
+    test_variables();
+    test_array_expressions();
+    test_compound_assignments();
+    test_casting();
+    test_calls_in_expressions();
+    test_associativity();
+
+    print_string("\n=== Done ===\n");
+    return 0;
+}
