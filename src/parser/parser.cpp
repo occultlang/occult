@@ -7,6 +7,20 @@
 #include "parser_maps.hpp"
 
 namespace occult {
+    parser::parser(const std::vector<token_t>& stream, const std::string& source_file_path, const std::string& source) : root(cst::new_node<cst_root>()), stream(stream), source_file_path(source_file_path) {
+        if (!source.empty()) {
+            std::istringstream ss(source);
+            std::string line;
+            while (std::getline(ss, line)) {
+                if (!line.empty() && line.back() == '\r') {
+                    line.pop_back();
+                }
+                source_lines.push_back(std::move(line));
+            }
+        }
+    }
+
+
     token_t parser::peek(const std::uintptr_t _pos) { return stream[this->pos + _pos]; }
 
     token_t parser::previous() {
@@ -211,7 +225,11 @@ namespace occult {
         case right_paren_tt:
             {
                 while (!stack_ref.empty() && stack_ref.top().tt != left_paren_tt) {
-                    auto n = cst_map[stack_ref.top().tt](stack_ref.top().lexeme);
+                    auto it = cst_map.find(stack_ref.top().tt);
+                    if (it == cst_map.end() || !it->second) {
+                        throw parsing_error("valid operator or operand (possibly a missing ';' before this token)", stack_ref.top(), pos, std::source_location::current().function_name());
+                    }
+                    auto n = it->second(stack_ref.top().lexeme);
 
                     expr_cst_ref.push_back(std::move(n));
                     stack_ref.pop();
@@ -237,7 +255,11 @@ namespace occult {
         default:
             { // binary ops
                 while (!stack_ref.empty() && stack_ref.top().tt != left_paren_tt && precedence_map[curr_tok_ref.tt] > precedence_map[stack_ref.top().tt]) {
-                    auto n = cst_map[stack_ref.top().tt](stack_ref.top().lexeme);
+                    auto it = cst_map.find(stack_ref.top().tt);
+                    if (it == cst_map.end() || !it->second) {
+                        throw parsing_error("valid operator or operand (possibly a missing ';' before this token)", stack_ref.top(), pos, std::source_location::current().function_name());
+                    }
+                    auto n = it->second(stack_ref.top().lexeme);
 
                     expr_cst_ref.push_back(std::move(n));
                     stack_ref.pop();
@@ -260,11 +282,33 @@ namespace occult {
 
             auto it = cst_map.find(stack_ref.top().tt);
             if (it == cst_map.end() || !it->second) {
-                throw parsing_error("no cst_map entry for token type", stack_ref.top(), pos, std::source_location::current().function_name());
+                throw parsing_error("valid operator or operand (possibly a missing ';' before this token)", stack_ref.top(), pos, std::source_location::current().function_name());
             }
 
             expr_cst_ref.push_back(cst_map[stack_ref.top().tt](stack_ref.top().lexeme));
             stack_ref.pop();
+        }
+    }
+
+    bool parser::is_castable(token_t t) {
+        switch (t.tt) {
+        case int64_keyword_tt:
+        case int32_keyword_tt:
+        case int16_keyword_tt:
+        case int8_keyword_tt:
+        case uint64_keyword_tt:
+        case uint32_keyword_tt:
+        case uint16_keyword_tt:
+        case uint8_keyword_tt:
+        case float32_keyword_tt:
+        case float64_keyword_tt:
+            {
+                return true;
+            }
+        default:
+            {
+                return false;
+            }
         }
     }
 
@@ -331,6 +375,52 @@ namespace occult {
                     expr_cst.push_back(cst_map[t.tt](t.lexeme));
                 }
             }
+            else if (is_castable(t)) {
+                if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) {
+
+                    std::size_t type_i = i; // remember where the type keyword is
+                    i += 2;                 // skip past type keyword + '('
+
+                    std::vector<token_t> arg_tokens;
+                    int paren_depth = 1;
+
+                    while (i < expr.size() && paren_depth > 0) {
+                        const auto& tok = expr.at(i);
+
+                        if (tok.tt == left_paren_tt) {
+                            paren_depth++;
+                        }
+                        else if (tok.tt == right_paren_tt) {
+                            paren_depth--;
+                            if (paren_depth == 0) {
+                                break; // don't include the closing ')'
+                            }
+                        }
+
+                        if (paren_depth > 0) {
+                            arg_tokens.push_back(tok);
+                        }
+
+                        i++;
+                    }
+
+                    if (paren_depth != 0) {
+                        throw parsing_error("unmatched '(' in cast expression", expr.at(type_i), pos, std::source_location::current().function_name());
+                    }
+
+                    // parse as a normal expression
+                    auto inner_expr = parse_expression(arg_tokens);
+
+                    if (inner_expr.size() != 1) {
+                        throw parsing_error("cast expects exactly one expression in parentheses", expr.at(type_i), pos, std::source_location::current().function_name());
+                    }
+
+                    auto cast_node = cst::new_node<cst_cast_to_datatype>(expr.at(type_i).lexeme);
+                    cast_node->add_child(std::move(inner_expr[0]));
+
+                    expr_cst.push_back(std::move(cast_node));
+                }
+            }
             else {
                 shunting_yard(operator_stack, expr_cst, t);
             }
@@ -385,7 +475,7 @@ namespace occult {
             return node;
         }
         if (match(peek(), array_keyword_tt)) {
-            throw parsing_error("<NO_ARRAY_TYPE_ALLOWED_FUNC_RET_TYPE>", peek(), pos, std::source_location::current().function_name());
+            throw parsing_error("scalar return type (array types cannot be used as a function return type)", peek(), pos, std::source_location::current().function_name());
         }
 
         return nullptr;
@@ -540,6 +630,9 @@ namespace occult {
     template <typename ParentNode>
     void parser::parse_expression_until(ParentNode* parent, const token_type t) {
         const auto first_pos = find_first_token(stream.begin() + pos, stream.end(), t);
+        if (first_pos == -1) {
+            return;
+        }
         const std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_pos + 1};
         pos += first_pos;
 
@@ -572,7 +665,7 @@ namespace occult {
             node->add_child(parse_assignment());
 
             if (match(peek(), semicolon_tt)) {
-                throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
             }
 
             parse_expression_until(node->get_children().at(1).get(), semicolon_tt);
@@ -632,7 +725,7 @@ namespace occult {
             node->add_child(parse_assignment());
 
             if (match(peek(), semicolon_tt)) {
-                throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
             }
 
             parse_expression_until(node->get_children().at(1).get(), semicolon_tt);
@@ -767,7 +860,7 @@ namespace occult {
             auto assignment = parse_assignment();
 
             if (match(peek(), semicolon_tt)) {
-                throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
             }
 
             parse_expression_until(assignment.get(),
@@ -1026,7 +1119,7 @@ namespace occult {
             to_assign->add_child(std::move(assignment_node));
 
             if (match(peek(), semicolon_tt)) {
-                throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
             }
 
             parse_expression_until(to_assign.get(), semicolon_tt);
@@ -1194,7 +1287,7 @@ namespace occult {
 
                 std::ifstream file(include_path);
                 if (!file.is_open()) {
-                    throw parsing_error("could not open file", string_token, pos, std::source_location::current().function_name());
+                    throw parsing_error("existing include file", string_token, pos, std::source_location::current().function_name());
                 }
 
                 std::stringstream buffer;
@@ -1275,7 +1368,7 @@ namespace occult {
                     auto assignment = parse_assignment();
 
                     if (match(peek(), semicolon_tt)) {
-                        throw parsing_error("<expr>", peek(), pos,
+                        throw parsing_error("expression (found empty assignment)", peek(), pos,
         std::source_location::current().function_name());
                     }
 
@@ -1332,7 +1425,7 @@ namespace occult {
                     auto assignment = parse_assignment();
 
                     if (match(peek(), semicolon_tt)) {
-                        throw parsing_error("<expr>", peek(), pos,
+                        throw parsing_error("expression (found empty assignment)", peek(), pos,
         std::source_location::current().function_name());
                     }
 
@@ -1411,7 +1504,7 @@ namespace occult {
                 auto assignment = parse_assignment();
 
                 if (match(peek(), semicolon_tt)) {
-                    throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                    throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
                 }
 
                 parse_expression_until(assignment.get(), semicolon_tt);
@@ -1441,7 +1534,7 @@ namespace occult {
                     ref_node->add_child(parse_assignment());
 
                     if (match(peek(), semicolon_tt)) {
-                        throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                        throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
                     }
 
                     parse_expression_until(ref_node.get(),
@@ -1489,6 +1582,17 @@ namespace occult {
         }
         if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
             auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+
+            if (first_semicolon_pos == -1) {
+
+                std::size_t scan = pos;
+                while (scan < stream.size() && stream[scan].tt != right_paren_tt && stream[scan].tt != end_of_file_tt) {
+                    ++scan;
+                }
+
+                const auto& err_tok = (scan + 1 < stream.size()) ? stream[scan + 1] : stream[scan];
+                throw parsing_error(";", err_tok, pos, std::source_location::current().function_name());
+            }
             std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
             pos += first_semicolon_pos;
             auto converted_rpn = parse_expression(sub_stream);
@@ -1504,7 +1608,7 @@ namespace occult {
                 return std::move(converted_rpn.at(0));
             }
 
-            throw parsing_error("<FUNC_CALL_START>", peek(), pos, std::source_location::current().function_name());
+            throw parsing_error("a valid function call statement", peek(), pos, std::source_location::current().function_name());
         }
         if (match(peek(), identifier_tt) && peek(1).tt == left_bracket_tt) { // array access
             auto id = parse_identifier();
@@ -1571,7 +1675,7 @@ namespace occult {
                 auto assignment = parse_assignment();
 
                 if (match(peek(), semicolon_tt)) {
-                    throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                    throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
                 }
 
                 parse_expression_until(assignment.get(), semicolon_tt);
@@ -1606,7 +1710,7 @@ namespace occult {
                 auto assignment = parse_assignment();
 
                 if (match(peek(), semicolon_tt)) {
-                    throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                    throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
                 }
 
                 parse_expression_until(assignment.get(), semicolon_tt);
@@ -1630,7 +1734,7 @@ namespace occult {
                 id->add_child(parse_assignment());
 
                 if (match(peek(), semicolon_tt)) {
-                    throw parsing_error("<expr>", peek(), pos, std::source_location::current().function_name());
+                    throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
                 }
 
                 parse_expression_until(id.get(),
@@ -1650,25 +1754,58 @@ namespace occult {
             }
         }
 
-        throw parsing_error("<UKN_KEYWORD>", peek(), pos, std::source_location::current().function_name());
+        throw parsing_error("a valid statement or keyword", peek(), pos, std::source_location::current().function_name());
     }
 
-    void parser::synchronize(const std::string& what) {
-        std::cout << RED << what << RESET << std::endl;
+    void parser::synchronize(const parsing_error& e) {
+        const auto& tk = e.get_token();
 
-        std::uintptr_t lcst_pos = pos;
+        std::cout << RED << "[PARSE ERROR] " << RESET << e.what() << '\n';
+
+        if (!source_lines.empty() && tk.line > 0 && static_cast<std::size_t>(tk.line) <= source_lines.size()) {
+            const std::string& src_line = source_lines[static_cast<std::size_t>(tk.line) - 1];
+
+            // Line-number gutter:  "  42 | <source>"
+            const std::string gutter = "  " + std::to_string(tk.line) + " | ";
+            std::cout << gutter << src_line << '\n';
+
+            // Caret: spaces up to the token column, then ^ + optional ~~~~
+            const std::size_t col_offset = (tk.column > 0 ? tk.column - 1 : 0);
+            const std::size_t spaces = gutter.size() + col_offset;
+            const std::size_t tildes = (tk.lexeme.size() > 1 ? tk.lexeme.size() - 1 : 0);
+            std::cout << YELLOW << std::string(spaces, ' ') << '^' << std::string(tildes, '~') << RESET << '\n';
+        }
+
         while (!match(peek(), end_of_file_tt)) {
-            if (match(peek(), semicolon_tt) || match(peek(), left_curly_bracket_tt) || match(peek(), right_curly_bracket_tt)) {
+            if (match(peek(), semicolon_tt)) {
                 consume();
-
                 return;
             }
 
-            if (pos == lcst_pos) {
-                consume();
+            if (match(peek(), left_curly_bracket_tt)) {
+                int depth = 0;
+                while (!match(peek(), end_of_file_tt)) {
+                    if (match(peek(), left_curly_bracket_tt)) {
+                        ++depth;
+                    }
+                    else if (match(peek(), right_curly_bracket_tt)) {
+                        --depth;
+                        if (depth == 0) {
+                            consume(); // consume closing }
+                            return;
+                        }
+                    }
+                    consume();
+                }
+                return;
             }
 
-            lcst_pos = pos;
+            if (match(peek(), right_curly_bracket_tt)) {
+                consume();
+                return;
+            }
+
+            consume();
         }
     }
 
@@ -1693,7 +1830,23 @@ namespace occult {
             }
             catch (const parsing_error& e) {
                 parser_state = state::failed;
-                synchronize(e.what());
+                ++error_count;
+
+                e.set_context(source_file_path);
+                synchronize(e);
+            }
+            catch (const std::exception& e) {
+                parser_state = state::failed;
+                ++error_count;
+                const auto& tk = peek();
+                std::cout << RED << "[PARSE ERROR] " << RESET;
+                if (!source_file_path.empty()) {
+                    std::cout << source_file_path << ':';
+                }
+                std::cout << tk.line << ':' << tk.column << ": internal parser error — " << e.what() << '\n';
+                if (!match(peek(), end_of_file_tt)) {
+                    consume();
+                }
             }
         }
 

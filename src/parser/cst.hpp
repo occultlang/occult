@@ -85,7 +85,8 @@ namespace occult {
         memberaccess,
         generic_expression,
         func_uses_shellcode,
-        shellcode
+        shellcode,
+        cast_to_datatype,
     };
 
     class cst {
@@ -328,4 +329,6 @@ namespace occult {
 
     NODE(func_uses_shellcode, cst_func_uses_shellcode)
     NODE(shellcode, cst_shellcode)
+
+    NODE(cast_to_datatype, cst_cast_to_datatype)
 } // namespace occult

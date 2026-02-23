@@ -1,6 +1,7 @@
 #include "ir_gen.hpp"
 #include <algorithm>
 #include <functional>
+#include <unordered_set>
 #include "../../lexer/number_parser.hpp"
 
 /*
@@ -498,6 +499,28 @@ namespace occult {
             case cst_type::dereference:
                 function.code.emplace_back(op_dereference, from_numerical_string<std::int64_t>(c->content));
                 break;
+            case cst_type::cast_to_datatype:
+                {
+                    generate_common_generic<IntType>(function, c.get());
+                    std::string src_type;
+                    if (!c->get_children().empty()) {
+                        const auto& first_child = c->get_children().front();
+                        if (first_child->get_type() == cst_type::identifier) {
+                            auto var_it = local_variable_map[function].find(first_child->content);
+                            if (var_it != local_variable_map[function].end()) {
+                                src_type = var_it->second;
+                            }
+                        }
+                        else if (first_child->get_type() == cst_type::float_literal) {
+                            src_type = "float64";
+                        }
+                        else if (first_child->get_type() == cst_type::number_literal) {
+                            src_type = "int64";
+                        }
+                    }
+                    function.code.emplace_back(op_cast, c->content, src_type);
+                    break;
+                }
             default:
                 generate_arith_and_bitwise_operators(function, c.get(), (type.has_value() ? type.value() : "int64"));
                 break;
@@ -1217,11 +1240,17 @@ namespace occult {
                 const auto identifier = cst::cast_raw<cst_identifier>(first_node->get_children().front().get()); // name
                 const auto assignment = cst::cast_raw<cst_assignment>(first_node->get_children().back().get());
                 // expression stuff
+                if (assignment->get_children().front()->get_type() == cst_type::cast_to_datatype) {
+                    const auto casting_datatype = cst::cast_raw<cst_cast_to_datatype>(assignment->get_children().front().get());
+                    generate_common_generic<std::int64_t>(function, casting_datatype);
 
-                generate_common_generic<std::int64_t>(function, assignment);
+                    function.code.emplace_back(op_cast, casting_datatype->content);
+                }
+                else {
+                    generate_common_generic<std::int64_t>(function, assignment);
+                }
 
                 function.code.emplace_back(op_store, identifier->content, first_node->to_string().substr(4, first_node->to_string().size()));
-
                 break;
             }
         case cst_type::uint8_datatype:
@@ -1232,7 +1261,15 @@ namespace occult {
                 const auto identifier = cst::cast_raw<cst_identifier>(first_node->get_children().front().get());
                 const auto assignment = cst::cast_raw<cst_assignment>(first_node->get_children().back().get());
 
-                generate_common_generic<std::uint64_t>(function, assignment);
+                if (assignment->get_children().front()->get_type() == cst_type::cast_to_datatype) {
+                    const auto casting_datatype = cst::cast_raw<cst_cast_to_datatype>(assignment->get_children().front().get());
+                    generate_common_generic<std::uint64_t>(function, casting_datatype);
+
+                    function.code.emplace_back(op_cast, casting_datatype->content);
+                }
+                else {
+                    generate_common_generic<std::uint64_t>(function, assignment);
+                }
 
                 function.code.emplace_back(op_store, identifier->content, first_node->to_string().substr(4, first_node->to_string().size()));
 
@@ -1780,7 +1817,7 @@ namespace occult {
     }
 
     void ir_gen::generate_struct_decl(ir_function& function, cst_struct* struct_node) {
-        // Include pointer information in the struct type
+        // include pointer information in the struct type
         std::string struct_type = struct_node->content;
         if (struct_node->num_pointers > 0) {
             struct_type += kStructPtrSuffix;
@@ -1795,14 +1832,14 @@ namespace occult {
             generate_common_generic<std::int64_t>(function, assignment);
 
             function.code.emplace_back(op_struct_store, id->content);
-            // Register the variable in the local variable map
+            // register the variable in the local variable map
             local_variable_map[function][id->content] = struct_type;
         }
         else {
             const auto id = struct_node->get_children().front().get(); // identifier
 
             function.code.emplace_back(op_struct_store, id->content);
-            // Register the variable in the local variable map
+            // register the variable in the local variable map
             local_variable_map[function][id->content] = struct_type;
         }
     }
@@ -1860,6 +1897,20 @@ namespace occult {
     }
 
     void ir_gen::generate_block(ir_function& function, cst_block* block_node, std::string current_break_label, std::string current_loop_start) {
+        // snapshot variables/arrays visible before entering this block so we can remove inner-scope names when the block exits (scope cleanup).
+        std::unordered_set<std::string> vars_before;
+        if (auto it = local_variable_map.find(function); it != local_variable_map.end()) {
+            for (const auto& [name, type] : it->second) {
+                vars_before.insert(name);
+            }
+        }
+        std::unordered_set<std::string> arrays_before;
+        if (auto it = local_array_map.find(function); it != local_array_map.end()) {
+            for (const auto& [name, type] : it->second) {
+                arrays_before.insert(name);
+            }
+        }
+
         for (const auto& c : block_node->get_children()) {
             switch (c->get_type()) {
             case cst_type::int8_datatype:
@@ -2023,6 +2074,28 @@ namespace occult {
             default:
                 {
                     break;
+                }
+            }
+        }
+
+        // remove variables/arrays declared inside this block (scope cleanup).
+        if (auto it = local_variable_map.find(function); it != local_variable_map.end()) {
+            for (auto var_it = it->second.begin(); var_it != it->second.end();) {
+                if (!vars_before.count(var_it->first)) {
+                    var_it = it->second.erase(var_it);
+                }
+                else {
+                    ++var_it;
+                }
+            }
+        }
+        if (auto it = local_array_map.find(function); it != local_array_map.end()) {
+            for (auto arr_it = it->second.begin(); arr_it != it->second.end();) {
+                if (!arrays_before.count(arr_it->first)) {
+                    arr_it = it->second.erase(arr_it);
+                }
+                else {
+                    ++arr_it;
                 }
             }
         }

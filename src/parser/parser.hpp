@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include "../lexer/lexer.hpp"
 #include "cst.hpp"
+#include "error.hpp"
 
 namespace occult {
     class parser {
@@ -17,6 +18,9 @@ namespace occult {
         state parser_state = state::neutral;
         std::unordered_map<std::string, cst*> custom_type_map; // used for structures
         std::string source_file_path;
+
+        std::vector<std::string> source_lines;
+        std::size_t error_count = 0;
 
         token_t peek(std::uintptr_t _pos = 0);
 
@@ -35,6 +39,8 @@ namespace occult {
         void shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, const token_t& curr_tok_ref) const;
 
         void shunting_yard_stack_cleanup(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref) const;
+
+        bool is_castable(token_t t);
 
         std::vector<std::unique_ptr<cst>> parse_expression(const std::vector<token_t>& expr);
 
@@ -86,15 +92,16 @@ namespace occult {
 
         std::unique_ptr<cst_struct> parse_struct();
 
-        void synchronize(const std::string& what);
+        void synchronize(const parsing_error& e);
 
     public:
-        explicit parser(const std::vector<token_t>& stream, const std::string& source_file_path = "") : root(cst::new_node<cst_root>()), stream(stream), source_file_path(source_file_path) {}
+        explicit parser(const std::vector<token_t>& stream, const std::string& source_file_path = "", const std::string& source = "");
 
         std::unique_ptr<cst_root> parse();
 
         std::unordered_map<std::string, cst*> get_custom_type_map() const;
 
         state get_state() const { return parser_state; }
+        std::size_t get_error_count() const { return error_count; }
     };
 } // namespace occult

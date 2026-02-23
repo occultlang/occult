@@ -7,6 +7,7 @@
 #include "backend/codegen/function_registry.hpp"
 #include "backend/codegen/ir_gen.hpp"
 #include "backend/codegen/x86_64_codegen.hpp"
+#include "code_analysis/linter.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/cst.hpp"
 #include "parser/parser.hpp"
@@ -21,33 +22,22 @@
 
 void display_help() {
     std::cout << "Usage: occultc [options] <source.occ>\n"
+              << "Info: Occult defaults to its JIT mode.\n"
               << "Options:\n"
               << "  -t,   --time              Show compilation time per stage\n"
               << "  -d,   --debug             Enable debug mode (implies --time)\n"
               << "  -o,   --output <file>     Output native binary\n"
-              << "  -j,   --jit               JIT compile (in memory)\n"
-              << "  -h,   --help              Show this message\n";
+              << "  -h,   --help              Show this message\n"
+              << "  -gc,  --gc                Enable the Garbage Collector\n";
 }
 
-// Minimal bump allocator backed by a static arena; avoids libc malloc/free
 OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) {
-    if (sz <= 0) {
-        sz = 8;
-    }
-    static std::uint8_t arena[1 << 20] = {}; // 1MB arena
-    static std::size_t offset = 0;
-    const std::size_t align = 16;
-    const std::size_t aligned = static_cast<std::size_t>((sz + align - 1) & ~(align - 1));
-    if (aligned > sizeof(arena) - offset) {
-        return 0; // out of space
-    }
-    void* ptr = arena + offset;
-    offset += aligned;
+    auto ptr = malloc(sz);
     return reinterpret_cast<std::int64_t>(ptr);
 }
 
-OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t), std::int64_t) {
-    // bump allocator is non-freeing; no-op
+OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t* ptr), std::int64_t) {
+    free(ptr);
     return 0;
 }
 
@@ -85,8 +75,7 @@ int main(int argc, char* argv[]) {
     bool debug = false;
     bool verbose = false;
     bool showtime = false;
-    bool jit = true; // we will default to JIT but still have the arg if anyone
-                     // wants to use it /shrug
+    bool jit = true; // we will default to JIT
 
     std::string filenameout;
 
@@ -109,9 +98,6 @@ int main(int argc, char* argv[]) {
             else {
                 filenameout = "a.out";
             }
-        }
-        else if (arg == "-j" || arg == "--jit") {
-            jit = true;
         }
         else if (arg == "-h" || arg == "--help") {
             display_help();
@@ -148,12 +134,12 @@ int main(int argc, char* argv[]) {
     }
 
     start = std::chrono::high_resolution_clock::now();
-    occult::parser parser(tokens, input_file);
+    occult::parser parser(tokens, input_file, source_original);
     auto cst = parser.parse();
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     if (parser.get_state() == occult::parser::state::failed) {
-        std::cout << RED << "[OCCULTC] Parsing failed" << RESET << std::endl;
+        std::cout << RED << "[OCCULTC] Parsing failed with " << parser.get_error_count() << " error(s)" << RESET << std::endl;
         return 1;
     }
 
@@ -162,6 +148,17 @@ int main(int argc, char* argv[]) {
     }
     if (debug && verbose) {
         cst->visualize();
+    }
+
+    occult::linter linter(cst.get(), debug);
+    const bool lint_ok = linter.analyze();
+    for (const auto& err : linter.get_errors()) {
+        const char* prefix = (err.level == occult::lint_error::severity::error) ? RED "[LINT ERROR] " RESET : YELLOW "[LINT WARN]  " RESET;
+        std::cout << prefix << err.message << "\n";
+    }
+    if (!lint_ok) {
+        std::cout << RED << "[OCCULTC] Linting failed \u2014 " << linter.get_errors().size() << " error(s)" << RESET << "\n";
+        return 1;
     }
 
     start = std::chrono::high_resolution_clock::now();
@@ -178,19 +175,12 @@ int main(int argc, char* argv[]) {
         occult::ir_gen::visualize_stack_ir(ir);
     }
 
-    // Register alloc/del and override stdio-style functions with native
-    // implementations
+
     occult::function_registry::register_function_to_ir<&alloc>(ir);
     occult::function_registry::register_function_to_ir<&del>(ir);
     occult::function_registry::register_function_to_ir<&print_string>(ir);
     occult::function_registry::register_function_to_ir<&print_integer>(ir);
     occult::function_registry::register_function_to_ir<&print_newline>(ir);
-
-    for (auto& f : ir) {
-        if (f.name == "print_string" || f.name == "print_integer" || f.name == "print_newline") {
-            f.is_external = true;
-        }
-    }
 
     start = std::chrono::high_resolution_clock::now();
     occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
@@ -239,7 +229,7 @@ int main(int argc, char* argv[]) {
 
 #ifdef __linux
     else if (!jit) {
-        occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, debug, showtime);
+        occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, jit_runtime.string_literals, debug, showtime);
 
         chmod(filenameout.c_str(), S_IRWXU);
     }

@@ -954,7 +954,10 @@ namespace occult::x86_64 {
 
         DECLARE_OPCODE(CVTTSD2SI_xmm_or_m64_to_r32_to_64, 0x2C) DECLARE_OPCODE(CVTSI2SD_rm32_to_64_to_xmm, 0x2A)
 
-            DECLARE_OPCODE(UCOMISS_xmm_or_m32_to_xmm, 0x2E) // cmp for floats
-        DECLARE_OPCODE(UCOMISD_xmm_or_m64_to_xmm, 0x2E)     // need operand size override
+            DECLARE_OPCODE(CVTSS2SD_xmm_or_m32_to_xmm, 0x5A) // REP: scalar float32 -> float64
+        DECLARE_OPCODE(CVTSD2SS_xmm_or_m64_to_xmm, 0x5A)     // REPNE: scalar float64 -> float32
+
+        DECLARE_OPCODE(UCOMISS_xmm_or_m32_to_xmm, 0x2E) // cmp for floats
+        DECLARE_OPCODE(UCOMISD_xmm_or_m64_to_xmm, 0x2E) // need operand size override
     };
 } // namespace occult::x86_64

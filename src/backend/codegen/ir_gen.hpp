@@ -89,6 +89,7 @@ namespace occult {
         op_struct_load,
         op_struct_store,
         op_push_shellcode,
+        op_cast,
     };
 
     inline std::string opcode_to_string(ir_opcode op) {
@@ -139,6 +140,8 @@ namespace occult {
             return "bitwise_not";
         case op_not:
             return "not";
+        case op_cast:
+            return "cast";
         case op_bitwise_lshift:
             return "bitwise_lshift";
         case op_bitwise_rshift:

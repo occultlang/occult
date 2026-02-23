@@ -1705,13 +1705,53 @@ namespace occult::x86_64 {
 
         void emit_divss(SIMD128_TO_SIMD128_ARG) { push_bytes({kREP_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(DIVSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)}); }
 
-        void emit_cvttsd2si(REG_TO_SIMD128_ARG) { emit_reg_to_simd128(CVTTSD2SI_xmm_or_m64_to_r32_to_64, static_cast<grp>(base), static_cast<simd128>(dest), {kREPNE_Prefix}); }
+        void emit_cvttsd2si(const grp& dst, const simd128& src) {
+            const auto src_val = static_cast<std::uint8_t>(src) & 7;
+            const auto dst_val = static_cast<std::uint8_t>(rebase_register(dst));
+            std::uint8_t rex = static_cast<std::uint8_t>(rex_w);
+            if (REG_RANGE(dst, r8, r15))
+                rex |= 0x04; // REX.R extends reg field
+            if (static_cast<std::uint8_t>(src) >= 8)
+                rex |= 0x01; // REX.B extends xmm8-15
+            push_bytes({kREPNE_Prefix, rex, k2ByteOpcodePrefix, static_cast<std::uint8_t>(CVTTSD2SI_xmm_or_m64_to_r32_to_64), static_cast<std::uint8_t>((0b11 << 6) | (dst_val << 3) | src_val)});
+        }
 
-        void emit_cvtsi2sd(SIMD128_TO_REG_ARG) { emit_reg_to_simd128(CVTSI2SD_rm32_to_64_to_xmm, static_cast<grp>(base), static_cast<simd128>(dest), {kREPNE_Prefix}); }
+        void emit_cvtsi2sd(const simd128& dst, const grp& src) {
+            const auto dst_val = static_cast<std::uint8_t>(dst) & 7;
+            const auto src_val = static_cast<std::uint8_t>(rebase_register(src));
+            std::uint8_t rex = static_cast<std::uint8_t>(rex_w);
+            if (static_cast<std::uint8_t>(dst) >= 8)
+                rex |= 0x04; // REX.R extends xmm8-15 in reg field
+            if (REG_RANGE(src, r8, r15))
+                rex |= 0x01; // REX.B extends r8-r15 in r/m field
+            push_bytes({kREPNE_Prefix, rex, k2ByteOpcodePrefix, static_cast<std::uint8_t>(CVTSI2SD_rm32_to_64_to_xmm), static_cast<std::uint8_t>((0b11 << 6) | (dst_val << 3) | src_val)});
+        }
 
-        void emit_cvttss2si(REG_TO_SIMD128_ARG) { emit_reg_to_simd128(CVTTSD2SI_xmm_or_m64_to_r32_to_64, static_cast<grp>(dest), static_cast<simd128>(base), {kREP_Prefix}); }
+        void emit_cvttss2si(const grp& dst, const simd128& src) {
+            const auto src_val = static_cast<std::uint8_t>(src) & 7;
+            const auto dst_val = static_cast<std::uint8_t>(rebase_register(dst));
+            std::uint8_t rex = static_cast<std::uint8_t>(rex_w);
+            if (REG_RANGE(dst, r8, r15))
+                rex |= 0x04; // REX.R extends reg field
+            if (static_cast<std::uint8_t>(src) >= 8)
+                rex |= 0x01; // REX.B extends xmm8-15
+            push_bytes({kREP_Prefix, rex, k2ByteOpcodePrefix, static_cast<std::uint8_t>(CVTTSD2SI_xmm_or_m64_to_r32_to_64), static_cast<std::uint8_t>((0b11 << 6) | (dst_val << 3) | src_val)});
+        }
 
-        void emit_cvtsi2ss(SIMD128_TO_REG_ARG) { emit_reg_to_simd128(CVTSI2SD_rm32_to_64_to_xmm, static_cast<grp>(dest), static_cast<simd128>(base), {kREP_Prefix}); }
+        void emit_cvtsi2ss(const simd128& dst, const grp& src) {
+            const auto dst_val = static_cast<std::uint8_t>(dst) & 7;
+            const auto src_val = static_cast<std::uint8_t>(rebase_register(src));
+            std::uint8_t rex = static_cast<std::uint8_t>(rex_w);
+            if (static_cast<std::uint8_t>(dst) >= 8)
+                rex |= 0x04; // REX.R extends xmm8-15 in reg field
+            if (REG_RANGE(src, r8, r15))
+                rex |= 0x01; // REX.B extends r8-r15 in r/m field
+            push_bytes({kREP_Prefix, rex, k2ByteOpcodePrefix, static_cast<std::uint8_t>(CVTSI2SD_rm32_to_64_to_xmm), static_cast<std::uint8_t>((0b11 << 6) | (dst_val << 3) | src_val)});
+        }
+
+        void emit_cvtss2sd(SIMD128_TO_SIMD128_ARG) { push_bytes({kREP_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(CVTSS2SD_xmm_or_m32_to_xmm), modrm(mod_field::register_direct, dest, base)}); }
+
+        void emit_cvtsd2ss(SIMD128_TO_SIMD128_ARG) { push_bytes({kREPNE_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(CVTSD2SS_xmm_or_m64_to_xmm), modrm(mod_field::register_direct, dest, base)}); }
 
         void emit_movss(SIMD128_TO_SIMD128_ARG) {
             simd128 true_base, true_dest;

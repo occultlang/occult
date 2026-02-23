@@ -17,7 +17,7 @@
  * A class for stack-oriented codegen, redone
  */
 
-// IMPORTANT (ignore this for now?)
+// IMPORTANT (IGNORE FOR NOW?)
 // there's a bug with stack sizing (call and totalsize, we must properly deal
 // with subtracting rsp for variables and maintaining the correct stack size
 // after calls)
@@ -27,6 +27,9 @@ namespace occult::x86_64 {
         {"int64", 8}, {"int32", 4}, {"int16", 2}, {"int8", 1}, {"uint64", 8}, {"uint32", 4}, {"uint16", 2}, {"uint8", 1}, {"float32", 4}, {"float64", 8},
     }; /* we might have to use this instead of an 8-byte aligned stack, i'm not sure
         */
+    static const std::unordered_map<std::string, std::string> cast_keyword_to_typename = {
+        {"i8", "int8"}, {"i16", "int16"}, {"i32", "int32"}, {"i64", "int64"}, {"u8", "uint8"}, {"u16", "uint16"}, {"u32", "uint32"}, {"u64", "uint64"}, {"f32", "float32"}, {"f64", "float64"},
+    };
     inline static std::vector<std::unique_ptr<std::uint8_t[]>> literal_pool;
 
     struct array_metadata {
@@ -123,16 +126,16 @@ namespace occult::x86_64 {
 
             void push(RegT r) { reg_stack.push_back({.is_spilled = false, .reg = r, .offset = 0}); }
 
-            RegT pop(ir_function& func, std::size_t instr_index = 0) {
+            RegT pop() {
                 if (reg_stack.empty()) {
-                    if (r_debug) {
+                    /*if (r_debug) {
                         writer->print_bytes();
-                    }
+                    }*/
                     RegT r = alloc();
                     if constexpr (std::is_same_v<RegT, grp>) {
                         writer->emit_xor(r, r);
 
-                        if (r_debug) {
+                        /*if (r_debug) {
                             std::cout << "IR TRACE:\n";
                             for (std::size_t j = instr_index; j < func.code.size(); ++j) {
                                 ir_instr& code = func.code.at(j);
@@ -143,7 +146,7 @@ namespace occult::x86_64 {
                                 }
                                 std::cout << "\n";
                             }
-                        }
+                        }*/
                     }
                     return r;
                 }
@@ -266,7 +269,9 @@ namespace occult::x86_64 {
 
         void generate_code(ir_function& func, x86_64_writer* w, bool is_main, bool use_jit) {
             register_pool_gp pool(w, {r10, r11, r12, r13, r14, r15, rbx});
-            register_pool_simd simd_pool(w, {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15});
+            // Pool allocates from back of list: xmm1 first, then xmm2-7, then xmm0 (reserved
+            // as last-resort so it stays free for function returns/args), then xmm8-15.
+            register_pool_simd simd_pool(w, {xmm15, xmm14, xmm13, xmm12, xmm11, xmm10, xmm9, xmm8, xmm0, xmm7, xmm6, xmm5, xmm4, xmm3, xmm2, xmm1});
 
             std::unordered_map<std::string, std::size_t> label_map;
             std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
@@ -477,6 +482,10 @@ namespace occult::x86_64 {
                             std::memcpy(buf.get() + header_size, str.data(), str.size());
 
                             auto literal_ptr = buf.get() + header_size;
+                            std::uint64_t host_addr = reinterpret_cast<std::uint64_t>(literal_ptr);
+
+                            string_literals[host_addr] = str;
+
                             literal_pool.push_back(std::move(buf));
 
                             grp r = pool.alloc();
@@ -544,7 +553,7 @@ namespace occult::x86_64 {
                         auto it = local_variable_map.find(var_name);
 
                         if (pool.empty() && !simd_pool.empty()) {
-                            auto simd_reg = simd_pool.pop(func, i);
+                            auto simd_reg = simd_pool.pop();
                             if (debug) {
                                 std::cout << BLUE << "[CODEGEN INFO] Floating point store" << RESET << std::endl;
                             }
@@ -574,7 +583,7 @@ namespace occult::x86_64 {
                             }
                         }
 
-                        grp r = (push_single) ? pool.top() : pool.pop(func, i);
+                        grp r = (push_single) ? pool.top() : pool.pop();
                         push_single = false;
 
                         if (it == local_variable_map.end()) {
@@ -820,7 +829,7 @@ namespace occult::x86_64 {
                             std::cout << BLUE << "[CODEGEN INFO] Dereference count: " << RESET << operand << std::endl;
                         }
 
-                        grp addr = pool.pop(func, i); // consume pointer
+                        grp addr = pool.pop(); // consume pointer
 
                         for (std::int64_t count = 0; count < operand; count++) {
                             w->emit_mov(addr, mem{addr});
@@ -845,8 +854,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_store_at_addr:
                     {
-                        auto val = pool.pop(func, i);
-                        auto addr = pool.pop(func, i);
+                        auto val = pool.pop();
+                        auto addr = pool.pop();
 
                         if (debug) {
                             std::cout << BLUE << "[CODEGEN INFO] Storing value in " << RESET << reg_to_string(val) << BLUE << " at address in " RESET << reg_to_string(addr) << std::endl;
@@ -865,8 +874,8 @@ namespace occult::x86_64 {
                 /* arith */
                 case ir_opcode::op_add:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_add(lhs, rhs);
 
@@ -877,8 +886,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_sub:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_sub(lhs, rhs);
 
@@ -889,8 +898,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_mod:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
                         w->emit_xor(rdx, rdx);
@@ -905,8 +914,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_div:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
                         w->emit_xor(rdx, rdx);
@@ -921,8 +930,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_mul:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
                         w->emit_mul(rhs);
@@ -936,8 +945,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_imod:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
                         w->emit_xor(rdx, rdx);
@@ -952,8 +961,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_idiv:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
                         w->emit_xor(rdx, rdx);
@@ -968,8 +977,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_imul:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
                         w->emit_imul(rhs);
@@ -983,7 +992,7 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_negate:
                     {
-                        auto r = pool.pop(func, i);
+                        auto r = pool.pop();
 
                         w->emit_neg(r);
 
@@ -992,11 +1001,93 @@ namespace occult::x86_64 {
                         break;
                     }
 
+                case ir_opcode::op_cast:
+                    {
+                        const auto& raw_target = std::get<std::string>(code.operand);
+                        auto norm_it = cast_keyword_to_typename.find(raw_target);
+                        const std::string& target_type = (norm_it != cast_keyword_to_typename.end()) ? norm_it->second : raw_target;
+                        const bool target_is_float32 = (target_type == "float32");
+                        const bool target_is_float64 = (target_type == "float64");
+                        const bool target_is_float = target_is_float32 || target_is_float64;
+                        const bool source_is_float = pool.empty() && !simd_pool.empty();
+
+                        // Determine source float type from IR type annotation (may be empty for unknown)
+                        auto src_norm_it = cast_keyword_to_typename.find(code.type);
+                        const std::string& src_type = (src_norm_it != cast_keyword_to_typename.end()) ? src_norm_it->second : code.type;
+                        const bool source_is_f64 = (src_type == "float64");
+
+                        if (source_is_float && target_is_float) {
+                            // float <-> float conversion
+                            auto src = simd_pool.pop();
+                            auto dst = simd_pool.alloc();
+                            if (target_is_float64) {
+                                w->emit_cvtss2sd(dst, src); // float32 -> float64
+                            }
+                            else {
+                                w->emit_cvtsd2ss(dst, src); // float64 -> float32
+                            }
+                            simd_pool.free(src);
+                            simd_pool.push(dst);
+                        }
+                        else if (source_is_float && !target_is_float) {
+                            // float -> int: use float64 path if source is f64, else float32
+                            auto src = simd_pool.pop();
+                            auto dst = pool.alloc();
+                            if (source_is_f64) {
+                                w->emit_cvttsd2si(dst, src);
+                            }
+                            else {
+                                w->emit_cvttss2si(dst, src); // float32 -> int (default)
+                            }
+                            simd_pool.free(src);
+                            pool.push(dst);
+                        }
+                        else if (!source_is_float && target_is_float) {
+                            // int -> float conversion
+                            auto src = pool.pop();
+                            auto dst = simd_pool.alloc();
+                            if (target_is_float32) {
+                                w->emit_cvtsi2ss(dst, src);
+                            }
+                            else {
+                                w->emit_cvtsi2sd(dst, src);
+                            }
+                            pool.free(src);
+                            simd_pool.push(dst);
+                        }
+                        else {
+                            // int -> int conversion: sign/zero extend to proper width
+                            auto r = pool.pop();
+                            if (target_type == "int8") {
+                                w->emit_movsx(r, r, true); // sign-extend 8->64
+                            }
+                            else if (target_type == "uint8") {
+                                w->emit_movzx(r, r, true); // zero-extend 8->64
+                            }
+                            else if (target_type == "int16") {
+                                w->emit_movsx(r, r, false); // sign-extend 16->64
+                            }
+                            else if (target_type == "uint16") {
+                                w->emit_movzx(r, r, false); // zero-extend 16->64
+                            }
+                            else if (target_type == "int32") {
+                                w->emit_movsxd(r, r); // sign-extend 32->64
+                            }
+                            else if (target_type == "uint32") {
+                                w->emit_mov(as_32(r), as_32(r)); // zero-extend 32->64
+                            }
+                            // int64/uint64: no-op
+                            pool.push(r);
+                        }
+
+                        break;
+                    }
+
                 /* floating point arith */
                 case ir_opcode::op_addf32:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_addss(lhs, rhs);
 
@@ -1007,8 +1098,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_addf64:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_addsd(lhs, rhs);
 
@@ -1019,8 +1110,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_subf32:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_subss(lhs, rhs);
 
@@ -1031,8 +1122,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_subf64:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_subsd(lhs, rhs);
 
@@ -1043,8 +1134,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_divf32:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_divss(lhs, rhs);
 
@@ -1055,8 +1146,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_divf64:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_divsd(lhs, rhs);
 
@@ -1067,8 +1158,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_mulf32:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_mulss(lhs, rhs);
 
@@ -1079,8 +1170,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_mulf64:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_mulsd(lhs, rhs);
 
@@ -1091,8 +1182,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_modf32:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         auto tmp1 = simd_pool.alloc();
                         auto tmp2 = simd_pool.alloc();
@@ -1111,8 +1202,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_modf64:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         auto tmp1 = simd_pool.alloc();
                         auto tmp2 = simd_pool.alloc();
@@ -1133,8 +1224,8 @@ namespace occult::x86_64 {
                 /* bitwise */
                 case ir_opcode::op_bitwise_and:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_and(lhs, rhs);
 
@@ -1145,8 +1236,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_bitwise_or:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_or(lhs, rhs);
 
@@ -1157,8 +1248,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_bitwise_xor:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_xor(lhs, rhs);
 
@@ -1169,7 +1260,7 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_bitwise_not:
                     {
-                        auto r = pool.pop(func, i);
+                        auto r = pool.pop();
 
                         w->emit_not(r);
 
@@ -1179,8 +1270,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_bitwise_lshift:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rcx, rhs);
                         w->emit_shl(lhs);
@@ -1192,8 +1283,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_bitwise_rshift:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rcx, rhs);
                         w->emit_shr(lhs);
@@ -1205,8 +1296,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_ibitwise_rshift:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_mov(rcx, rhs);
                         w->emit_sar(lhs);
@@ -1224,7 +1315,7 @@ namespace occult::x86_64 {
                         if (!pushing_for_ret) {
                             if (is_float_return) {
                                 if (!simd_pool.empty()) {
-                                    auto result = simd_pool.pop(func, i);
+                                    auto result = simd_pool.pop();
                                     if (func.type == "float64") {
                                         w->emit_movsd(xmm0, result);
                                     }
@@ -1236,7 +1327,7 @@ namespace occult::x86_64 {
                             }
                             else {
                                 if (!pool.empty()) {
-                                    auto result = pool.pop(func, i);
+                                    auto result = pool.pop();
                                     w->emit_mov(rax, result);
                                     pool.free(result);
                                 }
@@ -1256,7 +1347,7 @@ namespace occult::x86_64 {
                                 w->emit_pop(rax);
                                 w->emit_function_epilogue();
                                 w->emit_mov(rdi, rax);
-                                w->emit_mov(rax, 60);
+                                w->emit_mov(rax, int64_t(60));
                                 w->emit_syscall();
                             }
                             else {
@@ -1311,8 +1402,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_cmpf64:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_comisd(lhs, rhs);
 
@@ -1323,8 +1414,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_cmpf32:
                     {
-                        auto rhs = simd_pool.pop(func, i);
-                        auto lhs = simd_pool.pop(func, i);
+                        auto rhs = simd_pool.pop();
+                        auto lhs = simd_pool.pop();
 
                         w->emit_comiss(lhs, rhs);
 
@@ -1335,8 +1426,8 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_cmp:
                     {
-                        auto rhs = pool.pop(func, i);
-                        auto lhs = pool.pop(func, i);
+                        auto rhs = pool.pop();
+                        auto lhs = pool.pop();
 
                         w->emit_cmp(lhs, rhs);
 
@@ -1413,7 +1504,7 @@ namespace occult::x86_64 {
                     }
                 case ir_opcode::op_not:
                     {
-                        auto r = pool.pop(func, i);
+                        auto r = pool.pop();
 
                         w->emit_cmp(r, 0);
                         w->emit_setz(r); // set r to 1 if equal (i.e., was 0), else 0
@@ -1471,7 +1562,7 @@ namespace occult::x86_64 {
                                     }
                                     return;
                                 }
-                                args.emplace_back(simd_pool.pop(func, i1), true);
+                                args.emplace_back(simd_pool.pop(), true);
                             }
                             else {
                                 if (pool.empty()) {
@@ -1490,7 +1581,7 @@ namespace occult::x86_64 {
                                     }
                                     return;
                                 }
-                                args.emplace_back(pool.pop(func, i1), false);
+                                args.emplace_back(pool.pop(), false);
                             }
                         }
 
@@ -1877,9 +1968,9 @@ namespace occult::x86_64 {
                             std::cerr << RED << "[CODEGEN ERROR] Array " << array_name << " not found" << RESET << std::endl;
                             // FIX 10: Clean up any values that might be on the stack
                             if (!pool.empty()) {
-                                pool.pop(func, i); // value
+                                pool.pop(); // value
                                 if (!pool.empty()) {
-                                    pool.free(pool.pop(func, i)); // potential index
+                                    pool.free(pool.pop()); // potential index
                                 }
                             }
                             return;
@@ -1936,7 +2027,7 @@ namespace occult::x86_64 {
                         }
 
                         if (has_constant_index) {
-                            auto content = pool.pop(func, i);
+                            auto content = pool.pop();
 
                             std::uint64_t index = index_to_push;
                             std::int32_t element_offset = array_base_offset + 8 * index;
@@ -1953,9 +2044,9 @@ namespace occult::x86_64 {
                         }
                         else {
                             if (inline_const_index.has_value()) {
-                                auto content = pool.pop(func, i);
+                                auto content = pool.pop();
                                 // discard the pushed index register
-                                auto idx_reg = pool.pop(func, i);
+                                auto idx_reg = pool.pop();
                                 pool.free(idx_reg);
 
                                 std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_const_index.value());
@@ -1971,7 +2062,7 @@ namespace occult::x86_64 {
                                 break;
                             }
                             if (index_to_push != (std::numeric_limits<std::uint64_t>::max)()) {
-                                auto content = pool.pop(func, i);
+                                auto content = pool.pop();
                                 std::uint64_t index = index_to_push;
                                 std::int32_t element_offset = array_base_offset + 8 * index;
 
@@ -1987,8 +2078,8 @@ namespace occult::x86_64 {
                                 break;
                             }
 
-                            auto content = pool.pop(func, i);
-                            auto index_reg = pool.pop(func, i);
+                            auto content = pool.pop();
+                            auto index_reg = pool.pop();
 
                             if (debug) {
                                 std::cout << BLUE << "[CODEGEN INFO] Array store (dynamic) to " << array_name << "[index_reg]" << RESET << std::endl;
@@ -2063,7 +2154,7 @@ namespace occult::x86_64 {
 
                             if (inline_idx.has_value()) {
                                 // drop the pushed index register from the pool
-                                auto idx_reg = pool.pop(func, i);
+                                auto idx_reg = pool.pop();
                                 pool.free(idx_reg);
 
                                 auto true_index = pool.alloc();
@@ -2079,7 +2170,7 @@ namespace occult::x86_64 {
                         // dimension first)
                         std::vector<grp> indices;
                         for (std::size_t dims = 0; dims < local_metadata.dimensions.size(); dims++) {
-                            indices.push_back(pool.pop(func, i));
+                            indices.push_back(pool.pop());
                         }
 
                         // reverse to get them in correct order
@@ -2198,7 +2289,7 @@ namespace occult::x86_64 {
                                 totalsizes += 8;
 
                                 if (!pool.empty()) {
-                                    grp r = pool.pop(func, i);
+                                    grp r = pool.pop();
                                     w->emit_mov(mem{rbp, -totalsizes}, r);
                                     pool.free(r);
                                 }
@@ -2214,7 +2305,7 @@ namespace occult::x86_64 {
                                     totalsizes += 8;
 
                                     if (!pool.empty()) {
-                                        grp r = pool.pop(func, i);
+                                        grp r = pool.pop();
                                         w->emit_mov(mem{rbp, -totalsizes}, r);
                                         pool.free(r);
                                     }
@@ -2233,7 +2324,7 @@ namespace occult::x86_64 {
                                     // an assignment or whatever it's a pointer to a source
                                     // struct. then copy data
                                     if (!pool.empty()) {
-                                        grp src = pool.pop(func, i);
+                                        grp src = pool.pop();
                                         grp tmp = pool.alloc();
 
                                         // copy entire struct 8 bytes at a time
@@ -2256,7 +2347,7 @@ namespace occult::x86_64 {
                         else {
                             // bariable already exists, just update its value
                             if (!pool.empty()) {
-                                grp r = pool.pop(func, i);
+                                grp r = pool.pop();
                                 std::int32_t offset = -it->second;
                                 w->emit_mov(mem{rbp, offset}, r);
                                 pool.free(r);
@@ -2279,7 +2370,7 @@ namespace occult::x86_64 {
                         }
 
                         // the base address of the struct should be on the register pool
-                        grp base = pool.pop(func, i);
+                        grp base = pool.pop();
 
                         // we need to figure out which struct type this variable is ^^^
                         // look through all struct layouts to find which one has this member.
@@ -2336,8 +2427,8 @@ namespace occult::x86_64 {
                         }
 
                         // value on top, then base address
-                        grp val = pool.pop(func, i);
-                        grp base = pool.pop(func, i);
+                        grp val = pool.pop();
+                        grp base = pool.pop();
 
                         // find the member offset
                         std::int32_t member_offset = -1;
@@ -2502,6 +2593,7 @@ namespace occult::x86_64 {
     public:
         std::unordered_map<std::string, jit_function> function_map;
         std::map<std::string, std::vector<std::uint8_t>> function_raw_code_map;
+        std::unordered_map<std::uint64_t, std::string> string_literals;
 
         explicit codegen(const std::vector<ir_function>& ir_funcs, const std::vector<ir_struct>& ir_structs, const bool debug = false) : ir_funcs(ir_funcs), ir_structs(ir_structs), debug(debug) {
             // create all layouts with preliminary sizes first
