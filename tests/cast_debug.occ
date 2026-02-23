@@ -1,0 +1,30 @@
+include "../lib/stdio.occ"
+
+fn main() {
+    f32 pi = 3.14;
+    i64 truncated = i64(pi);
+    print_integer(truncated);
+    print_string("\n");
+
+    i64 x = 42;
+    f32 as_float = f32(x);
+    f32 expected = 42.0;
+    if as_float == expected {
+        print_string("int_to_float32: OK\n");
+    }
+    else {
+        print_string("int_to_float32: FAIL\n");
+    }
+
+    f32 big_f = 3.14;
+    f64 as_f64 = f64(big_f);
+    f32 back = f32(as_f64);
+    if back == 3.14 {
+        print_string("f32_to_f64_back: OK\n");
+    }
+    else {
+        print_string("f32_to_f64_back: FAIL\n");
+    }
+
+    return 0;
+}

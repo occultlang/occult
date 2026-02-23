@@ -1,0 +1,25 @@
+include "../lib/stdio.occ"
+
+fn main() {
+    i64 x = 42;
+    f32 as_float = f32(x);
+    print_float(as_float, 1);
+    print_string("\n");
+
+    f32 pi = 3.14;
+    i64 truncated = i64(pi);
+    print_integer(truncated);
+    print_string("\n");
+
+    i64 big = 300;
+    i8 narrow = i8(big);
+    print_integer(narrow);
+    print_string("\n");
+
+    f64 d = f64(pi);
+    f32 back = f32(d);
+    print_float(back, 2);
+    print_string("\n");
+
+    return 0;
+}
