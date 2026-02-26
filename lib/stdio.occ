@@ -1,38 +1,158 @@
-include "../lib/casting.occ"
+// stdio.occ - Standard I/O library for Occult
+// Pure Occult implementation using Linux syscalls
+
+include "../lib/strlib.occ"
+
+// Linux write syscall: write(fd, buf, count)
+fn __syscall_write(i64, string, i64) shellcode i64 {
+    0x55 0x48 0x89 0xE5
+    0xB8 0x01 0x00 0x00 0x00
+    0x0F 0x05
+    0x48 0x89 0xEC 0x5D 0xC3
+}
+
+// Linux write single char from register to fd=1
+fn __syscall_print_char(i64) shellcode i64 {
+    0x55 0x48 0x89 0xE5
+    0x57
+    0x48 0x89 0xE6
+    0xBF 0x01 0x00 0x00 0x00
+    0xBA 0x01 0x00 0x00 0x00
+    0xB8 0x01 0x00 0x00 0x00
+    0x0F 0x05
+    0x48 0x89 0xEC 0x5D 0xC3
+}
+
+fn GetWindowsBuildNumber() u32 {
+  return $(0x7FFE0000 + 0x260) & 0x0000FFFF;
+}
+
+// self explanatory
+fn GetStdOutFromPEB() shellcode i64 {
+0x55 0x48 0x89 0xE5 0x48 0x83 0xEC 0x20 0x65 0x48 0x8B 0x04 0x25 0x60 0x00 0x00 0x00 0x48 0x8B 0x40 0x20 0x48 0x8B 0x40 0x28 0x48 0x89 0xEC 0x5D 0xC3
+}
+
+// STD HANDLE (STDOUT = 108), IoStatusBlockPtr, String Pointer, String Length
+fn Win10_and_11_NtWriteFile(i64, i64*, string, i64) shellcode i64 {
+0x55 0x48 0x89 0xE5 0x48 0x83 0xEC 0x50 0x49 0x89 0xCA 0x48 0x89 0x94 0x24 0x28 0x00 0x00 0x00 0x48 0x33 0xD2 0x4C 0x89 
+0x84 0x24 0x30 0x00 0x00 0x00 0x4D 0x33 0xC0 0x4C 0x89 0x8C 0x24 0x38 0x00 0x00 0x00 0x4D 0x33 0xC9 0x48 0xB8 0x00 0x00 
+0x00 0x00 0x00 0x00 0x00 0x00 0x48 0x89 0x84 0x24 0x40 0x00 0x00 0x00 0x48 0x89 0x84 0x24 0x48 0x00 0x00 0x00 0x48 0xB8 
+0x08 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x0F 0x05 0x48 0x89 0xEC 0x5D 0x48 0xB8 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0xC3
+}
+
+fn print_string_windows(string s) {
+ i64* IoStatusBlockPtr = alloc(16); // sizeof(IoStatusBlock) = 16
+ Win10_and_11_NtWriteFile(GetStdOutFromPEB(), IoStatusBlockPtr, s, $(s - 8));
+ del(IoStatusBlockPtr);
+}
+
+fn print_char_windows(i64 c) {
+ i64* IoStatusBlockPtr = alloc(16); // sizeof(IoStatusBlock) = 16
+ i64 buf = alloc(9);               // 8-byte alloc header + 1 byte for the character
+ $(buf + 8) = c;                   // write char value into the data region
+ Win10_and_11_NtWriteFile(GetStdOutFromPEB(), IoStatusBlockPtr, buf + 8, 1);
+ del(buf);
+ del(IoStatusBlockPtr);
+}
+
+fn print_char(i64 c) {
+    if is_linux64 == true {
+        __syscall_print_char(c);
+    }
+    else if is_win64 == true {
+      print_char_windows(c);
+    }
+}
+
+fn print_string(string s) {
+    if is_linux64 == true {
+        __syscall_write(1, s, strlen_fast(s));
+    }
+    else if is_win64 == true {
+      print_string_windows(s);
+    }
+}
+
+fn print_newline() {
+    print_char(10);
+}
+
+fn print_integer(i64 n) {
+  print_string(i64_to_string(n));
+}
+
+fn __write_digits(i64 n, i64 buf, i64 pos) i64 {
+    if n >= 10 {
+        pos = __write_digits(n / 10, buf, pos);
+    }
+    $(buf + pos) = (n % 10) + 48;
+    return pos + 1;
+}
+
+fn i64_to_string(i64 n) string {
+    i64 buf = alloc(40);
+    i64 data = buf + 8;
+    i64 pos = 0;
+
+    if n < 0 {
+        $(data) = 45; // '-'
+        pos = 1;
+        n = -n;
+    }
+
+    if n == 0 {
+        $(data + pos) = 48; // '0'
+        pos = pos + 1;
+    }
+    else {
+        pos = __write_digits(n, data, pos);
+    }
+
+    $(data + pos) = 0; // null terminator
+    $(buf) = pos;       // length prefix
+
+    return data;
+}
 
 fn print_float(f32 value, i64 precision) {
-  i64 raw = __cast_f32_i64(value);
-  print_integer(raw);
-  print_string(".");
-  
-  f32 fractional_part;
-  if is_linux64 == true {
-    fractional_part = value - __systemv_cast_i64_f32(raw);  
-  }
-  else if is_win64 == true {
-    fractional_part = value - __win64_cast_i64_f32(raw);  
-  }
+    i64 is_neg = 0;
+    if value < 0 {
+        is_neg = 1;
+        value = -value;
+    }
 
-  if fractional_part < 0 {
-    fractional_part = -fractional_part;
-  }
+    i64 int_part = i64(value);
+    f32 frac = value - f32(int_part);
 
-  if precision == 1 {
-    print_integer(__cast_f32_i64(fractional_part * 1e1));
-  }
-  else if precision == 2 {
-    print_integer(__cast_f32_i64(fractional_part * 1e2));
-  }
-  else if precision == 3 {
-    print_integer(__cast_f32_i64(fractional_part * 1e3));
-  }
-  else if precision == 4 {
-    print_integer(__cast_f32_i64(fractional_part * 1e4));
-  }
-  else if precision == 5 {
-    print_integer(__cast_f32_i64(fractional_part * 1e5));
-  }
-  else {
-    print_integer(__cast_f32_i64(fractional_part * 1e6));
-  }
+    i64 frac_int = 0;
+    if precision == 1 { frac_int = i64(frac * 1e1); }
+    else if precision == 2 { frac_int = i64(frac * 1e2); }
+    else if precision == 3 { frac_int = i64(frac * 1e3); }
+    else if precision == 4 { frac_int = i64(frac * 1e4); }
+    else if precision == 5 { frac_int = i64(frac * 1e5); }
+    else { frac_int = i64(frac * 1e6); }
+
+    if is_neg == 1 {
+        print_string("-");
+    }
+    print_integer(int_part);
+
+    if precision > 0 {
+        print_string(".");
+
+        i64 digits = 0;
+        i64 temp = frac_int;
+        if temp == 0 { digits = 1; }
+        while temp > 0 {
+            digits = digits + 1;
+            temp = temp / 10;
+        }
+
+        i64 pad = precision - digits;
+        while pad > 0 {
+            print_string("0");
+            pad = pad - 1;
+        }
+        print_integer(frac_int);
+    }
 }

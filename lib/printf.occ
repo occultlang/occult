@@ -1,0 +1,126 @@
+// printf.occ - Native printf implementation for Occult
+// Supports format specifiers: %d %i %s %c %x %f %.Nf %%
+
+include "../lib/stdio.occ"
+
+fn __print_hex(i64 n) {
+    if n >= 16 {
+        __print_hex(n / 16);
+    }
+
+    i64 digit = n % 16;
+
+    if digit < 10 {
+        print_char(digit + 48);
+    }
+    else {
+        print_char(digit - 10 + 97);
+    }
+}
+
+fn __printf_float(i64 val, i64 precision) {
+    f64 dval = __bitcast_f64(val);
+    f32 value = f32(dval);
+
+    i64 is_neg = 0;
+    if value < 0 {
+        is_neg = 1;
+        value = -value;
+    }
+
+    i64 int_part = i64(value);
+    f32 frac = value - f32(int_part);
+
+    i64 frac_int = 0;
+    if precision == 1 { frac_int = i64(frac * 1e1); }
+    else if precision == 2 { frac_int = i64(frac * 1e2); }
+    else if precision == 3 { frac_int = i64(frac * 1e3); }
+    else if precision == 4 { frac_int = i64(frac * 1e4); }
+    else if precision == 5 { frac_int = i64(frac * 1e5); }
+    else { frac_int = i64(frac * 1e6); }
+
+    if is_neg == 1 {
+        print_string("-");
+    }
+    print_integer(int_part);
+
+    if precision > 0 {
+        print_string(".");
+
+        i64 digits = 0;
+        i64 temp = frac_int;
+        if temp == 0 { digits = 1; }
+        while temp > 0 {
+            digits = digits + 1;
+            temp = temp / 10;
+        }
+
+        i64 pad = precision - digits;
+        while pad > 0 {
+            print_string("0");
+            pad = pad - 1;
+        }
+        print_integer(frac_int);
+    }
+}
+
+fn printf(string fmt, ...) {
+    string p = fmt;
+    i64 arg_idx = 0;
+    i64 c = $p & 255; // mask to single byte
+
+    while c != 0 {
+        if c == 37 { // '%'
+            p = p + 1;
+            c = $p & 255;
+
+            if c == 100 || c == 105 { // 'd' or 'i'
+                print_integer(__varargs[arg_idx]);
+                arg_idx = arg_idx + 1;
+            }
+            else if c == 115 { // 's'
+                print_string(__varargs[arg_idx]);
+                arg_idx = arg_idx + 1;
+            }
+            else if c == 99 { // 'c'
+                print_char(__varargs[arg_idx]);
+                arg_idx = arg_idx + 1;
+            }
+            else if c == 120 { // 'x'
+                __print_hex(__varargs[arg_idx]);
+                arg_idx = arg_idx + 1;
+            }
+            else if c == 102 { // 'f' — default precision 6
+                __printf_float(__varargs[arg_idx], 6);
+                arg_idx = arg_idx + 1;
+            }
+            else if c == 46 { // '.' — precision specifier (e.g. %.2f)
+                p = p + 1;
+                c = $p & 255;
+                i64 prec = 0;
+                while c >= 48 && c <= 57 { // '0'-'9'
+                    prec = prec * 10 + (c - 48);
+                    p = p + 1;
+                    c = $p & 255;
+                }
+                if c == 102 { // 'f'
+                    __printf_float(__varargs[arg_idx], prec);
+                    arg_idx = arg_idx + 1;
+                }
+            }
+            else if c == 37 { // '%%' → literal '%'
+                print_char(37);
+            }
+            else {
+                print_char(37);
+                print_char(c);
+            }
+        }
+        else {
+            print_char(c);
+        }
+
+        p = p + 1;
+        c = $p & 255;
+    }
+}

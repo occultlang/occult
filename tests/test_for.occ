@@ -1,5 +1,10 @@
+include "../lib/printf.occ"
+
 fn main() i64 {
   for i64 i = 0 when i < 10 do i = i + 1 {
-     print_integer(i);
+     printf("%i\n", i);
   }
+
+  return 0;
 }
+

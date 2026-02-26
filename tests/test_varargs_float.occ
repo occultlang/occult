@@ -1,0 +1,9 @@
+include "../lib/printf.occ"
+
+fn main() {
+    printf("Int arg: %d\n", 42);
+    printf("Float arg: %f\n", 3.14);
+    printf("Two floats: %.1f and %.1f\n", 1.5, 2.7);
+    printf("Precise: %.4f\n", 2.7182);
+    return 0;
+}

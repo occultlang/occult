@@ -1,3 +1,5 @@
+include "../lib/printf.occ"
+
 // Helper function to check and report
 fn check(i64 expected, i64 actual, string desc) {
     print_string("Checking ");

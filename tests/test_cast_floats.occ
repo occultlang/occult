@@ -1,0 +1,32 @@
+include "../lib/stdio.occ"
+
+fn test_casts() {
+    // int to float
+    i64 a = 42;
+    f32 b = f32(a);
+    print_float(b, 1);
+    print_string(" (expect 42.0)\n");
+
+    // float to int
+    f32 c = 3.14;
+    i64 d = i64(c);
+    print_integer(d);
+    print_string(" (expect 3)\n");
+
+    // float to double to float
+    f32 e = 3.14;
+    f64 f = f64(e);
+    f32 g = f32(f);
+    print_float(g, 2);
+    print_string(" (expect 3.14)\n");
+
+    // direct float print
+    f32 h = 3.14;
+    print_float(h, 2);
+    print_string(" (expect 3.14)\n");
+}
+
+fn main() {
+    test_casts();
+    return 0;
+}

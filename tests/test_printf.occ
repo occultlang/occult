@@ -1,0 +1,10 @@
+include "../lib/printf.occ"
+
+fn main() {
+    printf("Hello %s! You are %d years old.\n", "World", 25);
+    printf("Hex: %x\n", 255);
+    printf("Char: %c\n", 65);
+    printf("Percent: %%\n");
+    printf("Multiple: %d + %d = %d\n", 10, 20, 30);
+    printf("%f\n", 8.1238);
+}

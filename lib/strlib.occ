@@ -6,13 +6,13 @@ fn strlen_fast(string str) { // uses prefix for string already builtin
 
 fn strlen(string str) {
     i64 len = 0;
-    i64* p = str;
-    char char_val = $p;
+    string p = str;
+    i64 char_val = $p & 255;
     
     while char_val != 0 {
         len = len + 1;
         p = p + 1;
-        char_val = $p;
+        char_val = $p & 255;
     }
 
     return len;
@@ -21,11 +21,11 @@ fn strlen(string str) {
 fn strcmp(string str1, string str2) {
     bool result = true;
 
-    i64* p1 = str1; 
-    char char1 = $p1; 
+    string p1 = str1; 
+    i64 char1 = $p1 & 255; 
 
-    i64* p2 = str2; 
-    char char2 = $p2; 
+    string p2 = str2; 
+    i64 char2 = $p2 & 255; 
 
     while char1 != 0 && char2 != 0 {
         if char1 != char2 {
@@ -36,8 +36,8 @@ fn strcmp(string str1, string str2) {
         p1 = p1 + 1;
         p2 = p2 + 1;
 
-        char1 = $p1;
-        char2 = $p2;
+        char1 = $p1 & 255;
+        char2 = $p2 & 255;
     }
 
     return result;

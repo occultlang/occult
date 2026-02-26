@@ -1,0 +1,12 @@
+include "../lib/stdio.occ"
+
+fn main() {
+    i64 c = 'a';
+    print_char(c);
+    print_char('\n');
+    print_char('A');
+    print_char('\n');
+    print_integer('z');
+    print_char('\n');
+    return 0;
+}
