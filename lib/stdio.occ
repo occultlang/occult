@@ -48,7 +48,7 @@ fn print_string_windows(string s) {
 
 fn print_char_windows(i64 c) {
  i64* IoStatusBlockPtr = alloc(16); // sizeof(IoStatusBlock) = 16
- i64 buf = alloc(9);               // 8-byte alloc header + 1 byte for the character
+ i64 buf = alloc(16);               // 8-byte alloc header + 1 byte for the character
  $(buf + 8) = c;                   // write char value into the data region
  Win10_and_11_NtWriteFile(GetStdOutFromPEB(), IoStatusBlockPtr, buf + 8, 1);
  del(buf);

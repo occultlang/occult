@@ -4,8 +4,8 @@ fn main() {
     printf("Integer: %d\n", 42);
     printf("String: %s\n", "hello");
     printf("Float default: %f\n", 100.0);
-    printf("Float .2: %.2f\n", 100.0);
-    printf("Float .4: %.4f\n", 100.0);
-    printf("Negative: %.2f\n", -42.0);
-    printf("Mixed: %s scored %.1f out of %d\n", "Alice", 95.0, 100);
+    printf("Float .2: %.2f\n", 100.42);
+    printf("Float .4: %.4f\n", 100.1234);
+    printf("Negative: %.2f\n", -42.30);
+    printf("Mixed: %s scored %.1f out of %d\n", "Alice", 95.1, 100);
 }
