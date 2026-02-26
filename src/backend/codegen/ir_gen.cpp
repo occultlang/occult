@@ -1,5 +1,6 @@
 #include "ir_gen.hpp"
 #include <algorithm>
+#include <bit>
 #include <functional>
 #include <unordered_set>
 #include "../../lexer/number_parser.hpp"
@@ -108,6 +109,14 @@ namespace occult {
 
     void ir_gen::generate_function_args(ir_function& function, cst_functionargs* func_args_node) {
         for (const auto& arg : func_args_node->get_children()) {
+            if (arg->get_type() == cst_type::variadic) {
+                function.is_variadic = true;
+                if (debug) {
+                    std::cout << CYAN << "[IR GEN] Function is variadic" << RESET << std::endl;
+                }
+                continue;
+            }
+
             bool is_ref = false;
             if (arg->content == "reference") {
                 is_ref = true;
@@ -478,7 +487,8 @@ namespace occult {
                 break;
             case cst_type::charliteral:
                 {
-                    function.code.emplace_back(op_push, from_numerical_string<char>(c->content));
+                    std::int64_t char_val = c->content.empty() ? 0 : static_cast<std::int64_t>(static_cast<unsigned char>(c->content[0]));
+                    function.code.emplace_back(op_push, char_val);
                     break;
                 }
             case cst_type::identifier:
@@ -504,7 +514,8 @@ namespace occult {
                 break;
             case cst_type::cast_to_datatype:
                 {
-                    generate_common_generic<IntType>(function, c.get());
+                    // determine source type FIRST so we generate the inner expression
+                    // with the correct numeric type (e.g. float arithmetic for float operands)
                     std::string src_type;
                     if (!c->get_children().empty()) {
                         const auto& first_child = c->get_children().front();
@@ -525,6 +536,19 @@ namespace occult {
                             src_type = first_child->content;
                         }
                     }
+
+                    // generate inner expression using the SOURCE type so that float
+                    // expressions use float arithmetic even inside an integer cast
+                    if (src_type == "float32") {
+                        generate_common_generic<float>(function, c.get(), "float32");
+                    }
+                    else if (src_type == "float64") {
+                        generate_common_generic<double>(function, c.get(), "float64");
+                    }
+                    else {
+                        generate_common_generic<IntType>(function, c.get());
+                    }
+
                     function.code.emplace_back(op_cast, c->content, src_type);
                     break;
                 }
@@ -536,6 +560,13 @@ namespace occult {
     }
 
     void ir_gen::handle_push_types(ir_function& function, cst* c, std::optional<std::string> type) {
+        // char literals are stored as the raw character; push ASCII value directly
+        if (c->get_type() == cst_type::charliteral) {
+            std::int64_t char_val = c->content.empty() ? 0 : static_cast<std::int64_t>(static_cast<unsigned char>(c->content[0]));
+            function.code.emplace_back(op_push, char_val);
+            return;
+        }
+
         if (!type.has_value() || type.value().empty()) {
             type = function.type.empty() ? "int64" : function.type;
         }
@@ -721,6 +752,20 @@ namespace occult {
 
         const auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name of call
 
+        // Handle bitcast intrinsics: __bitcast_f64(i64) -> f64, __bitcast_i64(f64) -> i64
+        if (identifier->content == "__bitcast_f64") {
+            const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(1).get());
+            generate_common(function, arg_node, "int64");
+            function.code.emplace_back(op_bitcast, std::string("float64"), std::string("int64"));
+            return;
+        }
+        if (identifier->content == "__bitcast_i64") {
+            const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(1).get());
+            generate_common(function, arg_node, "float64");
+            function.code.emplace_back(op_bitcast, std::string("int64"), std::string("float64"));
+            return;
+        }
+
         const auto func_it = func_map.find(identifier->content);
         if (func_it == func_map.end()) {
             if (debug) {
@@ -736,7 +781,8 @@ namespace occult {
                 ++arg_location;
             }
 
-            function.code.emplace_back(op_call, identifier->content);
+            int actual_arg_count = arg_location - 1;
+            function.code.emplace_back(op_call, identifier->content, std::to_string(actual_arg_count));
 
             return;
         }
@@ -749,7 +795,74 @@ namespace occult {
         while (node->get_children().at(arg_location).get()->content != "end_call") {
             const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(arg_location).get());
 
-            const auto argument_type = func_it->second.args.at(arg_location - 1).type;
+            std::string argument_type;
+            if (static_cast<std::size_t>(arg_location - 1) < func_it->second.args.size()) {
+                argument_type = func_it->second.args.at(arg_location - 1).type;
+            }
+            else {
+                argument_type = "int64"; // default type for variadic arguments
+            }
+
+            // For variadic functions, detect float arguments and preserve their bits
+            if (func_it->second.is_variadic) {
+                bool is_va_slot = false;
+                if (static_cast<std::size_t>(arg_location - 1) < func_it->second.args.size()) {
+                    const auto& arg_name = func_it->second.args.at(arg_location - 1).name;
+                    is_va_slot = (arg_name.size() >= 4 && arg_name.substr(0, 4) == "__va");
+                }
+                else {
+                    is_va_slot = true;
+                }
+
+                if (is_va_slot) {
+                    // Detect actual argument type from the CST and convert to double bits
+                    // for storage in the varargs array. We evaluate the float value directly
+                    // from the CST to avoid op_negate which doesn't handle floats.
+                    bool has_float_literal = false;
+                    bool has_float_var = false;
+                    bool has_unary_minus = false;
+                    std::string float_lit_content;
+                    std::string float_var_name;
+
+                    for (const auto& child : arg_node->get_children()) {
+                        if (child->get_type() == cst_type::float_literal) {
+                            has_float_literal = true;
+                            float_lit_content = child->content;
+                        }
+                        else if (child->get_type() == cst_type::unary_minus_operator) {
+                            has_unary_minus = true;
+                        }
+                        else if (child->get_type() == cst_type::identifier) {
+                            auto var_it = local_variable_map[function].find(child->content);
+                            if (var_it != local_variable_map[function].end()) {
+                                if (var_it->second == "float32" || var_it->second == "float64") {
+                                    has_float_var = true;
+                                    float_var_name = child->content;
+                                }
+                            }
+                        }
+                    }
+
+                    if (has_float_literal) {
+                        // Convert the float literal directly to double bits as int64
+                        double dval = from_numerical_string<double>(float_lit_content);
+                        if (has_unary_minus) {
+                            dval = -dval;
+                        }
+                        std::int64_t bits = std::bit_cast<std::int64_t>(dval);
+                        function.code.emplace_back(op_push, bits);
+                        ++arg_location;
+                        continue;
+                    }
+                    else if (has_float_var) {
+                        // Load the float variable, then bitcast to int64
+                        generate_common(function, arg_node, local_variable_map[function][float_var_name]);
+                        function.code.emplace_back(op_bitcast, std::string("int64"), std::string("float64"));
+                        ++arg_location;
+                        continue;
+                    }
+                }
+            }
 
             if (debug) {
                 std::cout << CYAN << "[IR GEN] Generating argument for call (type, loc): " << RESET << "(" << argument_type << ", " << arg_location - 1 << ")" << std::endl;
@@ -760,7 +873,13 @@ namespace occult {
             ++arg_location;
         }
 
-        function.code.emplace_back(op_call, identifier->content);
+        int actual_arg_count = arg_location - 1;
+        if (func_it->second.is_variadic) {
+            function.code.emplace_back(op_call, identifier->content, std::to_string(actual_arg_count));
+        }
+        else {
+            function.code.emplace_back(op_call, identifier->content);
+        }
     }
 
     void ir_gen::generate_return(ir_function& function, cst_returnstmt* return_node) {
@@ -2119,7 +2238,7 @@ namespace occult {
 
     void ir_gen::visualize_stack_ir(const std::vector<ir_function>& funcs) {
         std::cout << CYAN << "Function(s): \n" << RESET;
-        for (const auto& [code, args, name, type, uses_shellcode, is_external] : funcs) {
+        for (const auto& [code, args, name, type, uses_shellcode, is_external, is_variadic] : funcs) {
             std::cout << "Type: " << type << "\n";
             std::string sh = uses_shellcode ? "True" : "False";
             std::cout << "Shellcode: " << sh << "\n";

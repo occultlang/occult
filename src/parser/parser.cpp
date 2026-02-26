@@ -510,6 +510,25 @@ namespace occult {
 
             auto arg_count = 0;
             while (!match(peek(), right_paren_tt)) {
+                if (match(peek(), variadic_tt)) {
+                    consume();
+
+                    // generate synthetic i64 args so variadic values are accessible
+                    // as __varargs[i] in the body (both register and stack args)
+                    int existing_args = static_cast<int>(func_args_node->get_children().size());
+                    int max_total_args = existing_args + 16; // support up to 16 variadic args
+                    int synthetic_count = max_total_args - existing_args;
+
+                    for (int va_idx = 0; va_idx < synthetic_count; va_idx++) {
+                        auto arg = cst::new_node<cst_int64>();
+                        arg->add_child(cst::new_node<cst_identifier>("__va" + std::to_string(va_idx)));
+                        func_args_node->add_child(std::move(arg));
+                    }
+
+                    func_args_node->add_child(cst::new_node<cst_variadic>());
+                    break;
+                }
+
                 auto arg = parse_datatype();
 
                 if (arg->get_children().size() < 1) { // for shellcode

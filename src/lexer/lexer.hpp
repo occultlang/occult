@@ -123,7 +123,8 @@ namespace occult {
         unkown_tt,
         function_call_parser_tt,
         argument_count_tt,
-        shellcode_denoter_tt
+        shellcode_denoter_tt,
+        variadic_tt // ...
     };
 
     typedef struct token_t {

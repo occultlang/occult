@@ -219,14 +219,19 @@ namespace occult::x86_64 {
 
             push_bytes(prefix_special_2b);
 
+            bool simd_ext = static_cast<std::uint8_t>(base) >= 8;
+
             if (REG_RANGE(dest, r8, r15)) {
-                push_byte(rex_wb);
+                push_byte(simd_ext ? rex_wrb : rex_wb);
             }
             else if (REG_RANGE(dest, rax, rdi)) {
-                push_byte(rex_w);
+                push_byte(simd_ext ? rex_wr : rex_w);
             }
             else if (REG_RANGE(dest, r8d, r15d)) {
-                push_byte(rex_b);
+                push_byte(simd_ext ? static_cast<std::uint8_t>(static_cast<std::uint8_t>(rex_b) | rex_bits::r) : rex_b);
+            }
+            else if (simd_ext) {
+                push_byte(rex_r);
             }
 
             CHECK_2BYTE_OPCODE_PREFIX_AND_PUSH
@@ -238,6 +243,18 @@ namespace occult::x86_64 {
         /*void check_simd128_r2m(const float_opcode_2b& op, const mem& dest, const simd128& src) {
             return;
         }*/
+
+        // Returns REX byte for SIMD-to-SIMD ops (no REX.W), or 0 if no REX needed
+        std::uint8_t simd_rex(const auto& dest, const auto& base) {
+            std::uint8_t rex = 0;
+            if (static_cast<std::uint8_t>(dest) >= 8)
+                rex |= rex_bits::r;
+            if (static_cast<std::uint8_t>(base) >= 8)
+                rex |= rex_bits::b;
+            if (rex)
+                rex |= 0x40;
+            return rex;
+        }
 
         void print_binary(uint8_t value) { std::cout << std::bitset<8>(value) << '\n'; }
 
@@ -253,12 +270,13 @@ namespace occult::x86_64 {
 
         void emit_simd128_to_mem(const opcode& op, const simd128& base, const mem& dest, const std::vector<std::uint8_t>& prefix) {
             bool is_2bOPC = true;
+            bool simd_ext = static_cast<std::uint8_t>(base) >= 8;
 
             if (debug)
                 std::cout << "dest reg: " << reg_to_string(dest.reg) << std::endl;
 
             if (dest.reg == rip) { // rip relative
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix);
+                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
                 push_byte(modrm(mod_field::indirect, rm_field::rip_relative, base));
                 emit_imm32(dest.disp);
             }
@@ -267,7 +285,7 @@ namespace occult::x86_64 {
                 // std::cout << "Emitting register based addressing for memory\n\tDest: "
                 // << reg_to_string(base) << "\n\tSource: [" << reg_to_string(dest.reg) <<
                 // "]\n\tMode = mem_mode::reg;\n";
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix);
+                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
                 // std::cout << "Rebased (Source): " <<
                 // reg_to_string(rebase_register(base)) << std::endl; std::cout <<
                 // "Rebased (Dest): " << reg_to_string(rebase_register(dest.reg)) <<
@@ -277,13 +295,13 @@ namespace occult::x86_64 {
             }
             else if (IS_STACK_BASE_PTR(dest.reg) && NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) {
                 // [rbp]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix);
+                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
                 push_byte(modrm(mod_field::disp8, rebase_register(dest.reg), base));
                 emit_imm8(0);
             }
             else if (NOT_STACK_BASE_PTR(dest.reg) && IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) {
                 // [rsp]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix);
+                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
                 push_byte(modrm(mod_field::indirect, rm_field::indexed, base));
                 push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
             }
@@ -292,7 +310,7 @@ namespace occult::x86_64 {
                 if (debug)
                     printf("disp32 debug simd128\n");
 
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix);
+                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
                 uint8_t reg_field = static_cast<uint8_t>(base) & 7;
 
                 uint8_t rm_field = rebase_register(dest.reg);
@@ -305,26 +323,26 @@ namespace occult::x86_64 {
                 emit_imm32(dest.disp);
             }
             else if (IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [rsp + disp32]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix);
+                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
                 push_byte(modrm(mod_field::disp32, rm_field::indexed, base));
                 push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
                 emit_imm32(dest.disp);
             }
             else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::none) { // [reg + SIB]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix);
+                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
                 push_byte(modrm(mod_field::indirect, rm_field::indexed, base));
                 push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
             }
             else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::disp) {
                 // [reg + SIB + disp]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix);
+                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
                 push_byte(modrm(mod_field::disp32, rm_field::indexed, base));
                 push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
                 emit_imm32(dest.disp);
             }
         }
 
-        void check_reg_r2m_simd(const opcode& op8, const opcode& op, const mem& dest, const grp& base, const bool is_2bOPC = false, const std::vector<std::uint8_t>& prefix = {}) {
+        void check_reg_r2m_simd(const opcode& op8, const opcode& op, const mem& dest, const grp& base, const bool is_2bOPC = false, const std::vector<std::uint8_t>& prefix = {}, bool simd_extended = false) {
             if (debug) {
                 std::cout << "is_2bOPC: " << is_2bOPC << std::endl;
             }
@@ -363,6 +381,8 @@ namespace occult::x86_64 {
                     rex |= rex_bits::b;
                 if (base_r8b)
                     rex |= rex_bits::r;
+                if (simd_extended)
+                    rex |= rex_bits::r;
                 if (index_r8q)
                     rex |= rex_bits::x;
                 if (dest.reg == spl || dest.reg == bpl || dest.reg == sil || dest.reg == dil || base == spl || base == bpl || base == sil || base == dil) {
@@ -383,6 +403,8 @@ namespace occult::x86_64 {
                     rex |= rex_bits::b;
                 if (base_r8w)
                     rex |= rex_bits::r;
+                if (simd_extended)
+                    rex |= rex_bits::r;
                 if (index_r8q)
                     rex |= rex_bits::x;
                 if (rex != rex::rex)
@@ -398,6 +420,8 @@ namespace occult::x86_64 {
                 if (dest_r8d)
                     rex |= rex_bits::b;
                 if (base_r8d)
+                    rex |= rex_bits::r;
+                if (simd_extended)
                     rex |= rex_bits::r;
                 if (index_r8q)
                     rex |= rex_bits::x;
@@ -416,6 +440,8 @@ namespace occult::x86_64 {
                     rex |= rex_bits::b;
                 if (base_r8q)
                     rex |= rex_bits::r;
+                if (simd_extended)
+                    rex |= rex_bits::r;
                 if (index_r8q)
                     rex |= rex_bits::x;
 
@@ -432,6 +458,8 @@ namespace occult::x86_64 {
                 }
                 else if (dest.reg == rsp || dest.reg == spl || base == rsp || base == spl) {
                     rex |= rex_bits::w;
+                    if (simd_extended)
+                        rex |= rex_bits::r;
                     push_byte(rex);
                 }
 
@@ -441,7 +469,9 @@ namespace occult::x86_64 {
                 return;
             }
 
-            push_byte(rex_bits::w);
+            if (simd_extended) {
+                push_byte(static_cast<std::uint8_t>(static_cast<std::uint8_t>(rex::rex) | rex_bits::r));
+            }
             emit_2b();
             push_byte(op);
         }
@@ -595,7 +625,7 @@ namespace occult::x86_64 {
             else if (NOT_STACK_BASE_PTR(dest.reg) && IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) {
                 // [rsp]
                 check_reg_r2m(op8, op, dest, base, is_2bOPC);
-                push_byte(modrm(mod_field::indirect, rm_field::indexed, rebase_register(dest.reg)));
+                push_byte(modrm(mod_field::indirect, rm_field::indexed, rebase_register(base)));
                 push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
             }
             else if (NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) {
@@ -606,7 +636,7 @@ namespace occult::x86_64 {
             }
             else if (IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [rsp + disp32]
                 check_reg_r2m(op8, op, dest, base, is_2bOPC);
-                push_byte(modrm(mod_field::disp32, rm_field::indexed, rebase_register(dest.reg)));
+                push_byte(modrm(mod_field::disp32, rm_field::indexed, rebase_register(base)));
                 push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
                 emit_imm32(dest.disp);
             }
@@ -1684,26 +1714,77 @@ namespace occult::x86_64 {
         // move value into sse registers from GRP (single or double precision)
         void emit_movq(REG_TO_SIMD128_ARG) { emit_reg_to_simd128(float_opcode_2b::MOVQ_xmm_to_rm32_to_64, base, dest, {operand_size_override}); }
 
+        // move value from sse register to GRP (bit-preserving, 66 REX.W 0F 7E /r)
+        void emit_movq(const grp& dest, const simd128& base) { emit_reg_to_simd128(float_opcode_2b::MOVQ_rm64_from_xmm, dest, base, {operand_size_override}); }
+
         // move value into sse registers from GRP (single or double precision)
         void emit_movd(REG_TO_SIMD128_ARG) { emit_reg_to_simd128(float_opcode_2b::MOVD_xmm_to_rm32_to_64, base, dest, {operand_size_override}); }
 
         // add scalar packed double precision
-        void emit_addsd(SIMD128_TO_SIMD128_ARG) { push_bytes({kREPNE_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(ADDSD_xmm_to_xmm_or_m64), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_addsd(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREPNE_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(ADDSD_xmm_to_xmm_or_m64), modrm(mod_field::register_direct, dest, base)});
+        }
 
         // add scalar packed single precision
-        void emit_addss(SIMD128_TO_SIMD128_ARG) { push_bytes({kREP_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(ADDSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_addss(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREP_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(ADDSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)});
+        }
 
-        void emit_subsd(SIMD128_TO_SIMD128_ARG) { push_bytes({kREPNE_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(SUBSD_xmm_to_xmm_or_m64), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_subsd(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREPNE_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(SUBSD_xmm_to_xmm_or_m64), modrm(mod_field::register_direct, dest, base)});
+        }
 
-        void emit_subss(SIMD128_TO_SIMD128_ARG) { push_bytes({kREP_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(SUBSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_subss(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREP_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(SUBSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)});
+        }
 
-        void emit_mulsd(SIMD128_TO_SIMD128_ARG) { push_bytes({kREPNE_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(MULSD_xmm_to_xmm_or_m64), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_mulsd(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREPNE_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(MULSD_xmm_to_xmm_or_m64), modrm(mod_field::register_direct, dest, base)});
+        }
 
-        void emit_mulss(SIMD128_TO_SIMD128_ARG) { push_bytes({kREP_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(MULSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_mulss(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREP_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(MULSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)});
+        }
 
-        void emit_divsd(SIMD128_TO_SIMD128_ARG) { push_bytes({kREPNE_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(DIVSD_xmm_to_xmm_or_m64), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_divsd(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREPNE_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(DIVSD_xmm_to_xmm_or_m64), modrm(mod_field::register_direct, dest, base)});
+        }
 
-        void emit_divss(SIMD128_TO_SIMD128_ARG) { push_bytes({kREP_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(DIVSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_divss(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREP_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(DIVSS_xmm_to_xmm_or_m32), modrm(mod_field::register_direct, dest, base)});
+        }
 
         void emit_cvttsd2si(const grp& dst, const simd128& src) {
             const auto src_val = static_cast<std::uint8_t>(src) & 7;
@@ -1749,26 +1830,36 @@ namespace occult::x86_64 {
             push_bytes({kREP_Prefix, rex, k2ByteOpcodePrefix, static_cast<std::uint8_t>(CVTSI2SD_rm32_to_64_to_xmm), static_cast<std::uint8_t>((0b11 << 6) | (dst_val << 3) | src_val)});
         }
 
-        void emit_cvtss2sd(SIMD128_TO_SIMD128_ARG) { push_bytes({kREP_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(CVTSS2SD_xmm_or_m32_to_xmm), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_cvtss2sd(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREP_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(CVTSS2SD_xmm_or_m32_to_xmm), modrm(mod_field::register_direct, dest, base)});
+        }
 
-        void emit_cvtsd2ss(SIMD128_TO_SIMD128_ARG) { push_bytes({kREPNE_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(CVTSD2SS_xmm_or_m64_to_xmm), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_cvtsd2ss(SIMD128_TO_SIMD128_ARG) {
+            push_byte(kREPNE_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(CVTSD2SS_xmm_or_m64_to_xmm), modrm(mod_field::register_direct, dest, base)});
+        }
 
         void emit_movss(SIMD128_TO_SIMD128_ARG) {
-            simd128 true_base, true_dest;
-
-            true_base = static_cast<simd128>(static_cast<uint8_t>(base & 7));
-            true_dest = static_cast<simd128>(static_cast<uint8_t>(dest & 7));
-
-            push_bytes({kREP_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(MOVSD_xmm_or_m64_to_xmm), modrm(mod_field::register_direct, true_dest, true_base)});
+            push_byte(kREP_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(MOVSD_xmm_or_m64_to_xmm), modrm(mod_field::register_direct, dest, base)});
         }
 
         void emit_movsd(SIMD128_TO_SIMD128_ARG) {
-            simd128 true_base, true_dest;
-
-            true_base = static_cast<simd128>(static_cast<uint8_t>(base & 7));
-            true_dest = static_cast<simd128>(static_cast<uint8_t>(dest & 7));
-
-            push_bytes({kREPNE_Prefix, k2ByteOpcodePrefix, static_cast<uint8_t>(MOVSD_xmm_or_m64_to_xmm), modrm(mod_field::register_direct, true_dest, true_base)});
+            push_byte(kREPNE_Prefix);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(MOVSD_xmm_or_m64_to_xmm), modrm(mod_field::register_direct, dest, base)});
         }
 
         void emit_movss(SIMD128_TO_MEM_ARG) { emit_simd128_to_mem(static_cast<opcode>(MOVSS_xmm_to_xmm_or_m32), base, dest, {kREP_Prefix}); }
@@ -1805,8 +1896,19 @@ namespace occult::x86_64 {
             emit_subss(result, temp2);
         }
 
-        void emit_comiss(SIMD128_TO_SIMD128_ARG) { push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(0x2F), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_comiss(SIMD128_TO_SIMD128_ARG) {
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(0x2F), modrm(mod_field::register_direct, dest, base)});
+        }
 
-        void emit_comisd(SIMD128_TO_SIMD128_ARG) { push_bytes({operand_size_override, k2ByteOpcodePrefix, static_cast<uint8_t>(0x2F), modrm(mod_field::register_direct, dest, base)}); }
+        void emit_comisd(SIMD128_TO_SIMD128_ARG) {
+            push_byte(operand_size_override);
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(0x2F), modrm(mod_field::register_direct, dest, base)});
+        }
     };
 } // namespace occult::x86_64

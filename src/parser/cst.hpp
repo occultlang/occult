@@ -87,6 +87,7 @@ namespace occult {
         func_uses_shellcode,
         shellcode,
         cast_to_datatype,
+        variadic,
     };
 
     class cst {
@@ -331,4 +332,5 @@ namespace occult {
     NODE(shellcode, cst_shellcode)
 
     NODE(cast_to_datatype, cst_cast_to_datatype)
+    NODE(variadic, cst_variadic)
 } // namespace occult

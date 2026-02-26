@@ -153,6 +153,11 @@ namespace occult {
         if (b == "bool" && int_types.count(a))
             return true;
 
+        if (a == "str" && int_types.count(b))
+            return true;
+        if (b == "str" && int_types.count(a))
+            return true;
+
         return false;
     }
 
@@ -345,7 +350,7 @@ namespace occult {
     void linter::collect_functions() {
         // register compiler built-in functions
         static const char* builtins[] = {
-            "print_string", "print_integer", "print_newline", "alloc", "del",
+            "print_string", "print_integer", "print_newline", "print_char", "alloc", "del", "__bitcast_f64", "__bitcast_i64",
         };
         for (const auto* name : builtins) {
             known_functions.insert(name);
@@ -700,6 +705,10 @@ namespace occult {
             case cst_type::functionarguments:
                 {
                     for (const auto& arg : c->get_children()) {
+                        if (arg->get_type() == cst_type::variadic) {
+                            declare_var("__varargs", "int64");
+                            continue;
+                        }
                         const std::string atype = type_name_of(arg.get());
                         for (const auto& id : arg->get_children()) {
                             if (id->get_type() == cst_type::identifier) {

@@ -404,6 +404,39 @@ namespace occult::x86_64 {
                 }
             }
 
+            // for variadic functions, create a __varargs array from the __va* args
+            if (func.is_variadic && !func.uses_shellcode) {
+                std::vector<std::string> va_arg_names;
+                for (const auto& arg : func.args) {
+                    if (arg.name.size() >= 4 && arg.name.substr(0, 4) == "__va") {
+                        va_arg_names.push_back(arg.name);
+                    }
+                }
+
+                if (!va_arg_names.empty()) {
+                    std::size_t va_count = va_arg_names.size();
+                    std::int32_t total_mem = static_cast<std::int32_t>(va_count * 8);
+                    total_mem = ((total_mem + 15) / 16) * 16; // 16-byte alignment
+
+                    std::int32_t base_offset = -totalsizes - total_mem;
+                    totalsizes += total_mem;
+
+                    // copy each __va arg value into the contiguous array
+                    for (std::size_t j = 0; j < va_count; j++) {
+                        auto va_offset = local_variable_map[va_arg_names[j]];
+                        auto r = pool.alloc();
+                        w->emit_mov(r, mem{rbp, -static_cast<std::int32_t>(va_offset)});
+                        std::int32_t element_offset = base_offset + static_cast<std::int32_t>(j * 8);
+                        w->emit_mov(mem{rbp, element_offset}, r);
+                        pool.free(r);
+                    }
+
+                    local_variable_map["__varargs"] = base_offset;
+                    local_variable_map_types["__varargs"] = "int64";
+                    local_array_metadata["__varargs"] = {"int64", {va_count}, total_mem};
+                }
+            }
+
             bool pushing_for_ret = false;
             bool push_single = false;
             std::uint64_t index_to_push = (std::numeric_limits<std::uint64_t>::max)();
@@ -1085,6 +1118,35 @@ namespace occult::x86_64 {
                         break;
                     }
 
+                case ir_opcode::op_bitcast:
+                    {
+                        const auto& target_type = std::get<std::string>(code.operand);
+                        const auto& source_type = code.type;
+
+                        const bool target_is_float = (target_type == "float32" || target_type == "float64");
+                        const bool source_is_float = (source_type == "float32" || source_type == "float64");
+
+                        if (source_is_float && !target_is_float) {
+                            // float -> int: movq gp_reg, xmm_reg (bit-preserving)
+                            auto src = simd_pool.pop();
+                            auto dst = pool.alloc();
+                            w->emit_movq(dst, src);
+                            simd_pool.free(src);
+                            pool.push(dst);
+                        }
+                        else if (!source_is_float && target_is_float) {
+                            // int -> float: movq xmm_reg, gp_reg (bit-preserving)
+                            auto src = pool.pop();
+                            auto dst = simd_pool.alloc();
+                            w->emit_movq(dst, src);
+                            pool.free(src);
+                            simd_pool.push(dst);
+                        }
+                        // same-type bitcast is a no-op (value already in correct pool)
+
+                        break;
+                    }
+
                 /* floating point arith */
                 case ir_opcode::op_addf32:
                     {
@@ -1536,6 +1598,11 @@ namespace occult::x86_64 {
                         }
 
                         int arg_count = it->args.size();
+                        bool is_variadic_call = it->is_variadic && !code.type.empty();
+                        bool is_external_call = it->is_external && !code.type.empty();
+                        if (is_variadic_call || is_external_call) {
+                            arg_count = std::stoi(code.type);
+                        }
                         if (debug) {
                             std::cout << BLUE << "[CODEGEN INFO] Argument count: " << RESET << arg_count << std::endl;
                         }
@@ -1544,8 +1611,11 @@ namespace occult::x86_64 {
                         std::vector<std::pair<std::variant<grp, simd128>, bool>> args; // pair<reg, is_fp>
 
                         for (int i1 = arg_count - 1; i1 >= 0; i1--) {
-                            const auto& arg_type = it->args[i1].type;
-                            bool is_fp = (arg_type == "float32" || arg_type == "float64");
+                            bool is_fp = false;
+                            if (static_cast<std::size_t>(i1) < it->args.size()) {
+                                const auto& arg_type = it->args[i1].type;
+                                is_fp = (arg_type == "float32" || arg_type == "float64");
+                            }
 
                             if (is_fp) {
                                 if (simd_pool.empty()) {

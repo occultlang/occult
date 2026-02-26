@@ -1,3 +1,5 @@
+include "../lib/printf.occ"
+
 fn fib_recursion(i64 n) i64 {
   if n == 0 {
     return n;

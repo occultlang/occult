@@ -1,3 +1,5 @@
+include "../lib/printf.occ"
+
 fn alloc_node(i64 val) i64* {
     i64* node = alloc(16); 
     if (node == 0) {

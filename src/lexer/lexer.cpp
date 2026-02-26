@@ -298,6 +298,11 @@ namespace occult {
         }
 
         if (pos < source.length() && delimiter_map.contains(source[pos])) {
+            // check for variadic "..." before treating '.' as a delimiter
+            if (source[pos] == '.' && pos + 2 < source.length() && source[pos + 1] == '.' && source[pos + 2] == '.') {
+                increment(0, 3, 3);
+                return token_t(line, column, "...", variadic_tt);
+            }
             return handle_delimiter();
         }
 

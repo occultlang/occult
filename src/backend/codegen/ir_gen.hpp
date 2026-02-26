@@ -90,6 +90,7 @@ namespace occult {
         op_struct_store,
         op_push_shellcode,
         op_cast,
+        op_bitcast,
     };
 
     inline std::string opcode_to_string(ir_opcode op) {
@@ -142,6 +143,8 @@ namespace occult {
             return "not";
         case op_cast:
             return "cast";
+        case op_bitcast:
+            return "bitcast";
         case op_bitwise_lshift:
             return "bitwise_lshift";
         case op_bitwise_rshift:
@@ -283,6 +286,7 @@ namespace occult {
         std::string type;
         bool uses_shellcode = false;
         bool is_external = false;
+        bool is_variadic = false;
 
         bool operator==(const ir_function& other) const { return name == other.name; }
     };

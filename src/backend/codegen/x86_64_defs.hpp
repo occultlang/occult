@@ -947,6 +947,8 @@ namespace occult::x86_64 {
                              // requires REX byte)
         // ^^ btw this is better than the mmx one, this one is SSE2
 
+        DECLARE_OPCODE(MOVQ_rm64_from_xmm, 0x7E) // 66 REX.W 0F 7E /r: move xmm bits to GP register
+
         DECLARE_OPCODE(MOVSS_xmm_to_xmm_or_m32, 0x11) // REP
         DECLARE_OPCODE(MOVSD_xmm_to_xmm_or_m64, 0x11) // REPNE
         DECLARE_OPCODE(MOVSS_xmm_or_m32_to_xmm, 0x10) // REP
