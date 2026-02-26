@@ -74,7 +74,6 @@ Afterwards, you should be good to go
 _____________________________________________________________________________
 
 ### Roadmap
-- Varadaric Arguments (v2.2.1-alpha)
 - Generics 
 - Foreach implementation 
 - RAII 
