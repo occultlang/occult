@@ -457,6 +457,7 @@ namespace occult {
 
             return node;
         }
+
         if (match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme)) {
             const auto type_name = peek().lexeme;
             consume();
@@ -477,6 +478,25 @@ namespace occult {
 
             return node;
         }
+
+        
+        if (match(peek(), identifier_tt) && cst_generic_type_cache.contains(peek().lexeme)) {
+            std::unique_ptr<cst> node = std::move(cst_generic_type_cache[peek().lexeme]);
+
+            if (match(peek(), multiply_operator_tt)) {
+                while (match(peek(), multiply_operator_tt)) {
+                    consume();
+                    node->num_pointers++;
+                }
+            }
+
+            if (match(peek(), identifier_tt)) {
+                node->add_child(parse_identifier());
+            }
+
+            return node;
+        }
+
         if (match(peek(), array_keyword_tt)) {
             throw parsing_error("scalar return type (array types cannot be used as a function return type)", peek(), pos, std::source_location::current().function_name());
         }
@@ -526,10 +546,11 @@ namespace occult {
                     }
 
                     func_args_node->add_child(cst::new_node<cst_variadic>());
+                    
                     break;
                 }
 
-                auto arg = parse_datatype();
+                auto arg = parse_datatype(); // now handles generics
 
                 if (arg->get_children().size() < 1) { // for shellcode
                     arg->add_child(cst::new_node<cst_identifier>("arg" + std::to_string(++arg_count)));
@@ -1286,6 +1307,51 @@ namespace occult {
     }
 
     std::unique_ptr<cst> parser::parse_keyword(bool nested_function) {
+        if (match(peek(), generic_keyword_tt)) {
+            cst_generic_type_cache.clear(); 
+
+            /*
+                Just have to clear these above ^^^
+                Prevents reuse of generics in structs and functions
+            */
+
+            consume();
+
+            if (match(peek(), less_than_operator_tt)) {
+                consume(); // '<'
+
+                if (match(peek(), greater_than_operator_tt)) {
+                    throw parsing_error("typename in generic definition", peek(), pos, std::source_location::current().function_name());
+                }
+
+                while (!match(peek(), greater_than_operator_tt)) {
+                    auto generic_typename = parse_identifier()->content; // typename 
+                    cst_generic_type_cache[generic_typename] = cst::new_node<cst_generic_type>(generic_typename);
+
+                    if (match(peek(), comma_tt) && match(peek(1), greater_than_operator_tt)) {
+                        throw parsing_error("typename after comma", peek(), pos, std::source_location::current().function_name());
+                    }
+
+                    if (match(peek(), comma_tt)) {
+                        consume();
+                    }
+                }
+
+                if (!match(peek(), greater_than_operator_tt)) {
+                    throw parsing_error("greater than operator (for generic type)", peek(), pos, std::source_location::current().function_name());
+                }
+
+                consume(); // '>'
+
+                if (!match(peek(), function_keyword_tt) || !match(peek(), struct_keyword_tt)) {
+                    throw parsing_error("function or struct definition", peek(), pos, std::source_location::current().function_name()); // has to be on a struct or fn definition
+                }
+            }
+            else {
+                throw parsing_error("less than operator (for generic type)", peek(), pos, std::source_location::current().function_name());
+            }
+        }
+
         if (nested_function) {
             if (match(peek(), function_keyword_tt)) {
                 return parse_function();

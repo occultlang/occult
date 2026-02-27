@@ -18,6 +18,7 @@ namespace occult {
         state parser_state = state::neutral;
         std::unordered_map<std::string, cst*> custom_type_map; // used for structures
         std::string source_file_path;
+        std::unordered_map<std::string, std::unique_ptr<cst_generic_type>> cst_generic_type_cache;
 
         std::vector<std::string> source_lines;
         std::size_t error_count = 0;
