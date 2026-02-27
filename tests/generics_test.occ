@@ -1,0 +1,20 @@
+include "../lib/printf.occ"
+
+generic<TypeA>
+struct GenericNode {
+    TypeA t_a;
+    GenericNode* next;
+}
+
+generic <Type1>
+fn add(Type1 t1, Type1 t2) Type1 {
+    return t1 + t2;
+}
+
+fn main() {
+    GenericNode<f32> generic_node;
+    generic_node.t_a = 3.14;
+
+    printf("%i\n", add<i32>(10, 20));
+    printf("%.2f\n", generic_node.t_a);
+} 
