@@ -99,7 +99,7 @@ namespace occult::x86_64 {
         template <typename IntType = std::int8_t>
         void emit_imm(IntType imm, const int size) {
             for (int i = 0; i < size; ++i) {
-                push_byte(static_cast<uint8_t>((imm >> (i * 8)) & 0xFF));
+                push_byte(static_cast<uint8_t>((static_cast<std::uint64_t>(imm) >> (i * 8)) & 0xFF));
             }
         }
 
@@ -1520,6 +1520,21 @@ namespace occult::x86_64 {
         void emit_idiv(REG_ARG) { emit_reg_to_reg(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, _reg, static_cast<grp>(7)); }
 
         void emit_idiv(MEM_ARG) { emit_reg_to_mem(opcode::MUL_AX_AL_rm8, opcode::MUL_rDX_rAX_rm16_to_64, m, static_cast<grp>(7)); }
+
+        // CQO: sign-extend RAX into RDX:RAX (REX.W + 0x99)
+        void emit_cqo() {
+            push_byte(static_cast<std::uint8_t>(rex_w));
+            push_byte(static_cast<std::uint8_t>(opcode::CWD));
+        }
+
+        // XORPS: bitwise XOR packed single-precision (0F 57 /r)
+        // Used to zero XMM registers reliably (even if they contain NaN/Inf)
+        void emit_xorps(SIMD128_TO_SIMD128_ARG) {
+            auto rex = simd_rex(dest, base);
+            if (rex)
+                push_byte(rex);
+            push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(XORPS_xmm_to_xmm_or_m128), modrm(mod_field::register_direct, dest, base)});
+        }
 
         void emit_inc(REG_ARG) { emit_reg_to_reg(opcode::INC_rm8, opcode::INC_rm16_to_64, _reg, static_cast<grp>(0)); }
 

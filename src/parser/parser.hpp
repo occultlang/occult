@@ -2,11 +2,18 @@
 #include <source_location>
 #include <stack>
 #include <unordered_map>
+#include <unordered_set>
 #include "../lexer/lexer.hpp"
 #include "cst.hpp"
 #include "error.hpp"
 
 namespace occult {
+    struct generic_template {
+        std::vector<std::string> type_params;
+        std::vector<token_t> tokens;
+        std::string name;
+    };
+
     class parser {
     public:
         enum class state : std::uint8_t { neutral, failed, success };
@@ -20,8 +27,14 @@ namespace occult {
         std::string source_file_path;
         std::unordered_map<std::string, std::unique_ptr<cst_generic_type>> cst_generic_type_cache;
 
+        std::unordered_map<std::string, generic_template> generic_struct_templates;
+        std::unordered_map<std::string, generic_template> generic_func_templates;
+        std::unordered_set<std::string> instantiated_generics;
+
         std::vector<std::string> source_lines;
         std::size_t error_count = 0;
+        std::size_t recursion_depth = 0;
+        static constexpr std::size_t max_recursion_depth = 256;
 
         token_t peek(std::uintptr_t _pos = 0);
 
@@ -92,6 +105,17 @@ namespace occult {
         std::unique_ptr<cst_array> parse_array();
 
         std::unique_ptr<cst_struct> parse_struct();
+
+        void instantiate_generic_struct(const std::string& template_name, const std::vector<token_t>& concrete_type_args);
+
+        void instantiate_generic_function(const std::string& template_name, const std::vector<token_t>& concrete_type_args);
+
+        std::vector<token_t> preprocess_generic_calls(const std::vector<token_t>& expr);
+
+        // Returns true if the current position looks like a forward-referenced generic struct
+        // type in a template context (e.g., child_entry<T>* where child_entry isn't defined yet).
+        // If true, advances pos past the type reference.
+        bool try_parse_forward_generic_struct_type(std::unique_ptr<cst>& out_node);
 
         void synchronize(const parsing_error& e);
 

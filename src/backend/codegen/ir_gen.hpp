@@ -41,6 +41,8 @@ namespace occult {
         op_bitwise_rshift,
         op_ibitwise_rshift,
         op_negate,
+        op_negatef32,
+        op_negatef64,
         op_jmp,
         op_jz,  // je
         op_jnz, // jne
@@ -48,6 +50,10 @@ namespace occult {
         op_jle,
         op_jg,
         op_jge,
+        op_jb,  // unsigned less than (for float comparisons after COMISS/COMISD)
+        op_jbe, // unsigned less than or equal
+        op_ja,  // unsigned greater than
+        op_jae, // unsigned greater than or equal
         op_setz,
         op_setnz,
         op_setl,
@@ -153,6 +159,10 @@ namespace occult {
             return "ibitwise_rshift";
         case op_negate:
             return "negate";
+        case op_negatef32:
+            return "negatef32";
+        case op_negatef64:
+            return "negatef64";
         case op_jmp:
             return "jmp";
         case op_jz:
@@ -167,6 +177,14 @@ namespace occult {
             return "jg";
         case op_jge:
             return "jge";
+        case op_jb:
+            return "jb";
+        case op_jbe:
+            return "jbe";
+        case op_ja:
+            return "ja";
+        case op_jae:
+            return "jae";
         case op_setz:
             return "setz";
         case op_setnz:
@@ -380,13 +398,13 @@ namespace occult {
 
         void generate_return(ir_function& function, cst_returnstmt* return_node);
 
-        void generate_or_jump(ir_function& function, cst* comparison, const std::string& true_label);
+        void generate_or_jump(ir_function& function, cst* comparison, const std::string& true_label, bool is_float_cmp = false);
 
-        void generate_and_jump(ir_function& function, cst* comparison, const std::string& false_label);
+        void generate_and_jump(ir_function& function, cst* comparison, const std::string& false_label, bool is_float_cmp = false);
 
-        void generate_inverted_jump(ir_function& function, cst* comparison, const std::string& false_label);
+        void generate_inverted_jump(ir_function& function, cst* comparison, const std::string& false_label, bool is_float_cmp = false);
 
-        void generate_normal_jump(ir_function& function, cst* comparison, const std::string& false_label);
+        void generate_normal_jump(ir_function& function, cst* comparison, const std::string& false_label, bool is_float_cmp = false);
 
         void generate_condition(ir_function& function, cst* node, const std::string& false_label, const std::string& true_label);
 

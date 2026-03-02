@@ -158,11 +158,28 @@ namespace occult {
         if (b == "str" && int_types.count(a))
             return true;
 
+        // In Occult's low-level memory model, 64-bit integer values are compatible
+        // with pointer types (pointers are 64-bit addresses). This allows patterns
+        // like reading a raw pointer from an i64* array slot and storing it in a
+        // typed struct pointer variable (e.g. HashEntry* p = $raw_slot).
+        auto ends_with_ptr = [](const std::string& s) { return !s.empty() && s.back() == '*'; };
+        if ((a == "int64" || a == "uint64") && ends_with_ptr(b))
+            return true;
+        if ((b == "int64" || b == "uint64") && ends_with_ptr(a))
+            return true;
+
+        // All integer types are mutually compatible (implicit widening/narrowing).
+        // This is natural in a low-level language where the underlying storage is
+        // always 64-bit and the programmer controls the bit width explicitly.
+        if (int_types.count(a) && int_types.count(b))
+            return true;
+
         return false;
     }
 
     std::string linter::infer_type_rpn(const std::vector<cst*>& nodes) {
         std::vector<std::string> stk;
+        std::vector<bool> is_zero; // parallel stack tracking literal-zero values
 
         for (std::size_t i = 0; i < nodes.size(); ++i) {
             cst* node = nodes[i];
@@ -172,19 +189,33 @@ namespace occult {
             switch (node->get_type()) {
             case cst_type::number_literal:
                 stk.push_back("<number>");
+                is_zero.push_back(node->content == "0");
                 break;
             case cst_type::float_literal:
                 stk.push_back("<float>");
+                {
+                    // detect zero-valued float literals (0.0, 0., .0, 0e0, etc.)
+                    bool fzero = false;
+                    try {
+                        fzero = std::stod(node->content) == 0.0;
+                    }
+                    catch (...) {
+                    }
+                    is_zero.push_back(fzero);
+                }
                 break;
             case cst_type::stringliteral:
                 stk.push_back("<str>");
+                is_zero.push_back(false);
                 break;
             case cst_type::charliteral:
                 stk.push_back("<number>");
+                is_zero.push_back(false);
                 break;
 
             case cst_type::identifier:
                 stk.push_back(lookup_type(node->content));
+                is_zero.push_back(false);
                 break;
 
             case cst_type::reference:
@@ -211,6 +242,7 @@ namespace occult {
                     else {
                         stk.push_back("");
                     }
+                    is_zero.push_back(false);
                     break;
                 }
 
@@ -225,6 +257,7 @@ namespace occult {
                     if (!stk.empty()) {
                         std::string t = stk.back();
                         stk.pop_back();
+                        is_zero.pop_back();
                         for (int j = 0; j < count && !t.empty() && t.back() == '*'; ++j) {
                             t.pop_back();
                         }
@@ -233,16 +266,34 @@ namespace occult {
                     else {
                         stk.push_back("");
                     }
+                    is_zero.push_back(false);
                     break;
                 }
 
             case cst_type::cast_to_datatype:
                 stk.push_back(keyword_to_type_name(node->content));
+                is_zero.push_back(false);
                 break;
 
             case cst_type::functioncall:
+                {
+                    std::string ret_type;
+                    if (!node->get_children().empty()) {
+                        const auto& first = node->get_children().front();
+                        if (first->get_type() == cst_type::identifier) {
+                            auto it = function_return_types.find(first->content);
+                            if (it != function_return_types.end()) {
+                                ret_type = it->second;
+                            }
+                        }
+                    }
+                    stk.push_back(ret_type);
+                    is_zero.push_back(false);
+                    break;
+                }
             case cst_type::memberaccess:
                 stk.push_back("");
+                is_zero.push_back(false);
                 break;
 
             case cst_type::arrayaccess:
@@ -258,6 +309,7 @@ namespace occult {
                         }
                     }
                     stk.push_back(elem);
+                    is_zero.push_back(false);
                     break;
                 }
 
@@ -275,8 +327,16 @@ namespace occult {
                     if (stk.size() >= 2) {
                         std::string rhs = stk.back();
                         stk.pop_back();
+                        bool rhs_zero = is_zero.back();
+                        is_zero.pop_back();
                         std::string lhs = stk.back();
                         stk.pop_back();
+                        is_zero.pop_back();
+
+                        if (rhs_zero && (node->get_type() == cst_type::division_operator || node->get_type() == cst_type::modulo_operator)) {
+                            errors.emplace_back("Division by zero", lint_error::severity::warning);
+                        }
+
                         if (lhs.empty() || rhs.empty()) {
                             stk.push_back("");
                         }
@@ -293,6 +353,7 @@ namespace occult {
                     else {
                         stk.push_back("");
                     }
+                    is_zero.push_back(false);
                     break;
                 }
 
@@ -306,13 +367,16 @@ namespace occult {
                     if (stk.size() >= 2) {
                         std::string rhs = stk.back();
                         stk.pop_back();
+                        is_zero.pop_back();
                         std::string lhs = stk.back();
                         stk.pop_back();
+                        is_zero.pop_back();
                         if (!types_compatible(lhs, rhs)) {
                             errors.emplace_back("Type mismatch in comparison: cannot compare '" + lhs + "' with '" + rhs + "'");
                         }
                     }
                     stk.push_back("bool");
+                    is_zero.push_back(false);
                     break;
                 }
 
@@ -321,8 +385,11 @@ namespace occult {
                 if (stk.size() >= 2) {
                     stk.pop_back();
                     stk.pop_back();
+                    is_zero.pop_back();
+                    is_zero.pop_back();
                 }
                 stk.push_back("bool");
+                is_zero.push_back(false);
                 break;
 
             case cst_type::unary_minus_operator:
@@ -330,9 +397,12 @@ namespace occult {
             case cst_type::unary_bitwise_not:
                 break;
             case cst_type::unary_not_operator:
-                if (!stk.empty())
+                if (!stk.empty()) {
                     stk.pop_back();
+                    is_zero.pop_back();
+                }
                 stk.push_back("bool");
+                is_zero.push_back(false);
                 break;
 
             case cst_type::expr_end:
@@ -341,6 +411,7 @@ namespace occult {
 
             default:
                 stk.push_back("");
+                is_zero.push_back(false);
                 break;
             }
         }
@@ -356,16 +427,83 @@ namespace occult {
             known_functions.insert(name);
         }
 
+        // built-in return types (alloc/del have context-dependent return types)
+        function_return_types["__bitcast_f64"] = "float64";
+        function_return_types["__bitcast_i64"] = "int64";
+
+        // built-in parameter counts
+        function_param_counts["print_string"] = 1;
+        function_param_counts["print_integer"] = 1;
+        function_param_counts["print_newline"] = 0;
+        function_param_counts["print_char"] = 1;
+        function_param_counts["alloc"] = 1;
+        function_param_counts["del"] = 1;
+        function_param_counts["__bitcast_f64"] = 1;
+        function_param_counts["__bitcast_i64"] = 1;
+
         for (const auto& c : root->get_children()) {
             if (c->get_type() == cst_type::function) {
+                std::string func_name;
+                std::string return_type;
+
                 for (const auto& child : c->get_children()) {
-                    if (child->get_type() == cst_type::identifier) {
-                        known_functions.insert(child->content);
-                        if (debug) {
-                            std::cout << CYAN << "[LINTER] Registered function '" << child->content << "'" << RESET << "\n";
+                    if (func_name.empty()) {
+                        if (child->get_type() == cst_type::identifier) {
+                            func_name = child->content;
+                            known_functions.insert(func_name);
                         }
-                        break;
+                        continue;
                     }
+                    if (child->get_type() == cst_type::functionarguments) {
+                        int real_param_count = 0;
+                        bool is_variadic = false;
+                        for (const auto& arg : child->get_children()) {
+                            if (arg->get_type() == cst_type::variadic) {
+                                is_variadic = true;
+                                break;
+                            }
+                            // skip synthetic variadic parameters (prefixed with "__va")
+                            static constexpr const char* VARIADIC_PARAM_PREFIX = "__va";
+                            bool is_synthetic = false;
+                            for (const auto& id : arg->get_children()) {
+                                if (id->get_type() == cst_type::identifier && id->content.size() >= 4 && id->content.compare(0, 4, VARIADIC_PARAM_PREFIX) == 0) {
+                                    is_synthetic = true;
+                                    break;
+                                }
+                            }
+                            if (is_synthetic) {
+                                is_variadic = true;
+                                break;
+                            }
+                            real_param_count++;
+                        }
+                        if (is_variadic) {
+                            function_param_counts[func_name] = -1;
+                            function_min_param_counts[func_name] = real_param_count;
+                        }
+                        else {
+                            function_param_counts[func_name] = real_param_count;
+                        }
+                        continue;
+                    }
+                    if (child->get_type() == cst_type::block) {
+                        continue;
+                    }
+                    if (is_type_node(child->get_type()) || child->get_type() == cst_type::structure) {
+                        return_type = type_name_of(child.get());
+                    }
+                }
+
+                if (!func_name.empty() && !return_type.empty()) {
+                    function_return_types[func_name] = return_type;
+                }
+
+                if (debug && !func_name.empty()) {
+                    std::cout << CYAN << "[LINTER] Registered function '" << func_name << "'";
+                    if (!return_type.empty()) {
+                        std::cout << " -> " << return_type;
+                    }
+                    std::cout << RESET << "\n";
                 }
             }
         }
@@ -391,6 +529,29 @@ namespace occult {
                     if (first->get_type() == cst_type::identifier) {
                         if (!known_functions.count(first->content)) {
                             errors.emplace_back("Call to undeclared function '" + first->content + "'");
+                        }
+                        else {
+                            // count actual arguments (functionargument nodes)
+                            int actual_args = 0;
+                            for (std::size_t i = 1; i < node->get_children().size(); ++i) {
+                                if (node->get_children().at(i)->get_type() == cst_type::functionargument) {
+                                    actual_args++;
+                                }
+                            }
+                            auto pc_it = function_param_counts.find(first->content);
+                            if (pc_it != function_param_counts.end()) {
+                                int expected = pc_it->second;
+                                if (expected == -1) {
+                                    // variadic: check minimum required args
+                                    auto min_it = function_min_param_counts.find(first->content);
+                                    if (min_it != function_min_param_counts.end() && actual_args < min_it->second) {
+                                        errors.emplace_back("Function '" + first->content + "' expects at least " + std::to_string(min_it->second) + " arguments, but " + std::to_string(actual_args) + " were provided");
+                                    }
+                                }
+                                else if (actual_args != expected) {
+                                    errors.emplace_back("Function '" + first->content + "' expects " + std::to_string(expected) + " arguments, but " + std::to_string(actual_args) + " were provided");
+                                }
+                            }
                         }
                     }
                     for (std::size_t i = 1; i < node->get_children().size(); ++i) {
@@ -426,8 +587,15 @@ namespace occult {
                         lint_expr(first.get());
                     }
                 }
+                // check for negative array indices
                 for (std::size_t i = 1; i < node->get_children().size(); ++i) {
-                    lint_expr(node->get_children().at(i).get());
+                    const auto& child = node->get_children().at(i);
+                    if (child->get_type() == cst_type::unary_minus_operator) {
+                        if (i + 1 < node->get_children().size() && node->get_children().at(i + 1)->get_type() == cst_type::number_literal) {
+                            errors.emplace_back("Negative array index is not allowed", lint_error::severity::warning);
+                        }
+                    }
+                    lint_expr(child.get());
                 }
                 break;
             }
@@ -561,6 +729,22 @@ namespace occult {
                     }
                     infer_type_rpn(cond);
 
+                    // check for bare condition without comparison operator
+                    {
+                        bool has_comparison = false;
+                        for (auto* n : cond) {
+                            auto t = n->get_type();
+                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
+                                t == cst_type::less_than_or_equal_operator) {
+                                has_comparison = true;
+                                break;
+                            }
+                        }
+                        if (!has_comparison && !cond.empty()) {
+                            errors.emplace_back("Conditions require an explicit binary comparison (==, !=, <, >, <=, >=)", lint_error::severity::warning);
+                        }
+                    }
+
                     for (const auto& child : c->get_children()) {
                         switch (child->get_type()) {
                         case cst_type::block:
@@ -585,6 +769,23 @@ namespace occult {
                                     }
                                 }
                                 infer_type_rpn(econd);
+
+                                // check for bare condition in else-if
+                                {
+                                    bool has_cmp = false;
+                                    for (auto* n : econd) {
+                                        auto t = n->get_type();
+                                        if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
+                                            t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
+                                            has_cmp = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!has_cmp && !econd.empty()) {
+                                        errors.emplace_back("Conditions require an explicit binary comparison (==, !=, <, >, <=, >=)", lint_error::severity::warning);
+                                    }
+                                }
+
                                 for (const auto& eib : child->get_children()) {
                                     if (eib->get_type() == cst_type::block) {
                                         lint_block(cst::cast_raw<cst_block>(eib.get()));
@@ -613,6 +814,22 @@ namespace occult {
                     }
                     infer_type_rpn(cond);
 
+                    // check for bare condition without comparison operator
+                    {
+                        bool has_comparison = false;
+                        for (auto* n : cond) {
+                            auto t = n->get_type();
+                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
+                                t == cst_type::less_than_or_equal_operator) {
+                                has_comparison = true;
+                                break;
+                            }
+                        }
+                        if (!has_comparison && !cond.empty()) {
+                            errors.emplace_back("Conditions require an explicit binary comparison (==, !=, <, >, <=, >=)", lint_error::severity::warning);
+                        }
+                    }
+
                     for (const auto& child : c->get_children()) {
                         if (child->get_type() == cst_type::block) {
                             lint_block(cst::cast_raw<cst_block>(child.get()));
@@ -640,6 +857,11 @@ namespace occult {
                     if (!c->get_children().empty()) {
                         auto& init_node = c->get_children().front();
                         if (is_type_node(init_node->get_type())) {
+                            // check for float for-loop counter
+                            if (init_node->get_type() == cst_type::float32_datatype || init_node->get_type() == cst_type::float64_datatype) {
+                                errors.emplace_back("Float types are not allowed as for-loop counter variables", lint_error::severity::error);
+                            }
+
                             if (!init_node->get_children().empty()) {
                                 const auto& id_node = init_node->get_children().front();
                                 if (id_node->get_type() == cst_type::identifier) {
@@ -665,6 +887,23 @@ namespace occult {
                         }
                         else if (child->get_type() == cst_type::forcondition) {
                             infer_type_rpn(to_raw(child->get_children()));
+
+                            // check for bare condition in for-loop
+                            {
+                                bool has_comparison = false;
+                                for (const auto& gc : child->get_children()) {
+                                    auto t = gc->get_type();
+                                    if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
+                                        t == cst_type::less_than_or_equal_operator) {
+                                        has_comparison = true;
+                                        break;
+                                    }
+                                }
+                                if (!has_comparison && !child->get_children().empty()) {
+                                    errors.emplace_back("Conditions require an explicit binary comparison (==, !=, <, >, <=, >=)", lint_error::severity::warning);
+                                }
+                            }
+
                             for (const auto& gc : child->get_children()) {
                                 lint_expr(gc.get());
                             }

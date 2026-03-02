@@ -153,7 +153,16 @@ namespace occult {
                     increment(0, 1, 1);
                 }
 
-                hex_number = to_parsable_type<std::uintptr_t>(hex_number, HEX_BASE);
+                if (hex_number.empty()) {
+                    return token_t(line, column, "0", number_literal_tt);
+                }
+
+                try {
+                    hex_number = to_parsable_type<std::uintptr_t>(hex_number, HEX_BASE);
+                }
+                catch (const std::exception&) {
+                    return token_t(line, column, "0", number_literal_tt);
+                }
                 return token_t(line, column, hex_number, number_literal_tt);
             }
 
@@ -166,7 +175,16 @@ namespace occult {
                     increment(0, 1, 1);
                 }
 
-                binary_number = to_parsable_type<std::uintptr_t>(binary_number, BINARY_BASE);
+                if (binary_number.empty()) {
+                    return token_t(line, column, "0", number_literal_tt);
+                }
+
+                try {
+                    binary_number = to_parsable_type<std::uintptr_t>(binary_number, BINARY_BASE);
+                }
+                catch (const std::exception&) {
+                    return token_t(line, column, "0", number_literal_tt);
+                }
                 return token_t(line, column, binary_number, number_literal_tt);
             }
 
@@ -202,11 +220,21 @@ namespace occult {
         }
 
         if (has_decimal_point || has_exponent) {
-            normal_number = to_parsable_type<double>(normal_number);
+            try {
+                normal_number = to_parsable_type<double>(normal_number);
+            }
+            catch (const std::exception&) {
+                return token_t(line, column, "0.0", float_literal_tt);
+            }
             return token_t(line, column, normal_number, float_literal_tt);
         }
 
-        normal_number = to_parsable_type<std::uintptr_t>(normal_number, DECIMAL_BASE);
+        try {
+            normal_number = to_parsable_type<std::uintptr_t>(normal_number, DECIMAL_BASE);
+        }
+        catch (const std::exception&) {
+            return token_t(line, column, "0", number_literal_tt);
+        }
         return token_t(line, column, normal_number, number_literal_tt);
     }
 
@@ -353,7 +381,17 @@ namespace occult {
                    || prev_type == or_assign_tt                      // |=
                    || prev_type == xor_assign_tt                     // ^=
                    || prev_type == lshift_assign_tt                  // <<=
-                   || prev_type == rshift_assign_tt;                 // >>=
+                   || prev_type == rshift_assign_tt                  // >>=
+                   || prev_type == multiply_operator_tt              // *  (e.g. n * -1)
+                   || prev_type == division_operator_tt              // /  (e.g. n / -1)
+                   || prev_type == modulo_operator_tt                // %  (e.g. n % -1)
+                   || prev_type == add_operator_tt                   // +  (e.g. n + -1)
+                   || prev_type == subtract_operator_tt              // -  (e.g. n - -1)
+                   || prev_type == bitwise_and_tt                    // &
+                   || prev_type == bitwise_or_tt                     // |
+                   || prev_type == xor_operator_tt                   // ^
+                   || prev_type == bitwise_lshift_tt                 // <<
+                   || prev_type == bitwise_rshift_tt;                // >>
         };
 
         while (token.tt != end_of_file_tt) {

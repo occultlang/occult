@@ -118,7 +118,7 @@ namespace occult {
             }
 
             bool is_ref = false;
-            if (arg->content == "reference") {
+            if (arg->content == "reference" || arg->is_reference) {
                 is_ref = true;
             }
 
@@ -262,7 +262,15 @@ namespace occult {
             }
         case cst_type::unary_minus_operator:
             {
-                function.code.emplace_back(op_negate);
+                if (type.has_value() && type.value() == "float32") {
+                    function.code.emplace_back(op_negatef32);
+                }
+                else if (type.has_value() && type.value() == "float64") {
+                    function.code.emplace_back(op_negatef64);
+                }
+                else {
+                    function.code.emplace_back(op_negate);
+                }
 
                 break;
             }
@@ -742,7 +750,10 @@ namespace occult {
             }
         }
         else {
-            // assume struct type
+            // assume struct type — emit reference if needed
+            if (is_ref) {
+                function.code.emplace_back(op_reference);
+            }
             generate_common_generic<std::int64_t>(function, c);
         }
     }
@@ -820,9 +831,11 @@ namespace occult {
                     // from the CST to avoid op_negate which doesn't handle floats.
                     bool has_float_literal = false;
                     bool has_float_var = false;
+                    bool has_float_member_access = false;
                     bool has_unary_minus = false;
                     std::string float_lit_content;
                     std::string float_var_name;
+                    std::string float_member_type;
 
                     for (const auto& child : arg_node->get_children()) {
                         if (child->get_type() == cst_type::float_literal) {
@@ -841,6 +854,30 @@ namespace occult {
                                 }
                             }
                         }
+                        else if (child->get_type() == cst_type::memberaccess) {
+                            // Check if this member access yields a float type
+                            // Look at the member name (last identifier child) in the struct layouts
+                            std::string last_member;
+                            for (const auto& mc : child->get_children()) {
+                                if (mc->get_type() == cst_type::identifier) {
+                                    last_member = mc->content;
+                                }
+                            }
+                            if (!last_member.empty()) {
+                                for (const auto& [ct_name, ct_node] : custom_type_map) {
+                                    for (const auto& member : ct_node->get_children()) {
+                                        for (const auto& mid : member->get_children()) {
+                                            if (mid->get_type() == cst_type::identifier && mid->content == last_member) {
+                                                if (member->get_type() == cst_type::float32_datatype || member->get_type() == cst_type::float64_datatype) {
+                                                    has_float_member_access = true;
+                                                    float_member_type = (member->get_type() == cst_type::float32_datatype) ? "float32" : "float64";
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     if (has_float_literal) {
@@ -855,8 +892,23 @@ namespace occult {
                         continue;
                     }
                     else if (has_float_var) {
-                        // Load the float variable, then bitcast to int64
-                        generate_common(function, arg_node, local_variable_map[function][float_var_name]);
+                        // Load the float variable; if f32 promote to f64 first, then bitcast to int64
+                        std::string var_float_type = local_variable_map[function][float_var_name];
+                        generate_common(function, arg_node, var_float_type);
+                        if (var_float_type == "float32") {
+                            function.code.emplace_back(op_cast, std::string("f64"), std::string("float32"));
+                        }
+                        function.code.emplace_back(op_bitcast, std::string("int64"), std::string("float64"));
+                        ++arg_location;
+                        continue;
+                    }
+                    else if (has_float_member_access) {
+                        // Load the struct member (goes into SIMD pool);
+                        // if f32 promote to f64 first, then bitcast to int64
+                        generate_common(function, arg_node, float_member_type);
+                        if (float_member_type == "float32") {
+                            function.code.emplace_back(op_cast, std::string("f64"), std::string("float32"));
+                        }
                         function.code.emplace_back(op_bitcast, std::string("int64"), std::string("float64"));
                         ++arg_location;
                         continue;
@@ -916,6 +968,13 @@ namespace occult {
             }
         }
 
+        // Pointer types (e.g. "int64_ptr") are not in ir_typemap; normalize them to
+        // "int64" so that constant literals in comparisons like "$p == 42" are pushed
+        // correctly by handle_push_types.
+        if (expr_type.has_value() && expr_type->find("_ptr") != std::string::npos) {
+            expr_type = "int64";
+        }
+
         auto handle_internal_push = [&, this](cst* expr) -> void {
             switch (expr->get_type()) {
             case cst_type::number_literal:
@@ -951,6 +1010,11 @@ namespace occult {
             case cst_type::memberaccess:
                 {
                     generate_member_access(function, cst::cast_raw<cst_memberaccess>(expr));
+                    break;
+                }
+            case cst_type::dereference:
+                {
+                    function.code.emplace_back(op_dereference, from_numerical_string<std::int64_t>(expr->content));
                     break;
                 }
             default:
@@ -1060,6 +1124,8 @@ namespace occult {
             std::cout << BLUE << "[IR GEN] Eval stack (m) size: " << RESET << eval_stack.size() << std::endl;
         }
 
+        const bool is_float_cmp = expr_type.has_value() && (expr_type.value() == "float32" || expr_type.value() == "float64");
+
         if (!logic_stack.empty()) {
             std::size_t eval_index = 0;
 
@@ -1077,10 +1143,10 @@ namespace occult {
                             emit_comparison(function, expr_type);
 
                             if (expr.back()->do_not) {
-                                generate_and_jump(function, expr.back(), true_label);
+                                generate_and_jump(function, expr.back(), true_label, is_float_cmp);
                             }
                             else {
-                                generate_or_jump(function, expr.back(), true_label);
+                                generate_or_jump(function, expr.back(), true_label, is_float_cmp);
                             }
 
                             eval_index++;
@@ -1099,10 +1165,10 @@ namespace occult {
                             emit_comparison(function, expr_type);
 
                             if (expr.back()->do_not) {
-                                generate_or_jump(function, expr.back(), false_label);
+                                generate_or_jump(function, expr.back(), false_label, is_float_cmp);
                             }
                             else {
-                                generate_and_jump(function, expr.back(), false_label);
+                                generate_and_jump(function, expr.back(), false_label, is_float_cmp);
                             }
 
                             eval_index++;
@@ -1126,10 +1192,10 @@ namespace occult {
                 emit_comparison(function, expr_type);
 
                 if (expr.back()->do_not) {
-                    generate_inverted_jump(function, expr.back(), false_label);
+                    generate_inverted_jump(function, expr.back(), false_label, is_float_cmp);
                 }
                 else {
-                    generate_normal_jump(function, expr.back(), false_label);
+                    generate_normal_jump(function, expr.back(), false_label, is_float_cmp);
                 }
 
                 eval_index++;
@@ -1146,10 +1212,10 @@ namespace occult {
                 emit_comparison(function, expr_type);
 
                 if (expr.back()->do_not) {
-                    generate_inverted_jump(function, expr.back(), false_label);
+                    generate_inverted_jump(function, expr.back(), false_label, is_float_cmp);
                 }
                 else {
-                    generate_normal_jump(function, expr.back(), false_label);
+                    generate_normal_jump(function, expr.back(), false_label, is_float_cmp);
                 }
             }
         }
@@ -1208,7 +1274,7 @@ namespace occult {
         place_label(function, end_label);
     }
 
-    void ir_gen::generate_or_jump(ir_function& function, cst* comparison, const std::string& true_label) {
+    void ir_gen::generate_or_jump(ir_function& function, cst* comparison, const std::string& true_label, bool is_float_cmp) {
         switch (comparison->get_type()) {
         case cst_type::equals_operator:
             function.code.emplace_back(op_jz, true_label);
@@ -1219,19 +1285,19 @@ namespace occult {
 
             break;
         case cst_type::greater_than_operator:
-            function.code.emplace_back(op_jg, true_label);
+            function.code.emplace_back(is_float_cmp ? op_ja : op_jg, true_label);
 
             break;
         case cst_type::less_than_operator:
-            function.code.emplace_back(op_jl, true_label);
+            function.code.emplace_back(is_float_cmp ? op_jb : op_jl, true_label);
 
             break;
         case cst_type::greater_than_or_equal_operator:
-            function.code.emplace_back(op_jge, true_label);
+            function.code.emplace_back(is_float_cmp ? op_jae : op_jge, true_label);
 
             break;
         case cst_type::less_than_or_equal_operator:
-            function.code.emplace_back(op_jle, true_label);
+            function.code.emplace_back(is_float_cmp ? op_jbe : op_jle, true_label);
 
             break;
         default:
@@ -1239,7 +1305,7 @@ namespace occult {
         }
     }
 
-    void ir_gen::generate_and_jump(ir_function& function, cst* comparison, const std::string& false_label) {
+    void ir_gen::generate_and_jump(ir_function& function, cst* comparison, const std::string& false_label, bool is_float_cmp) {
         switch (comparison->get_type()) {
         case cst_type::equals_operator:
             function.code.emplace_back(op_jnz, false_label);
@@ -1248,23 +1314,23 @@ namespace occult {
             function.code.emplace_back(op_jz, false_label);
             break;
         case cst_type::greater_than_operator:
-            function.code.emplace_back(op_jle, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jbe : op_jle, false_label);
             break;
         case cst_type::less_than_operator:
-            function.code.emplace_back(op_jge, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jae : op_jge, false_label);
             break;
         case cst_type::greater_than_or_equal_operator:
-            function.code.emplace_back(op_jl, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jb : op_jl, false_label);
             break;
         case cst_type::less_than_or_equal_operator:
-            function.code.emplace_back(op_jg, false_label);
+            function.code.emplace_back(is_float_cmp ? op_ja : op_jg, false_label);
             break;
         default:
             break;
         }
     }
 
-    void ir_gen::generate_normal_jump(ir_function& function, cst* comparison, const std::string& false_label) {
+    void ir_gen::generate_normal_jump(ir_function& function, cst* comparison, const std::string& false_label, bool is_float_cmp) {
         switch (comparison->get_type()) {
         case cst_type::equals_operator:
             function.code.emplace_back(op_jnz, false_label);
@@ -1273,23 +1339,23 @@ namespace occult {
             function.code.emplace_back(op_jz, false_label);
             break;
         case cst_type::greater_than_operator:
-            function.code.emplace_back(op_jle, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jbe : op_jle, false_label);
             break;
         case cst_type::less_than_operator:
-            function.code.emplace_back(op_jge, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jae : op_jge, false_label);
             break;
         case cst_type::greater_than_or_equal_operator:
-            function.code.emplace_back(op_jl, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jb : op_jl, false_label);
             break;
         case cst_type::less_than_or_equal_operator:
-            function.code.emplace_back(op_jg, false_label);
+            function.code.emplace_back(is_float_cmp ? op_ja : op_jg, false_label);
             break;
         default:
             break;
         }
     }
 
-    void ir_gen::generate_inverted_jump(ir_function& function, cst* comparison, const std::string& false_label) {
+    void ir_gen::generate_inverted_jump(ir_function& function, cst* comparison, const std::string& false_label, bool is_float_cmp) {
         switch (comparison->get_type()) {
         case cst_type::equals_operator:
             function.code.emplace_back(op_jz, false_label);
@@ -1298,16 +1364,16 @@ namespace occult {
             function.code.emplace_back(op_jnz, false_label);
             break;
         case cst_type::greater_than_operator:
-            function.code.emplace_back(op_jl, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jb : op_jl, false_label);
             break;
         case cst_type::less_than_operator:
-            function.code.emplace_back(op_jg, false_label);
+            function.code.emplace_back(is_float_cmp ? op_ja : op_jg, false_label);
             break;
         case cst_type::greater_than_or_equal_operator:
-            function.code.emplace_back(op_jle, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jbe : op_jle, false_label);
             break;
         case cst_type::less_than_or_equal_operator:
-            function.code.emplace_back(op_jge, false_label);
+            function.code.emplace_back(is_float_cmp ? op_jae : op_jge, false_label);
             break;
         default:
             break;
@@ -1414,7 +1480,11 @@ namespace occult {
 
         generate_condition(function, condition, B1, L1);
 
-        generate_block(function, cst::cast_raw<cst_block>(body), B1, L1);
+        auto step_label = create_label(); // continue target = step expression
+
+        generate_block(function, cst::cast_raw<cst_block>(body), B1, step_label);
+
+        place_label(function, step_label); // step expression starts here
 
         const auto new_block = cst::new_node<cst_block>(); // swapping parent
         for (auto& c : for_node->get_children().at(2)->get_children()) {
@@ -1485,6 +1555,11 @@ namespace occult {
                             handle_push_types(function, c.get(), local_array_map[function][identifier->content]);
                             break;
                         }
+                    case cst_type::float_literal:
+                        {
+                            handle_push_types(function, c.get(), local_array_map[function][identifier->content]);
+                            break;
+                        }
                     case cst_type::identifier:
                         {
                             function.code.emplace_back(op_load, c->content);
@@ -1546,6 +1621,11 @@ namespace occult {
                             for (const auto& c : element->get_children()) {
                                 switch (c->get_type()) {
                                 case cst_type::number_literal:
+                                    {
+                                        handle_push_types(function, c.get(), local_array_map[function][identifier->content]);
+                                        break;
+                                    }
+                                case cst_type::float_literal:
                                     {
                                         handle_push_types(function, c.get(), local_array_map[function][identifier->content]);
                                         break;
@@ -1981,6 +2061,7 @@ namespace occult {
         std::vector<std::string> member_chain;
         bool is_assignment = false;
         cst* assignment_node = nullptr;
+        bool is_deref = member_access_node->num_pointers > 0 || children[0]->num_pointers > 0;
 
         for (size_t i = 1; i < children.size(); i++) {
             if (children[i]->get_type() == cst_type::assignment) {
@@ -1993,7 +2074,7 @@ namespace occult {
         }
 
         if (debug) {
-            std::cout << CYAN << "[IR GEN] Member " << (is_assignment ? "store: " : "access: ") << RESET << base_var;
+            std::cout << CYAN << "[IR GEN] Member " << (is_assignment ? "store: " : "access: ") << (is_deref ? "(deref) " : "") << RESET << base_var;
             for (const auto& member : member_chain) {
                 std::cout << "." << member;
             }
@@ -2003,14 +2084,67 @@ namespace occult {
         if (is_assignment) {
             function.code.emplace_back(op_load, base_var);
 
+            // For dereferenced struct access ($p.x), the load gives us the pointer value
+            // which is already the struct base address — no additional dereference needed
+            // since the op_load on a reference variable does MOV (not LEA)
+
             for (size_t i = 0; i < member_chain.size() - 1; i++) {
                 function.code.emplace_back(op_member_access, member_chain[i]);
             }
 
-            generate_common_generic<std::int64_t>(function, assignment_node);
+            std::string member_type;
+            auto var_it = local_variable_map[function].find(base_var);
+            if (var_it != local_variable_map[function].end()) {
+                std::string struct_type = var_it->second;
+                if (struct_type.ends_with("_ptr")) {
+                    struct_type = struct_type.substr(0, struct_type.size() - 4);
+                }
+                if (struct_type.ends_with("_reference")) {
+                    struct_type = struct_type.substr(0, struct_type.size() - 10);
+                }
+                auto map_it = custom_type_map.find(struct_type);
+                if (map_it != custom_type_map.end()) {
+                    cst* current_struct = map_it->second;
+                    for (size_t ci = 0; ci < member_chain.size(); ci++) {
+                        for (const auto& mc : current_struct->get_children()) {
+                            if (!mc->get_children().empty() && mc->get_children().front()->content == member_chain[ci]) {
+                                if (ci == member_chain.size() - 1) {
+                                    switch (mc->get_type()) {
+                                    case cst_type::float32_datatype:
+                                        member_type = "float32";
+                                        break;
+                                    case cst_type::float64_datatype:
+                                        member_type = "float64";
+                                        break;
+                                    default:
+                                        break;
+                                    }
+                                }
+                                else if (mc->get_type() == cst_type::structure) {
+                                    auto nested_it = custom_type_map.find(mc->content);
+                                    if (nested_it != custom_type_map.end()) {
+                                        current_struct = nested_it->second;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (member_type == "float32") {
+                generate_common_generic<float>(function, assignment_node, "float32");
+            }
+            else if (member_type == "float64") {
+                generate_common_generic<double>(function, assignment_node, "float64");
+            }
+            else {
+                generate_common_generic<std::int64_t>(function, assignment_node);
+            }
 
             if (!member_chain.empty()) {
-                function.code.emplace_back(op_member_store, member_chain.back());
+                function.code.emplace_back(op_member_store, member_chain.back(), member_type);
             }
         }
         else {

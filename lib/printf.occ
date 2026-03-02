@@ -4,11 +4,13 @@
 include "../lib/stdio.occ"
 
 fn __print_hex(i64 n) {
-    if n >= 16 {
-        __print_hex(n / 16);
+    // Use unsigned shift: shift right by 4 and mask off sign extension
+    i64 upper = (n >> 4) & 0x0FFFFFFFFFFFFFFF;
+    if upper != 0 {
+        __print_hex(upper);
     }
 
-    i64 digit = n % 16;
+    i64 digit = n & 15;
 
     if digit < 10 {
         print_char(digit + 48);
@@ -28,6 +30,12 @@ fn __printf_float(i64 val, i64 precision) {
         value = -value;
     }
 
+    if value > 9000000000000000000.0 {
+        if is_neg == 1 { print_string("-"); }
+        print_string("inf");
+        return;
+    }
+
     i64 int_part = i64(value);
     f32 frac = value - f32(int_part);
 
@@ -38,6 +46,8 @@ fn __printf_float(i64 val, i64 precision) {
     else if precision == 4 { frac_int = i64(frac * 1e4); }
     else if precision == 5 { frac_int = i64(frac * 1e5); }
     else { frac_int = i64(frac * 1e6); }
+
+    if frac_int < 0 { frac_int = -frac_int; }
 
     if is_neg == 1 {
         print_string("-");

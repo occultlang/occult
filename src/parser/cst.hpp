@@ -102,6 +102,7 @@ namespace occult {
         std::string content; // base class
         std::size_t num_pointers = 0;
         bool do_not = false;
+        bool is_reference = false;
 
         template <typename BaseCst = cst>
         static std::unique_ptr<BaseCst> new_node() {

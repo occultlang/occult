@@ -250,6 +250,22 @@ namespace occult::x86_64 {
                 code[location] = k2ByteOpcodePrefix;
                 code[location + 1] = opcode_2b::JNLE_rel32;
                 break;
+            case ir_opcode::op_jb:
+                code[location] = k2ByteOpcodePrefix;
+                code[location + 1] = opcode_2b::JB_rel32;
+                break;
+            case ir_opcode::op_jbe:
+                code[location] = k2ByteOpcodePrefix;
+                code[location + 1] = opcode_2b::JBE_rel32;
+                break;
+            case ir_opcode::op_ja:
+                code[location] = k2ByteOpcodePrefix;
+                code[location + 1] = opcode_2b::JNBE_rel32;
+                break;
+            case ir_opcode::op_jae:
+                code[location] = k2ByteOpcodePrefix;
+                code[location + 1] = opcode_2b::JNB_rel32;
+                break;
             case ir_opcode::op_jz:
                 code[location] = k2ByteOpcodePrefix;
                 code[location + 1] = opcode_2b::JZ_rel32;
@@ -585,7 +601,24 @@ namespace occult::x86_64 {
                         auto var_type = code.type;
                         auto it = local_variable_map.find(var_name);
 
-                        if (pool.empty() && !simd_pool.empty()) {
+                        // Determine if this is a float store: either the IR type says so,
+                        // or the variable was previously declared as float, or the SIMD
+                        // pool has the value (heuristic fallback).
+                        bool is_float_store = (var_type == "float32" || var_type == "float64");
+                        if (!is_float_store && it != local_variable_map.end()) {
+                            auto type_it = local_variable_map_types.find(var_name);
+                            if (type_it != local_variable_map_types.end()) {
+                                is_float_store = (type_it->second == "float32" || type_it->second == "float64");
+                                if (is_float_store) {
+                                    var_type = type_it->second;
+                                }
+                            }
+                        }
+                        if (!is_float_store && pool.empty() && !simd_pool.empty()) {
+                            is_float_store = true;
+                        }
+
+                        if (is_float_store && !simd_pool.empty()) {
                             auto simd_reg = simd_pool.pop();
                             if (debug) {
                                 std::cout << BLUE << "[CODEGEN INFO] Floating point store" << RESET << std::endl;
@@ -612,6 +645,18 @@ namespace occult::x86_64 {
                                 local_variable_map.insert({var_name, totalsizes});
                                 local_variable_map_types.insert({var_name, var_type});
 
+                                break;
+                            }
+                            else {
+                                // re-assignment of existing float variable
+                                std::int32_t offset = -it->second;
+                                if (var_type == "float32") {
+                                    w->emit_movss(mem{rbp, offset}, simd_reg);
+                                }
+                                else {
+                                    w->emit_movsd(mem{rbp, offset}, simd_reg);
+                                }
+                                simd_pool.free(simd_reg);
                                 break;
                             }
                         }
@@ -728,11 +773,13 @@ namespace occult::x86_64 {
                         bool loaded = false;
 
                         if (is_reference_next) {
-                            if (!is_float_type) {
-                                w->emit_lea(r, mem{rbp, offset});
-                                is_reference_next = false;
-                                pool.push(r);
+                            if (is_float_type) {
+                                // for float types, r was not allocated yet - allocate now
+                                r = pool.alloc();
                             }
+                            w->emit_lea(r, mem{rbp, offset});
+                            is_reference_next = false;
+                            pool.push(r);
                             break;
                         }
 
@@ -935,8 +982,8 @@ namespace occult::x86_64 {
                         auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
-                        w->emit_xor(rdx, rdx);
-                        w->emit_div(rhs);
+                        w->emit_cqo();     // sign-extend RAX into RDX:RAX
+                        w->emit_idiv(rhs); // signed divide RDX:RAX by rhs
 
                         w->emit_mov(lhs, rdx);
 
@@ -951,8 +998,8 @@ namespace occult::x86_64 {
                         auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
-                        w->emit_xor(rdx, rdx);
-                        w->emit_div(rhs);
+                        w->emit_cqo();     // sign-extend RAX into RDX:RAX
+                        w->emit_idiv(rhs); // signed divide RDX:RAX by rhs
 
                         w->emit_mov(lhs, rax);
 
@@ -982,7 +1029,7 @@ namespace occult::x86_64 {
                         auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
-                        w->emit_xor(rdx, rdx);
+                        w->emit_cqo(); // sign-extend RAX into RDX:RAX
                         w->emit_idiv(rhs);
 
                         w->emit_mov(lhs, rdx);
@@ -998,7 +1045,7 @@ namespace occult::x86_64 {
                         auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
-                        w->emit_xor(rdx, rdx);
+                        w->emit_cqo(); // sign-extend RAX into RDX:RAX
                         w->emit_idiv(rhs);
 
                         w->emit_mov(lhs, rax);
@@ -1031,6 +1078,29 @@ namespace occult::x86_64 {
 
                         pool.push(r);
 
+                        break;
+                    }
+                case ir_opcode::op_negatef32:
+                    {
+                        // negate float32: 0.0 - value
+                        auto val = simd_pool.pop();
+                        auto zero = simd_pool.alloc();
+                        // Use XORPS to zero (safe even if register contained NaN/Inf)
+                        w->emit_xorps(zero, zero);
+                        w->emit_subss(zero, val); // zero - val = -val
+                        simd_pool.free(val);
+                        simd_pool.push(zero);
+                        break;
+                    }
+                case ir_opcode::op_negatef64:
+                    {
+                        // negate float64: 0.0 - value
+                        auto val = simd_pool.pop();
+                        auto zero = simd_pool.alloc();
+                        w->emit_xorps(zero, zero);
+                        w->emit_subsd(zero, val); // zero - val = -val
+                        simd_pool.free(val);
+                        simd_pool.push(zero);
                         break;
                     }
 
@@ -1454,6 +1524,10 @@ namespace occult::x86_64 {
                 case ir_opcode::op_jz:
                 case ir_opcode::op_jge:
                 case ir_opcode::op_jnz:
+                case ir_opcode::op_jb:
+                case ir_opcode::op_jbe:
+                case ir_opcode::op_ja:
+                case ir_opcode::op_jae:
                     {
                         auto jump_instr = code;
                         jump_instr.operand = std::get<std::string>(code.operand);
@@ -1609,6 +1683,14 @@ namespace occult::x86_64 {
 
                         // collect arguments with their types
                         std::vector<std::pair<std::variant<grp, simd128>, bool>> args; // pair<reg, is_fp>
+                        // Track spilled args: when we run out of registers during argument
+                        // collection, spill already-collected args to temp stack slots to
+                        // free registers, then reload them after all args are collected.
+                        struct spilled_arg {
+                            std::int32_t offset;
+                            bool is_fp;
+                        };
+                        std::vector<std::optional<spilled_arg>> arg_spill_info;
 
                         for (int i1 = arg_count - 1; i1 >= 0; i1--) {
                             bool is_fp = false;
@@ -1617,43 +1699,92 @@ namespace occult::x86_64 {
                                 is_fp = (arg_type == "float32" || arg_type == "float64");
                             }
 
+                            auto spill_collected_args = [&]() {
+                                // Spill some already-collected GP args to free registers
+                                for (std::size_t k = 0; k < args.size(); k++) {
+                                    if (!args[k].second && !arg_spill_info[k].has_value()) {
+                                        // GP arg, not yet spilled
+                                        grp r = std::get<grp>(args[k].first);
+                                        totalsizes += 8;
+                                        std::int32_t sp_off = -totalsizes;
+                                        w->emit_mov(mem{rbp, sp_off}, r);
+                                        pool.free(r);
+                                        arg_spill_info[k] = spilled_arg{sp_off, false};
+                                        return true;
+                                    }
+                                }
+                                // Try spilling FP args
+                                for (std::size_t k = 0; k < args.size(); k++) {
+                                    if (args[k].second && !arg_spill_info[k].has_value()) {
+                                        simd128 r = std::get<simd128>(args[k].first);
+                                        totalsizes += 16;
+                                        std::int32_t sp_off = -totalsizes;
+                                        w->emit_movsd(mem{rbp, sp_off}, r);
+                                        simd_pool.free(r);
+                                        arg_spill_info[k] = spilled_arg{sp_off, true};
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            };
+
                             if (is_fp) {
                                 if (simd_pool.empty()) {
-                                    std::cout << RED
-                                              << "[CODEGEN ERROR] Not enough FP arguments on stack for "
-                                                 "function call: "
-                                              << func_name << RESET << std::endl;
-                                    // FIX 8: Free already collected arguments before returning
-                                    for (auto& [reg_var, is_arg_fp] : args) {
-                                        if (is_arg_fp) {
-                                            simd_pool.free(std::get<simd128>(reg_var));
+                                    if (!spill_collected_args()) {
+                                        std::cout << RED
+                                                  << "[CODEGEN ERROR] Not enough FP arguments on stack for "
+                                                     "function call: "
+                                                  << func_name << RESET << std::endl;
+                                        for (auto& [reg_var, is_arg_fp] : args) {
+                                            if (is_arg_fp) {
+                                                simd_pool.free(std::get<simd128>(reg_var));
+                                            }
+                                            else {
+                                                pool.free(std::get<grp>(reg_var));
+                                            }
                                         }
-                                        else {
-                                            pool.free(std::get<grp>(reg_var));
-                                        }
+                                        return;
                                     }
-                                    return;
                                 }
                                 args.emplace_back(simd_pool.pop(), true);
                             }
                             else {
                                 if (pool.empty()) {
-                                    std::cout << RED
-                                              << "[CODEGEN ERROR] Not enough GP arguments on stack for "
-                                                 "function call: "
-                                              << func_name << RESET << std::endl;
-                                    // FIX 9: Free already collected arguments before returning
-                                    for (auto& [reg_var, is_arg_fp] : args) {
-                                        if (is_arg_fp) {
-                                            simd_pool.free(std::get<simd128>(reg_var));
+                                    if (!spill_collected_args()) {
+                                        std::cout << RED
+                                                  << "[CODEGEN ERROR] Not enough GP arguments on stack for "
+                                                     "function call: "
+                                                  << func_name << RESET << std::endl;
+                                        for (auto& [reg_var, is_arg_fp] : args) {
+                                            if (is_arg_fp) {
+                                                simd_pool.free(std::get<simd128>(reg_var));
+                                            }
+                                            else {
+                                                pool.free(std::get<grp>(reg_var));
+                                            }
                                         }
-                                        else {
-                                            pool.free(std::get<grp>(reg_var));
-                                        }
+                                        return;
                                     }
-                                    return;
                                 }
                                 args.emplace_back(pool.pop(), false);
+                            }
+                            arg_spill_info.emplace_back(std::nullopt);
+                        }
+
+                        // Reload any spilled args back into registers
+                        for (std::size_t k = 0; k < args.size(); k++) {
+                            if (arg_spill_info[k].has_value()) {
+                                auto& sp = arg_spill_info[k].value();
+                                if (sp.is_fp) {
+                                    simd128 r = simd_pool.alloc();
+                                    w->emit_movsd(r, mem{rbp, sp.offset});
+                                    args[k].first = r;
+                                }
+                                else {
+                                    grp r = pool.alloc();
+                                    w->emit_mov(r, mem{rbp, sp.offset});
+                                    args[k].first = r;
+                                }
                             }
                         }
 
@@ -1833,6 +1964,8 @@ namespace occult::x86_64 {
                             case ir_opcode::op_idiv:
                             case ir_opcode::op_imod:
                             case ir_opcode::op_negate:
+                            case ir_opcode::op_negatef32:
+                            case ir_opcode::op_negatef64:
                             case ir_opcode::op_addf32:
                             case ir_opcode::op_subf32:
                             case ir_opcode::op_mulf32:
@@ -1864,7 +1997,6 @@ namespace occult::x86_64 {
                             case ir_opcode::op_call: // nested function call uses return as
                                                      // argument
                             case ir_opcode::op_struct_store:
-                            case ir_opcode::op_struct_decl:
                                 should_push_return = true;
                                 break;
                             // When the next op is a value-producing op (push/load), do a
@@ -1891,20 +2023,37 @@ namespace occult::x86_64 {
                                         // → depth 1 (1-1+1=1). Then add consumes 2 → depth -1 < 0,
                                         // meaning our return value is needed.
                                         else if (la_op == ir_opcode::op_call) {
-                                            std::string call_name = std::get<std::string>(func.code.at(la).operand);
-                                            auto call_it = std::ranges::find_if(ir_funcs, [&](const ir_function& f) { return f.name == call_name; });
-                                            if (call_it != ir_funcs.end()) {
-                                                int call_arg_count = call_it->args.size();
-                                                depth -= call_arg_count; // consumed arguments
-                                                if (depth < 0) {
-                                                    should_push_return = true;
-                                                    break;
-                                                }
-                                                depth += 1; // produced return value
+                                            int call_arg_count = 0;
+                                            const auto& call_type = func.code.at(la).type;
+                                            if (!call_type.empty() && std::all_of(call_type.begin(), call_type.end(), ::isdigit)) {
+                                                call_arg_count = std::stoi(call_type);
                                             }
                                             else {
-                                                // External/native function — can't determine arg count,
-                                                // conservatively stop the scan here.
+                                                std::string call_name = std::get<std::string>(func.code.at(la).operand);
+                                                auto call_it = std::ranges::find_if(ir_funcs, [&](const ir_function& f) { return f.name == call_name; });
+                                                if (call_it != ir_funcs.end()) {
+                                                    call_arg_count = static_cast<int>(call_it->args.size());
+                                                }
+                                                else {
+                                                    break;
+                                                }
+                                            }
+                                            depth -= call_arg_count; // consumed arguments
+                                            if (depth < 0) {
+                                                should_push_return = true;
+                                                break;
+                                            }
+                                            depth += 1; // produced return value
+                                        }
+                                        // comparison ops: consume 2, produce 0 → net -2
+                                        // Must be handled separately from arithmetic ops because
+                                        // they leave nothing on the pool (only set CPU flags).
+                                        // e.g. call → push_literal → cmp: depth goes 1 → -1 < 0,
+                                        // so the call's return value IS needed.
+                                        else if (la_op == ir_opcode::op_cmp || la_op == ir_opcode::op_cmpf32 || la_op == ir_opcode::op_cmpf64) {
+                                            depth -= 2; // consumes 2, produces 0
+                                            if (depth < 0) {
+                                                should_push_return = true;
                                                 break;
                                             }
                                         }
@@ -1912,9 +2061,9 @@ namespace occult::x86_64 {
                                         else if (la_op == ir_opcode::op_add || la_op == ir_opcode::op_sub || la_op == ir_opcode::op_mul || la_op == ir_opcode::op_div || la_op == ir_opcode::op_mod || la_op == ir_opcode::op_imul ||
                                                  la_op == ir_opcode::op_idiv || la_op == ir_opcode::op_imod || la_op == ir_opcode::op_addf32 || la_op == ir_opcode::op_subf32 || la_op == ir_opcode::op_mulf32 ||
                                                  la_op == ir_opcode::op_divf32 || la_op == ir_opcode::op_modf32 || la_op == ir_opcode::op_addf64 || la_op == ir_opcode::op_subf64 || la_op == ir_opcode::op_mulf64 ||
-                                                 la_op == ir_opcode::op_divf64 || la_op == ir_opcode::op_modf64 || la_op == ir_opcode::op_cmp || la_op == ir_opcode::op_cmpf32 || la_op == ir_opcode::op_cmpf64 ||
-                                                 la_op == ir_opcode::op_logical_and || la_op == ir_opcode::op_logical_or || la_op == ir_opcode::op_bitwise_and || la_op == ir_opcode::op_bitwise_or || la_op == ir_opcode::op_bitwise_xor ||
-                                                 la_op == ir_opcode::op_bitwise_lshift || la_op == ir_opcode::op_bitwise_rshift || la_op == ir_opcode::op_ibitwise_rshift) {
+                                                 la_op == ir_opcode::op_divf64 || la_op == ir_opcode::op_modf64 || la_op == ir_opcode::op_logical_and || la_op == ir_opcode::op_logical_or || la_op == ir_opcode::op_bitwise_and ||
+                                                 la_op == ir_opcode::op_bitwise_or || la_op == ir_opcode::op_bitwise_xor || la_op == ir_opcode::op_bitwise_lshift || la_op == ir_opcode::op_bitwise_rshift ||
+                                                 la_op == ir_opcode::op_ibitwise_rshift) {
                                             depth -= 1; // consumes 2, produces 1
                                             if (depth < 0) {
                                                 should_push_return = true;
@@ -1932,13 +2081,14 @@ namespace occult::x86_64 {
                                             break; // store/ret ends the expression
                                         }
                                         // unary ops: consume 1, produce 1 → net 0
-                                        else if (la_op == ir_opcode::op_negate || la_op == ir_opcode::op_not || la_op == ir_opcode::op_bitwise_not || la_op == ir_opcode::op_dereference || la_op == ir_opcode::op_reference) {
+                                        else if (la_op == ir_opcode::op_negate || la_op == ir_opcode::op_negatef32 || la_op == ir_opcode::op_negatef64 || la_op == ir_opcode::op_not || la_op == ir_opcode::op_bitwise_not ||
+                                                 la_op == ir_opcode::op_dereference || la_op == ir_opcode::op_reference) {
                                             // net 0 change
                                         }
-                                        // control flow breaks the analysis
+                                        // control flow and statement boundaries break the analysis
                                         else if (la_op == ir_opcode::op_jmp || la_op == ir_opcode::op_jz || la_op == ir_opcode::op_jnz || la_op == ir_opcode::op_jl || la_op == ir_opcode::op_jle || la_op == ir_opcode::op_jg ||
-                                                 la_op == ir_opcode::op_jge) {
-                                            break; // can't analyze across jumps
+                                                 la_op == ir_opcode::op_jge || la_op == ir_opcode::op_jb || la_op == ir_opcode::op_jbe || la_op == ir_opcode::op_ja || la_op == ir_opcode::op_jae || la_op == ir_opcode::op_struct_decl) {
+                                            break; // can't analyze across jumps or struct declarations
                                         }
                                         // no-op markers: skip them
                                         // (label, mark_for_array_access, array_decl, etc.)
@@ -2054,6 +2204,9 @@ namespace occult::x86_64 {
 
                         std::int32_t array_base_offset = it->second; // negative offset from rbp where array starts
 
+                        auto& store_meta = local_array_metadata[array_name];
+                        bool is_float_array = (store_meta.type == "float32" || store_meta.type == "float64");
+
                         // scan backwards to determine if we have a constant index from
                         // op_declare_where_to_store if we find op_mark_for_array_access first,
                         // then it's a dynamic index
@@ -2103,8 +2256,6 @@ namespace occult::x86_64 {
                         }
 
                         if (has_constant_index) {
-                            auto content = pool.pop();
-
                             std::uint64_t index = index_to_push;
                             std::int32_t element_offset = array_base_offset + 8 * index;
 
@@ -2114,17 +2265,23 @@ namespace occult::x86_64 {
                                 std::cout << "\tElement offset: " << element_offset << std::endl;
                             }
 
-                            w->emit_mov(mem{rbp, element_offset}, content);
+                            if (is_float_array) {
+                                auto simd_reg = simd_pool.pop();
+                                if (store_meta.type == "float32") {
+                                    w->emit_cvtss2sd(simd_reg, simd_reg);
+                                }
+                                w->emit_movsd(mem{rbp, element_offset}, simd_reg);
+                                simd_pool.free(simd_reg);
+                            }
+                            else {
+                                auto content = pool.pop();
+                                w->emit_mov(mem{rbp, element_offset}, content);
+                                pool.free(content);
+                            }
                             index_to_push = (std::numeric_limits<std::uint64_t>::max)();
-                            pool.free(content);
                         }
                         else {
                             if (inline_const_index.has_value()) {
-                                auto content = pool.pop();
-                                // discard the pushed index register
-                                auto idx_reg = pool.pop();
-                                pool.free(idx_reg);
-
                                 std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_const_index.value());
 
                                 if (debug) {
@@ -2133,12 +2290,30 @@ namespace occult::x86_64 {
                                     std::cout << "\tElement offset: " << element_offset << std::endl;
                                 }
 
-                                w->emit_mov(mem{rbp, element_offset}, content);
-                                pool.free(content);
+                                if (is_float_array) {
+                                    auto simd_reg = simd_pool.pop();
+                                    // discard the pushed index register
+                                    auto idx_reg = pool.pop();
+                                    pool.free(idx_reg);
+
+                                    if (store_meta.type == "float32") {
+                                        w->emit_cvtss2sd(simd_reg, simd_reg);
+                                    }
+                                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
+                                    simd_pool.free(simd_reg);
+                                }
+                                else {
+                                    auto content = pool.pop();
+                                    // discard the pushed index register
+                                    auto idx_reg = pool.pop();
+                                    pool.free(idx_reg);
+
+                                    w->emit_mov(mem{rbp, element_offset}, content);
+                                    pool.free(content);
+                                }
                                 break;
                             }
                             if (index_to_push != (std::numeric_limits<std::uint64_t>::max)()) {
-                                auto content = pool.pop();
                                 std::uint64_t index = index_to_push;
                                 std::int32_t element_offset = array_base_offset + 8 * index;
 
@@ -2148,33 +2323,66 @@ namespace occult::x86_64 {
                                     std::cout << "\tElement offset: " << element_offset << std::endl;
                                 }
 
-                                w->emit_mov(mem{rbp, element_offset}, content);
+                                if (is_float_array) {
+                                    auto simd_reg = simd_pool.pop();
+                                    if (store_meta.type == "float32") {
+                                        w->emit_cvtss2sd(simd_reg, simd_reg);
+                                    }
+                                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
+                                    simd_pool.free(simd_reg);
+                                }
+                                else {
+                                    auto content = pool.pop();
+                                    w->emit_mov(mem{rbp, element_offset}, content);
+                                    pool.free(content);
+                                }
                                 index_to_push = (std::numeric_limits<std::uint64_t>::max)();
-                                pool.free(content);
                                 break;
                             }
 
-                            auto content = pool.pop();
-                            auto index_reg = pool.pop();
+                            if (is_float_array) {
+                                auto simd_reg = simd_pool.pop();
+                                auto index_reg = pool.pop();
 
-                            if (debug) {
-                                std::cout << BLUE << "[CODEGEN INFO] Array store (dynamic) to " << array_name << "[index_reg]" << RESET << std::endl;
-                                std::cout << "\tBase offset: " << array_base_offset << std::endl;
+                                if (debug) {
+                                    std::cout << BLUE << "[CODEGEN INFO] Array store (dynamic) to " << array_name << "[index_reg]" << RESET << std::endl;
+                                    std::cout << "\tBase offset: " << array_base_offset << std::endl;
+                                }
+
+                                auto addr_reg = pool.alloc();
+                                w->emit_lea(addr_reg, mem{rbp, array_base_offset});
+                                w->emit_shl(index_reg, 3);
+                                w->emit_add(addr_reg, index_reg);
+
+                                if (store_meta.type == "float32") {
+                                    w->emit_cvtss2sd(simd_reg, simd_reg);
+                                }
+                                w->emit_movsd(mem{addr_reg}, simd_reg);
+
+                                pool.free(addr_reg);
+                                pool.free(index_reg);
+                                simd_pool.free(simd_reg);
                             }
+                            else {
+                                auto content = pool.pop();
+                                auto index_reg = pool.pop();
 
-                            // calculate address, lea addr, [rbp + base_offset] (addr += index *
-                            // 8)
-                            auto addr_reg = pool.alloc();
-                            w->emit_lea(addr_reg, mem{rbp, array_base_offset});
-                            w->emit_shl(index_reg, 3); // index_reg = index * 8
-                            w->emit_add(addr_reg, index_reg);
+                                if (debug) {
+                                    std::cout << BLUE << "[CODEGEN INFO] Array store (dynamic) to " << array_name << "[index_reg]" << RESET << std::endl;
+                                    std::cout << "\tBase offset: " << array_base_offset << std::endl;
+                                }
 
-                            // store, [addr_reg] = content
-                            w->emit_mov(mem{addr_reg}, content);
+                                auto addr_reg = pool.alloc();
+                                w->emit_lea(addr_reg, mem{rbp, array_base_offset});
+                                w->emit_shl(index_reg, 3);
+                                w->emit_add(addr_reg, index_reg);
 
-                            pool.free(addr_reg);
-                            pool.free(index_reg);
-                            pool.free(content);
+                                w->emit_mov(mem{addr_reg}, content);
+
+                                pool.free(addr_reg);
+                                pool.free(index_reg);
+                                pool.free(content);
+                            }
                         }
 
                         break;
@@ -2190,6 +2398,7 @@ namespace occult::x86_64 {
                         }
 
                         auto& local_metadata = local_array_metadata[array_name];
+                        bool is_float_array = (local_metadata.type == "float32" || local_metadata.type == "float64");
 
                         if (debug) {
                             std::cout << BLUE << "[CODEGEN INFO] Array access: " << RESET << array_name << std::endl;
@@ -2233,11 +2442,21 @@ namespace occult::x86_64 {
                                 auto idx_reg = pool.pop();
                                 pool.free(idx_reg);
 
-                                auto true_index = pool.alloc();
                                 std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_idx.value());
 
-                                w->emit_mov(true_index, mem{rbp, element_offset});
-                                pool.push(true_index);
+                                if (is_float_array) {
+                                    auto simd_reg = simd_pool.alloc();
+                                    w->emit_movsd(simd_reg, mem{rbp, element_offset});
+                                    if (local_metadata.type == "float32") {
+                                        w->emit_cvtsd2ss(simd_reg, simd_reg);
+                                    }
+                                    simd_pool.push(simd_reg);
+                                }
+                                else {
+                                    auto true_index = pool.alloc();
+                                    w->emit_mov(true_index, mem{rbp, element_offset});
+                                    pool.push(true_index);
+                                }
                                 break;
                             }
                         }
@@ -2324,9 +2543,21 @@ namespace occult::x86_64 {
                         w->emit_shl(true_index, 3); // true_index = index * 8
                         w->emit_add(addr_reg, true_index);
 
-                        w->emit_mov(true_index, mem{addr_reg}); // load from computed address
-                        pool.free(addr_reg);
-                        pool.push(true_index);
+                        if (is_float_array) {
+                            auto simd_reg = simd_pool.alloc();
+                            w->emit_movsd(simd_reg, mem{addr_reg});
+                            if (local_metadata.type == "float32") {
+                                w->emit_cvtsd2ss(simd_reg, simd_reg);
+                            }
+                            pool.free(addr_reg);
+                            pool.free(true_index);
+                            simd_pool.push(simd_reg);
+                        }
+                        else {
+                            w->emit_mov(true_index, mem{addr_reg}); // load from computed address
+                            pool.free(addr_reg);
+                            pool.push(true_index);
+                        }
 
                         break;
                     }
@@ -2483,13 +2714,25 @@ namespace occult::x86_64 {
                         if (member_is_nested_struct) {
                             // nested struct by value, compute address via LEA
                             w->emit_lea(base, mem{base, member_offset});
+                            pool.push(base);
+                        }
+                        else if (member_type_name == "float32" || member_type_name == "float64") {
+                            // float member: load into SIMD register
+                            // member_store promoted f32 to f64 and stored with movsd,
+                            // so always load as f64 via movsd, then convert back to f32 if needed
+                            auto simd_reg = simd_pool.alloc();
+                            w->emit_movsd(simd_reg, mem{base, member_offset});
+                            if (member_type_name == "float32") {
+                                w->emit_cvtsd2ss(simd_reg, simd_reg);
+                            }
+                            simd_pool.push(simd_reg);
+                            pool.free(base);
                         }
                         else {
                             // scalar or pointer, load the actual value
                             w->emit_mov(base, mem{base, member_offset});
+                            pool.push(base);
                         }
-
-                        pool.push(base);
 
                         break;
                     }
@@ -2497,14 +2740,11 @@ namespace occult::x86_64 {
                 case ir_opcode::op_member_store:
                     {
                         auto member_name = std::get<std::string>(code.operand);
+                        auto member_type = code.type;
 
                         if (debug) {
                             std::cout << BLUE << "[CODEGEN INFO] Member store: " << RESET << member_name << std::endl;
                         }
-
-                        // value on top, then base address
-                        grp val = pool.pop();
-                        grp base = pool.pop();
 
                         // find the member offset
                         std::int32_t member_offset = -1;
@@ -2518,15 +2758,33 @@ namespace occult::x86_64 {
 
                         if (member_offset < 0) {
                             std::cerr << RED << "[CODEGEN ERROR] Member " << member_name << " not found in any struct for store" << RESET << std::endl;
-                            pool.free(val);
-                            pool.free(base);
                             break;
                         }
 
-                        w->emit_mov(mem{base, member_offset}, val);
+                        if (!simd_pool.empty() && (member_type == "float32" || member_type == "float64")) {
+                            simd128 fval = simd_pool.pop();
+                            grp base = pool.pop();
 
-                        pool.free(val);
-                        pool.free(base);
+                            // Promote f32 to f64: struct member slots are 8 bytes wide, and
+                            // the printf/bitcast path expects double-width IEEE 754 bits.
+                            if (member_type == "float32") {
+                                w->emit_cvtss2sd(fval, fval);
+                            }
+                            w->emit_movsd(mem{base, member_offset}, fval);
+
+                            simd_pool.free(fval);
+                            pool.free(base);
+                        }
+                        else {
+                            // value on top, then base address
+                            grp val = pool.pop();
+                            grp base = pool.pop();
+
+                            w->emit_mov(mem{base, member_offset}, val);
+
+                            pool.free(val);
+                            pool.free(base);
+                        }
 
                         break;
                     }

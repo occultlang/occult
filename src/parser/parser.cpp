@@ -21,7 +21,12 @@ namespace occult {
     }
 
 
-    token_t parser::peek(const std::uintptr_t _pos) { return stream[this->pos + _pos]; }
+    token_t parser::peek(const std::uintptr_t _pos) {
+        if (this->pos + _pos >= stream.size()) {
+            return token_t(0, 0, "<EOF>", end_of_file_tt);
+        }
+        return stream[this->pos + _pos];
+    }
 
     token_t parser::previous() {
         if ((pos - 1) != 0) {
@@ -322,7 +327,8 @@ namespace occult {
       if you think about it, more verbosity is a double edged sword. its a weird
       language thing for now... until i actually add singular comparisons
     */
-    std::vector<std::unique_ptr<cst>> parser::parse_expression(const std::vector<token_t>& expr) {
+    std::vector<std::unique_ptr<cst>> parser::parse_expression(const std::vector<token_t>& raw_expr) {
+        const auto expr = preprocess_generic_calls(raw_expr);
         std::vector<std::unique_ptr<cst>> expr_cst;
         std::stack<token_t> operator_stack;
 
@@ -354,6 +360,37 @@ namespace occult {
                 }
 
                 i--; // fix align
+
+                // Check if this is $var.member (dereference + member access)
+                // If so, handle as a single member access node with deref flag
+                if (i + 1 < expr.size() && expr.at(i + 1).tt == identifier_tt && i + 2 < expr.size() && expr.at(i + 2).tt == period_tt) {
+                    i++; // advance to identifier
+                    auto member_access_node = cst::new_node<cst_memberaccess>();
+                    member_access_node->num_pointers = count; // signal dereference
+
+                    // Add base identifier with deref info
+                    auto base_id = cst::new_node<cst_identifier>();
+                    base_id->content = expr.at(i).lexeme;
+                    base_id->num_pointers = count;
+                    member_access_node->add_child(std::move(base_id));
+
+                    i++; // advance past identifier
+
+                    // Parse member chain
+                    while (i < expr.size() && expr.at(i).tt == period_tt) {
+                        i++; // consume period
+                        if (i >= expr.size() || expr.at(i).tt != identifier_tt) {
+                            break;
+                        }
+                        member_access_node->add_child(cst_map[identifier_tt](expr.at(i).lexeme));
+                        i++;
+                    }
+
+                    i--; // backtrack for outer loop increment
+
+                    expr_cst.push_back(std::move(member_access_node));
+                    continue;
+                }
 
                 operator_stack.push(token_t(t.line, t.column, std::to_string(count), dereference_operator_tt));
 
@@ -458,12 +495,35 @@ namespace occult {
             return node;
         }
 
-        if (match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme)) {
-            const auto type_name = peek().lexeme;
-            consume();
+        if (match(peek(), identifier_tt) && generic_struct_templates.contains(peek().lexeme) && pos + 1 < stream.size() && match(peek(1), less_than_operator_tt)) {
+            std::string template_name = peek().lexeme;
+            consume(); // consume template name
+            consume(); // consume '<'
+
+            std::vector<token_t> type_args;
+            while (!match(peek(), greater_than_operator_tt)) {
+                if (!match(peek(), comma_tt)) {
+                    type_args.push_back(peek());
+                }
+                consume();
+            }
+            consume(); // consume '>'
+
+            // Check if any type arg is still a generic type parameter (template context)
+            bool has_generic_param = false;
+            for (const auto& arg : type_args) {
+                if (arg.tt == identifier_tt && cst_generic_type_cache.contains(arg.lexeme)) {
+                    has_generic_param = true;
+                    break;
+                }
+            }
+
+            if (!has_generic_param) {
+                instantiate_generic_struct(template_name, type_args);
+            }
 
             auto node = cst::new_node<cst_struct>();
-            node->content = type_name;
+            node->content = template_name;
 
             if (match(peek(), multiply_operator_tt)) {
                 while (match(peek(), multiply_operator_tt)) {
@@ -479,9 +539,49 @@ namespace occult {
             return node;
         }
 
-        
+        // Forward-referenced generic struct inside a template context:
+        // e.g. child_entry<T>* inside generic<T> struct tree_node { ... }
+        // where child_entry hasn't been defined yet.
+        {
+            std::unique_ptr<cst> fwd_node;
+            if (try_parse_forward_generic_struct_type(fwd_node)) {
+                if (match(peek(), identifier_tt)) {
+                    fwd_node->add_child(parse_identifier());
+                }
+                return fwd_node;
+            }
+        }
+
+        if (match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme)) {
+            const auto type_name = peek().lexeme;
+            consume();
+
+            auto node = cst::new_node<cst_struct>();
+            node->content = type_name;
+
+            if (match(peek(), reference_operator_tt)) {
+                consume();
+                node->is_reference = true;
+            }
+
+            if (match(peek(), multiply_operator_tt)) {
+                while (match(peek(), multiply_operator_tt)) {
+                    consume();
+                    node->num_pointers++;
+                }
+            }
+
+            if (match(peek(), identifier_tt)) {
+                node->add_child(parse_identifier());
+            }
+
+            return node;
+        }
+
+
         if (match(peek(), identifier_tt) && cst_generic_type_cache.contains(peek().lexeme)) {
-            std::unique_ptr<cst> node = std::move(cst_generic_type_cache[peek().lexeme]);
+            auto node = cst::new_node<cst_generic_type>(peek().lexeme);
+            consume();
 
             if (match(peek(), multiply_operator_tt)) {
                 while (match(peek(), multiply_operator_tt)) {
@@ -546,11 +646,15 @@ namespace occult {
                     }
 
                     func_args_node->add_child(cst::new_node<cst_variadic>());
-                    
+
                     break;
                 }
 
                 auto arg = parse_datatype(); // now handles generics
+
+                if (!arg) {
+                    throw parsing_error("valid type in function argument", peek(), pos, std::source_location::current().function_name());
+                }
 
                 if (arg->get_children().size() < 1) { // for shellcode
                     arg->add_child(cst::new_node<cst_identifier>("arg" + std::to_string(++arg_count)));
@@ -1307,8 +1411,20 @@ namespace occult {
     }
 
     std::unique_ptr<cst> parser::parse_keyword(bool nested_function) {
+        ++recursion_depth;
+
+        // RAII guard to decrement depth on all exit paths (including throws)
+        struct depth_guard {
+            std::size_t& depth;
+            ~depth_guard() { --depth; }
+        } guard{recursion_depth};
+
+        if (recursion_depth > max_recursion_depth) {
+            throw parsing_error("expression (recursion depth exceeded)", peek(), pos, std::source_location::current().function_name());
+        }
+
         if (match(peek(), generic_keyword_tt)) {
-            cst_generic_type_cache.clear(); 
+            cst_generic_type_cache.clear();
 
             /*
                 Just have to clear these above ^^^
@@ -1324,9 +1440,12 @@ namespace occult {
                     throw parsing_error("typename in generic definition", peek(), pos, std::source_location::current().function_name());
                 }
 
+                std::vector<std::string> type_params;
+
                 while (!match(peek(), greater_than_operator_tt)) {
-                    auto generic_typename = parse_identifier()->content; // typename 
+                    auto generic_typename = parse_identifier()->content; // typename
                     cst_generic_type_cache[generic_typename] = cst::new_node<cst_generic_type>(generic_typename);
+                    type_params.push_back(generic_typename);
 
                     if (match(peek(), comma_tt) && match(peek(1), greater_than_operator_tt)) {
                         throw parsing_error("typename after comma", peek(), pos, std::source_location::current().function_name());
@@ -1343,12 +1462,39 @@ namespace occult {
 
                 consume(); // '>'
 
-                if (!match(peek(), function_keyword_tt) || !match(peek(), struct_keyword_tt)) {
-                    throw parsing_error("function or struct definition", peek(), pos, std::source_location::current().function_name()); // has to be on a struct or fn definition
+                auto template_start = pos;
+
+                if (match(peek(), struct_keyword_tt)) {
+                    auto struct_node = parse_struct();
+                    auto template_end = pos;
+
+                    auto struct_name = struct_node->get_children().front()->content;
+
+                    generic_struct_templates[struct_name] = {type_params, std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end), struct_name};
+
+                    custom_type_map.erase(struct_name);
+                    cst_generic_type_cache.clear();
+
+                    return cst::new_node<cst_root>();
+                }
+                else if (match(peek(), function_keyword_tt)) {
+                    auto func_node = parse_function();
+                    auto template_end = pos;
+
+                    auto func_name = func_node->get_children().front()->content;
+
+                    generic_func_templates[func_name] = {type_params, std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end), func_name};
+
+                    cst_generic_type_cache.clear();
+
+                    return cst::new_node<cst_root>();
+                }
+                else {
+                    throw parsing_error("function or struct definition", peek(), pos, std::source_location::current().function_name());
                 }
             }
             else {
-                throw parsing_error("less than operator (for generic type)", peek(), pos, std::source_location::current().function_name());
+                throw parsing_error("'<' with type parameters after 'generic' (e.g., generic<T>)", peek(), pos, std::source_location::current().function_name());
             }
         }
 
@@ -1431,6 +1577,100 @@ namespace occult {
         }
         if (match(peek(), boolean_keyword_tt)) {
             return parse_integer_type<cst_bool>();
+        }
+        if (match(peek(), identifier_tt) && generic_struct_templates.contains(peek().lexeme) && peek(1).tt == less_than_operator_tt) {
+            auto template_name = peek().lexeme;
+            consume(); // consume template name
+            consume(); // consume '<'
+
+            std::vector<token_t> type_args;
+            while (!match(peek(), greater_than_operator_tt)) {
+                if (!match(peek(), comma_tt)) {
+                    type_args.push_back(peek());
+                }
+                consume();
+            }
+            consume(); // consume '>'
+
+            // Check if any type arg is still a generic type parameter (template context)
+            bool has_generic_param = false;
+            for (const auto& arg : type_args) {
+                if (arg.tt == identifier_tt && cst_generic_type_cache.contains(arg.lexeme)) {
+                    has_generic_param = true;
+                    break;
+                }
+            }
+
+            if (!has_generic_param) {
+                instantiate_generic_struct(template_name, type_args);
+            }
+
+            auto node = cst::new_node<cst_struct>();
+            node->content = template_name;
+
+            if (match(peek(), multiply_operator_tt)) {
+                while (match(peek(), multiply_operator_tt)) {
+                    consume();
+                    node->num_pointers++;
+                }
+            }
+
+            if (match(peek(), identifier_tt)) {
+                node->add_child(parse_identifier());
+            }
+            else {
+                throw parsing_error("<identifier>", peek(), pos, std::source_location::current().function_name());
+            }
+
+            if (match(peek(), assignment_tt)) {
+                node->add_child(parse_assignment());
+
+                if (match(peek(), semicolon_tt)) {
+                    throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
+                }
+
+                parse_expression_until(node->get_children().at(1).get(), semicolon_tt);
+            }
+
+            if (match(peek(), semicolon_tt)) {
+                consume();
+            }
+            else {
+                throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+            }
+
+            return node;
+        }
+        // Forward-referenced generic struct in template context (inside function body)
+        {
+            std::unique_ptr<cst> fwd_node;
+            if (try_parse_forward_generic_struct_type(fwd_node)) {
+                if (match(peek(), identifier_tt)) {
+                    fwd_node->add_child(parse_identifier());
+                }
+                else {
+                    throw parsing_error("<identifier>", peek(), pos, std::source_location::current().function_name());
+                }
+
+                if (match(peek(), assignment_tt)) {
+                    fwd_node->add_child(parse_assignment());
+
+                    if (match(peek(), semicolon_tt)) {
+                        throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
+                    }
+
+                    parse_expression_until(fwd_node->get_children().at(1).get(), semicolon_tt);
+                }
+
+                if (match(peek(), semicolon_tt)) {
+                    consume();
+                }
+                else {
+                    throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+                }
+
+                return fwd_node;
+            }
         }
         if (match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme)) {
             return parse_custom_type();
@@ -1586,6 +1826,53 @@ namespace occult {
                 throw parsing_error("identifier or (", peek(), pos, std::source_location::current().function_name());
             }
 
+            // Handle $p.x or $p.x.y (dereference + member access)
+            if (match(peek(), period_tt)) {
+                // Handle $var.member[.member...] [= value]; (dereference + member access)
+                auto member_access_node = cst::new_node<cst_memberaccess>();
+
+                // Add the dereferenced variable as the base
+                // We create a special identifier that wraps the dereference info
+                auto base_ident = cst::new_node<cst_identifier>();
+                base_ident->content = deref_expr->get_children().front()->content;
+                base_ident->num_pointers = deref_count; // store deref count for codegen
+                member_access_node->add_child(std::move(base_ident));
+
+                // Parse member chain: .x, .y, .z, etc.
+                while (match(peek(), period_tt)) {
+                    consume(); // consume '.'
+                    if (match(peek(), identifier_tt)) {
+                        member_access_node->add_child(parse_identifier());
+                    }
+                    else {
+                        throw parsing_error("member name after '.'", peek(), pos, std::source_location::current().function_name());
+                    }
+                }
+
+                // Check for assignment
+                if (match(peek(), assignment_tt)) {
+                    auto assignment = parse_assignment();
+
+                    if (match(peek(), semicolon_tt)) {
+                        throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
+                    }
+
+                    parse_expression_until(assignment.get(), semicolon_tt);
+                    member_access_node->add_child(std::move(assignment));
+                }
+
+                if (match(peek(), semicolon_tt)) {
+                    consume();
+                }
+                else {
+                    throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+                }
+
+                // Mark the member access as a dereference operation
+                member_access_node->num_pointers = deref_count;
+                return member_access_node;
+            }
+
             deref_node->add_child(std::move(deref_expr));
 
             if (match(peek(), assignment_tt)) {
@@ -1667,6 +1954,47 @@ namespace occult {
         }
         if (match(peek(), struct_keyword_tt)) {
             return parse_struct();
+        }
+        if (match(peek(), identifier_tt) && peek(1).tt == less_than_operator_tt) { // potential generic fn call at statement level
+            // Scan ahead to check for pattern: identifier < type_args > (
+            std::size_t scan = pos + 2; // skip identifier and '<'
+            bool found_generic_call = false;
+            while (scan < stream.size() && stream[scan].tt != semicolon_tt && stream[scan].tt != end_of_file_tt) {
+                if (stream[scan].tt == greater_than_operator_tt && scan + 1 < stream.size() && stream[scan + 1].tt == left_paren_tt) {
+                    found_generic_call = true;
+                    break;
+                }
+                scan++;
+            }
+
+            if (found_generic_call) {
+                auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+
+                if (first_semicolon_pos == -1) {
+                    std::size_t err_scan = pos;
+                    while (err_scan < stream.size() && stream[err_scan].tt != right_paren_tt && stream[err_scan].tt != end_of_file_tt) {
+                        ++err_scan;
+                    }
+                    const auto& err_tok = (err_scan + 1 < stream.size()) ? stream[err_scan + 1] : stream[err_scan];
+                    throw parsing_error(";", err_tok, pos, std::source_location::current().function_name());
+                }
+                std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
+                pos += first_semicolon_pos;
+                auto converted_rpn = parse_expression(sub_stream);
+
+                if (converted_rpn.size() == 1 && converted_rpn.at(0)->content == "start_call") {
+                    if (match(peek(), semicolon_tt)) {
+                        consume();
+                    }
+                    else {
+                        throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+                    }
+
+                    return std::move(converted_rpn.at(0));
+                }
+
+                throw parsing_error("a valid generic function call statement", peek(), pos, std::source_location::current().function_name());
+            }
         }
         if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
             auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
@@ -1845,6 +2173,66 @@ namespace occult {
         throw parsing_error("a valid statement or keyword", peek(), pos, std::source_location::current().function_name());
     }
 
+    bool parser::try_parse_forward_generic_struct_type(std::unique_ptr<cst>& out_node) {
+        if (!match(peek(), identifier_tt) || cst_generic_type_cache.empty() || pos + 1 >= stream.size() || !match(peek(1), less_than_operator_tt)) {
+            return false;
+        }
+
+        // Lookahead: check that <...> contains at least one generic type param
+        // and is followed by *, identifier, ), or ; — i.e. it's a type, not a comparison
+        std::size_t scan = pos + 2;
+        bool found_generic_param = false;
+        bool found_close = false;
+        while (scan < stream.size()) {
+            if (stream[scan].tt == greater_than_operator_tt) {
+                found_close = true;
+                break;
+            }
+            if (stream[scan].tt == identifier_tt && cst_generic_type_cache.contains(stream[scan].lexeme)) {
+                found_generic_param = true;
+            }
+            if (stream[scan].tt == semicolon_tt || stream[scan].tt == left_curly_bracket_tt) {
+                break;
+            }
+            scan++;
+        }
+
+        if (!found_generic_param || !found_close) {
+            return false;
+        }
+
+        if (scan + 1 >= stream.size()) {
+            return false;
+        }
+        auto next_tt = stream[scan + 1].tt;
+        if (next_tt != multiply_operator_tt && next_tt != identifier_tt && next_tt != right_paren_tt && next_tt != semicolon_tt) {
+            return false;
+        }
+
+        // Consume identifier < type_args > and build struct node
+        std::string template_name = peek().lexeme;
+        consume(); // consume template name
+        consume(); // consume '<'
+
+        while (!match(peek(), greater_than_operator_tt)) {
+            consume();
+        }
+        consume(); // consume '>'
+
+        auto node = cst::new_node<cst_struct>();
+        node->content = template_name;
+
+        if (match(peek(), multiply_operator_tt)) {
+            while (match(peek(), multiply_operator_tt)) {
+                consume();
+                node->num_pointers++;
+            }
+        }
+
+        out_node = std::move(node);
+        return true;
+    }
+
     void parser::synchronize(const parsing_error& e) {
         const auto& tk = e.get_token();
 
@@ -1895,6 +2283,178 @@ namespace occult {
 
             consume();
         }
+    }
+
+    void parser::instantiate_generic_struct(const std::string& template_name, const std::vector<token_t>& concrete_type_args) {
+        if (custom_type_map.contains(template_name))
+            return;
+
+        auto& tmpl = generic_struct_templates[template_name];
+
+        std::unordered_map<std::string, token_t> type_map;
+        for (std::size_t i = 0; i < tmpl.type_params.size() && i < concrete_type_args.size(); i++) {
+            type_map[tmpl.type_params[i]] = concrete_type_args[i];
+        }
+
+        std::vector<token_t> substituted;
+        for (const auto& tok : tmpl.tokens) {
+            if (tok.tt == identifier_tt && type_map.contains(tok.lexeme)) {
+                substituted.push_back(type_map[tok.lexeme]);
+            }
+            else {
+                substituted.push_back(tok);
+            }
+        }
+        substituted.emplace_back(0, 0, "", end_of_file_tt);
+
+        auto saved_stream = std::move(stream);
+        auto saved_pos = pos;
+        auto saved_cache = std::move(cst_generic_type_cache);
+
+        stream = std::move(substituted);
+        pos = 0;
+        cst_generic_type_cache.clear();
+
+        auto struct_node = parse_struct();
+
+        stream = std::move(saved_stream);
+        pos = saved_pos;
+        cst_generic_type_cache = std::move(saved_cache);
+
+        root->add_child(std::move(struct_node));
+    }
+
+    void parser::instantiate_generic_function(const std::string& template_name, const std::vector<token_t>& concrete_type_args) {
+        std::string mangled_name = template_name;
+        for (const auto& arg : concrete_type_args) {
+            mangled_name += "_" + arg.lexeme;
+        }
+
+        if (instantiated_generics.contains(mangled_name))
+            return;
+        instantiated_generics.insert(mangled_name);
+
+        auto& tmpl = generic_func_templates[template_name];
+
+        std::unordered_map<std::string, token_t> type_map;
+        for (std::size_t i = 0; i < tmpl.type_params.size() && i < concrete_type_args.size(); i++) {
+            type_map[tmpl.type_params[i]] = concrete_type_args[i];
+        }
+
+        std::vector<token_t> substituted;
+        bool name_mangled = false;
+        for (const auto& tok : tmpl.tokens) {
+            if (tok.tt == identifier_tt && type_map.contains(tok.lexeme)) {
+                substituted.push_back(type_map[tok.lexeme]);
+            }
+            else if (!name_mangled && tok.tt == identifier_tt && tok.lexeme == template_name) {
+                auto mangled_tok = tok;
+                mangled_tok.lexeme = mangled_name;
+                substituted.push_back(mangled_tok);
+                name_mangled = true;
+            }
+            else {
+                substituted.push_back(tok);
+            }
+        }
+        substituted.emplace_back(0, 0, "", end_of_file_tt);
+
+        auto saved_stream = std::move(stream);
+        auto saved_pos = pos;
+        auto saved_cache = std::move(cst_generic_type_cache);
+
+        stream = std::move(substituted);
+        pos = 0;
+        cst_generic_type_cache.clear();
+
+        auto func_node = parse_function();
+
+        stream = std::move(saved_stream);
+        pos = saved_pos;
+        cst_generic_type_cache = std::move(saved_cache);
+
+        root->add_child(std::move(func_node));
+    }
+
+    std::vector<token_t> parser::preprocess_generic_calls(const std::vector<token_t>& expr) {
+        std::vector<token_t> result;
+
+        for (std::size_t j = 0; j < expr.size(); j++) {
+            if (expr[j].tt == identifier_tt && j + 1 < expr.size() && expr[j + 1].tt == less_than_operator_tt) {
+
+                // Check if this looks like a generic call: identifier < args > (
+                // Scan ahead to find > followed by (
+                std::size_t scan = j + 2;
+                bool looks_like_generic_call = false;
+                while (scan < expr.size()) {
+                    if (expr[scan].tt == greater_than_operator_tt && scan + 1 < expr.size() && expr[scan + 1].tt == left_paren_tt) {
+                        looks_like_generic_call = true;
+                        break;
+                    }
+                    if (expr[scan].tt == semicolon_tt || expr[scan].tt == left_curly_bracket_tt) {
+                        break;
+                    }
+                    scan++;
+                }
+
+                if (looks_like_generic_call) {
+                    auto func_name_tok = expr[j];
+
+                    j++; // now at '<'
+                    j++; // now at first type arg
+
+                    std::vector<token_t> type_args;
+                    while (j < expr.size() && expr[j].tt != greater_than_operator_tt) {
+                        if (expr[j].tt != comma_tt) {
+                            type_args.push_back(expr[j]);
+                        }
+                        j++;
+                    }
+                    // j is at '>'
+
+                    // Check if any type arg is still an unresolved generic type parameter
+                    // (we're inside a template definition). If so, strip <T> and emit just the name.
+                    bool has_generic_param = false;
+                    for (const auto& arg : type_args) {
+                        if (arg.tt == identifier_tt && cst_generic_type_cache.contains(arg.lexeme)) {
+                            has_generic_param = true;
+                            break;
+                        }
+                    }
+
+                    if (has_generic_param) {
+                        // Inside template definition — strip <T> and emit just the function name.
+                        // The expression parser will treat it as a normal function call.
+                        // This CST gets discarded; the token range is what matters for later instantiation.
+                        result.push_back(func_name_tok);
+                    }
+                    else if (generic_func_templates.contains(func_name_tok.lexeme)) {
+                        instantiate_generic_function(func_name_tok.lexeme, type_args);
+
+                        std::string mangled_name = func_name_tok.lexeme;
+                        for (const auto& arg : type_args) {
+                            mangled_name += "_" + arg.lexeme;
+                        }
+
+                        func_name_tok.lexeme = mangled_name;
+                        result.push_back(func_name_tok);
+                    }
+                    else {
+                        // Unknown function with concrete type args — pass through unchanged
+                        result.push_back(func_name_tok);
+                    }
+                }
+                else {
+                    // Not a generic call pattern (probably a comparison), pass through
+                    result.push_back(expr[j]);
+                }
+            }
+            else {
+                result.push_back(expr[j]);
+            }
+        }
+
+        return result;
     }
 
     std::unordered_map<std::string, cst*> parser::get_custom_type_map() const { return custom_type_map; }

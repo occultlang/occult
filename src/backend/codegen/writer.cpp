@@ -30,6 +30,10 @@ namespace occult {
     jit_function writer::setup_function() {
         const std::size_t required_size = code.size();
 
+        if (required_size == 0) {
+            return nullptr;
+        }
+
         if (required_size > allocated_size) {
             const std::size_t new_size = ((required_size / page_size) + 1) * page_size;
             void* new_memory = mremap(memory, allocated_size, new_size, MREMAP_MAYMOVE);

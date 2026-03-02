@@ -1,0 +1,115 @@
+// generic_tree.occ - Generic jagged (N-ary) tree using Occult generics
+// Demonstrates an AST-like tree where each node stores a value and a variable
+// number of children using a linked child list (not a binary tree)
+
+include "../lib/stdio.occ"
+
+// A child list entry: points to a tree_node and its sibling
+generic<T>
+struct child_entry {
+    tree_node<T>* child_node;
+    child_entry* next;
+}
+
+// An N-ary tree node: holds a value and a linked list of children
+generic<T>
+struct tree_node {
+    T val;
+    child_entry<T>* first_child;
+    i64 num_children;
+}
+
+generic<T>
+fn alloc_tree_node(T val) tree_node<T>* {
+    tree_node<T>* n = alloc(24);
+    n.val = val;
+    n.first_child = 0;
+    n.num_children = 0;
+    return n;
+}
+
+generic<T>
+fn add_child(tree_node<T>* parent, tree_node<T>* child) i64 {
+    child_entry<T>* entry = alloc(16);
+    entry.child_node = child;
+    entry.next = parent.first_child;
+    parent.first_child = entry;
+    parent.num_children = parent.num_children + 1;
+    return 0;
+}
+
+generic<T>
+fn print_tree(tree_node<T>* node, i64 depth) i64 {
+    // Indent based on depth
+    i64 d = 0;
+    while (d < depth) {
+        print_string("  ");
+        d = d + 1;
+    }
+
+    print_integer(node.val);
+    print_string("\n");
+
+    // Traverse children
+    child_entry<T>* entry = node.first_child;
+    while (entry != 0) {
+        tree_node<T>* child = entry.child_node;
+        print_tree<T>(child, depth + 1);
+        entry = entry.next;
+    }
+
+    return 0;
+}
+
+generic<T>
+fn free_tree(tree_node<T>* node) i64 {
+    child_entry<T>* entry = node.first_child;
+    while (entry != 0) {
+        child_entry<T>* next = entry.next;
+        tree_node<T>* child = entry.child_node;
+        free_tree<T>(child);
+        del(entry);
+        entry = next;
+    }
+    del(node);
+    return 0;
+}
+
+fn main() i64 {
+    // Build a jagged tree:
+    //        1
+    //      / | \
+    //     2  3  4
+    //    /|     |
+    //   5 6    7
+    //          |
+    //          8
+
+    tree_node<i64>* root = alloc_tree_node<i64>(1);
+    tree_node<i64>* n2 = alloc_tree_node<i64>(2);
+    tree_node<i64>* n3 = alloc_tree_node<i64>(3);
+    tree_node<i64>* n4 = alloc_tree_node<i64>(4);
+    tree_node<i64>* n5 = alloc_tree_node<i64>(5);
+    tree_node<i64>* n6 = alloc_tree_node<i64>(6);
+    tree_node<i64>* n7 = alloc_tree_node<i64>(7);
+    tree_node<i64>* n8 = alloc_tree_node<i64>(8);
+
+    add_child<i64>(root, n2);
+    add_child<i64>(root, n3);
+    add_child<i64>(root, n4);
+    add_child<i64>(n2, n5);
+    add_child<i64>(n2, n6);
+    add_child<i64>(n4, n7);
+    add_child<i64>(n7, n8);
+
+    print_string("Jagged Tree (depth-first):\n");
+    print_tree<i64>(root, 0);
+
+    print_string("Root children count: ");
+    print_integer(root.num_children);
+    print_string("\n");
+
+    free_tree<i64>(root);
+
+    return 0;
+}

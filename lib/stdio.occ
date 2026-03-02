@@ -48,7 +48,7 @@ fn print_string_windows(string s) {
 
 fn print_char_windows(i64 c) {
  i64* IoStatusBlockPtr = alloc(16); // sizeof(IoStatusBlock) = 16
- i64 buf = alloc(16);               // 8-byte alloc header + 1 byte for the character
+ i64 buf = alloc(9);               // 8-byte alloc header + 1 byte for the character
  $(buf + 8) = c;                   // write char value into the data region
  Win10_and_11_NtWriteFile(GetStdOutFromPEB(), IoStatusBlockPtr, buf + 8, 1);
  del(buf);
@@ -98,6 +98,18 @@ fn i64_to_string(i64 n) string {
         $(data) = 45; // '-'
         pos = 1;
         n = -n;
+        if n < 0 {
+            // INT64_MIN: -n overflows back to negative. Hard-code digits of 9223372036854775808
+            $(data + 1) = 57;  $(data + 2) = 50;  $(data + 3) = 50;
+            $(data + 4) = 51;  $(data + 5) = 51;  $(data + 6) = 55;
+            $(data + 7) = 50;  $(data + 8) = 48;  $(data + 9) = 51;
+            $(data + 10) = 54; $(data + 11) = 56; $(data + 12) = 53;
+            $(data + 13) = 52; $(data + 14) = 55; $(data + 15) = 55;
+            $(data + 16) = 53; $(data + 17) = 56; $(data + 18) = 48;
+            $(data + 19) = 56; $(data + 20) = 0;
+            $(buf) = 20;
+            return data;
+        }
     }
 
     if n == 0 {
@@ -116,9 +128,15 @@ fn i64_to_string(i64 n) string {
 
 fn print_float(f32 value, i64 precision) {
     i64 is_neg = 0;
-    if value < 0 {
+    if value < 0.0 {
         is_neg = 1;
-        value = -value;
+        value = 0.0 - value;
+    }
+
+    if value > 9000000000000000000.0 {
+        if is_neg == 1 { print_string("-"); }
+        print_string("inf");
+        return;
     }
 
     i64 int_part = i64(value);
@@ -131,6 +149,8 @@ fn print_float(f32 value, i64 precision) {
     else if precision == 4 { frac_int = i64(frac * 1e4); }
     else if precision == 5 { frac_int = i64(frac * 1e5); }
     else { frac_int = i64(frac * 1e6); }
+
+    if frac_int < 0 { frac_int = -frac_int; }
 
     if is_neg == 1 {
         print_string("-");

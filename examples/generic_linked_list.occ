@@ -1,0 +1,90 @@
+// generic_linked_list.occ - Generic singly-linked list using Occult generics
+// Demonstrates generic struct with pointer and fully generic helper functions
+
+include "../lib/stdio.occ"
+
+generic<T>
+struct gnode {
+    T val;
+    gnode* next;
+}
+
+generic<T>
+fn alloc_gnode(T val) gnode<T>* {
+    gnode<T>* n = alloc(16);
+    n.val = val;
+    n.next = 0;
+    return n;
+}
+
+generic<T>
+fn append(gnode<T>* head, T val) gnode<T>* {
+    gnode<T>* new_node = alloc_gnode<T>(val);
+    gnode<T>* current = head;
+    while (current.next != 0) {
+        current = current.next;
+    }
+    current.next = new_node;
+    return new_node;
+}
+
+generic<T>
+fn sum_list(gnode<T>* head) T {
+    T sum = 0;
+    gnode<T>* current = head;
+    while (current != 0) {
+        sum = sum + current.val;
+        current = current.next;
+    }
+    return sum;
+}
+
+generic<T>
+fn list_length(gnode<T>* head) i64 {
+    i64 count = 0;
+    gnode<T>* current = head;
+    while (current != 0) {
+        count = count + 1;
+        current = current.next;
+    }
+    return count;
+}
+
+generic<T>
+fn free_list(gnode<T>* head) i64 {
+    gnode<T>* current = head;
+    while (current != 0) {
+        gnode<T>* next_node = current.next;
+        del(current);
+        current = next_node;
+    }
+    return 0;
+}
+
+fn main() i64 {
+    gnode<i64>* head = alloc_gnode<i64>(10);
+    append<i64>(head, 20);
+    append<i64>(head, 30);
+    append<i64>(head, 40);
+
+    print_string("List: ");
+    gnode<i64>* current = head;
+    while (current != 0) {
+        print_integer(current.val);
+        print_string(" ");
+        current = current.next;
+    }
+    print_string("\n");
+
+    print_string("Sum: ");
+    print_integer(sum_list<i64>(head));
+    print_string("\n");
+
+    print_string("Length: ");
+    print_integer(list_length<i64>(head));
+    print_string("\n");
+
+    free_list<i64>(head);
+
+    return 0;
+}

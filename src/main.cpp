@@ -1,5 +1,7 @@
 #include <chrono>
 #include <cmath>
+#include <csetjmp>
+#include <csignal>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -20,6 +22,14 @@
 
 #include <cstdlib>
 
+static jmp_buf jit_jmp_buf;
+static volatile sig_atomic_t jit_signal_caught = 0;
+
+static void jit_signal_handler(int sig) {
+    jit_signal_caught = sig;
+    longjmp(jit_jmp_buf, 1);
+}
+
 void display_help() {
     std::cout << "Usage: occultc [options] <source.occ>\n"
               << "Info: Occult defaults to its JIT mode.\n"
@@ -32,11 +42,17 @@ void display_help() {
 }
 
 OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) {
-    auto ptr = malloc(sz);
+    if (sz <= 0 || static_cast<std::uint64_t>(sz) > SIZE_MAX) {
+        return 0;
+    }
+    auto ptr = malloc(static_cast<std::size_t>(sz));
     return reinterpret_cast<std::int64_t>(ptr);
 }
 
 OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t* ptr), std::int64_t) {
+    if (ptr == nullptr) {
+        return 0;
+    }
     free(ptr);
     return 0;
 }
@@ -199,7 +215,13 @@ int main(int argc, char* argv[]) {
      occult::function_registry::register_function_to_codegen<&print_newline>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_char>(jit_runtime);*/
 
-    jit_runtime.compile(jit);
+    try {
+        jit_runtime.compile(jit);
+    }
+    catch (const std::exception& e) {
+        std::cerr << RED << "[OCCULTC] Code generation failed: " << RESET << e.what() << std::endl;
+        return 1;
+    }
     end = std::chrono::high_resolution_clock::now();
     duration = end - start;
     if (showtime) {
@@ -217,7 +239,35 @@ int main(int argc, char* argv[]) {
         if (auto it = jit_runtime.function_map.find("main"); it != jit_runtime.function_map.end()) {
             start = std::chrono::high_resolution_clock::now();
 
-            auto res = reinterpret_cast<std::int64_t (*)()>(it->second)();
+            // Install signal handlers to catch JIT crashes
+            struct sigaction sa{}, old_sigsegv{}, old_sigabrt{}, old_sigfpe{}, old_sigbus{};
+            sa.sa_handler = jit_signal_handler;
+            sa.sa_flags = 0;
+            sigemptyset(&sa.sa_mask);
+            sigaction(SIGSEGV, &sa, &old_sigsegv);
+            sigaction(SIGABRT, &sa, &old_sigabrt);
+            sigaction(SIGFPE, &sa, &old_sigfpe);
+            sigaction(SIGBUS, &sa, &old_sigbus);
+
+            std::int64_t res = 0;
+            if (setjmp(jit_jmp_buf) == 0) {
+                res = reinterpret_cast<std::int64_t (*)()>(it->second)();
+            }
+            else {
+                // Restore default signal handlers
+                sigaction(SIGSEGV, &old_sigsegv, nullptr);
+                sigaction(SIGABRT, &old_sigabrt, nullptr);
+                sigaction(SIGFPE, &old_sigfpe, nullptr);
+                sigaction(SIGBUS, &old_sigbus, nullptr);
+                std::cerr << RED << "[OCCULTC] JIT execution crashed (signal " << jit_signal_caught << ")" << RESET << std::endl;
+                return 1;
+            }
+
+            // Restore default signal handlers
+            sigaction(SIGSEGV, &old_sigsegv, nullptr);
+            sigaction(SIGABRT, &old_sigabrt, nullptr);
+            sigaction(SIGFPE, &old_sigfpe, nullptr);
+            sigaction(SIGBUS, &old_sigbus, nullptr);
 
             end = std::chrono::high_resolution_clock::now();
             duration = end - start;
