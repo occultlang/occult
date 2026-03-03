@@ -78,7 +78,7 @@ _____________________________________________________________________________
 - Linker Completion
 - Bug Testing & Stability
 - Bootstrapped Compiler
-## Planned for later on
+### Planned for later on
 - Foreach implementation 
 - RAII 
 - New Intermediate Representation (SSA) for optimization pass
