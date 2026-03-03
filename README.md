@@ -75,6 +75,7 @@ _____________________________________________________________________________
 
 ### Roadmap 
 - Switch case
+- Enums & Comptime variables (+ global variables)
 - Linker Completion
 - Bug Testing & Stability
 - Bootstrapped Compiler
