@@ -73,7 +73,12 @@ Next, go into C/C++ -> Command Line, and then remove all the contents of the "Ad
 Afterwards, you should be good to go
 _____________________________________________________________________________
 
-### Roadmap
+### Roadmap 
+- Switch case
+- Linker Completion
+- Bug Testing & Stability
+- Bootstrapped Compiler
+## Planned for later on
 - Foreach implementation 
 - RAII 
 - New Intermediate Representation (SSA) for optimization pass
