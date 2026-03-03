@@ -1,0 +1,15 @@
+// Test i64(-3.9) = -3 (BUG 9 fix)
+// Expected: return 0 (all 3 casts correct)
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    i64 a = i64(-3.9);
+    i64 b = i64(-1.0);
+    i64 c = i64(3.9);
+    // a should be -3, b should be -1, c should be 3
+    i64 pass = 0;
+    if a == -3 { pass = pass + 1; }
+    if b == -1 { pass = pass + 1; }
+    if c == 3 { pass = pass + 1; }
+    return pass - 3;
+}

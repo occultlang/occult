@@ -1,0 +1,49 @@
+include "../lib/printf.occ"
+
+// Test 1: Multi-param generic struct
+generic<T, U>
+struct KeyValue {
+    T key;
+    U value;
+}
+
+// Test 2: Multi-param generic function returning a multi-param generic struct
+generic<T, U>
+fn make_kv(T k, U v) KeyValue<T, U> {
+    KeyValue<T, U> kv;
+    kv.key = k;
+    kv.value = v;
+    return kv;
+}
+
+// Test 3: Multi-param generic function accepting a multi-param generic struct pointer
+generic<T, U>
+fn kv_sum(KeyValue<T, U>* kv) i64 {
+    return kv.key + kv.value;
+}
+
+// Test 4: Nested multi-param generic calls
+generic<T, U>
+fn make_and_sum(T a, U b) i64 {
+    KeyValue<T, U>* kv = alloc(16);
+    kv.key = a;
+    kv.value = b;
+    i64 result = kv_sum<T, U>(kv);
+    del(kv);
+    return result;
+}
+
+fn main() {
+    // Same types
+    KeyValue<i64, i64> kv1 = make_kv<i64, i64>(42, 100);
+    printf("kv1: key=%i value=%i\n", kv1.key, kv1.value);
+
+    // Different types
+    KeyValue<i32, i64> kv2;
+    kv2.key = 7;
+    kv2.value = 999;
+    printf("kv2: key=%i value=%i\n", kv2.key, kv2.value);
+
+    // Nested generic calls with multiple type params
+    printf("sum=%i\n", make_and_sum<i64, i64>(10, 20));
+}

@@ -1,0 +1,33 @@
+include "../lib/stdio.occ"
+
+struct Point {
+    i64 x;
+    i64 y;
+}
+
+fn get_x(Point@ p) i64 {
+    return $p.x;
+}
+
+fn get_y(Point@ p) i64 {
+    return $p.y;
+}
+
+fn main() {
+    Point p;
+    p.x = 42;
+    p.y = 99;
+    
+    i64 x = get_x(p);
+    i64 y = get_y(p);
+    
+    print_string("x = ");
+    print_integer(x);
+    print_string(" (expected 42)\n");
+    
+    print_string("y = ");
+    print_integer(y);
+    print_string(" (expected 99)\n");
+    
+    return 0;
+}

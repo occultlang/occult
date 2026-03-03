@@ -1,0 +1,23 @@
+include "../lib/stdio.occ"
+
+generic<T>
+struct gnode {
+    T val;
+    gnode* next;
+}
+
+generic<T>
+fn alloc_gnode(T val) gnode<T>* {
+    gnode<T>* n = alloc(16);
+    n.val = val;
+    n.next = 0;
+    return n;
+}
+
+fn main() i64 {
+    gnode<i64>* head = alloc_gnode<i64>(10);
+    print_integer(head.val);
+    print_string("\n");
+    del(head);
+    return 0;
+}

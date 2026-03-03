@@ -1,0 +1,23 @@
+include "../lib/stdio.occ"
+
+fn main() {
+    i64 n = 5;
+    i64 r1 = n * -1;
+    i64 r2 = n * (-1);
+    i64 neg1 = -1;
+    i64 r3 = n * neg1;
+    
+    print_string("n * -1 = ");
+    print_integer(r1);
+    print_string(" (expected -5)\n");
+    
+    print_string("n * (-1) = ");
+    print_integer(r2);
+    print_string(" (expected -5)\n");
+    
+    print_string("n * neg1 = ");
+    print_integer(r3);
+    print_string(" (expected -5)\n");
+    
+    return 0;
+}

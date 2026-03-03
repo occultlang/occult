@@ -1,0 +1,18 @@
+// Test float <, >, <=, >= work correctly (BUG H5/H6 fix)
+// Expected: return 0 (all 7 comparisons pass)
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    f32 a = 1.0;
+    f32 b = 2.0;
+    i64 pass = 0;
+    if a < b { pass = pass + 1; }
+    if b > a { pass = pass + 1; }
+    if a <= b { pass = pass + 1; }
+    if b >= a { pass = pass + 1; }
+    if a <= a { pass = pass + 1; }
+    if a >= a { pass = pass + 1; }
+    if a == a { pass = pass + 1; }
+    // should be 7
+    return pass - 7;
+}

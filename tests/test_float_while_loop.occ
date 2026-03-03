@@ -1,0 +1,15 @@
+// Test while loops with float conditions (float store fix + BUG H6)
+// Expected: return 0 (count should be 5)
+include "../lib/stdio.occ"
+
+fn main() i64 {
+    f32 x = 0.0;
+    f32 limit = 5.0;
+    i64 count = 0;
+    while x < limit {
+        count = count + 1;
+        x = x + 1.0;
+    }
+    // count should be 5
+    return count - 5;
+}

@@ -1,0 +1,21 @@
+include "../lib/printf.occ"
+
+generic<T>
+struct Pair {
+    T first;
+    T second;
+}
+
+generic<T>
+fn make_pair(T a, T b) Pair<T> {
+    Pair<T> p;
+    p.first = a;
+    p.second = b;
+    return p;
+}
+
+fn main() {
+    Pair<i64> p = make_pair<i64>(10, 20);
+    printf("%i\n", p.first);
+    printf("%i\n", p.second);
+}

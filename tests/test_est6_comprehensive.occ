@@ -1,0 +1,51 @@
+include "../lib/stdio.occ"
+
+fn main() {
+    i64 n = 10;
+    
+    // Test multiply with negative
+    i64 r1 = n * -2;
+    print_string("10 * -2 = ");
+    print_integer(r1);
+    print_string(" (expected -20)\n");
+    
+    // Test divide with negative
+    i64 r2 = n / -2;
+    print_string("10 / -2 = ");
+    print_integer(r2);
+    print_string(" (expected -5)\n");
+    
+    // Test modulo with negative
+    i64 r3 = 7 % -3;
+    print_string("7 % -3 = ");
+    print_integer(r3);
+    print_string(" (expected 1)\n");
+    
+    // Test add with negative (already works but let's confirm)
+    i64 r4 = n + -3;
+    print_string("10 + -3 = ");
+    print_integer(r4);
+    print_string(" (expected 7)\n");
+    
+    // Test subtract with negative (double negation)
+    i64 r5 = n - -3;
+    print_string("10 - -3 = ");
+    print_integer(r5);
+    print_string(" (expected 13)\n");
+    
+    // Test chained: a * -b * -c
+    i64 a = 3;
+    i64 r6 = a * -2 * -4;
+    print_string("3 * -2 * -4 = ");
+    print_integer(r6);
+    print_string(" (expected 24)\n");
+    
+    // Test with float
+    f32 f = 5.0;
+    f32 fr = f * -2.0;
+    print_string("5.0 * -2.0 = ");
+    print_float(fr, 1);
+    print_string(" (expected -10.0)\n");
+    
+    return 0;
+}

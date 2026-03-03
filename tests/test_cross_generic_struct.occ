@@ -1,0 +1,87 @@
+include "../lib/printf.occ"
+
+// Test cross-generic struct references in fields (forward and backward)
+
+// tree_node references child_entry<T>* before child_entry is defined (forward reference)
+generic<T>
+struct tree_node {
+    T val;
+    child_entry<T>* first_child;
+    i64 num_children;
+}
+
+// child_entry references tree_node<T>* (backward reference)
+generic<T>
+struct child_entry {
+    tree_node<T>* child_node;
+    child_entry* next;
+}
+
+generic<T>
+fn alloc_tree_node(T val) tree_node<T>* {
+    tree_node<T>* n = alloc(24);
+    n.val = val;
+    n.first_child = 0;
+    n.num_children = 0;
+    return n;
+}
+
+generic<T>
+fn add_child(tree_node<T>* parent, tree_node<T>* child) i64 {
+    child_entry<T>* entry = alloc(16);
+    entry.child_node = child;
+    entry.next = parent.first_child;
+    parent.first_child = entry;
+    parent.num_children = parent.num_children + 1;
+    return 0;
+}
+
+generic<T>
+fn print_tree(tree_node<T>* node, i64 depth) i64 {
+    i64 d = 0;
+    while (d < depth) {
+        printf("  ");
+        d = d + 1;
+    }
+    print_integer(node.val);
+    printf("\n");
+
+    child_entry<T>* entry = node.first_child;
+    while (entry != 0) {
+        tree_node<T>* child = entry.child_node;
+        print_tree<T>(child, depth + 1);
+        entry = entry.next;
+    }
+    return 0;
+}
+
+generic<T>
+fn free_tree(tree_node<T>* node) i64 {
+    child_entry<T>* entry = node.first_child;
+    while (entry != 0) {
+        child_entry<T>* next = entry.next;
+        tree_node<T>* child = entry.child_node;
+        free_tree<T>(child);
+        del(entry);
+        entry = next;
+    }
+    del(node);
+    return 0;
+}
+
+fn main() i64 {
+    tree_node<i64>* root = alloc_tree_node<i64>(1);
+    tree_node<i64>* n2 = alloc_tree_node<i64>(2);
+    tree_node<i64>* n3 = alloc_tree_node<i64>(3);
+
+    add_child<i64>(root, n2);
+    add_child<i64>(root, n3);
+
+    printf("Tree:\n");
+    print_tree<i64>(root, 0);
+
+    printf("Children: %d\n", root.num_children);
+
+    free_tree<i64>(root);
+    return 0;
+}

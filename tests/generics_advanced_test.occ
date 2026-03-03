@@ -1,0 +1,40 @@
+include "../lib/printf.occ"
+
+generic<T>
+fn multiply(T a, T b) T {
+    return a * b;
+}
+
+generic<T>
+fn identity(T val) T {
+    return val;
+}
+
+generic<TypeA>
+struct Pair {
+    TypeA first;
+    TypeA second;
+}
+
+generic<T>
+struct Wrapper {
+    T* ptr;
+    T value;
+}
+
+fn main() {
+    printf("%i\n", multiply<i64>(6, 7));
+
+    printf("%i\n", identity<i32>(99));
+
+    Pair<i64> p;
+    p.first = 10;
+    p.second = 20;
+    printf("%i\n", p.first + p.second);
+
+    Wrapper<i64> w;
+    w.value = 42;
+    printf("%i\n", w.value);
+
+    printf("%i\n", multiply<i32>(3, 4));
+}
