@@ -74,7 +74,6 @@ Afterwards, you should be good to go
 _____________________________________________________________________________
 
 ### Roadmap
-- Generics 
 - Foreach implementation 
 - RAII 
 - New Intermediate Representation (SSA) for optimization pass
