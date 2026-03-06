@@ -1,0 +1,68 @@
+include "../lib/printf.occ"
+
+fn main() i64 {
+    // Edge case 1: empty switch
+    i64 x = 5;
+    switch (x) {
+    }
+
+    // Edge case 2: single case, no default
+    switch (x) {
+        case 5: {
+            printf("five\n");
+        }
+    }
+
+    // Edge case 3: only default
+    switch (x) {
+        default: {
+            printf("default only\n");
+        }
+    }
+
+    // Edge case 4: many cases
+    i64 y = 7;
+    switch (y) {
+        case 0: {
+            printf("0\n");
+        }
+        case 1: {
+            printf("1\n");
+        }
+        case 2: {
+            printf("2\n");
+        }
+        case 3: {
+            printf("3\n");
+        }
+        case 4: {
+            printf("4\n");
+        }
+        case 5: {
+            printf("5\n");
+        }
+        case 6: {
+            printf("6\n");
+        }
+        case 7: {
+            printf("7\n");
+        }
+        default: {
+            printf("other\n");
+        }
+    }
+
+    // Edge case 5: negative case values
+    i64 z = 0 - 1;
+    switch (z) {
+        case 0: {
+            printf("zero\n");
+        }
+        default: {
+            printf("negative\n");
+        }
+    }
+
+    printf("done\n");
+    return 0;
+}

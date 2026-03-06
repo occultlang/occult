@@ -1,0 +1,10 @@
+generic<T>
+struct GenPair {
+    T first;
+    T second;
+}
+
+generic<T>
+fn gen_add(T a, T b) T {
+    return a + b;
+}

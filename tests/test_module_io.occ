@@ -1,0 +1,8 @@
+import io;
+
+fn main() i64 {
+    io::printf("Hello from io module!\n");
+    io::printf("number: %d\n", 42);
+    io::printf("io module done\n");
+    return 0;
+}

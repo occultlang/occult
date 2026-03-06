@@ -1,0 +1,17 @@
+include "../lib/printf.occ"
+
+i64 global_x = 10;
+i64 global_y = 20;
+
+fn main() i64 {
+    printf("global_x = ");
+    printf("%d\n", global_x);
+    printf("global_y = ");
+    printf("%d\n", global_y);
+
+    i64 sum = global_x + global_y;
+    printf("sum = ");
+    printf("%d\n", sum);
+
+    return 0;
+}

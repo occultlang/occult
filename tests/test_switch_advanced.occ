@@ -1,0 +1,56 @@
+include "../lib/printf.occ"
+
+fn main() i64 {
+    // Test case 1: match first case
+    i64 a = 1;
+    switch (a) {
+        case 1: {
+            printf("matched 1\n");
+        }
+        case 2: {
+            printf("matched 2\n");
+        }
+        default: {
+            printf("no match\n");
+        }
+    }
+
+    // Test case 2: match default
+    i64 b = 99;
+    switch (b) {
+        case 1: {
+            printf("matched 1\n");
+        }
+        case 2: {
+            printf("matched 2\n");
+        }
+        default: {
+            printf("default hit\n");
+        }
+    }
+
+    // Test case 3: switch on expression
+    i64 c = 3;
+    switch (c + 1) {
+        case 4: {
+            printf("3+1=4 works\n");
+        }
+        default: {
+            printf("expr failed\n");
+        }
+    }
+
+    // Test case 4: no default, no match
+    i64 d = 10;
+    switch (d) {
+        case 1: {
+            printf("should not print\n");
+        }
+        case 2: {
+            printf("should not print\n");
+        }
+    }
+
+    printf("done\n");
+    return 0;
+}

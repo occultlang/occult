@@ -1,0 +1,49 @@
+include "../lib/printf.occ"
+
+fn main() i64 {
+    // Test 1: fallthrough from case 1 to case 2 block
+    i64 x = 1;
+    switch (x) {
+        case 1:
+        case 2: {
+            printf("1 or 2\n");
+        }
+        case 3: {
+            printf("3\n");
+        }
+        default: {
+            printf("other\n");
+        }
+    }
+
+    // Test 2: fallthrough from case 3 to case 4 to case 5
+    i64 y = 3;
+    switch (y) {
+        case 1: {
+            printf("one\n");
+        }
+        case 3:
+        case 4:
+        case 5: {
+            printf("3, 4, or 5\n");
+        }
+        default: {
+            printf("default\n");
+        }
+    }
+
+    // Test 3: no match, still goes to default
+    i64 z = 99;
+    switch (z) {
+        case 1:
+        case 2: {
+            printf("1 or 2\n");
+        }
+        default: {
+            printf("no match default\n");
+        }
+    }
+
+    printf("done\n");
+    return 0;
+}

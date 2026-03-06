@@ -1,0 +1,28 @@
+include "../lib/printf.occ"
+
+enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+fn main() i64 {
+    i64 c = Color::Green;
+
+    switch (c) {
+        case 0: {
+            printf("Red\n");
+        }
+        case 1: {
+            printf("Green\n");
+        }
+        case 2: {
+            printf("Blue\n");
+        }
+        default: {
+            printf("Unknown\n");
+        }
+    }
+
+    return 0;
+}

@@ -1,0 +1,44 @@
+include "../lib/printf.occ"
+
+enum Status {
+  NaN,
+  Alive,
+  Dead
+}
+
+fn print_status(i64 s) {
+  switch (s) {
+    case Status::Alive: {
+      printf("Alive\n");
+    }
+    case Status::Dead: {
+      printf("Dead\n");
+    }
+    case Status::NaN:
+    default: {
+      printf("NaN\n");
+    }
+  }
+}
+
+fn main() i64 {
+  // Test: case fallthrough to default
+  i64 s1 = Status::NaN;
+  printf("Testing NaN:\n");
+  print_status(s1);
+
+  i64 s2 = Status::Alive;
+  printf("Testing Alive:\n");
+  print_status(s2);
+
+  i64 s3 = Status::Dead;
+  printf("Testing Dead:\n");
+  print_status(s3);
+
+  // Test: unmatched value should also hit default via natural fallthrough
+  printf("Testing unmatched:\n");
+  print_status(99);
+
+  printf("done\n");
+  return 0;
+}

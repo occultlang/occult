@@ -1,0 +1,25 @@
+import vec from lib;
+import io from lib;
+
+fn main() i64 {
+    vec::Vec<i64>* v = vec::new<i64>();
+
+    for i64 i = 0 when i < 100 do i += 10 {
+        vec::push<i64>(v, i);
+    }
+
+    io::printf("Vec elements: ");
+    i64 i = 0;
+    while i < v.length {
+        io::printf("%i ", vec::get<i64>(v, i));
+        i += 1;
+    }
+    io::printf("\n");
+
+    io::printf("Length: %i\n", v.length);
+    io::printf("Capacity: %i\n", v.capacity);
+
+    vec::free<i64>(v);
+
+    return 0;
+}

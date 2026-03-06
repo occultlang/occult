@@ -1,0 +1,69 @@
+include "../lib/printf.occ"
+
+i64 counter = 0;
+i64 max_val = 100;
+i64 step = 10;
+
+fn get_counter() i64 {
+    return counter;
+}
+
+fn get_max() i64 {
+    return max_val;
+}
+
+fn get_step() i64 {
+    return step;
+}
+
+fn use_globals_in_expr() i64 {
+    i64 result = counter + max_val + step;
+    printf("sum of globals: %d\n", result);
+    return result;
+}
+
+fn use_globals_in_if() i64 {
+    if (counter == 0) {
+        printf("counter is zero\n");
+    }
+    if (max_val > 50) {
+        printf("max_val > 50\n");
+    }
+    return 0;
+}
+
+fn use_globals_in_switch() i64 {
+    switch (step) {
+        case 10: {
+            printf("step is 10\n");
+        }
+        case 20: {
+            printf("step is 20\n");
+        }
+        default: {
+            printf("step is other\n");
+        }
+    }
+    return 0;
+}
+
+fn main() i64 {
+    // Test: access globals from helper functions
+    printf("counter=%d\n", get_counter());
+    printf("max=%d\n", get_max());
+    printf("step=%d\n", get_step());
+
+    use_globals_in_expr();
+    use_globals_in_if();
+    use_globals_in_switch();
+
+    // Test: globals in loop
+    i64 i = 0;
+    while (i < step) {
+        i = i + 1;
+    }
+    printf("looped %d times\n", i);
+
+    printf("global fuzz done\n");
+    return 0;
+}

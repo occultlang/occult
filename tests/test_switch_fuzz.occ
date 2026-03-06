@@ -1,0 +1,115 @@
+include "../lib/printf.occ"
+
+fn main() i64 {
+    // Test 1: switch with a single value, no default
+    i64 a = 5;
+    switch (a) {
+        case 5: {
+            printf("single case match\n");
+        }
+    }
+
+    // Test 2: switch with fallthrough at the beginning
+    i64 b = 1;
+    switch (b) {
+        case 1:
+        case 2:
+        case 3: {
+            printf("1, 2, or 3\n");
+        }
+        default: {
+            printf("not 1-3\n");
+        }
+    }
+
+    // Test 3: switch with large case values
+    i64 c = 1000;
+    switch (c) {
+        case 999: {
+            printf("999\n");
+        }
+        case 1000: {
+            printf("1000\n");
+        }
+        case 1001: {
+            printf("1001\n");
+        }
+        default: {
+            printf("other\n");
+        }
+    }
+
+    // Test 4: switch on 0
+    i64 d = 0;
+    switch (d) {
+        case 0: {
+            printf("zero\n");
+        }
+        case 1: {
+            printf("one\n");
+        }
+        default: {
+            printf("default\n");
+        }
+    }
+
+    // Test 5: nested switch
+    i64 e = 2;
+    i64 f = 3;
+    switch (e) {
+        case 2: {
+            switch (f) {
+                case 3: {
+                    printf("e=2,f=3\n");
+                }
+                default: {
+                    printf("e=2,f=other\n");
+                }
+            }
+        }
+        default: {
+            printf("e=other\n");
+        }
+    }
+
+    // Test 6: switch with expression
+    i64 g = 10;
+    switch (g + 5) {
+        case 15: {
+            printf("10+5=15\n");
+        }
+        default: {
+            printf("wrong\n");
+        }
+    }
+
+    // Test 7: switch with variable in case expression (comparison)
+    i64 h = 7;
+    i64 target = 7;
+    switch (h) {
+        case 7: {
+            printf("matched 7\n");
+        }
+        default: {
+            printf("no match\n");
+        }
+    }
+
+    // Test 8: multiple fallthrough then block
+    i64 i = 2;
+    switch (i) {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5: {
+            printf("1 through 5\n");
+        }
+        default: {
+            printf("outside 1-5\n");
+        }
+    }
+
+    printf("switch fuzz done\n");
+    return 0;
+}

@@ -1,0 +1,22 @@
+include "../lib/printf.occ"
+
+fn main() i64 {
+    i64 x = 2;
+
+    switch (x) {
+        case 1: {
+            printf("one\n");
+        }
+        case 2: {
+            printf("two\n");
+        }
+        case 3: {
+            printf("three\n");
+        }
+        default: {
+            printf("other\n");
+        }
+    }
+
+    return 0;
+}

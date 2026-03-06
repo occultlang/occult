@@ -1,0 +1,32 @@
+include "../lib/printf.occ"
+
+module std {
+    module math {
+        fn add(i64 a, i64 b) i64 {
+            return a + b;
+        }
+
+        fn sub(i64 a, i64 b) i64 {
+            return a - b;
+        }
+    }
+
+    module io {
+        fn greet() i64 {
+            printf("Hello from std::io!\n");
+            return 0;
+        }
+    }
+}
+
+fn main() i64 {
+    i64 sum = std::math::add(10, 20);
+    printf("10 + 20 = %d\n", sum);
+
+    i64 diff = std::math::sub(30, 15);
+    printf("30 - 15 = %d\n", diff);
+
+    std::io::greet();
+
+    return 0;
+}
