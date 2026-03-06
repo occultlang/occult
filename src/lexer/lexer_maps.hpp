@@ -35,13 +35,14 @@ namespace occult {
     inline std::unordered_map<char, token_type> delimiter_map = {{')', right_paren_tt},        {'(', left_paren_tt}, {']', right_bracket_tt}, {'[', left_bracket_tt}, {'}', right_curly_bracket_tt},
                                                                  {'{', left_curly_bracket_tt}, {';', semicolon_tt},  {',', comma_tt},         {'.', period_tt}};
 
-    inline std::unordered_map<std::string, token_type> keyword_map = {{"fn", function_keyword_tt},   {"if", if_keyword_tt},           {"else", else_keyword_tt},           {"elseif", elseif_keyword_tt}, {"loop", loop_keyword_tt},
-                                                                      {"when", when_keyword_tt},     {"do", do_keyword_tt},           {"return", return_keyword_tt},       {"break", break_keyword_tt},   {"continue", continue_keyword_tt},
-                                                                      {"while", while_keyword_tt},   {"for", for_keyword_tt},         {"include", include_keyword_tt},     {"i64", int64_keyword_tt},     {"i32", int32_keyword_tt},
-                                                                      {"i16", int16_keyword_tt},     {"i8", int8_keyword_tt},         {"u64", uint64_keyword_tt},          {"u32", uint32_keyword_tt},    {"u16", uint16_keyword_tt},
-                                                                      {"u8", uint8_keyword_tt},      {"f32", float32_keyword_tt},     {"f64", float64_keyword_tt},         {"bool", boolean_keyword_tt},  {"char", char_keyword_tt},
-                                                                      {"string", string_keyword_tt}, {"array", array_keyword_tt},     {"false", false_keyword_tt},         {"true", true_keyword_tt},     {"in", in_keyword_tt},
-                                                                      {"struct", struct_keyword_tt}, {"generic", generic_keyword_tt}, {"enum", enum_keyword_tt}, {"switch", switch_keyword_tt}, {"case", case_keyword_tt}, {"default", default_keyword_tt}, {"const", const_keyword_tt}, {"module", module_keyword_tt}, {"import", import_keyword_tt}, {"shellcode", shellcode_denoter_tt}, {"is_linux64", is_linux64},    {"is_win64", is_win64}};
+    inline std::unordered_map<std::string, token_type> keyword_map = {
+        {"fn", function_keyword_tt},     {"if", if_keyword_tt},           {"else", else_keyword_tt},     {"elseif", elseif_keyword_tt},       {"loop", loop_keyword_tt},   {"when", when_keyword_tt},
+        {"do", do_keyword_tt},           {"return", return_keyword_tt},   {"break", break_keyword_tt},   {"continue", continue_keyword_tt},   {"while", while_keyword_tt}, {"for", for_keyword_tt},
+        {"include", include_keyword_tt}, {"i64", int64_keyword_tt},       {"i32", int32_keyword_tt},     {"i16", int16_keyword_tt},           {"i8", int8_keyword_tt},     {"u64", uint64_keyword_tt},
+        {"u32", uint32_keyword_tt},      {"u16", uint16_keyword_tt},      {"u8", uint8_keyword_tt},      {"f32", float32_keyword_tt},         {"f64", float64_keyword_tt}, {"bool", boolean_keyword_tt},
+        {"char", char_keyword_tt},       {"string", string_keyword_tt},   {"array", array_keyword_tt},   {"false", false_keyword_tt},         {"true", true_keyword_tt},   {"in", in_keyword_tt},
+        {"struct", struct_keyword_tt},   {"generic", generic_keyword_tt}, {"enum", enum_keyword_tt},     {"switch", switch_keyword_tt},       {"case", case_keyword_tt},   {"default", default_keyword_tt},
+        {"const", const_keyword_tt},     {"module", module_keyword_tt},   {"import", import_keyword_tt}, {"shellcode", shellcode_denoter_tt}, {"is_linux64", is_linux64},  {"is_win64", is_win64}};
 
     inline std::unordered_map<token_type, std::string> token_typename_map = {{whitespace_tt, "whitespace"},
                                                                              {comment_tt, "comment"},

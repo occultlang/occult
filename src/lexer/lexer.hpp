@@ -110,13 +110,13 @@ namespace occult {
         false_keyword_tt,    // false
         struct_keyword_tt,   // struct
         generic_keyword_tt,
-        enum_keyword_tt,     // enum
-        switch_keyword_tt,   // switch
-        case_keyword_tt,     // case
-        default_keyword_tt,  // default
-        const_keyword_tt,    // const
-        module_keyword_tt,   // module
-        import_keyword_tt,   // import
+        enum_keyword_tt,    // enum
+        switch_keyword_tt,  // switch
+        case_keyword_tt,    // case
+        default_keyword_tt, // default
+        const_keyword_tt,   // const
+        module_keyword_tt,  // module
+        import_keyword_tt,  // import
 
         scope_resolution_tt, // ::
         colon_tt,            // :

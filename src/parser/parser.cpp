@@ -363,20 +363,19 @@ namespace occult {
 
                 // check if this is $var.member (dereference + member access)
                 // if so, handle as a single member access node with deref flag
-                if (i + 1 < expr.size() && expr.at(i + 1).tt == identifier_tt &&
-                    i + 2 < expr.size() && expr.at(i + 2).tt == period_tt) {
+                if (i + 1 < expr.size() && expr.at(i + 1).tt == identifier_tt && i + 2 < expr.size() && expr.at(i + 2).tt == period_tt) {
                     i++; // advance to identifier
                     auto member_access_node = cst::new_node<cst_memberaccess>();
                     member_access_node->num_pointers = count; // signal dereference
-                    
+
                     // add base identifier with deref info
                     auto base_id = cst::new_node<cst_identifier>();
                     base_id->content = expr.at(i).lexeme;
                     base_id->num_pointers = count;
                     member_access_node->add_child(std::move(base_id));
-                    
+
                     i++; // advance past identifier
-                    
+
                     // parse member chain
                     while (i < expr.size() && expr.at(i).tt == period_tt) {
                         i++; // consume period
@@ -386,9 +385,9 @@ namespace occult {
                         member_access_node->add_child(cst_map[identifier_tt](expr.at(i).lexeme));
                         i++;
                     }
-                    
+
                     i--; // backtrack for outer loop increment
-                    
+
                     expr_cst.push_back(std::move(member_access_node));
                     continue;
                 }
@@ -556,8 +555,7 @@ namespace occult {
             std::string qualified_name = module_name + "::" + peek(2).lexeme;
             std::string type_name = peek(2).lexeme;
 
-            if (pos + 3 < stream.size() && match(peek(3), less_than_operator_tt) &&
-                (generic_struct_templates.contains(qualified_name) || generic_struct_templates.contains(type_name))) {
+            if (pos + 3 < stream.size() && match(peek(3), less_than_operator_tt) && (generic_struct_templates.contains(qualified_name) || generic_struct_templates.contains(type_name))) {
                 std::string template_name = generic_struct_templates.contains(qualified_name) ? qualified_name : type_name;
                 consume(); // consume module name
                 consume(); // consume '::'
@@ -630,8 +628,7 @@ namespace occult {
             }
         }
 
-        if (match(peek(), identifier_tt) && generic_struct_templates.contains(peek().lexeme) &&
-            pos + 1 < stream.size() && match(peek(1), less_than_operator_tt)) {
+        if (match(peek(), identifier_tt) && generic_struct_templates.contains(peek().lexeme) && pos + 1 < stream.size() && match(peek(1), less_than_operator_tt)) {
             std::string template_name = peek().lexeme;
             consume(); // consume template name
             consume(); // consume '<'
@@ -714,7 +711,7 @@ namespace occult {
             return node;
         }
 
-        
+
         if (match(peek(), identifier_tt) && cst_generic_type_cache.contains(peek().lexeme)) {
             auto node = cst::new_node<cst_generic_type>(peek().lexeme);
             consume();
@@ -782,7 +779,7 @@ namespace occult {
                     }
 
                     func_args_node->add_child(cst::new_node<cst_variadic>());
-                    
+
                     break;
                 }
 
@@ -1472,10 +1469,12 @@ namespace occult {
         std::vector<token_t> expr_tokens;
         int paren_depth = 1;
         while (pos < stream.size() && paren_depth > 0) {
-            if (match(peek(), left_paren_tt)) paren_depth++;
+            if (match(peek(), left_paren_tt))
+                paren_depth++;
             else if (match(peek(), right_paren_tt)) {
                 paren_depth--;
-                if (paren_depth == 0) break;
+                if (paren_depth == 0)
+                    break;
             }
             expr_tokens.push_back(peek());
             consume();
@@ -1562,7 +1561,8 @@ namespace occult {
     }
 
     static void prefix_module_references(cst* node, const std::string& prefix, const std::unordered_set<std::string>& module_names) {
-        if (!node) return;
+        if (!node)
+            return;
 
         if (node->get_type() == cst_type::functioncall && node->content == "start_call") {
             if (!node->get_children().empty()) {
@@ -1674,7 +1674,8 @@ namespace occult {
                     auto sep = full_name.rfind("::");
                     if (sep != std::string::npos) {
                         module_func_names.insert(full_name.substr(sep + 2));
-                    } else {
+                    }
+                    else {
                         module_func_names.insert(full_name);
                     }
                 }
@@ -1769,7 +1770,8 @@ namespace occult {
 
         if (!source_file_path.empty()) {
             auto source_dir = std::filesystem::path(source_file_path).parent_path();
-            if (source_dir.empty()) source_dir = ".";
+            if (source_dir.empty())
+                source_dir = ".";
 
             if (!from_source.empty()) {
                 loaded_cst = try_load_module_file(source_dir / from_source);
@@ -1977,7 +1979,7 @@ namespace occult {
         }
 
         if (match(peek(), generic_keyword_tt)) {
-            cst_generic_type_cache.clear(); 
+            cst_generic_type_cache.clear();
 
             /*
                 Just have to clear these above ^^^
@@ -1996,7 +1998,7 @@ namespace occult {
                 std::vector<std::string> type_params;
 
                 while (!match(peek(), greater_than_operator_tt)) {
-                    auto generic_typename = parse_identifier()->content; // typename 
+                    auto generic_typename = parse_identifier()->content; // typename
                     cst_generic_type_cache[generic_typename] = cst::new_node<cst_generic_type>(generic_typename);
                     type_params.push_back(generic_typename);
 
@@ -2023,11 +2025,7 @@ namespace occult {
 
                     auto struct_name = struct_node->get_children().front()->content;
 
-                    generic_struct_templates[struct_name] = {
-                        type_params,
-                        std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end),
-                        struct_name
-                    };
+                    generic_struct_templates[struct_name] = {type_params, std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end), struct_name};
 
                     custom_type_map.erase(struct_name);
                     cst_generic_type_cache.clear();
@@ -2040,11 +2038,7 @@ namespace occult {
 
                     auto func_name = func_node->get_children().front()->content;
 
-                    generic_func_templates[func_name] = {
-                        type_params,
-                        std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end),
-                        func_name
-                    };
+                    generic_func_templates[func_name] = {type_params, std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end), func_name};
 
                     cst_generic_type_cache.clear();
 
@@ -2156,8 +2150,7 @@ namespace occult {
             std::string qualified = mod_name + "::" + peek(2).lexeme;
             std::string bare_name = peek(2).lexeme;
 
-            if (pos + 3 < stream.size() && peek(3).tt == less_than_operator_tt &&
-                (generic_struct_templates.contains(qualified) || generic_struct_templates.contains(bare_name))) {
+            if (pos + 3 < stream.size() && peek(3).tt == less_than_operator_tt && (generic_struct_templates.contains(qualified) || generic_struct_templates.contains(bare_name))) {
                 std::string template_name = generic_struct_templates.contains(qualified) ? qualified : bare_name;
                 consume(); // consume module name
                 consume(); // consume '::'
@@ -2909,8 +2902,7 @@ namespace occult {
     */
 
     bool parser::try_parse_forward_generic_struct_type(std::unique_ptr<cst>& out_node) {
-        if (!match(peek(), identifier_tt) || cst_generic_type_cache.empty() ||
-            pos + 1 >= stream.size() || !match(peek(1), less_than_operator_tt)) {
+        if (!match(peek(), identifier_tt) || cst_generic_type_cache.empty() || pos + 1 >= stream.size() || !match(peek(1), less_than_operator_tt)) {
             return false;
         }
 
@@ -2941,8 +2933,7 @@ namespace occult {
             return false;
         }
         auto next_tt = stream[scan + 1].tt;
-        if (next_tt != multiply_operator_tt && next_tt != identifier_tt &&
-            next_tt != right_paren_tt && next_tt != semicolon_tt) {
+        if (next_tt != multiply_operator_tt && next_tt != identifier_tt && next_tt != right_paren_tt && next_tt != semicolon_tt) {
             return false;
         }
 
@@ -3021,7 +3012,8 @@ namespace occult {
     }
 
     void parser::instantiate_generic_struct(const std::string& template_name, const std::vector<token_t>& concrete_type_args) {
-        if (custom_type_map.contains(template_name)) return;
+        if (custom_type_map.contains(template_name))
+            return;
 
         auto& tmpl = generic_struct_templates[template_name];
 
@@ -3064,7 +3056,8 @@ namespace occult {
             mangled_name += "_" + arg.lexeme;
         }
 
-        if (instantiated_generics.contains(mangled_name)) return;
+        if (instantiated_generics.contains(mangled_name))
+            return;
         instantiated_generics.insert(mangled_name);
 
         auto& tmpl = generic_func_templates[template_name];
@@ -3117,17 +3110,14 @@ namespace occult {
             std::string module_prefix_str;
             std::size_t func_idx = j;
 
-            if (expr[j].tt == identifier_tt &&
-                j + 2 < expr.size() && expr[j + 1].tt == scope_resolution_tt && expr[j + 2].tt == identifier_tt &&
-                j + 3 < expr.size() && expr[j + 3].tt == less_than_operator_tt) {
+            if (expr[j].tt == identifier_tt && j + 2 < expr.size() && expr[j + 1].tt == scope_resolution_tt && expr[j + 2].tt == identifier_tt && j + 3 < expr.size() && expr[j + 3].tt == less_than_operator_tt) {
                 module_prefix_str = expr[j].lexeme + "::";
                 func_idx = j + 2;
                 is_module_qualified = true;
             }
 
             std::size_t check_idx = is_module_qualified ? func_idx : j;
-            bool is_generic_pattern = (expr[check_idx].tt == identifier_tt &&
-                                       check_idx + 1 < expr.size() && expr[check_idx + 1].tt == less_than_operator_tt);
+            bool is_generic_pattern = (expr[check_idx].tt == identifier_tt && check_idx + 1 < expr.size() && expr[check_idx + 1].tt == less_than_operator_tt);
 
             if (is_generic_pattern) {
                 // scan ahead to find > followed by (
@@ -3149,7 +3139,7 @@ namespace occult {
                     std::string bare_name = func_name_tok.lexeme;
 
                     j = check_idx + 1; // now at '<'
-                    j++; // now at first type arg
+                    j++;               // now at first type arg
 
                     std::vector<token_t> type_args;
                     while (j < expr.size() && expr[j].tt != greater_than_operator_tt) {
@@ -3220,10 +3210,8 @@ namespace occult {
 
     std::unordered_map<std::string, cst*> parser::get_custom_type_map() const { return custom_type_map; }
 
-    void parser::import_generic_templates(const std::unordered_map<std::string, generic_template>& struct_templates,
-                                          const std::unordered_map<std::string, generic_template>& func_templates,
-                                          const std::unordered_set<std::string>& instantiated,
-                                          const std::unordered_map<std::string, cst*>& types,
+    void parser::import_generic_templates(const std::unordered_map<std::string, generic_template>& struct_templates, const std::unordered_map<std::string, generic_template>& func_templates,
+                                          const std::unordered_set<std::string>& instantiated, const std::unordered_map<std::string, cst*>& types,
                                           const std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>>& enums) {
         for (const auto& [k, v] : struct_templates) {
             if (!generic_struct_templates.contains(k)) {

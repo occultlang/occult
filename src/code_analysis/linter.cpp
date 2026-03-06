@@ -203,8 +203,11 @@ namespace occult {
                 {
                     // detect zero-valued float literals (0.0, 0., .0, 0e0, etc.)
                     bool fzero = false;
-                    try { fzero = std::stod(node->content) == 0.0; }
-                    catch (...) {}
+                    try {
+                        fzero = std::stod(node->content) == 0.0;
+                    }
+                    catch (...) {
+                    }
                     is_zero.push_back(fzero);
                 }
                 break;
@@ -337,8 +340,7 @@ namespace occult {
                         stk.pop_back();
                         is_zero.pop_back();
 
-                        if (rhs_zero && (node->get_type() == cst_type::division_operator ||
-                                         node->get_type() == cst_type::modulo_operator)) {
+                        if (rhs_zero && (node->get_type() == cst_type::division_operator || node->get_type() == cst_type::modulo_operator)) {
                             errors.emplace_back("Division by zero", lint_error::severity::warning);
                         }
 
@@ -478,8 +480,7 @@ namespace occult {
                             static constexpr const char* VARIADIC_PARAM_PREFIX = "__va";
                             bool is_synthetic = false;
                             for (const auto& id : arg->get_children()) {
-                                if (id->get_type() == cst_type::identifier && id->content.size() >= 4 &&
-                                    id->content.compare(0, 4, VARIADIC_PARAM_PREFIX) == 0) {
+                                if (id->get_type() == cst_type::identifier && id->content.size() >= 4 && id->content.compare(0, 4, VARIADIC_PARAM_PREFIX) == 0) {
                                     is_synthetic = true;
                                     break;
                                 }
@@ -558,15 +559,11 @@ namespace occult {
                                     // variadic: check minimum required args
                                     auto min_it = function_min_param_counts.find(first->content);
                                     if (min_it != function_min_param_counts.end() && actual_args < min_it->second) {
-                                        errors.emplace_back("Function '" + first->content + "' expects at least " +
-                                            std::to_string(min_it->second) + " arguments, but " +
-                                            std::to_string(actual_args) + " were provided");
+                                        errors.emplace_back("Function '" + first->content + "' expects at least " + std::to_string(min_it->second) + " arguments, but " + std::to_string(actual_args) + " were provided");
                                     }
                                 }
                                 else if (actual_args != expected) {
-                                    errors.emplace_back("Function '" + first->content + "' expects " +
-                                        std::to_string(expected) + " arguments, but " +
-                                        std::to_string(actual_args) + " were provided");
+                                    errors.emplace_back("Function '" + first->content + "' expects " + std::to_string(expected) + " arguments, but " + std::to_string(actual_args) + " were provided");
                                 }
                             }
                         }
@@ -608,8 +605,7 @@ namespace occult {
                 for (std::size_t i = 1; i < node->get_children().size(); ++i) {
                     const auto& child = node->get_children().at(i);
                     if (child->get_type() == cst_type::unary_minus_operator) {
-                        if (i + 1 < node->get_children().size() &&
-                            node->get_children().at(i + 1)->get_type() == cst_type::number_literal) {
+                        if (i + 1 < node->get_children().size() && node->get_children().at(i + 1)->get_type() == cst_type::number_literal) {
                             errors.emplace_back("Negative array index is not allowed", lint_error::severity::warning);
                         }
                     }
@@ -775,9 +771,8 @@ namespace occult {
                         bool has_comparison = false;
                         for (auto* n : cond) {
                             auto t = n->get_type();
-                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator ||
-                                t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
-                                t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
+                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
+                                t == cst_type::less_than_or_equal_operator) {
                                 has_comparison = true;
                                 break;
                             }
@@ -817,8 +812,7 @@ namespace occult {
                                     bool has_cmp = false;
                                     for (auto* n : econd) {
                                         auto t = n->get_type();
-                                        if (t == cst_type::equals_operator || t == cst_type::not_equals_operator ||
-                                            t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
+                                        if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
                                             t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
                                             has_cmp = true;
                                             break;
@@ -862,9 +856,8 @@ namespace occult {
                         bool has_comparison = false;
                         for (auto* n : cond) {
                             auto t = n->get_type();
-                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator ||
-                                t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
-                                t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
+                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
+                                t == cst_type::less_than_or_equal_operator) {
                                 has_comparison = true;
                                 break;
                             }
@@ -902,8 +895,7 @@ namespace occult {
                         auto& init_node = c->get_children().front();
                         if (is_type_node(init_node->get_type())) {
                             // check for float for-loop counter
-                            if (init_node->get_type() == cst_type::float32_datatype ||
-                                init_node->get_type() == cst_type::float64_datatype) {
+                            if (init_node->get_type() == cst_type::float32_datatype || init_node->get_type() == cst_type::float64_datatype) {
                                 errors.emplace_back("Float types are not allowed as for-loop counter variables", lint_error::severity::error);
                             }
 
@@ -938,9 +930,8 @@ namespace occult {
                                 bool has_comparison = false;
                                 for (const auto& gc : child->get_children()) {
                                     auto t = gc->get_type();
-                                    if (t == cst_type::equals_operator || t == cst_type::not_equals_operator ||
-                                        t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
-                                        t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
+                                    if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
+                                        t == cst_type::less_than_or_equal_operator) {
                                         has_comparison = true;
                                         break;
                                     }

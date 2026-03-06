@@ -30,7 +30,7 @@ namespace occult {
         std::vector<std::unordered_map<std::string, std::string>> scope_stack;
         std::unordered_set<std::string> known_functions;
         std::unordered_map<std::string, std::string> function_return_types;
-        std::unordered_map<std::string, int> function_param_counts; // -1 = variadic minimum count stored separately
+        std::unordered_map<std::string, int> function_param_counts;     // -1 = variadic minimum count stored separately
         std::unordered_map<std::string, int> function_min_param_counts; // minimum required args for variadic functions
         std::vector<lint_error> errors;
         std::unordered_set<std::string> known_enum_types;

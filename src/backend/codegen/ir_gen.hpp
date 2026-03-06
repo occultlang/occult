@@ -50,10 +50,10 @@ namespace occult {
         op_jle,
         op_jg,
         op_jge,
-        op_jb,   // unsigned less than (for float comparisons after COMISS/COMISD)
-        op_jbe,  // unsigned less than or equal
-        op_ja,   // unsigned greater than
-        op_jae,  // unsigned greater than or equal
+        op_jb,  // unsigned less than (for float comparisons after COMISS/COMISD)
+        op_jbe, // unsigned less than or equal
+        op_ja,  // unsigned greater than
+        op_jae, // unsigned greater than or equal
         op_setz,
         op_setnz,
         op_setl,

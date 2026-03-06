@@ -400,8 +400,8 @@ namespace occult {
                    || prev_type == bitwise_and_tt                    // &
                    || prev_type == bitwise_or_tt                     // |
                    || prev_type == xor_operator_tt                   // ^
-                   || prev_type == bitwise_lshift_tt                  // <<
-                   || prev_type == bitwise_rshift_tt;                  // >>
+                   || prev_type == bitwise_lshift_tt                 // <<
+                   || prev_type == bitwise_rshift_tt;                // >>
         };
 
         while (token.tt != end_of_file_tt) {

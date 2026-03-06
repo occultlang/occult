@@ -2175,8 +2175,7 @@ namespace occult {
     }
 
     void ir_gen::generate_struct_decl(ir_function& function, cst_struct* struct_node) {
-        if (custom_type_map.contains(struct_node->content) &&
-            custom_type_map[struct_node->content]->get_type() == cst_type::enumeration) {
+        if (custom_type_map.contains(struct_node->content) && custom_type_map[struct_node->content]->get_type() == cst_type::enumeration) {
             const auto id = struct_node->get_children().front().get();
             local_variable_map[function][id->content] = "int64";
 
@@ -2279,9 +2278,14 @@ namespace occult {
                             if (!mc->get_children().empty() && mc->get_children().front()->content == member_chain[ci]) {
                                 if (ci == member_chain.size() - 1) {
                                     switch (mc->get_type()) {
-                                    case cst_type::float32_datatype: member_type = "float32"; break;
-                                    case cst_type::float64_datatype: member_type = "float64"; break;
-                                    default: break;
+                                    case cst_type::float32_datatype:
+                                        member_type = "float32";
+                                        break;
+                                    case cst_type::float64_datatype:
+                                        member_type = "float64";
+                                        break;
+                                    default:
+                                        break;
                                     }
                                 }
                                 else if (mc->get_type() == cst_type::structure) {
@@ -2593,12 +2597,9 @@ namespace occult {
             std::unordered_map<std::string, std::string> global_var_types; // name -> type
             for (const auto& c : root->get_children()) {
                 const auto type = c->get_type();
-                if (type == cst_type::int8_datatype || type == cst_type::int16_datatype ||
-                    type == cst_type::int32_datatype || type == cst_type::int64_datatype ||
-                    type == cst_type::uint8_datatype || type == cst_type::uint16_datatype ||
-                    type == cst_type::uint32_datatype || type == cst_type::uint64_datatype ||
-                    type == cst_type::float32_datatype || type == cst_type::float64_datatype ||
-                    type == cst_type::string_datatype || type == cst_type::bool_datatype) {
+                if (type == cst_type::int8_datatype || type == cst_type::int16_datatype || type == cst_type::int32_datatype || type == cst_type::int64_datatype || type == cst_type::uint8_datatype || type == cst_type::uint16_datatype ||
+                    type == cst_type::uint32_datatype || type == cst_type::uint64_datatype || type == cst_type::float32_datatype || type == cst_type::float64_datatype || type == cst_type::string_datatype ||
+                    type == cst_type::bool_datatype) {
 
                     global_vars.push_back(c.get());
 
@@ -2741,8 +2742,7 @@ namespace occult {
                         }
                     default:
                         {
-                            if (c->get_children().size() == 1 && custom_type_map.contains(c->content) &&
-                                custom_type_map[c->content]->get_type() == cst_type::enumeration) {
+                            if (c->get_children().size() == 1 && custom_type_map.contains(c->content) && custom_type_map[c->content]->get_type() == cst_type::enumeration) {
                                 ir_s.members.emplace_back("int64", c->get_children().front()->content);
                                 break;
                             }

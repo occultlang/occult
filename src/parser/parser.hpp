@@ -33,8 +33,8 @@ namespace occult {
 
         std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>> enum_definitions;
 
-        std::vector<std::string> module_prefix_stack;                        // current nesting of module names
-        std::vector<std::string> imported_modules;                           // imported module paths (e.g. "std::math")
+        std::vector<std::string> module_prefix_stack; // current nesting of module names
+        std::vector<std::string> imported_modules;    // imported module paths (e.g. "std::math")
 
         std::string current_module_prefix() const;
 
@@ -141,11 +141,8 @@ namespace occult {
         state get_state() const { return parser_state; }
         std::size_t get_error_count() const { return error_count; }
 
-        void import_generic_templates(const std::unordered_map<std::string, generic_template>& struct_templates,
-                                      const std::unordered_map<std::string, generic_template>& func_templates,
-                                      const std::unordered_set<std::string>& instantiated,
-                                      const std::unordered_map<std::string, cst*>& types,
-                                      const std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>>& enums = {});
+        void import_generic_templates(const std::unordered_map<std::string, generic_template>& struct_templates, const std::unordered_map<std::string, generic_template>& func_templates, const std::unordered_set<std::string>& instantiated,
+                                      const std::unordered_map<std::string, cst*>& types, const std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>>& enums = {});
 
         const std::unordered_map<std::string, generic_template>& get_generic_struct_templates() const { return generic_struct_templates; }
         const std::unordered_map<std::string, generic_template>& get_generic_func_templates() const { return generic_func_templates; }
