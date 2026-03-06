@@ -361,22 +361,23 @@ namespace occult {
 
                 i--; // fix align
 
-                // Check if this is $var.member (dereference + member access)
-                // If so, handle as a single member access node with deref flag
-                if (i + 1 < expr.size() && expr.at(i + 1).tt == identifier_tt && i + 2 < expr.size() && expr.at(i + 2).tt == period_tt) {
+                // check if this is $var.member (dereference + member access)
+                // if so, handle as a single member access node with deref flag
+                if (i + 1 < expr.size() && expr.at(i + 1).tt == identifier_tt &&
+                    i + 2 < expr.size() && expr.at(i + 2).tt == period_tt) {
                     i++; // advance to identifier
                     auto member_access_node = cst::new_node<cst_memberaccess>();
                     member_access_node->num_pointers = count; // signal dereference
-
-                    // Add base identifier with deref info
+                    
+                    // add base identifier with deref info
                     auto base_id = cst::new_node<cst_identifier>();
                     base_id->content = expr.at(i).lexeme;
                     base_id->num_pointers = count;
                     member_access_node->add_child(std::move(base_id));
-
+                    
                     i++; // advance past identifier
-
-                    // Parse member chain
+                    
+                    // parse member chain
                     while (i < expr.size() && expr.at(i).tt == period_tt) {
                         i++; // consume period
                         if (i >= expr.size() || expr.at(i).tt != identifier_tt) {
@@ -385,9 +386,9 @@ namespace occult {
                         member_access_node->add_child(cst_map[identifier_tt](expr.at(i).lexeme));
                         i++;
                     }
-
+                    
                     i--; // backtrack for outer loop increment
-
+                    
                     expr_cst.push_back(std::move(member_access_node));
                     continue;
                 }
@@ -400,7 +401,62 @@ namespace occult {
             { expr_cst.push_back(cst_map[t.tt](t.lexeme));
             }*/
             else if (t.tt == identifier_tt) {
-                if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) {
+                if (i + 1 < expr.size() && expr.at(i + 1).tt == scope_resolution_tt) {
+                    std::string full_path = t.lexeme;
+                    i += 2; // skip first identifier and '::'
+
+                    while (i < expr.size() && expr.at(i).tt == identifier_tt) {
+                        full_path += "::" + expr.at(i).lexeme;
+                        if (i + 1 < expr.size() && expr.at(i + 1).tt == scope_resolution_tt) {
+                            i += 2; // skip identifier and '::'
+                        }
+                        else {
+                            break;
+                        }
+                    }
+
+                    auto try_expand_import = [&](const std::string& path) -> std::string {
+                        auto first_sep = path.find("::");
+                        std::string first_seg = (first_sep != std::string::npos) ? path.substr(0, first_sep) : path;
+                        for (const auto& imp : imported_modules) {
+                            auto imp_last_sep = imp.rfind("::");
+                            std::string imp_last = (imp_last_sep != std::string::npos) ? imp.substr(imp_last_sep + 2) : imp;
+                            if (imp_last == first_seg) {
+                                if (first_sep != std::string::npos) {
+                                    return imp + path.substr(first_sep);
+                                }
+                                else {
+                                    return imp;
+                                }
+                            }
+                        }
+                        return path;
+                    };
+
+                    std::string resolved_path = try_expand_import(full_path);
+
+                    auto last_sep = resolved_path.rfind("::");
+                    if (last_sep != std::string::npos) {
+                        std::string potential_enum = resolved_path.substr(0, last_sep);
+                        std::string potential_member = resolved_path.substr(last_sep + 2);
+                        auto enum_it = enum_definitions.find(potential_enum);
+                        if (enum_it != enum_definitions.end() && enum_it->second.contains(potential_member)) {
+                            auto value = enum_it->second.at(potential_member);
+                            expr_cst.push_back(cst::new_node<cst_numberliteral>(std::to_string(value)));
+                            continue;
+                        }
+                    }
+
+                    if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) {
+                        token_t qualified_tok = t;
+                        qualified_tok.lexeme = resolved_path;
+                        parse_function_call_expr(expr_cst, expr, qualified_tok, i);
+                    }
+                    else {
+                        expr_cst.push_back(cst::new_node<cst_identifier>(resolved_path));
+                    }
+                }
+                else if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) {
                     parse_function_call_expr(expr_cst, expr, t, i);
                 }
                 else if (i + 1 < expr.size() && expr.at(i + 1).tt == left_bracket_tt) {
@@ -495,7 +551,87 @@ namespace occult {
             return node;
         }
 
-        if (match(peek(), identifier_tt) && generic_struct_templates.contains(peek().lexeme) && pos + 1 < stream.size() && match(peek(1), less_than_operator_tt)) {
+        if (match(peek(), identifier_tt) && pos + 2 < stream.size() && match(peek(1), scope_resolution_tt) && match(peek(2), identifier_tt)) {
+            std::string module_name = peek().lexeme;
+            std::string qualified_name = module_name + "::" + peek(2).lexeme;
+            std::string type_name = peek(2).lexeme;
+
+            if (pos + 3 < stream.size() && match(peek(3), less_than_operator_tt) &&
+                (generic_struct_templates.contains(qualified_name) || generic_struct_templates.contains(type_name))) {
+                std::string template_name = generic_struct_templates.contains(qualified_name) ? qualified_name : type_name;
+                consume(); // consume module name
+                consume(); // consume '::'
+                consume(); // consume type name
+                consume(); // consume '<'
+
+                std::vector<token_t> type_args;
+                while (!match(peek(), greater_than_operator_tt)) {
+                    if (!match(peek(), comma_tt)) {
+                        type_args.push_back(peek());
+                    }
+                    consume();
+                }
+                consume(); // consume '>'
+
+                bool has_generic_param = false;
+                for (const auto& arg : type_args) {
+                    if (arg.tt == identifier_tt && cst_generic_type_cache.contains(arg.lexeme)) {
+                        has_generic_param = true;
+                        break;
+                    }
+                }
+
+                if (!has_generic_param) {
+                    instantiate_generic_struct(template_name, type_args);
+                }
+
+                auto node = cst::new_node<cst_struct>();
+                node->content = template_name;
+
+                if (match(peek(), multiply_operator_tt)) {
+                    while (match(peek(), multiply_operator_tt)) {
+                        consume();
+                        node->num_pointers++;
+                    }
+                }
+
+                if (match(peek(), identifier_tt)) {
+                    node->add_child(parse_identifier());
+                }
+
+                return node;
+            }
+
+            if (custom_type_map.contains(qualified_name)) {
+                consume(); // consume module name
+                consume(); // consume '::'
+                consume(); // consume type name
+
+                auto node = cst::new_node<cst_struct>();
+                node->content = qualified_name;
+
+                if (match(peek(), reference_operator_tt)) {
+                    consume();
+                    node->is_reference = true;
+                }
+
+                if (match(peek(), multiply_operator_tt)) {
+                    while (match(peek(), multiply_operator_tt)) {
+                        consume();
+                        node->num_pointers++;
+                    }
+                }
+
+                if (match(peek(), identifier_tt)) {
+                    node->add_child(parse_identifier());
+                }
+
+                return node;
+            }
+        }
+
+        if (match(peek(), identifier_tt) && generic_struct_templates.contains(peek().lexeme) &&
+            pos + 1 < stream.size() && match(peek(1), less_than_operator_tt)) {
             std::string template_name = peek().lexeme;
             consume(); // consume template name
             consume(); // consume '<'
@@ -578,7 +714,7 @@ namespace occult {
             return node;
         }
 
-
+        
         if (match(peek(), identifier_tt) && cst_generic_type_cache.contains(peek().lexeme)) {
             auto node = cst::new_node<cst_generic_type>(peek().lexeme);
             consume();
@@ -646,7 +782,7 @@ namespace occult {
                     }
 
                     func_args_node->add_child(cst::new_node<cst_variadic>());
-
+                    
                     break;
                 }
 
@@ -1259,6 +1395,423 @@ namespace occult {
         throw parsing_error("{ in struct declaration", peek(), pos, std::source_location::current().function_name());
     }
 
+    std::unique_ptr<cst_enum> parser::parse_enum() {
+        consume(); // consume 'enum'
+
+        auto enum_node = cst::new_node<cst_enum>();
+
+        if (!match(peek(), identifier_tt)) {
+            throw parsing_error("enum name", peek(), pos, std::source_location::current().function_name());
+        }
+
+        auto name_node = parse_identifier();
+        std::string enum_name = name_node->content;
+        enum_node->content = enum_name;
+        enum_node->add_child(std::move(name_node));
+
+        if (!match(peek(), left_curly_bracket_tt)) {
+            throw parsing_error("{ in enum declaration", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume '{'
+
+        std::unordered_map<std::string, std::int64_t> members;
+        std::int64_t next_value = 0;
+
+        while (!match(peek(), right_curly_bracket_tt)) {
+            if (!match(peek(), identifier_tt)) {
+                throw parsing_error("enum member name", peek(), pos, std::source_location::current().function_name());
+            }
+
+            auto member_node = parse_identifier();
+            std::string member_name = member_node->content;
+
+            if (match(peek(), assignment_tt)) {
+                consume(); // consume '='
+                if (!match(peek(), number_literal_tt)) {
+                    throw parsing_error("integer value for enum member", peek(), pos, std::source_location::current().function_name());
+                }
+                next_value = std::stoll(peek().lexeme);
+                consume();
+            }
+
+            member_node->content = member_name;
+            members[member_name] = next_value;
+
+            auto value_node = cst::new_node<cst_numberliteral>(std::to_string(next_value));
+            member_node->add_child(std::move(value_node));
+            enum_node->add_child(std::move(member_node));
+
+            next_value++;
+
+            if (match(peek(), comma_tt)) {
+                consume();
+            }
+        }
+
+        if (!match(peek(), right_curly_bracket_tt)) {
+            throw parsing_error("} in enum declaration", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume '}'
+
+        enum_definitions[enum_name] = members;
+        custom_type_map.insert({enum_name, enum_node.get()});
+
+        return enum_node;
+    }
+
+    std::unique_ptr<cst_switchstmt> parser::parse_switch() {
+        consume(); // consume 'switch'
+
+        auto switch_node = cst::new_node<cst_switchstmt>();
+
+        if (!match(peek(), left_paren_tt)) {
+            throw parsing_error("( after switch", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume '('
+
+        std::vector<token_t> expr_tokens;
+        int paren_depth = 1;
+        while (pos < stream.size() && paren_depth > 0) {
+            if (match(peek(), left_paren_tt)) paren_depth++;
+            else if (match(peek(), right_paren_tt)) {
+                paren_depth--;
+                if (paren_depth == 0) break;
+            }
+            expr_tokens.push_back(peek());
+            consume();
+        }
+
+        if (!match(peek(), right_paren_tt)) {
+            throw parsing_error(") after switch expression", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume ')'
+
+        auto expr_cst = parse_expression(expr_tokens);
+        for (auto& e : expr_cst) {
+            switch_node->add_child(std::move(e));
+        }
+
+        if (!match(peek(), left_curly_bracket_tt)) {
+            throw parsing_error("{ after switch expression", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume '{'
+
+        while (!match(peek(), right_curly_bracket_tt) && !match(peek(), end_of_file_tt)) {
+            if (match(peek(), case_keyword_tt)) {
+                consume(); // consume 'case'
+
+                auto case_node = cst::new_node<cst_casestmt>();
+
+                std::vector<token_t> case_expr_tokens;
+                while (!match(peek(), colon_tt) && !match(peek(), end_of_file_tt)) {
+                    case_expr_tokens.push_back(peek());
+                    consume();
+                }
+
+                if (!match(peek(), colon_tt)) {
+                    throw parsing_error(": after case value", peek(), pos, std::source_location::current().function_name());
+                }
+                consume(); // consume ':'
+
+                auto case_expr = parse_expression(case_expr_tokens);
+                for (auto& e : case_expr) {
+                    case_node->add_child(std::move(e));
+                }
+
+                if (match(peek(), left_curly_bracket_tt)) {
+                    auto body = parse_block();
+                    case_node->add_child(std::move(body));
+                }
+
+                switch_node->add_child(std::move(case_node));
+            }
+            else if (match(peek(), default_keyword_tt)) {
+                consume(); // consume 'default'
+
+                if (!match(peek(), colon_tt)) {
+                    throw parsing_error(": after default", peek(), pos, std::source_location::current().function_name());
+                }
+                consume(); // consume ':'
+
+                auto default_node = cst::new_node<cst_defaultstmt>();
+
+                auto body = parse_block();
+                default_node->add_child(std::move(body));
+
+                switch_node->add_child(std::move(default_node));
+            }
+            else {
+                throw parsing_error("case or default in switch body", peek(), pos, std::source_location::current().function_name());
+            }
+        }
+
+        if (!match(peek(), right_curly_bracket_tt)) {
+            throw parsing_error("} to close switch", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume '}'
+
+        return switch_node;
+    }
+
+    std::string parser::current_module_prefix() const {
+        std::string prefix;
+        for (const auto& m : module_prefix_stack) {
+            prefix += m + "::";
+        }
+        return prefix;
+    }
+
+    static void prefix_module_references(cst* node, const std::string& prefix, const std::unordered_set<std::string>& module_names) {
+        if (!node) return;
+
+        if (node->get_type() == cst_type::functioncall && node->content == "start_call") {
+            if (!node->get_children().empty()) {
+                auto* name_child = node->get_children().front().get();
+                if (name_child->get_type() == cst_type::identifier) {
+                    if (module_names.count(name_child->content) && name_child->content.find("::") == std::string::npos) {
+                        name_child->content = prefix + name_child->content;
+                    }
+                }
+            }
+        }
+
+        for (auto& child : node->get_children()) {
+            prefix_module_references(child.get(), prefix, module_names);
+        }
+    }
+
+    std::unique_ptr<cst> parser::parse_module() {
+        consume(); // consume 'module'
+
+        if (!match(peek(), identifier_tt)) {
+            throw parsing_error("module name", peek(), pos, std::source_location::current().function_name());
+        }
+
+        std::string module_name = peek().lexeme;
+        consume(); // consume module name
+
+        if (!match(peek(), left_curly_bracket_tt)) {
+            throw parsing_error("{ after module name", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume '{'
+
+        module_prefix_stack.push_back(module_name);
+        std::string prefix = current_module_prefix();
+
+        auto container = cst::new_node<cst_root>();
+
+        while (!match(peek(), right_curly_bracket_tt) && !match(peek(), end_of_file_tt)) {
+            auto node = parse_keyword(true);
+
+            if (node->get_type() == cst_type::root) {
+                for (auto& child : node->get_children()) {
+                    container->add_child(std::move(child));
+                }
+            }
+            else {
+                auto ntype = node->get_type();
+                if (ntype == cst_type::function) {
+                    if (!node->get_children().empty()) {
+                        auto* name_node = node->get_children().front().get();
+                        if (name_node->get_type() == cst_type::identifier) {
+                            name_node->content = prefix + name_node->content;
+                        }
+                    }
+                }
+                else if (ntype == cst_type::structure) {
+                    if (!node->get_children().empty()) {
+                        auto* first_child = node->get_children().front().get();
+                        if (first_child->get_type() == cst_type::identifier) {
+                            if (!custom_type_map.contains(node->content)) {
+                                std::string old_name = node->content;
+                                std::string new_name = prefix + old_name;
+                                node->content = new_name;
+                                first_child->content = new_name;
+                                if (custom_type_map.contains(old_name)) {
+                                    custom_type_map[new_name] = custom_type_map[old_name];
+                                    custom_type_map.erase(old_name);
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (ntype == cst_type::enumeration) {
+                    std::string old_name = node->content;
+                    std::string new_name = prefix + old_name;
+                    node->content = new_name;
+                    if (!node->get_children().empty()) {
+                        auto* name_node = node->get_children().front().get();
+                        if (name_node->get_type() == cst_type::identifier) {
+                            name_node->content = new_name;
+                        }
+                    }
+                    if (enum_definitions.contains(old_name)) {
+                        enum_definitions[new_name] = enum_definitions[old_name];
+                        enum_definitions.erase(old_name);
+                    }
+                    if (custom_type_map.contains(old_name)) {
+                        custom_type_map[new_name] = custom_type_map[old_name];
+                        custom_type_map.erase(old_name);
+                    }
+                }
+
+                container->add_child(std::move(node));
+            }
+        }
+
+        if (!match(peek(), right_curly_bracket_tt)) {
+            throw parsing_error("} to close module", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume '}' of module
+
+
+        std::unordered_set<std::string> module_func_names;
+        for (const auto& child : container->get_children()) {
+            if (child->get_type() == cst_type::function && !child->get_children().empty()) {
+                auto* name_node = child->get_children().front().get();
+                if (name_node->get_type() == cst_type::identifier) {
+                    const std::string& full_name = name_node->content;
+                    auto sep = full_name.rfind("::");
+                    if (sep != std::string::npos) {
+                        module_func_names.insert(full_name.substr(sep + 2));
+                    } else {
+                        module_func_names.insert(full_name);
+                    }
+                }
+            }
+        }
+
+        if (!module_func_names.empty()) {
+            for (auto& child : container->get_children()) {
+                if (child->get_type() == cst_type::function) {
+                    prefix_module_references(child.get(), prefix, module_func_names);
+                }
+            }
+        }
+
+        module_prefix_stack.pop_back();
+
+        return container;
+    }
+
+    std::unique_ptr<cst> parser::parse_import() {
+        consume(); // consume 'import'
+
+        std::string import_path;
+        std::vector<std::string> path_segments;
+
+        if (!match(peek(), identifier_tt)) {
+            throw parsing_error("module path after import", peek(), pos, std::source_location::current().function_name());
+        }
+
+        import_path = peek().lexeme;
+        path_segments.push_back(peek().lexeme);
+        consume();
+
+        while (match(peek(), scope_resolution_tt)) {
+            consume(); // consume '::'
+            if (!match(peek(), identifier_tt)) {
+                throw parsing_error("identifier after ::", peek(), pos, std::source_location::current().function_name());
+            }
+            import_path += "::" + peek().lexeme;
+            path_segments.push_back(peek().lexeme);
+            consume();
+        }
+
+        std::string from_source;
+        if (match(peek(), identifier_tt) && peek().lexeme == "from") {
+            consume(); // consume 'from'
+            if (!match(peek(), identifier_tt)) {
+                throw parsing_error("source path after 'from'", peek(), pos, std::source_location::current().function_name());
+            }
+            from_source = peek().lexeme;
+            consume();
+        }
+
+        if (!match(peek(), semicolon_tt)) {
+            throw parsing_error("; after import", peek(), pos, std::source_location::current().function_name());
+        }
+        consume(); // consume ';'
+
+        auto try_load_module_file = [&](const std::filesystem::path& base_dir) -> std::unique_ptr<cst_root> {
+            std::filesystem::path module_file = base_dir;
+            for (const auto& seg : path_segments) {
+                module_file /= seg;
+            }
+            module_file += ".occ";
+
+            if (!std::filesystem::exists(module_file)) {
+                return nullptr;
+            }
+
+            std::ifstream file(module_file);
+            if (!file.is_open()) {
+                throw parsing_error("readable module file '" + module_file.string() + "'", peek(), pos, std::source_location::current().function_name());
+            }
+
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            std::string src = buffer.str();
+
+            lexer l(src);
+            auto included_stream = l.analyze();
+
+            parser p(included_stream, module_file.string());
+            p.import_generic_templates(generic_struct_templates, generic_func_templates, instantiated_generics, custom_type_map, enum_definitions);
+            auto included_cst = p.parse();
+
+            import_generic_templates(p.get_generic_struct_templates(), p.get_generic_func_templates(), p.get_instantiated_generics(), p.get_custom_type_map(), p.get_enum_definitions());
+
+            return included_cst;
+        };
+
+        std::unique_ptr<cst_root> loaded_cst = nullptr;
+
+        if (!source_file_path.empty()) {
+            auto source_dir = std::filesystem::path(source_file_path).parent_path();
+            if (source_dir.empty()) source_dir = ".";
+
+            if (!from_source.empty()) {
+                loaded_cst = try_load_module_file(source_dir / from_source);
+
+                if (!loaded_cst) {
+                    loaded_cst = try_load_module_file(source_dir / ".." / from_source);
+                }
+            }
+            else {
+                loaded_cst = try_load_module_file(source_dir);
+
+                if (!loaded_cst) {
+                    loaded_cst = try_load_module_file(source_dir / "lib");
+                }
+
+                if (!loaded_cst) {
+                    loaded_cst = try_load_module_file(source_dir / ".." / "lib");
+                }
+            }
+        }
+
+        imported_modules.push_back(import_path);
+
+        if (loaded_cst) {
+            auto container = cst::new_node<cst_root>();
+
+            for (auto& child : loaded_cst->get_children()) {
+                container->add_child(std::move(child));
+            }
+
+            auto import_node = cst::new_node<cst_importdecl>();
+            import_node->content = import_path;
+            container->add_child(std::move(import_node));
+
+            return container;
+        }
+
+        auto node = cst::new_node<cst_importdecl>();
+        node->content = import_path;
+        return node;
+    }
+
     std::unique_ptr<cst> parser::parse_compound_assignment_identifier(std::unique_ptr<cst_identifier> to_assign) {
 
         std::function<void()> handle_compound_assignment([&]() -> void {
@@ -1424,7 +1977,7 @@ namespace occult {
         }
 
         if (match(peek(), generic_keyword_tt)) {
-            cst_generic_type_cache.clear();
+            cst_generic_type_cache.clear(); 
 
             /*
                 Just have to clear these above ^^^
@@ -1443,7 +1996,7 @@ namespace occult {
                 std::vector<std::string> type_params;
 
                 while (!match(peek(), greater_than_operator_tt)) {
-                    auto generic_typename = parse_identifier()->content; // typename
+                    auto generic_typename = parse_identifier()->content; // typename 
                     cst_generic_type_cache[generic_typename] = cst::new_node<cst_generic_type>(generic_typename);
                     type_params.push_back(generic_typename);
 
@@ -1470,7 +2023,11 @@ namespace occult {
 
                     auto struct_name = struct_node->get_children().front()->content;
 
-                    generic_struct_templates[struct_name] = {type_params, std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end), struct_name};
+                    generic_struct_templates[struct_name] = {
+                        type_params,
+                        std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end),
+                        struct_name
+                    };
 
                     custom_type_map.erase(struct_name);
                     cst_generic_type_cache.clear();
@@ -1483,7 +2040,11 @@ namespace occult {
 
                     auto func_name = func_node->get_children().front()->content;
 
-                    generic_func_templates[func_name] = {type_params, std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end), func_name};
+                    generic_func_templates[func_name] = {
+                        type_params,
+                        std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end),
+                        func_name
+                    };
 
                     cst_generic_type_cache.clear();
 
@@ -1532,12 +2093,24 @@ namespace occult {
                 auto included_stream = l.analyze();
 
                 parser p(included_stream, include_path.string());
+                p.import_generic_templates(generic_struct_templates, generic_func_templates, instantiated_generics, custom_type_map, enum_definitions);
                 auto included_cst = p.parse();
+
+                import_generic_templates(p.get_generic_struct_templates(), p.get_generic_func_templates(), p.get_instantiated_generics(), p.get_custom_type_map(), p.get_enum_definitions());
 
                 return included_cst;
             }
 
             throw parsing_error("string literal", peek(), pos, std::source_location::current().function_name());
+        }
+        if (match(peek(), const_keyword_tt)) {
+            consume(); // consume 'const'
+
+            auto node = parse_keyword(false);
+            if (node) {
+                node->is_const = true;
+            }
+            return node;
         }
         if (match(peek(), int8_keyword_tt)) {
             return parse_integer_type<cst_int8>();
@@ -1577,6 +2150,124 @@ namespace occult {
         }
         if (match(peek(), boolean_keyword_tt)) {
             return parse_integer_type<cst_bool>();
+        }
+        if (match(peek(), identifier_tt) && pos + 2 < stream.size() && match(peek(1), scope_resolution_tt) && match(peek(2), identifier_tt)) {
+            std::string mod_name = peek().lexeme;
+            std::string qualified = mod_name + "::" + peek(2).lexeme;
+            std::string bare_name = peek(2).lexeme;
+
+            if (pos + 3 < stream.size() && peek(3).tt == less_than_operator_tt &&
+                (generic_struct_templates.contains(qualified) || generic_struct_templates.contains(bare_name))) {
+                std::string template_name = generic_struct_templates.contains(qualified) ? qualified : bare_name;
+                consume(); // consume module name
+                consume(); // consume '::'
+                consume(); // consume type name
+                consume(); // consume '<'
+
+                std::vector<token_t> type_args;
+                while (!match(peek(), greater_than_operator_tt)) {
+                    if (!match(peek(), comma_tt)) {
+                        type_args.push_back(peek());
+                    }
+                    consume();
+                }
+                consume(); // consume '>'
+
+                bool has_generic_param = false;
+                for (const auto& arg : type_args) {
+                    if (arg.tt == identifier_tt && cst_generic_type_cache.contains(arg.lexeme)) {
+                        has_generic_param = true;
+                        break;
+                    }
+                }
+
+                if (!has_generic_param) {
+                    instantiate_generic_struct(template_name, type_args);
+                }
+
+                auto node = cst::new_node<cst_struct>();
+                node->content = template_name;
+
+                if (match(peek(), multiply_operator_tt)) {
+                    while (match(peek(), multiply_operator_tt)) {
+                        consume();
+                        node->num_pointers++;
+                    }
+                }
+
+                if (match(peek(), identifier_tt)) {
+                    node->add_child(parse_identifier());
+                }
+                else {
+                    throw parsing_error("<identifier>", peek(), pos, std::source_location::current().function_name());
+                }
+
+                if (match(peek(), assignment_tt)) {
+                    node->add_child(parse_assignment());
+
+                    if (match(peek(), semicolon_tt)) {
+                        throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
+                    }
+
+                    parse_expression_until(node->get_children().at(1).get(), semicolon_tt);
+                }
+
+                if (match(peek(), semicolon_tt)) {
+                    consume();
+                }
+                else {
+                    throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+                }
+
+                return node;
+            }
+
+            if (custom_type_map.contains(qualified)) {
+                consume(); // consume module name
+                consume(); // consume '::'
+                consume(); // consume type name
+
+                auto node = cst::new_node<cst_struct>();
+                node->content = qualified;
+
+                if (match(peek(), reference_operator_tt)) {
+                    consume();
+                    node->is_reference = true;
+                }
+
+                if (match(peek(), multiply_operator_tt)) {
+                    while (match(peek(), multiply_operator_tt)) {
+                        consume();
+                        node->num_pointers++;
+                    }
+                }
+
+                if (match(peek(), identifier_tt)) {
+                    node->add_child(parse_identifier());
+                }
+                else {
+                    throw parsing_error("<identifier>", peek(), pos, std::source_location::current().function_name());
+                }
+
+                if (match(peek(), assignment_tt)) {
+                    node->add_child(parse_assignment());
+
+                    if (match(peek(), semicolon_tt)) {
+                        throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
+                    }
+
+                    parse_expression_until(node->get_children().at(1).get(), semicolon_tt);
+                }
+
+                if (match(peek(), semicolon_tt)) {
+                    consume();
+                }
+                else {
+                    throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+                }
+
+                return node;
+            }
         }
         if (match(peek(), identifier_tt) && generic_struct_templates.contains(peek().lexeme) && peek(1).tt == less_than_operator_tt) {
             auto template_name = peek().lexeme;
@@ -1955,6 +2646,18 @@ namespace occult {
         if (match(peek(), struct_keyword_tt)) {
             return parse_struct();
         }
+        if (match(peek(), enum_keyword_tt)) {
+            return parse_enum();
+        }
+        if (match(peek(), switch_keyword_tt)) {
+            return parse_switch();
+        }
+        if (match(peek(), module_keyword_tt)) {
+            return parse_module();
+        }
+        if (match(peek(), import_keyword_tt)) {
+            return parse_import();
+        }
         if (match(peek(), identifier_tt) && peek(1).tt == less_than_operator_tt) { // potential generic fn call at statement level
             // Scan ahead to check for pattern: identifier < type_args > (
             std::size_t scan = pos + 2; // skip identifier and '<'
@@ -1995,6 +2698,32 @@ namespace occult {
 
                 throw parsing_error("a valid generic function call statement", peek(), pos, std::source_location::current().function_name());
             }
+        }
+        if (match(peek(), identifier_tt) && peek(1).tt == scope_resolution_tt) {
+            auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+            if (first_semicolon_pos == -1) {
+                throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+            }
+            std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
+            pos += first_semicolon_pos;
+            auto converted_rpn = parse_expression(sub_stream);
+
+            if (match(peek(), semicolon_tt)) {
+                consume();
+            }
+            else {
+                throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+            }
+
+            if (converted_rpn.size() == 1) {
+                return std::move(converted_rpn.at(0));
+            }
+
+            auto wrapper = cst::new_node<cst_root>();
+            for (auto& n : converted_rpn) {
+                wrapper->add_child(std::move(n));
+            }
+            return wrapper;
         }
         if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
             auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
@@ -2173,13 +2902,20 @@ namespace occult {
         throw parsing_error("a valid statement or keyword", peek(), pos, std::source_location::current().function_name());
     }
 
+    /*
+        Returns true if the current position looks like a forward-referenced generic struct
+        type in a template context (e.g., child_entry<T>* where child_entry isn't defined yet).
+        If true, advances pos past the type reference.
+    */
+
     bool parser::try_parse_forward_generic_struct_type(std::unique_ptr<cst>& out_node) {
-        if (!match(peek(), identifier_tt) || cst_generic_type_cache.empty() || pos + 1 >= stream.size() || !match(peek(1), less_than_operator_tt)) {
+        if (!match(peek(), identifier_tt) || cst_generic_type_cache.empty() ||
+            pos + 1 >= stream.size() || !match(peek(1), less_than_operator_tt)) {
             return false;
         }
 
-        // Lookahead: check that <...> contains at least one generic type param
-        // and is followed by *, identifier, ), or ; — i.e. it's a type, not a comparison
+        // check that <...> contains at least one generic type param
+
         std::size_t scan = pos + 2;
         bool found_generic_param = false;
         bool found_close = false;
@@ -2205,19 +2941,20 @@ namespace occult {
             return false;
         }
         auto next_tt = stream[scan + 1].tt;
-        if (next_tt != multiply_operator_tt && next_tt != identifier_tt && next_tt != right_paren_tt && next_tt != semicolon_tt) {
+        if (next_tt != multiply_operator_tt && next_tt != identifier_tt &&
+            next_tt != right_paren_tt && next_tt != semicolon_tt) {
             return false;
         }
 
-        // Consume identifier < type_args > and build struct node
+        // consume identifier < type_args > and build struct node
         std::string template_name = peek().lexeme;
         consume(); // consume template name
-        consume(); // consume '<'
+        consume(); // <
 
         while (!match(peek(), greater_than_operator_tt)) {
             consume();
         }
-        consume(); // consume '>'
+        consume(); // >
 
         auto node = cst::new_node<cst_struct>();
         node->content = template_name;
@@ -2241,11 +2978,9 @@ namespace occult {
         if (!source_lines.empty() && tk.line > 0 && static_cast<std::size_t>(tk.line) <= source_lines.size()) {
             const std::string& src_line = source_lines[static_cast<std::size_t>(tk.line) - 1];
 
-            // Line-number gutter:  "  42 | <source>"
             const std::string gutter = "  " + std::to_string(tk.line) + " | ";
             std::cout << gutter << src_line << '\n';
 
-            // Caret: spaces up to the token column, then ^ + optional ~~~~
             const std::size_t col_offset = (tk.column > 0 ? tk.column - 1 : 0);
             const std::size_t spaces = gutter.size() + col_offset;
             const std::size_t tildes = (tk.lexeme.size() > 1 ? tk.lexeme.size() - 1 : 0);
@@ -2286,8 +3021,7 @@ namespace occult {
     }
 
     void parser::instantiate_generic_struct(const std::string& template_name, const std::vector<token_t>& concrete_type_args) {
-        if (custom_type_map.contains(template_name))
-            return;
+        if (custom_type_map.contains(template_name)) return;
 
         auto& tmpl = generic_struct_templates[template_name];
 
@@ -2330,8 +3064,7 @@ namespace occult {
             mangled_name += "_" + arg.lexeme;
         }
 
-        if (instantiated_generics.contains(mangled_name))
-            return;
+        if (instantiated_generics.contains(mangled_name)) return;
         instantiated_generics.insert(mangled_name);
 
         auto& tmpl = generic_func_templates[template_name];
@@ -2380,11 +3113,25 @@ namespace occult {
         std::vector<token_t> result;
 
         for (std::size_t j = 0; j < expr.size(); j++) {
-            if (expr[j].tt == identifier_tt && j + 1 < expr.size() && expr[j + 1].tt == less_than_operator_tt) {
+            bool is_module_qualified = false;
+            std::string module_prefix_str;
+            std::size_t func_idx = j;
 
-                // Check if this looks like a generic call: identifier < args > (
-                // Scan ahead to find > followed by (
-                std::size_t scan = j + 2;
+            if (expr[j].tt == identifier_tt &&
+                j + 2 < expr.size() && expr[j + 1].tt == scope_resolution_tt && expr[j + 2].tt == identifier_tt &&
+                j + 3 < expr.size() && expr[j + 3].tt == less_than_operator_tt) {
+                module_prefix_str = expr[j].lexeme + "::";
+                func_idx = j + 2;
+                is_module_qualified = true;
+            }
+
+            std::size_t check_idx = is_module_qualified ? func_idx : j;
+            bool is_generic_pattern = (expr[check_idx].tt == identifier_tt &&
+                                       check_idx + 1 < expr.size() && expr[check_idx + 1].tt == less_than_operator_tt);
+
+            if (is_generic_pattern) {
+                // scan ahead to find > followed by (
+                std::size_t scan = check_idx + 2;
                 bool looks_like_generic_call = false;
                 while (scan < expr.size()) {
                     if (expr[scan].tt == greater_than_operator_tt && scan + 1 < expr.size() && expr[scan + 1].tt == left_paren_tt) {
@@ -2398,9 +3145,10 @@ namespace occult {
                 }
 
                 if (looks_like_generic_call) {
-                    auto func_name_tok = expr[j];
+                    auto func_name_tok = expr[check_idx];
+                    std::string bare_name = func_name_tok.lexeme;
 
-                    j++; // now at '<'
+                    j = check_idx + 1; // now at '<'
                     j++; // now at first type arg
 
                     std::vector<token_t> type_args;
@@ -2412,8 +3160,7 @@ namespace occult {
                     }
                     // j is at '>'
 
-                    // Check if any type arg is still an unresolved generic type parameter
-                    // (we're inside a template definition). If so, strip <T> and emit just the name.
+                    // check if any type arg is still an unresolved generic type parameter
                     bool has_generic_param = false;
                     for (const auto& arg : type_args) {
                         if (arg.tt == identifier_tt && cst_generic_type_cache.contains(arg.lexeme)) {
@@ -2423,41 +3170,85 @@ namespace occult {
                     }
 
                     if (has_generic_param) {
-                        // Inside template definition — strip <T> and emit just the function name.
-                        // The expression parser will treat it as a normal function call.
-                        // This CST gets discarded; the token range is what matters for later instantiation.
+                        if (is_module_qualified) {
+                            result.push_back(expr[func_idx - 2]); // module name
+                            result.push_back(expr[func_idx - 1]); // ::
+                        }
                         result.push_back(func_name_tok);
                     }
-                    else if (generic_func_templates.contains(func_name_tok.lexeme)) {
-                        instantiate_generic_function(func_name_tok.lexeme, type_args);
+                    else if (generic_func_templates.contains(bare_name)) {
+                        instantiate_generic_function(bare_name, type_args);
 
-                        std::string mangled_name = func_name_tok.lexeme;
+                        std::string mangled_name = bare_name;
                         for (const auto& arg : type_args) {
                             mangled_name += "_" + arg.lexeme;
                         }
 
-                        func_name_tok.lexeme = mangled_name;
+                        if (is_module_qualified) {
+                            for (auto& child : root->get_children()) {
+                                if (child->get_type() == cst_type::function && !child->get_children().empty()) {
+                                    auto* name_node = child->get_children().front().get();
+                                    if (name_node->get_type() == cst_type::identifier && name_node->content == mangled_name) {
+                                        name_node->content = module_prefix_str + mangled_name;
+                                        break;
+                                    }
+                                }
+                            }
+                            func_name_tok.lexeme = module_prefix_str + mangled_name;
+                        }
+                        else {
+                            func_name_tok.lexeme = mangled_name;
+                        }
                         result.push_back(func_name_tok);
                     }
                     else {
-                        // Unknown function with concrete type args — pass through unchanged
+                        if (is_module_qualified) {
+                            result.push_back(expr[func_idx - 2]);
+                            result.push_back(expr[func_idx - 1]);
+                        }
                         result.push_back(func_name_tok);
                     }
-                }
-                else {
-                    // Not a generic call pattern (probably a comparison), pass through
-                    result.push_back(expr[j]);
+                    continue;
                 }
             }
-            else {
-                result.push_back(expr[j]);
-            }
+
+            result.push_back(expr[j]);
         }
 
         return result;
     }
 
     std::unordered_map<std::string, cst*> parser::get_custom_type_map() const { return custom_type_map; }
+
+    void parser::import_generic_templates(const std::unordered_map<std::string, generic_template>& struct_templates,
+                                          const std::unordered_map<std::string, generic_template>& func_templates,
+                                          const std::unordered_set<std::string>& instantiated,
+                                          const std::unordered_map<std::string, cst*>& types,
+                                          const std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>>& enums) {
+        for (const auto& [k, v] : struct_templates) {
+            if (!generic_struct_templates.contains(k)) {
+                generic_struct_templates[k] = v;
+            }
+        }
+        for (const auto& [k, v] : func_templates) {
+            if (!generic_func_templates.contains(k)) {
+                generic_func_templates[k] = v;
+            }
+        }
+        for (const auto& s : instantiated) {
+            instantiated_generics.insert(s);
+        }
+        for (const auto& [k, v] : types) {
+            if (!custom_type_map.contains(k)) {
+                custom_type_map[k] = v;
+            }
+        }
+        for (const auto& [k, v] : enums) {
+            if (!enum_definitions.contains(k)) {
+                enum_definitions[k] = v;
+            }
+        }
+    }
 
     std::unique_ptr<cst_root> parser::parse() {
         while (!match(peek(), end_of_file_tt)) {

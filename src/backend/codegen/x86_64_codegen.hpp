@@ -982,8 +982,8 @@ namespace occult::x86_64 {
                         auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
-                        w->emit_cqo();     // sign-extend RAX into RDX:RAX
-                        w->emit_idiv(rhs); // signed divide RDX:RAX by rhs
+                        w->emit_cqo();       // sign-extend RAX into RDX:RAX
+                        w->emit_idiv(rhs);   // signed divide RDX:RAX by rhs
 
                         w->emit_mov(lhs, rdx);
 
@@ -998,8 +998,8 @@ namespace occult::x86_64 {
                         auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
-                        w->emit_cqo();     // sign-extend RAX into RDX:RAX
-                        w->emit_idiv(rhs); // signed divide RDX:RAX by rhs
+                        w->emit_cqo();       // sign-extend RAX into RDX:RAX
+                        w->emit_idiv(rhs);   // signed divide RDX:RAX by rhs
 
                         w->emit_mov(lhs, rax);
 
@@ -1029,7 +1029,7 @@ namespace occult::x86_64 {
                         auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
-                        w->emit_cqo(); // sign-extend RAX into RDX:RAX
+                        w->emit_cqo();       // sign-extend RAX into RDX:RAX
                         w->emit_idiv(rhs);
 
                         w->emit_mov(lhs, rdx);
@@ -1045,7 +1045,7 @@ namespace occult::x86_64 {
                         auto lhs = pool.pop();
 
                         w->emit_mov(rax, lhs);
-                        w->emit_cqo(); // sign-extend RAX into RDX:RAX
+                        w->emit_cqo();       // sign-extend RAX into RDX:RAX
                         w->emit_idiv(rhs);
 
                         w->emit_mov(lhs, rax);
@@ -1087,7 +1087,7 @@ namespace occult::x86_64 {
                         auto zero = simd_pool.alloc();
                         // Use XORPS to zero (safe even if register contained NaN/Inf)
                         w->emit_xorps(zero, zero);
-                        w->emit_subss(zero, val); // zero - val = -val
+                        w->emit_subss(zero, val);   // zero - val = -val
                         simd_pool.free(val);
                         simd_pool.push(zero);
                         break;
@@ -1098,7 +1098,7 @@ namespace occult::x86_64 {
                         auto val = simd_pool.pop();
                         auto zero = simd_pool.alloc();
                         w->emit_xorps(zero, zero);
-                        w->emit_subsd(zero, val); // zero - val = -val
+                        w->emit_subsd(zero, val);   // zero - val = -val
                         simd_pool.free(val);
                         simd_pool.push(zero);
                         break;
@@ -2061,9 +2061,9 @@ namespace occult::x86_64 {
                                         else if (la_op == ir_opcode::op_add || la_op == ir_opcode::op_sub || la_op == ir_opcode::op_mul || la_op == ir_opcode::op_div || la_op == ir_opcode::op_mod || la_op == ir_opcode::op_imul ||
                                                  la_op == ir_opcode::op_idiv || la_op == ir_opcode::op_imod || la_op == ir_opcode::op_addf32 || la_op == ir_opcode::op_subf32 || la_op == ir_opcode::op_mulf32 ||
                                                  la_op == ir_opcode::op_divf32 || la_op == ir_opcode::op_modf32 || la_op == ir_opcode::op_addf64 || la_op == ir_opcode::op_subf64 || la_op == ir_opcode::op_mulf64 ||
-                                                 la_op == ir_opcode::op_divf64 || la_op == ir_opcode::op_modf64 || la_op == ir_opcode::op_logical_and || la_op == ir_opcode::op_logical_or || la_op == ir_opcode::op_bitwise_and ||
-                                                 la_op == ir_opcode::op_bitwise_or || la_op == ir_opcode::op_bitwise_xor || la_op == ir_opcode::op_bitwise_lshift || la_op == ir_opcode::op_bitwise_rshift ||
-                                                 la_op == ir_opcode::op_ibitwise_rshift) {
+                                                 la_op == ir_opcode::op_divf64 || la_op == ir_opcode::op_modf64 ||
+                                                 la_op == ir_opcode::op_logical_and || la_op == ir_opcode::op_logical_or || la_op == ir_opcode::op_bitwise_and || la_op == ir_opcode::op_bitwise_or || la_op == ir_opcode::op_bitwise_xor ||
+                                                 la_op == ir_opcode::op_bitwise_lshift || la_op == ir_opcode::op_bitwise_rshift || la_op == ir_opcode::op_ibitwise_rshift) {
                                             depth -= 1; // consumes 2, produces 1
                                             if (depth < 0) {
                                                 should_push_return = true;
@@ -2081,8 +2081,7 @@ namespace occult::x86_64 {
                                             break; // store/ret ends the expression
                                         }
                                         // unary ops: consume 1, produce 1 → net 0
-                                        else if (la_op == ir_opcode::op_negate || la_op == ir_opcode::op_negatef32 || la_op == ir_opcode::op_negatef64 || la_op == ir_opcode::op_not || la_op == ir_opcode::op_bitwise_not ||
-                                                 la_op == ir_opcode::op_dereference || la_op == ir_opcode::op_reference) {
+                                        else if (la_op == ir_opcode::op_negate || la_op == ir_opcode::op_negatef32 || la_op == ir_opcode::op_negatef64 || la_op == ir_opcode::op_not || la_op == ir_opcode::op_bitwise_not || la_op == ir_opcode::op_dereference || la_op == ir_opcode::op_reference) {
                                             // net 0 change
                                         }
                                         // control flow and statement boundaries break the analysis

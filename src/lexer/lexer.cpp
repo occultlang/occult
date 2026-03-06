@@ -342,6 +342,16 @@ namespace occult {
             return handle_operator(operator_type::two);
         }
 
+        if (pos + 1 < source.length() && source[pos] == ':' && source[pos + 1] == ':') {
+            increment(0, 2, 2);
+            return token_t(line, column, "::", scope_resolution_tt);
+        }
+
+        if (pos < source.length() && source[pos] == ':') {
+            increment(0, 1, 1);
+            return token_t(line, column, ":", colon_tt);
+        }
+
         if (pos < source.length() && operator_map_single.contains(source[pos])) {
             return handle_operator(operator_type::one);
         }
@@ -363,7 +373,7 @@ namespace occult {
                    || prev_type == comma_tt                          // ,
                    || prev_type == left_curly_bracket_tt             // {
                    || prev_type == semicolon_tt                      // ;
-                   || prev_type == end_of_file_tt                    // (start of file)
+                   || prev_type == end_of_file_tt                    // (eof)
                    || prev_type == return_keyword_tt                 // return
                    || prev_type == not_equals_operator_tt            // !=
                    || prev_type == equals_operator_tt                // ==
@@ -390,8 +400,8 @@ namespace occult {
                    || prev_type == bitwise_and_tt                    // &
                    || prev_type == bitwise_or_tt                     // |
                    || prev_type == xor_operator_tt                   // ^
-                   || prev_type == bitwise_lshift_tt                 // <<
-                   || prev_type == bitwise_rshift_tt;                // >>
+                   || prev_type == bitwise_lshift_tt                  // <<
+                   || prev_type == bitwise_rshift_tt;                  // >>
         };
 
         while (token.tt != end_of_file_tt) {

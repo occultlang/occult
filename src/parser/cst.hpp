@@ -89,6 +89,13 @@ namespace occult {
         cast_to_datatype,
         variadic,
         generic_type,
+        enumeration,
+        enum_access,
+        switchstmt,
+        casestmt,
+        defaultstmt,
+        moduledecl,
+        importdecl,
     };
 
     class cst {
@@ -103,6 +110,7 @@ namespace occult {
         std::size_t num_pointers = 0;
         bool do_not = false;
         bool is_reference = false;
+        bool is_const = false;
 
         template <typename BaseCst = cst>
         static std::unique_ptr<BaseCst> new_node() {
@@ -139,9 +147,13 @@ namespace occult {
 
         std::vector<std::unique_ptr<cst>>& get_children() { return children; }
 
+        const std::vector<std::unique_ptr<cst>>& get_children_const() const { return children; }
+
         virtual cst_type get_type() = 0;
 
         virtual std::string to_string() = 0;
+
+        virtual std::unique_ptr<cst> clone() const = 0;
 
         void visualize(const int depth = 0) {
             const std::string indent(depth * 2, ' ');
@@ -179,6 +191,18 @@ namespace occult {
     public:                                                                                                                                                                                                                                    \
         cst_type get_type() override { return cst_type::tt; }                                                                                                                                                                                  \
         std::string to_string() override { return #nn; }                                                                                                                                                                                       \
+        std::unique_ptr<cst> clone() const override {                                                                                                                                                                                          \
+            auto copy = std::make_unique<nn>();                                                                                                                                                                                                \
+            copy->content = content;                                                                                                                                                                                                           \
+            copy->num_pointers = num_pointers;                                                                                                                                                                                                 \
+            copy->do_not = do_not;                                                                                                                                                                                                             \
+            copy->is_reference = is_reference;                                                                                                                                                                                                 \
+            copy->is_const = is_const;                                                                                                                                                                                                         \
+            for (const auto& child : get_children_const()) {                                                                                                                                                                                   \
+                copy->add_child(child->clone());                                                                                                                                                                                               \
+            }                                                                                                                                                                                                                                  \
+            return copy;                                                                                                                                                                                                                       \
+        }                                                                                                                                                                                                                                      \
     };
 
     NODE(root, cst_root)
@@ -337,4 +361,18 @@ namespace occult {
     NODE(variadic, cst_variadic)
 
     NODE(generic_type, cst_generic_type)
+
+    NODE(enumeration, cst_enum)
+
+    NODE(enum_access, cst_enum_access)
+
+    NODE(switchstmt, cst_switchstmt)
+
+    NODE(casestmt, cst_casestmt)
+
+    NODE(defaultstmt, cst_defaultstmt)
+
+    NODE(moduledecl, cst_moduledecl)
+
+    NODE(importdecl, cst_importdecl)
 } // namespace occult

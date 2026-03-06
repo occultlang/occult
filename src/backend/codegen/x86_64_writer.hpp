@@ -1536,7 +1536,7 @@ namespace occult::x86_64 {
             push_bytes({k2ByteOpcodePrefix, static_cast<uint8_t>(XORPS_xmm_to_xmm_or_m128), modrm(mod_field::register_direct, dest, base)});
         }
 
-        void emit_inc(REG_ARG) { emit_reg_to_reg(opcode::INC_rm8, opcode::INC_rm16_to_64, _reg, static_cast<grp>(0)); }
+        void emit_inc(REG_ARG){ emit_reg_to_reg(opcode::INC_rm8, opcode::INC_rm16_to_64, _reg, static_cast<grp>(0)); }
 
         void emit_inc(MEM_ARG) { emit_reg_to_mem(opcode::INC_rm8, opcode::INC_rm16_to_64, m, static_cast<grp>(0)); }
 

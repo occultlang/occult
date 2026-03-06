@@ -41,7 +41,7 @@ namespace occult {
                                                                       {"i16", int16_keyword_tt},     {"i8", int8_keyword_tt},         {"u64", uint64_keyword_tt},          {"u32", uint32_keyword_tt},    {"u16", uint16_keyword_tt},
                                                                       {"u8", uint8_keyword_tt},      {"f32", float32_keyword_tt},     {"f64", float64_keyword_tt},         {"bool", boolean_keyword_tt},  {"char", char_keyword_tt},
                                                                       {"string", string_keyword_tt}, {"array", array_keyword_tt},     {"false", false_keyword_tt},         {"true", true_keyword_tt},     {"in", in_keyword_tt},
-                                                                      {"struct", struct_keyword_tt}, {"generic", generic_keyword_tt}, {"shellcode", shellcode_denoter_tt}, {"is_linux64", is_linux64},    {"is_win64", is_win64}};
+                                                                      {"struct", struct_keyword_tt}, {"generic", generic_keyword_tt}, {"enum", enum_keyword_tt}, {"switch", switch_keyword_tt}, {"case", case_keyword_tt}, {"default", default_keyword_tt}, {"const", const_keyword_tt}, {"module", module_keyword_tt}, {"import", import_keyword_tt}, {"shellcode", shellcode_denoter_tt}, {"is_linux64", is_linux64},    {"is_win64", is_win64}};
 
     inline std::unordered_map<token_type, std::string> token_typename_map = {{whitespace_tt, "whitespace"},
                                                                              {comment_tt, "comment"},
@@ -130,6 +130,15 @@ namespace occult {
                                                                              {argument_count_tt, "argument_count"},
                                                                              {struct_keyword_tt, "struct"},
                                                                              {generic_keyword_tt, "generic"},
+                                                                             {enum_keyword_tt, "enum"},
+                                                                             {switch_keyword_tt, "switch"},
+                                                                             {case_keyword_tt, "case"},
+                                                                             {default_keyword_tt, "default"},
+                                                                             {const_keyword_tt, "const"},
+                                                                             {module_keyword_tt, "module"},
+                                                                             {import_keyword_tt, "import"},
+                                                                             {scope_resolution_tt, "scope_resolution"},
+                                                                             {colon_tt, "colon"},
                                                                              {period_tt, "period"},
                                                                              {shellcode_denoter_tt, "denote_shellcode"},
                                                                              {is_win64, "is_win64"},

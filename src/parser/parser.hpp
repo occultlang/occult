@@ -31,6 +31,13 @@ namespace occult {
         std::unordered_map<std::string, generic_template> generic_func_templates;
         std::unordered_set<std::string> instantiated_generics;
 
+        std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>> enum_definitions;
+
+        std::vector<std::string> module_prefix_stack;                        // current nesting of module names
+        std::vector<std::string> imported_modules;                           // imported module paths (e.g. "std::math")
+
+        std::string current_module_prefix() const;
+
         std::vector<std::string> source_lines;
         std::size_t error_count = 0;
         std::size_t recursion_depth = 0;
@@ -106,15 +113,20 @@ namespace occult {
 
         std::unique_ptr<cst_struct> parse_struct();
 
+        std::unique_ptr<cst_enum> parse_enum();
+
+        std::unique_ptr<cst_switchstmt> parse_switch();
+
+        std::unique_ptr<cst> parse_module();
+
+        std::unique_ptr<cst> parse_import();
+
         void instantiate_generic_struct(const std::string& template_name, const std::vector<token_t>& concrete_type_args);
 
         void instantiate_generic_function(const std::string& template_name, const std::vector<token_t>& concrete_type_args);
 
         std::vector<token_t> preprocess_generic_calls(const std::vector<token_t>& expr);
 
-        // Returns true if the current position looks like a forward-referenced generic struct
-        // type in a template context (e.g., child_entry<T>* where child_entry isn't defined yet).
-        // If true, advances pos past the type reference.
         bool try_parse_forward_generic_struct_type(std::unique_ptr<cst>& out_node);
 
         void synchronize(const parsing_error& e);
@@ -128,5 +140,17 @@ namespace occult {
 
         state get_state() const { return parser_state; }
         std::size_t get_error_count() const { return error_count; }
+
+        void import_generic_templates(const std::unordered_map<std::string, generic_template>& struct_templates,
+                                      const std::unordered_map<std::string, generic_template>& func_templates,
+                                      const std::unordered_set<std::string>& instantiated,
+                                      const std::unordered_map<std::string, cst*>& types,
+                                      const std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>>& enums = {});
+
+        const std::unordered_map<std::string, generic_template>& get_generic_struct_templates() const { return generic_struct_templates; }
+        const std::unordered_map<std::string, generic_template>& get_generic_func_templates() const { return generic_func_templates; }
+        const std::unordered_set<std::string>& get_instantiated_generics() const { return instantiated_generics; }
+        const std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>>& get_enum_definitions() const { return enum_definitions; }
+        const std::vector<std::string>& get_imported_modules() const { return imported_modules; }
     };
 } // namespace occult

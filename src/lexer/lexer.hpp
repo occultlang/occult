@@ -110,14 +110,24 @@ namespace occult {
         false_keyword_tt,    // false
         struct_keyword_tt,   // struct
         generic_keyword_tt,
+        enum_keyword_tt,     // enum
+        switch_keyword_tt,   // switch
+        case_keyword_tt,     // case
+        default_keyword_tt,  // default
+        const_keyword_tt,    // const
+        module_keyword_tt,   // module
+        import_keyword_tt,   // import
+
+        scope_resolution_tt, // ::
+        colon_tt,            // :
 
         is_linux64, // tmp
         is_win64,   // tmp
 
         unary_minus_operator_tt,
         unary_plus_operator_tt,
-        reference_operator_tt,   // & (@ in occult)
-        dereference_operator_tt, // * ($ in occult)
+        reference_operator_tt,   // @
+        dereference_operator_tt, // $
 
         end_of_file_tt,
         unkown_tt,

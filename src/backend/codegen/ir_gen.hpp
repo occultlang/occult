@@ -50,10 +50,10 @@ namespace occult {
         op_jle,
         op_jg,
         op_jge,
-        op_jb,  // unsigned less than (for float comparisons after COMISS/COMISD)
-        op_jbe, // unsigned less than or equal
-        op_ja,  // unsigned greater than
-        op_jae, // unsigned greater than or equal
+        op_jb,   // unsigned less than (for float comparisons after COMISS/COMISD)
+        op_jbe,  // unsigned less than or equal
+        op_ja,   // unsigned greater than
+        op_jae,  // unsigned greater than or equal
         op_setz,
         op_setnz,
         op_setl,
@@ -415,6 +415,8 @@ namespace occult {
         void generate_while(ir_function& function, cst_whilestmt* while_node);
 
         void generate_for(ir_function& function, cst_forstmt* for_node);
+
+        void generate_switch(ir_function& function, cst_switchstmt* switch_node, const std::string& current_break_label = "", const std::string& current_loop_start = "");
 
         void generate_array_decl(ir_function& function, cst_array* array_node);
 

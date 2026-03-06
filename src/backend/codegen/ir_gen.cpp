@@ -1498,6 +1498,158 @@ namespace occult {
         place_label(function, B1);
     }
 
+    void ir_gen::generate_switch(ir_function& function, cst_switchstmt* switch_node, const std::string& current_break_label, const std::string& current_loop_start) {
+        const std::string end_label = create_label();
+
+        std::vector<cst*> switch_expr_nodes;
+        std::vector<cst*> case_nodes;
+        cst* default_node = nullptr;
+
+        for (const auto& c : switch_node->get_children()) {
+            if (c->get_type() == cst_type::casestmt) {
+                case_nodes.push_back(c.get());
+            }
+            else if (c->get_type() == cst_type::defaultstmt) {
+                default_node = c.get();
+            }
+            else {
+                switch_expr_nodes.push_back(c.get());
+            }
+        }
+
+        std::string switch_tmp = "__switch_tmp_" + std::to_string(label_count);
+        label_count++;
+
+        for (auto* expr_node : switch_expr_nodes) {
+            switch (expr_node->get_type()) {
+            case cst_type::identifier:
+                function.code.emplace_back(op_load, expr_node->content);
+                break;
+            case cst_type::number_literal:
+                function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(expr_node->content));
+                break;
+            case cst_type::charliteral:
+                {
+                    std::int64_t char_val = expr_node->content.empty() ? 0 : static_cast<std::int64_t>(static_cast<unsigned char>(expr_node->content[0]));
+                    function.code.emplace_back(op_push, char_val);
+                    break;
+                }
+            case cst_type::functioncall:
+                generate_function_call(function, expr_node);
+                break;
+            case cst_type::memberaccess:
+                generate_member_access(function, cst::cast_raw<cst_memberaccess>(expr_node));
+                break;
+            case cst_type::arrayaccess:
+                generate_array_access(function, cst::cast_raw<cst_arrayaccess>(expr_node));
+                break;
+            default:
+                generate_arith_and_bitwise_operators(function, expr_node, "int64");
+                break;
+            }
+        }
+        function.code.emplace_back(op_store, switch_tmp, std::string("int64"));
+        local_variable_map[function][switch_tmp] = "int64";
+
+        struct case_info {
+            cst* node;
+            std::vector<cst*> val_nodes;
+            cst_block* block;
+            std::string body_label;
+            std::string false_label;
+        };
+        std::vector<case_info> case_infos;
+
+        for (auto* case_n : case_nodes) {
+            case_info ci;
+            ci.node = case_n;
+            ci.block = nullptr;
+
+            for (const auto& cc : case_n->get_children()) {
+                if (cc->get_type() == cst_type::block) {
+                    ci.block = cst::cast_raw<cst_block>(cc.get());
+                }
+                else {
+                    ci.val_nodes.push_back(cc.get());
+                }
+            }
+            ci.body_label = create_label();
+            ci.false_label = create_label();
+            case_infos.push_back(std::move(ci));
+        }
+
+        const std::string default_label = default_node ? create_label() : "";
+
+        auto find_next_body_label = [&](std::size_t idx) -> std::string {
+            for (std::size_t j = idx + 1; j < case_infos.size(); j++) {
+                if (case_infos[j].block) {
+                    return case_infos[j].body_label;
+                }
+            }
+            if (default_node) {
+                return default_label;
+            }
+            return end_label;
+        };
+
+        for (std::size_t i = 0; i < case_infos.size(); i++) {
+            auto& ci = case_infos[i];
+
+            function.code.emplace_back(op_load, switch_tmp);
+            for (auto* cv : ci.val_nodes) {
+                switch (cv->get_type()) {
+                case cst_type::identifier:
+                    function.code.emplace_back(op_load, cv->content);
+                    break;
+                case cst_type::number_literal:
+                    function.code.emplace_back(op_push, from_numerical_string<std::int64_t>(cv->content));
+                    break;
+                case cst_type::charliteral:
+                    {
+                        std::int64_t char_val = cv->content.empty() ? 0 : static_cast<std::int64_t>(static_cast<unsigned char>(cv->content[0]));
+                        function.code.emplace_back(op_push, char_val);
+                        break;
+                    }
+                case cst_type::functioncall:
+                    generate_function_call(function, cv);
+                    break;
+                default:
+                    generate_arith_and_bitwise_operators(function, cv, "int64");
+                    break;
+                }
+            }
+            function.code.emplace_back(op_cmp);
+            function.code.emplace_back(op_jnz, ci.false_label); // jump if NOT equal
+
+            if (ci.block) {
+                place_label(function, ci.body_label);
+                generate_block(function, ci.block, current_break_label, current_loop_start);
+                function.code.emplace_back(op_jmp, end_label);
+            }
+            else {
+                std::string target = find_next_body_label(i);
+                function.code.emplace_back(op_jmp, target);
+            }
+
+            place_label(function, ci.false_label);
+        }
+
+        if (default_node) {
+            place_label(function, default_label);
+            for (const auto& dc : default_node->get_children()) {
+                if (dc->get_type() == cst_type::block) {
+                    generate_block(function, cst::cast_raw<cst_block>(dc.get()), current_break_label, current_loop_start);
+                }
+            }
+        }
+
+        place_label(function, end_label);
+
+        if (auto it = local_variable_map.find(function); it != local_variable_map.end()) {
+            it->second.erase(switch_tmp);
+        }
+    }
+
     void ir_gen::generate_array_decl(ir_function& function, cst_array* array_node) {
         auto type = array_node->get_children().front().get();
 
@@ -2023,6 +2175,23 @@ namespace occult {
     }
 
     void ir_gen::generate_struct_decl(ir_function& function, cst_struct* struct_node) {
+        if (custom_type_map.contains(struct_node->content) &&
+            custom_type_map[struct_node->content]->get_type() == cst_type::enumeration) {
+            const auto id = struct_node->get_children().front().get();
+            local_variable_map[function][id->content] = "int64";
+
+            if (struct_node->get_children().size() > 1) {
+                const auto assignment = struct_node->get_children().back().get();
+                generate_common_generic<std::int64_t>(function, assignment, "int64");
+                function.code.emplace_back(op_store, id->content, std::string("int64"));
+            }
+            else {
+                function.code.emplace_back(op_push, static_cast<std::int64_t>(0), std::string("int64"));
+                function.code.emplace_back(op_store, id->content, std::string("int64"));
+            }
+            return;
+        }
+
         // include pointer information in the struct type
         std::string struct_type = struct_node->content;
         if (struct_node->num_pointers > 0) {
@@ -2110,14 +2279,9 @@ namespace occult {
                             if (!mc->get_children().empty() && mc->get_children().front()->content == member_chain[ci]) {
                                 if (ci == member_chain.size() - 1) {
                                     switch (mc->get_type()) {
-                                    case cst_type::float32_datatype:
-                                        member_type = "float32";
-                                        break;
-                                    case cst_type::float64_datatype:
-                                        member_type = "float64";
-                                        break;
-                                    default:
-                                        break;
+                                    case cst_type::float32_datatype: member_type = "float32"; break;
+                                    case cst_type::float64_datatype: member_type = "float64"; break;
+                                    default: break;
                                     }
                                 }
                                 else if (mc->get_type() == cst_type::structure) {
@@ -2245,6 +2409,10 @@ namespace occult {
 
                     break;
                 }
+            case cst_type::enumeration:
+                {
+                    break;
+                }
             case cst_type::identifier:
                 {
                     if (debug) {
@@ -2316,6 +2484,12 @@ namespace occult {
                 {
                     // only supporting the normal for loop for now, not foreach
                     generate_for(function, cst::cast_raw<cst_forstmt>(c.get()));
+
+                    break;
+                }
+            case cst_type::switchstmt:
+                {
+                    generate_switch(function, cst::cast_raw<cst_switchstmt>(c.get()), current_break_label, current_loop_start);
 
                     break;
                 }
@@ -2415,9 +2589,68 @@ namespace occult {
         try {
             std::vector<ir_function> functions;
 
+            std::vector<cst*> global_vars;
+            std::unordered_map<std::string, std::string> global_var_types; // name -> type
+            for (const auto& c : root->get_children()) {
+                const auto type = c->get_type();
+                if (type == cst_type::int8_datatype || type == cst_type::int16_datatype ||
+                    type == cst_type::int32_datatype || type == cst_type::int64_datatype ||
+                    type == cst_type::uint8_datatype || type == cst_type::uint16_datatype ||
+                    type == cst_type::uint32_datatype || type == cst_type::uint64_datatype ||
+                    type == cst_type::float32_datatype || type == cst_type::float64_datatype ||
+                    type == cst_type::string_datatype || type == cst_type::bool_datatype) {
+
+                    global_vars.push_back(c.get());
+
+                    std::string type_with_ptrs = c->to_string().substr(4, c->to_string().size());
+                    if (c->num_pointers > 0) {
+                        type_with_ptrs += "_ptr";
+                    }
+                    if (!c->get_children().empty()) {
+                        const auto id = cst::cast_raw<cst_identifier>(c->get_children().front().get());
+                        if (id) {
+                            global_var_types[id->content] = type_with_ptrs;
+                        }
+                    }
+                }
+            }
+
             for (const auto& c : root->get_children()) {
                 if (const auto type = c->get_type(); type == cst_type::function) {
-                    functions.emplace_back(generate_function(cst::cast_raw<cst_function>(c.get())));
+                    auto func = generate_function(cst::cast_raw<cst_function>(c.get()));
+
+                    for (const auto& [gname, gtype] : global_var_types) {
+                        local_variable_map[func][gname] = gtype;
+                    }
+
+                    if (!global_vars.empty()) {
+                        ir_function temp_func;
+                        temp_func.name = "__global_init";
+                        temp_func.type = "int64";
+
+                        for (auto* gv : global_vars) {
+                            std::string gv_type = gv->to_string().substr(4, gv->to_string().size());
+                            if (gv->num_pointers > 0) {
+                                gv_type += "_ptr";
+                            }
+
+                            if (!gv->get_children().empty()) {
+                                if (gv->get_children().size() > 1 && gv->get_children().back()->get_type() == cst_type::assignment) {
+                                    const auto identifier = cst::cast_raw<cst_identifier>(gv->get_children().front().get());
+                                    const auto assignment = cst::cast_raw<cst_assignment>(gv->get_children().back().get());
+                                    generate_common(temp_func, assignment, gv_type);
+                                    temp_func.code.emplace_back(op_store, identifier->content, gv_type);
+                                }
+                            }
+                        }
+
+                        std::vector<ir_instr> merged;
+                        merged.insert(merged.end(), temp_func.code.begin(), temp_func.code.end());
+                        merged.insert(merged.end(), func.code.begin(), func.code.end());
+                        func.code = std::move(merged);
+                    }
+
+                    functions.emplace_back(std::move(func));
                 }
             }
 
@@ -2433,7 +2666,7 @@ namespace occult {
         try {
             std::vector<ir_struct> structs;
 
-            auto handle_struct = [](const std::string& name, cst* child) -> ir_struct {
+            auto handle_struct = [this](const std::string& name, cst* child) -> ir_struct {
                 ir_struct ir_s;
 
                 ir_s.datatype = name;
@@ -2508,6 +2741,12 @@ namespace occult {
                         }
                     default:
                         {
+                            if (c->get_children().size() == 1 && custom_type_map.contains(c->content) &&
+                                custom_type_map[c->content]->get_type() == cst_type::enumeration) {
+                                ir_s.members.emplace_back("int64", c->get_children().front()->content);
+                                break;
+                            }
+
                             if (c->get_children().size() == 1) {
                                 if (ir_s.datatype != c->content) {
                                     if (c->num_pointers > 0) {
@@ -2538,6 +2777,9 @@ namespace occult {
             };
 
             for (auto& [name, child] : custom_type_map) {
+                if (child->get_type() == cst_type::enumeration) {
+                    continue; // skip enums, they are not structs
+                }
                 structs.emplace_back(handle_struct(name, child));
             }
 

@@ -1,7 +1,7 @@
 #include <chrono>
 #include <cmath>
-#include <csetjmp>
 #include <csignal>
+#include <csetjmp>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -13,14 +13,10 @@
 #include "lexer/lexer.hpp"
 #include "parser/cst.hpp"
 #include "parser/parser.hpp"
+#include <cstdlib>
 #ifdef __linux
 #include <sys/stat.h>
 #include "backend/linker/linker.hpp"
-#elif _WIN64
-#include "backend/linker/pe_header.hpp"
-#endif
-
-#include <cstdlib>
 
 static jmp_buf jit_jmp_buf;
 static volatile sig_atomic_t jit_signal_caught = 0;
@@ -29,6 +25,9 @@ static void jit_signal_handler(int sig) {
     jit_signal_caught = sig;
     longjmp(jit_jmp_buf, 1);
 }
+#elif _WIN64
+#include "backend/linker/pe_header.hpp"
+#endif
 
 void display_help() {
     std::cout << "Usage: occultc [options] <source.occ>\n"
@@ -37,8 +36,7 @@ void display_help() {
               << "  -t,   --time              Show compilation time per stage\n"
               << "  -d,   --debug             Enable debug mode (implies --time)\n"
               << "  -o,   --output <file>     Output native binary\n"
-              << "  -h,   --help              Show this message\n"
-              << "  -gc,  --gc                Enable the Garbage Collector\n";
+              << "  -h,   --help              Show this message\n";
 }
 
 OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) {
@@ -54,39 +52,6 @@ OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t* ptr), std::int64_t) {
         return 0;
     }
     free(ptr);
-    return 0;
-}
-
-OCCULT_FUNC_DECL(std::int64_t, print_string, (std::int64_t str), std::int64_t) {
-    if (str == 0) {
-        return 0;
-    }
-    const char* ptr = reinterpret_cast<const char*>(str);
-    std::size_t len = 0;
-    while (ptr[len] != '\0') {
-        ++len;
-    }
-    std::cout.write(ptr, static_cast<std::streamsize>(len));
-    std::cout.flush();
-    return static_cast<std::int64_t>(len);
-}
-
-OCCULT_FUNC_DECL(std::int64_t, print_integer, (std::int64_t num), std::int64_t) {
-    std::string s = std::to_string(num);
-    std::cout << s;
-    std::cout.flush();
-    return 0;
-}
-
-OCCULT_FUNC_DECL(std::int64_t, print_newline, (), std::int64_t) {
-    std::cout.put('\n');
-    std::cout.flush();
-    return 0;
-}
-
-OCCULT_FUNC_DECL(std::int64_t, print_char, (std::int64_t ch), std::int64_t) {
-    std::cout.put(static_cast<char>(ch));
-    std::cout.flush();
     return 0;
 }
 
@@ -235,6 +200,7 @@ int main(int argc, char* argv[]) {
       }
     }*/
 
+#ifdef __linux
     if (jit) {
         if (auto it = jit_runtime.function_map.find("main"); it != jit_runtime.function_map.end()) {
             start = std::chrono::high_resolution_clock::now();
@@ -284,7 +250,29 @@ int main(int argc, char* argv[]) {
             std::cerr << "Main function not found!" << std::endl;
         }
     }
+#elif
+    if (jit) {
+        if (auto it = jit_runtime.function_map.find("main"); it != jit_runtime.function_map.end()) {
+            start = std::chrono::high_resolution_clock::now();
 
+            std::int64_t res = reinterpret_cast<std::int64_t (*)()>(it->second)();
+
+            end = std::chrono::high_resolution_clock::now();
+            duration = end - start;
+
+            if (debug) {
+                std::cout << "Main returned: " << res << std::endl;
+            }
+
+            if (showtime) {
+                std::cout << GREEN << "[OCCULTC] Completed executing jit code " << RESET << duration.count() << "ms\n";
+            }
+        }
+        else {
+            std::cerr << "Main function not found!" << std::endl;
+        }
+    }
+#endif
 #ifdef __linux
     else if (!jit) {
         occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, jit_runtime.string_literals, debug, showtime);

@@ -158,6 +158,13 @@ namespace occult {
         if (b == "str" && int_types.count(a))
             return true;
 
+        if (known_enum_types.count(a) && (b == "<number>" || int_types.count(b)))
+            return true;
+        if (known_enum_types.count(b) && (a == "<number>" || int_types.count(a)))
+            return true;
+        if (known_enum_types.count(a) && known_enum_types.count(b))
+            return true;
+
         // In Occult's low-level memory model, 64-bit integer values are compatible
         // with pointer types (pointers are 64-bit addresses). This allows patterns
         // like reading a raw pointer from an i64* array slot and storing it in a
@@ -196,11 +203,8 @@ namespace occult {
                 {
                     // detect zero-valued float literals (0.0, 0., .0, 0e0, etc.)
                     bool fzero = false;
-                    try {
-                        fzero = std::stod(node->content) == 0.0;
-                    }
-                    catch (...) {
-                    }
+                    try { fzero = std::stod(node->content) == 0.0; }
+                    catch (...) {}
                     is_zero.push_back(fzero);
                 }
                 break;
@@ -333,7 +337,8 @@ namespace occult {
                         stk.pop_back();
                         is_zero.pop_back();
 
-                        if (rhs_zero && (node->get_type() == cst_type::division_operator || node->get_type() == cst_type::modulo_operator)) {
+                        if (rhs_zero && (node->get_type() == cst_type::division_operator ||
+                                         node->get_type() == cst_type::modulo_operator)) {
                             errors.emplace_back("Division by zero", lint_error::severity::warning);
                         }
 
@@ -442,6 +447,13 @@ namespace occult {
         function_param_counts["__bitcast_i64"] = 1;
 
         for (const auto& c : root->get_children()) {
+            if (c->get_type() == cst_type::enumeration) {
+                known_enum_types.insert(c->content);
+                continue;
+            }
+            if (c->get_type() == cst_type::moduledecl || c->get_type() == cst_type::importdecl) {
+                continue;
+            }
             if (c->get_type() == cst_type::function) {
                 std::string func_name;
                 std::string return_type;
@@ -466,7 +478,8 @@ namespace occult {
                             static constexpr const char* VARIADIC_PARAM_PREFIX = "__va";
                             bool is_synthetic = false;
                             for (const auto& id : arg->get_children()) {
-                                if (id->get_type() == cst_type::identifier && id->content.size() >= 4 && id->content.compare(0, 4, VARIADIC_PARAM_PREFIX) == 0) {
+                                if (id->get_type() == cst_type::identifier && id->content.size() >= 4 &&
+                                    id->content.compare(0, 4, VARIADIC_PARAM_PREFIX) == 0) {
                                     is_synthetic = true;
                                     break;
                                 }
@@ -545,11 +558,15 @@ namespace occult {
                                     // variadic: check minimum required args
                                     auto min_it = function_min_param_counts.find(first->content);
                                     if (min_it != function_min_param_counts.end() && actual_args < min_it->second) {
-                                        errors.emplace_back("Function '" + first->content + "' expects at least " + std::to_string(min_it->second) + " arguments, but " + std::to_string(actual_args) + " were provided");
+                                        errors.emplace_back("Function '" + first->content + "' expects at least " +
+                                            std::to_string(min_it->second) + " arguments, but " +
+                                            std::to_string(actual_args) + " were provided");
                                     }
                                 }
                                 else if (actual_args != expected) {
-                                    errors.emplace_back("Function '" + first->content + "' expects " + std::to_string(expected) + " arguments, but " + std::to_string(actual_args) + " were provided");
+                                    errors.emplace_back("Function '" + first->content + "' expects " +
+                                        std::to_string(expected) + " arguments, but " +
+                                        std::to_string(actual_args) + " were provided");
                                 }
                             }
                         }
@@ -591,7 +608,8 @@ namespace occult {
                 for (std::size_t i = 1; i < node->get_children().size(); ++i) {
                     const auto& child = node->get_children().at(i);
                     if (child->get_type() == cst_type::unary_minus_operator) {
-                        if (i + 1 < node->get_children().size() && node->get_children().at(i + 1)->get_type() == cst_type::number_literal) {
+                        if (i + 1 < node->get_children().size() &&
+                            node->get_children().at(i + 1)->get_type() == cst_type::number_literal) {
                             errors.emplace_back("Negative array index is not allowed", lint_error::severity::warning);
                         }
                     }
@@ -648,6 +666,12 @@ namespace occult {
                         const auto& id_node = c->get_children().front();
                         if (id_node->get_type() == cst_type::identifier) {
                             declare_var(id_node->content, tname);
+                            if (c->is_const) {
+                                const_variables.insert(id_node->content);
+                            }
+                            if (c->is_const && c->get_children().size() < 2) {
+                                errors.emplace_back("const variable '" + id_node->content + "' must be initialized at declaration");
+                            }
                         }
                         for (std::size_t i = 1; i < c->get_children().size(); ++i) {
                             lint_expr(c->get_children().at(i).get());
@@ -669,6 +693,9 @@ namespace occult {
                         const auto& id_node = c->get_children().front();
                         if (id_node->get_type() == cst_type::identifier) {
                             declare_var(id_node->content, tname);
+                            if (c->is_const) {
+                                const_variables.insert(id_node->content);
+                            }
                         }
                         for (std::size_t i = 1; i < c->get_children().size(); ++i) {
                             lint_expr(c->get_children().at(i).get());
@@ -680,6 +707,17 @@ namespace occult {
                             }
                         }
                     }
+                    break;
+                }
+
+            case cst_type::enumeration:
+                {
+                    break;
+                }
+
+            case cst_type::moduledecl:
+            case cst_type::importdecl:
+                {
                     break;
                 }
 
@@ -704,6 +742,9 @@ namespace occult {
                 {
                     if (!is_declared(c->content)) {
                         errors.emplace_back("Assignment to undeclared variable '" + c->content + "'");
+                    }
+                    else if (const_variables.count(c->content)) {
+                        errors.emplace_back("Cannot reassign to const variable '" + c->content + "'");
                     }
                     for (const auto& child : c->get_children()) {
                         lint_expr(child.get());
@@ -734,8 +775,9 @@ namespace occult {
                         bool has_comparison = false;
                         for (auto* n : cond) {
                             auto t = n->get_type();
-                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
-                                t == cst_type::less_than_or_equal_operator) {
+                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator ||
+                                t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
+                                t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
                                 has_comparison = true;
                                 break;
                             }
@@ -775,7 +817,8 @@ namespace occult {
                                     bool has_cmp = false;
                                     for (auto* n : econd) {
                                         auto t = n->get_type();
-                                        if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
+                                        if (t == cst_type::equals_operator || t == cst_type::not_equals_operator ||
+                                            t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
                                             t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
                                             has_cmp = true;
                                             break;
@@ -819,8 +862,9 @@ namespace occult {
                         bool has_comparison = false;
                         for (auto* n : cond) {
                             auto t = n->get_type();
-                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
-                                t == cst_type::less_than_or_equal_operator) {
+                            if (t == cst_type::equals_operator || t == cst_type::not_equals_operator ||
+                                t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
+                                t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
                                 has_comparison = true;
                                 break;
                             }
@@ -858,7 +902,8 @@ namespace occult {
                         auto& init_node = c->get_children().front();
                         if (is_type_node(init_node->get_type())) {
                             // check for float for-loop counter
-                            if (init_node->get_type() == cst_type::float32_datatype || init_node->get_type() == cst_type::float64_datatype) {
+                            if (init_node->get_type() == cst_type::float32_datatype ||
+                                init_node->get_type() == cst_type::float64_datatype) {
                                 errors.emplace_back("Float types are not allowed as for-loop counter variables", lint_error::severity::error);
                             }
 
@@ -893,8 +938,9 @@ namespace occult {
                                 bool has_comparison = false;
                                 for (const auto& gc : child->get_children()) {
                                     auto t = gc->get_type();
-                                    if (t == cst_type::equals_operator || t == cst_type::not_equals_operator || t == cst_type::greater_than_operator || t == cst_type::less_than_operator || t == cst_type::greater_than_or_equal_operator ||
-                                        t == cst_type::less_than_or_equal_operator) {
+                                    if (t == cst_type::equals_operator || t == cst_type::not_equals_operator ||
+                                        t == cst_type::greater_than_operator || t == cst_type::less_than_operator ||
+                                        t == cst_type::greater_than_or_equal_operator || t == cst_type::less_than_or_equal_operator) {
                                         has_comparison = true;
                                         break;
                                     }
@@ -927,6 +973,33 @@ namespace occult {
             case cst_type::breakstmt:
             case cst_type::continuestmt:
                 break;
+
+            case cst_type::switchstmt:
+                {
+                    for (const auto& child : c->get_children()) {
+                        if (child->get_type() == cst_type::casestmt) {
+                            for (const auto& cc : child->get_children()) {
+                                if (cc->get_type() == cst_type::block) {
+                                    lint_block(cst::cast_raw<cst_block>(cc.get()));
+                                }
+                                else {
+                                    lint_expr(cc.get());
+                                }
+                            }
+                        }
+                        else if (child->get_type() == cst_type::defaultstmt) {
+                            for (const auto& dc : child->get_children()) {
+                                if (dc->get_type() == cst_type::block) {
+                                    lint_block(cst::cast_raw<cst_block>(dc.get()));
+                                }
+                            }
+                        }
+                        else {
+                            lint_expr(child.get());
+                        }
+                    }
+                    break;
+                }
 
             default:
                 break;
@@ -972,11 +1045,30 @@ namespace occult {
     bool linter::analyze() {
         collect_functions();
 
+        push_scope();
+
         for (const auto& c : root->get_children()) {
             if (c->get_type() == cst_type::function) {
                 lint_function(cst::cast_raw<cst_function>(c.get()));
             }
+            else if (is_type_node(c->get_type())) {
+                const std::string tname = type_name_of(c.get());
+                if (!c->get_children().empty()) {
+                    const auto& id_node = c->get_children().front();
+                    if (id_node->get_type() == cst_type::identifier) {
+                        declare_var(id_node->content, tname);
+                        if (c->is_const) {
+                            const_variables.insert(id_node->content);
+                            if (c->get_children().size() < 2) {
+                                errors.emplace_back("const variable '" + id_node->content + "' must be initialized at declaration");
+                            }
+                        }
+                    }
+                }
+            }
         }
+
+        pop_scope();
 
         for (const auto& e : errors) {
             if (e.level == lint_error::severity::error) {
