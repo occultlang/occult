@@ -1,0 +1,15 @@
+module mylib {
+    fn square(i64 x) i64 {
+        return x * x;
+    }
+
+    fn cube(i64 x) i64 {
+        return x * x * x;
+    }
+
+    enum Status {
+        OK = 0,
+        Error = 1,
+        Pending = 2
+    }
+}

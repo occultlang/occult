@@ -1,0 +1,10 @@
+include "../lib/printf.occ"
+
+const i64 MAX_SIZE = 100;
+
+fn main() i64 {
+    printf("MAX_SIZE = ");
+    printf("%d\n", MAX_SIZE);
+
+    return 0;
+}

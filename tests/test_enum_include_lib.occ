@@ -1,0 +1,6 @@
+enum TokenType {
+    Number,
+    String,
+    Identifier,
+    Keyword
+}

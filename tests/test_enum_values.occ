@@ -1,0 +1,14 @@
+include "../lib/printf.occ"
+
+enum Status {
+    OK = 200,
+    NotFound = 404,
+    ServerError = 500
+}
+
+fn main() i64 {
+    printf("%i\n", Status::OK);
+    printf("%i\n", Status::NotFound);
+    printf("%i\n", Status::ServerError);
+    return 0;
+}

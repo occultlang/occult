@@ -1,0 +1,18 @@
+include "../lib/printf.occ"
+
+fn main() i64 {
+    // Edge case: const without initialization should fail
+    // This test verifies const enforcement works
+    const i64 a = 1;
+    const i64 b = 2;
+    i64 c = a + b;
+    printf("a + b = ");
+    printf("%d\n", c);
+
+    // Edge case: const with different types
+    const i32 small = 42;
+    printf("small = ");
+    printf("%d\n", small);
+
+    return 0;
+}

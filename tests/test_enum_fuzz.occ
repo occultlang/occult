@@ -1,0 +1,87 @@
+include "../lib/printf.occ"
+
+// Enum with auto-increment starting at 0
+enum Fruit {
+    Apple,
+    Banana,
+    Cherry,
+    Date,
+    Elderberry
+}
+
+// Enum with explicit values
+enum ErrorCode {
+    None = 0,
+    IOError = 100,
+    ParseError = 200,
+    RuntimeError = 300
+}
+
+// Enum with mixed auto and explicit
+enum Priority {
+    Low,
+    Medium,
+    High = 10,
+    Critical
+}
+
+fn check_fruit(i64 f) i64 {
+    switch (f) {
+        case 0: {
+            printf("Apple\n");
+        }
+        case 1: {
+            printf("Banana\n");
+        }
+        case 2: {
+            printf("Cherry\n");
+        }
+        case 3: {
+            printf("Date\n");
+        }
+        case 4: {
+            printf("Elderberry\n");
+        }
+        default: {
+            printf("Unknown fruit\n");
+        }
+    }
+    return 0;
+}
+
+fn main() i64 {
+    // Test auto-increment values
+    printf("Apple=%d\n", Fruit::Apple);
+    printf("Banana=%d\n", Fruit::Banana);
+    printf("Cherry=%d\n", Fruit::Cherry);
+    printf("Date=%d\n", Fruit::Date);
+    printf("Elderberry=%d\n", Fruit::Elderberry);
+
+    // Test explicit values
+    printf("None=%d\n", ErrorCode::None);
+    printf("IOError=%d\n", ErrorCode::IOError);
+    printf("ParseError=%d\n", ErrorCode::ParseError);
+    printf("RuntimeError=%d\n", ErrorCode::RuntimeError);
+
+    // Test mixed auto and explicit
+    printf("Low=%d\n", Priority::Low);
+    printf("Medium=%d\n", Priority::Medium);
+    printf("High=%d\n", Priority::High);
+    printf("Critical=%d\n", Priority::Critical);
+
+    // Test enum in switch
+    i64 f = Fruit::Cherry;
+    check_fruit(f);
+
+    // Test enum comparison
+    if (Fruit::Apple == 0) {
+        printf("Apple is 0\n");
+    }
+
+    // Test enum in expressions
+    i64 sum = Fruit::Apple + Fruit::Banana + Fruit::Cherry;
+    printf("sum of first 3 fruits=%d\n", sum);
+
+    printf("enum fuzz done\n");
+    return 0;
+}

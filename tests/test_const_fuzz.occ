@@ -1,0 +1,45 @@
+include "../lib/printf.occ"
+
+fn main() i64 {
+    // Fuzz test: many const variables of different types
+    const i64 a = 0;
+    const i64 b = 1;
+    const i64 c = 999999;
+    const i32 d = 42;
+    const i8 e = 127;
+
+    printf("a=%d b=%d c=%d d=%d e=%d\n", a, b, c, d, e);
+
+    // Use const in expressions
+    i64 sum = a + b + c;
+    printf("sum=%d\n", sum);
+
+    // Use const in if conditions
+    if (a == 0) {
+        printf("a is zero\n");
+    }
+
+    // Use const in while loop condition
+    i64 counter = 0;
+    while (counter < b) {
+        printf("loop %d\n", counter);
+        counter = counter + 1;
+    }
+
+    // Use const in switch
+    switch (d) {
+        case 42: {
+            printf("d is 42\n");
+        }
+        default: {
+            printf("d is not 42\n");
+        }
+    }
+
+    // Const in arithmetic expressions
+    i64 product = b * c;
+    printf("product=%d\n", product);
+
+    printf("const fuzz done\n");
+    return 0;
+}

@@ -1,0 +1,15 @@
+include "../lib/printf.occ"
+
+enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+fn main() i64 {
+    i64 c = Color::Red;
+    printf("%i\n", c);
+    printf("%i\n", Color::Green);
+    printf("%i\n", Color::Blue);
+    return 0;
+}

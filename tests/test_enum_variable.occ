@@ -1,0 +1,20 @@
+include "../lib/printf.occ"
+
+enum State {
+    Idle,
+    Running,
+    Stopped
+}
+
+fn main() i64 {
+    State s = State::Running;
+    printf("State = %i\n", s);
+
+    if (s == State::Running) {
+        printf("Is running!\n");
+    }
+
+    s = State::Stopped;
+    printf("New state = %i\n", s);
+    return 0;
+}

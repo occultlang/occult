@@ -1,0 +1,78 @@
+include "../lib/printf.occ"
+
+// Global constants
+const i64 MAX_ITEMS = 5;
+
+// Global enum
+enum Category {
+    TypeA,
+    TypeB,
+    TypeC,
+    TypeD = 10,
+    TypeE
+}
+
+// Global variable
+i64 total_count = 0;
+
+fn categorize(i64 cat) i64 {
+    switch (cat) {
+        case 0:
+        case 1:
+        case 2: {
+            printf("basic type (A/B/C)\n");
+        }
+        case 10:
+        case 11: {
+            printf("advanced type (D/E)\n");
+        }
+        default: {
+            printf("unknown type\n");
+        }
+    }
+    return 0;
+}
+
+fn process_item(i64 id) i64 {
+    printf("processing item %d, total so far: %d\n", id, total_count);
+
+    // Use global const in comparison
+    if (id < MAX_ITEMS) {
+        printf("  within limit\n");
+    }
+    return 0;
+}
+
+fn main() i64 {
+    // Use enum values in switch with fallthrough
+    categorize(Category::TypeA);
+    categorize(Category::TypeC);
+    categorize(Category::TypeD);
+    categorize(Category::TypeE);
+    categorize(99);
+
+    // Use const global in loop
+    i64 i = 0;
+    while (i < MAX_ITEMS) {
+        process_item(i);
+        i = i + 1;
+    }
+
+    // Enum in expressions
+    i64 cat_sum = Category::TypeA + Category::TypeB + Category::TypeC;
+    printf("category sum: %d\n", cat_sum);
+
+    // Switch on enum value
+    i64 my_type = Category::TypeD;
+    switch (my_type) {
+        case 10: {
+            printf("TypeD confirmed\n");
+        }
+        default: {
+            printf("not TypeD\n");
+        }
+    }
+
+    printf("combined test done\n");
+    return 0;
+}

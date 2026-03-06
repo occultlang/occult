@@ -1,0 +1,7 @@
+include "../lib/printf.occ"
+
+fn main() i64 {
+    const i64 x = 42;
+    x = 10;
+    return 0;
+}
