@@ -74,8 +74,6 @@ Afterwards, you should be good to go
 _____________________________________________________________________________
 
 ### Roadmap 
-- Switch case
-- Enums & Comptime variables (+ global variables)
 - Linker Completion
 - Bug Testing & Stability
 - Bootstrapped Compiler
