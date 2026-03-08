@@ -74,6 +74,7 @@ Afterwards, you should be good to go
 _____________________________________________________________________________
 
 ### Roadmap 
+- Basic STDLIB
 - Linker Completion
 - Bug Testing & Stability
 - Bootstrapped Compiler
