@@ -17,6 +17,7 @@
 #ifdef __linux
 #include <sys/stat.h>
 #include "backend/linker/linker.hpp"
+#include "backend/codegen/x86_64_assembler.hpp"
 
 static jmp_buf jit_jmp_buf;
 static volatile sig_atomic_t jit_signal_caught = 0;
@@ -163,9 +164,9 @@ int main(int argc, char* argv[]) {
     }
 
 
-    occult::function_registry::register_function_to_ir<&alloc>(ir);
+    /*occult::function_registry::register_function_to_ir<&alloc>(ir);
     occult::function_registry::register_function_to_ir<&del>(ir);
-    /*occult::function_registry::register_function_to_ir<&print_string>(ir);
+    occult::function_registry::register_function_to_ir<&print_string>(ir);
     occult::function_registry::register_function_to_ir<&print_integer>(ir);
     occult::function_registry::register_function_to_ir<&print_newline>(ir);
     occult::function_registry::register_function_to_ir<&print_char>(ir);*/
@@ -173,9 +174,9 @@ int main(int argc, char* argv[]) {
     start = std::chrono::high_resolution_clock::now();
     occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
 
-    occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
+    /* occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
     occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
-    /* occult::function_registry::register_function_to_codegen<&print_string>(jit_runtime);
+    occult::function_registry::register_function_to_codegen<&print_string>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_integer>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_newline>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_char>(jit_runtime);*/
@@ -192,6 +193,50 @@ int main(int argc, char* argv[]) {
     if (showtime) {
         std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m" << duration.count() << "ms\n";
     }
+
+    /*occult::x86_64::assembler assembler(R"(
+        mov [rax], 100
+        mov rbx, r15
+        mov [rax], rbx
+        mov rcx, [rsp]
+        mov [rsp + 8], rax
+        mov rdx, [rbp - 16]
+        mov [rbx + rcx*4], rdi
+        mov [rbx + rcx*8 + 16], rsi
+        mov rax, -42
+
+        add [rax], 100
+        add rbx, r15
+        add [rax], rbx
+        add rcx, [rsp]
+        add [rsp + 8], rax
+        add rdx, [rbp - 16]
+        add [rbx + rcx*4], rdi
+        add [rbx + rcx*8 + 16], rsi
+        add rax, -42
+
+        sub [rax], 100
+        sub rbx, r15
+        sub [rax], rbx
+        sub rcx, [rsp]
+        sub [rsp + 8], rax
+        sub rdx, [rbp - 16]
+        sub [rbx + rcx*4], rdi
+        sub [rbx + rcx*8 + 16], rsi
+        sub rax, -42
+
+        xor [rax], 100
+        xor rbx, r15
+        xor [rax], rbx
+        xor rcx, [rsp]
+        xor [rsp + 8], rax
+        xor rdx, [rbp - 16]
+        xor [rbx + rcx*4], rdi
+        xor [rbx + rcx*8 + 16], rsi
+        xor rax, -42
+    )", true);
+    assembler.assemble();*/
+    
     /*if (debug && jit) {
       for (const auto& pair : jit_runtime.function_map) {
         std::cout << pair.first << std::endl;

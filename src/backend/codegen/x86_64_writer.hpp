@@ -1446,10 +1446,10 @@ namespace occult::x86_64 {
         void emit_mov(SIGNED_IMM_TO_MEM_ARG) {
             assert_imm_size<std::int64_t>(imm);
 
-            if (imm_fits<std::int8_t>(imm)) {
+            if (REG_RANGE(dest.reg, al, dil) || REG_RANGE(dest.reg, r8b, r15b)) {
                 emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), true, imm_mode::do_8);
             }
-            else if (imm_fits<std::int16_t>(imm)) {
+            else if (REG_RANGE(dest.reg, ax, di) || REG_RANGE(dest.reg, r8w, r15w)) {
                 emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), true, imm_mode::do_16);
             }
             else {
@@ -1460,10 +1460,10 @@ namespace occult::x86_64 {
         void emit_mov(UNSIGNED_IMM_TO_MEM_ARG) {
             assert_imm_size<std::uint64_t>(imm);
 
-            if (imm_fits<std::uint8_t>(imm)) {
+            if (REG_RANGE(dest.reg, al, dil) || REG_RANGE(dest.reg, r8b, r15b)) {
                 emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false, imm_mode::do_8);
             }
-            else if (imm_fits<std::int16_t>(imm)) {
+            else if (REG_RANGE(dest.reg, ax, di) || REG_RANGE(dest.reg, r8w, r15w)) {
                 emit_mem_imm(opcode::MOV_rm8_imm8, opcode::MOV_rm16_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(0), false, imm_mode::do_16);
             }
             else {

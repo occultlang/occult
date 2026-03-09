@@ -1010,6 +1010,7 @@ namespace occult {
                     for (const auto& arg : c->get_children()) {
                         if (arg->get_type() == cst_type::variadic) {
                             declare_var("__varargs", "int64");
+                            declare_var("__varargs_size", "int64");
                             continue;
                         }
                         const std::string atype = type_name_of(arg.get());
