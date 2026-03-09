@@ -1767,6 +1767,16 @@ namespace occult {
             }
             from_source = peek().lexeme;
             consume();
+
+            while (match(peek(), division_operator_tt)) {
+                consume(); // consume '/'
+                if (!match(peek(), identifier_tt)) {
+                    throw parsing_error("identifier after '/' in from path", peek(), pos, std::source_location::current().function_name());
+                }
+                from_source += "/";
+                from_source += peek().lexeme;
+                consume();
+            }
         }
 
         if (!match(peek(), semicolon_tt)) {
