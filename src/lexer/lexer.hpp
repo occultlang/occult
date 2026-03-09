@@ -117,6 +117,7 @@ namespace occult {
         const_keyword_tt,   // const
         module_keyword_tt,  // module
         import_keyword_tt,  // import
+        asm_keyword_tt,
 
         scope_resolution_tt, // ::
         colon_tt,            // :
@@ -180,6 +181,8 @@ namespace occult {
         token_t handle_operator(const operator_type& op_type);
 
         token_t handle_symbol();
+
+        token_t handle_asm_block();
 
         token_t get_next_token();
 

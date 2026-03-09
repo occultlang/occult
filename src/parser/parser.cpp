@@ -813,6 +813,15 @@ namespace occult {
         }
 
         bool uses_shellcode = false;
+        bool uses_assembly = false;
+
+        if (match(peek(), asm_keyword_tt)) {
+            consume();
+
+            func_node->add_child(cst::new_node<cst_func_uses_asm>());
+            uses_assembly = true;
+        }
+
         if (match(peek(), shellcode_denoter_tt)) {
             consume();
 
@@ -850,6 +859,37 @@ namespace occult {
                 consume();
 
                 func_node->add_child(std::move(shellcode_node));
+            }
+            else {
+                throw parsing_error("{", peek(), pos, std::source_location::current().function_name());
+            }
+
+            return func_node;
+        }
+
+        if (uses_assembly) {
+            auto asm_node = cst::new_node<cst_asm_code>();
+
+            if (match(peek(), left_curly_bracket_tt)) {
+                consume();
+
+                auto tok = peek(); // should be shellcode_denoter type
+
+                if (tok.tt != shellcode_denoter_tt) { // lets just check anyways can't hurt
+                    throw parsing_error("assembly code", peek(), pos, std::source_location::current().function_name());
+                }
+
+                consume();
+
+                asm_node->add_child(cst::new_node<cst_stringliteral>(tok.lexeme)); // src
+
+                if (!match(peek(), right_curly_bracket_tt)) {
+                    throw parsing_error("}", peek(), pos, std::source_location::current().function_name());
+                }
+
+                consume();
+
+                func_node->add_child(std::move(asm_node));
             }
             else {
                 throw parsing_error("{", peek(), pos, std::source_location::current().function_name());

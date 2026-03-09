@@ -2,6 +2,7 @@
 
 #include "ir_gen.hpp"
 #include "x86_64_writer.hpp"
+#include "x86_64_assembler.hpp"
 
 #include <cstring>
 #include <initializer_list>
@@ -307,7 +308,7 @@ namespace occult::x86_64 {
             std::size_t deref_count_normal = 0;
             std::size_t deref_count_assign = 0;
 
-            const bool save_callee_saved = !func.uses_shellcode;
+            const bool save_callee_saved = !func.uses_shellcode && !func.uses_assembly;
             const std::int32_t callee_saved_space = save_callee_saved ? 8 * 5 : 0;
 
             std::int32_t totalsizes = callee_saved_space;
@@ -318,7 +319,7 @@ namespace occult::x86_64 {
             // reserve placeholder for stack allocation right after prologue
             // we'll patch this later with the actual totalsizes value
             std::size_t stack_alloc_placeholder_location = 0;
-            if (!func.uses_shellcode) {
+            if (!func.uses_shellcode && !func.uses_assembly) {
                 stack_alloc_placeholder_location = w->get_code().size();
                 w->emit_sub(rsp, callee_saved_space);
 
@@ -335,7 +336,7 @@ namespace occult::x86_64 {
             constexpr grp sysv_regs[] = {rdi, rsi, rdx, rcx, r8, r9};
             constexpr simd128 sysv_regs_simd[] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
 
-            if (!func.uses_shellcode) {
+            if (!func.uses_shellcode && !func.uses_assembly) {
                 std::size_t gp_arg_idx = 0;
                 std::size_t fp_arg_idx = 0;
                 std::size_t stack_arg_offset = 16; // start after return address and saved rbp
@@ -421,7 +422,7 @@ namespace occult::x86_64 {
             }
 
             // for variadic functions, create a __varargs array from the __va* args
-            if (func.is_variadic && !func.uses_shellcode) {
+            if (func.is_variadic && (!func.uses_shellcode && !func.uses_assembly)) {
                 std::vector<std::string> va_arg_names;
                 for (const auto& arg : func.args) {
                     if (arg.name.size() >= 4 && arg.name.substr(0, 4) == "__va") {
@@ -465,6 +466,17 @@ namespace occult::x86_64 {
                         if (std::holds_alternative<std::uint8_t>(code.operand)) {
                             std::uint8_t val = std::get<std::uint8_t>(code.operand);
                             w->push_byte(val);
+                        }
+
+                        break;
+                    }
+                case ir_opcode::op_asm_code: 
+                    {
+                        if (std::holds_alternative<std::string>(code.operand)) {
+                            std::string val = std::get<std::string>(code.operand);
+                            
+                            assembler a(val);
+                            w->push_bytes(a.assemble());
                         }
 
                         break;
@@ -1476,7 +1488,7 @@ namespace occult::x86_64 {
                             w->emit_mov(r15, mem{rbp, -40});
                         }
 
-                        if (!func.uses_shellcode) {
+                        if (!func.uses_shellcode && !func.uses_assembly) {
                             if (!use_jit && is_main) {
                                 w->emit_pop(rax);
                                 w->emit_function_epilogue();
@@ -2832,7 +2844,7 @@ namespace occult::x86_64 {
             }
 
             // patch the stack allocation placeholder with actual totalsizes
-            if (!func.uses_shellcode && stack_alloc_placeholder_location > 0) {
+            if ((!func.uses_shellcode && !func.uses_assembly) && stack_alloc_placeholder_location > 0) {
                 auto& code = w->get_code();
                 // the sub rsp, imm32 instruction format is: 48 81 EC [imm32]
                 // we need to patch the imm32 value (4 bytes starting at offset +3)
@@ -2848,7 +2860,7 @@ namespace occult::x86_64 {
 
             // patch the initial stack allocation (sub rsp, imm32) to the final
             // totalsizes value
-            if (!func.uses_shellcode && stack_alloc_placeholder_location > 0) {
+            if ((!func.uses_shellcode|| !func.uses_assembly) && stack_alloc_placeholder_location > 0) {
                 // ensure stack is 16-byte aligned for function calls per System V ABI
                 // after call + push rbp, rsp is 16-byte aligned, so keep the frame size a
                 // multiple of 16
@@ -2902,7 +2914,7 @@ namespace occult::x86_64 {
             auto w = std::make_unique<x86_64_writer>(debug);
             function_map.insert({func.name, reinterpret_cast<jit_function>(w->memory)});
 
-            if (!func.uses_shellcode) {
+            if (!func.uses_shellcode && !func.uses_assembly) {
                 w->emit_function_prologue();
             }
 

@@ -209,7 +209,7 @@ namespace occult::x86_64 {
             }
 
             if (peek().tt == x86_64_instr_token::addition_tt) {
-                consume(); // consume '+'
+                consume();
 
                 if (peek().tt == x86_64_instr_token::number_literal_tt) {
                     // [reg + disp]
@@ -397,7 +397,7 @@ namespace occult::x86_64 {
     }
 
     public:
-        void assemble() {
+        std::vector<std::uint8_t> assemble() {
             assembler_token token = get_next_token();
 
             while (token.tt != x86_64_instr_token::end_of_assembly_tt) {
@@ -829,6 +829,8 @@ namespace occult::x86_64 {
             if (debug) {
                 w.print_bytes();
             }
+
+            return w.get_code();
         }
         
         assembler(const std::string& assembly, const bool debug = false) : source(assembly), debug(debug) {}

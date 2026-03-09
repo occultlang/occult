@@ -42,7 +42,7 @@ namespace occult {
         {"u32", uint32_keyword_tt},      {"u16", uint16_keyword_tt},      {"u8", uint8_keyword_tt},      {"f32", float32_keyword_tt},         {"f64", float64_keyword_tt}, {"bool", boolean_keyword_tt},
         {"char", char_keyword_tt},       {"string", string_keyword_tt},   {"array", array_keyword_tt},   {"false", false_keyword_tt},         {"true", true_keyword_tt},   {"in", in_keyword_tt},
         {"struct", struct_keyword_tt},   {"generic", generic_keyword_tt}, {"enum", enum_keyword_tt},     {"switch", switch_keyword_tt},       {"case", case_keyword_tt},   {"default", default_keyword_tt},
-        {"const", const_keyword_tt},     {"module", module_keyword_tt},   {"import", import_keyword_tt}, {"shellcode", shellcode_denoter_tt}, {"is_linux64", is_linux64},  {"is_win64", is_win64}};
+        {"const", const_keyword_tt},     {"module", module_keyword_tt},   {"import", import_keyword_tt}, {"shellcode", shellcode_denoter_tt}, {"is_linux64", is_linux64},  {"is_win64", is_win64}, {"asm", asm_keyword_tt} };
 
     inline std::unordered_map<token_type, std::string> token_typename_map = {{whitespace_tt, "whitespace"},
                                                                              {comment_tt, "comment"},
@@ -145,7 +145,8 @@ namespace occult {
                                                                              {is_win64, "is_win64"},
                                                                              {is_linux64, "is_linux64"},
                                                                              {variadic_tt, "variadic"},
-                                                                             {char_literal_tt, "char_literal"}};
+                                                                             {char_literal_tt, "char_literal"},
+                                                                             {asm_keyword_tt, "asm"}};
 
     inline std::unordered_set<char> alnumeric_set = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F',
                                                      'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_'};

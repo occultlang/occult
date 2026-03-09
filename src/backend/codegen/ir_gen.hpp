@@ -97,6 +97,7 @@ namespace occult {
         op_push_shellcode,
         op_cast,
         op_bitcast,
+        op_asm_code
     };
 
     inline std::string opcode_to_string(ir_opcode op) {
@@ -271,6 +272,8 @@ namespace occult {
             return "push_single";
         case op_push_shellcode:
             return "push_shellcode";
+        case op_asm_code: 
+            return "asm_code";
         default:
             return "unknown_opcode";
         }
@@ -305,6 +308,7 @@ namespace occult {
         bool uses_shellcode = false;
         bool is_external = false;
         bool is_variadic = false;
+        bool uses_assembly = false;
 
         bool operator==(const ir_function& other) const { return name == other.name; }
     };

@@ -74,6 +74,27 @@ namespace occult {
 
                     break;
                 }
+            case cst_type::func_uses_asm: 
+                {
+                    function.uses_assembly = true;
+
+                    break;   
+                }
+            case cst_type::asm_code: 
+                {
+                    for (auto& str_literal : c->get_children()) {
+                        if (str_literal->get_type() == cst_type::stringliteral) {
+                            function.code.emplace_back(op_asm_code, str_literal->content, "str");
+                        }
+                        else {
+                            std::cout << RED << "[IR ERR] Expected string literal in assembly block.\n" << RESET;
+
+                            break;
+                        }
+                    }                    
+
+                    break;
+                }
             case cst_type::shellcode:
                 {
                     for (auto& num_literal : c->get_children()) {
@@ -2550,10 +2571,12 @@ namespace occult {
 
     void ir_gen::visualize_stack_ir(const std::vector<ir_function>& funcs) {
         std::cout << CYAN << "Function(s): \n" << RESET;
-        for (const auto& [code, args, name, type, uses_shellcode, is_external, is_variadic] : funcs) {
+        for (const auto& [code, args, name, type, uses_shellcode, is_external, is_variadic, uses_assembly] : funcs) {
             std::cout << "Type: " << type << "\n";
             std::string sh = uses_shellcode ? "True" : "False";
+            std::string sh_asm = uses_assembly ? "True" : "False";
             std::cout << "Shellcode: " << sh << "\n";
+            std::cout << "Assembly: " << sh_asm <<  "\n";
             std::cout << "Name: " << name << "\n";
 
             std::cout << "Args:\n";

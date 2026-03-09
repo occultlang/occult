@@ -96,6 +96,8 @@ namespace occult {
         defaultstmt,
         moduledecl,
         importdecl,
+        func_uses_asm,
+        asm_code
     };
 
     class cst {
@@ -355,7 +357,9 @@ namespace occult {
     NODE(bool_datatype, cst_bool)
 
     NODE(func_uses_shellcode, cst_func_uses_shellcode)
+    NODE(func_uses_asm, cst_func_uses_asm)
     NODE(shellcode, cst_shellcode)
+    NODE(asm_code, cst_asm_code)
 
     NODE(cast_to_datatype, cst_cast_to_datatype)
     NODE(variadic, cst_variadic)
