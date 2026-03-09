@@ -1,0 +1,22 @@
+// string: source, i64: source_length
+fn print_str(string, i64) asm i64 {
+    push rbp
+    mov	rbp, rsp
+    mov r11, rdi
+    mov r12, rsi
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, r11
+    mov rdx, r12
+    syscall
+    mov	rsp,rbp
+	pop	rbp
+    mov rax, 0
+    ret
+}
+
+fn main() {
+    print_str("HELLO\n", 6);
+
+    return 0;
+}
