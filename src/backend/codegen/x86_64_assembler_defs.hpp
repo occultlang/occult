@@ -491,4 +491,16 @@ namespace occult::x86_64 {
         { x86_64_instr_token::xmm14, xmm14 },
         { x86_64_instr_token::xmm15, xmm15 },
     };
+
+    inline bool is_xmm(x86_64_instr_token tt) {
+        return assembler_token_to_simd.contains(tt);
+    }
+
+    inline bool is_gpr8(x86_64_instr_token tt) {
+        return assembler_token_to_gpr8.contains(tt);
+    }
+
+    inline bool is_gpr16(x86_64_instr_token tt) {
+        return assembler_token_to_gpr16.contains(tt);
+    }
 } // namespace occult::x86_64

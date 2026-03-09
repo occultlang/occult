@@ -195,45 +195,19 @@ int main(int argc, char* argv[]) {
     }
 
     /*occult::x86_64::assembler assembler(R"(
-        mov [rax], 100
-        mov rbx, r15
-        mov [rax], rbx
-        mov rcx, [rsp]
-        mov [rsp + 8], rax
-        mov rdx, [rbp - 16]
-        mov [rbx + rcx*4], rdi
-        mov [rbx + rcx*8 + 16], rsi
-        mov rax, -42
-
-        add [rax], 100
-        add rbx, r15
-        add [rax], rbx
-        add rcx, [rsp]
-        add [rsp + 8], rax
-        add rdx, [rbp - 16]
-        add [rbx + rcx*4], rdi
-        add [rbx + rcx*8 + 16], rsi
-        add rax, -42
-
-        sub [rax], 100
-        sub rbx, r15
-        sub [rax], rbx
-        sub rcx, [rsp]
-        sub [rsp + 8], rax
-        sub rdx, [rbp - 16]
-        sub [rbx + rcx*4], rdi
-        sub [rbx + rcx*8 + 16], rsi
-        sub rax, -42
-
-        xor [rax], 100
-        xor rbx, r15
-        xor [rax], rbx
-        xor rcx, [rsp]
-        xor [rsp + 8], rax
-        xor rdx, [rbp - 16]
-        xor [rbx + rcx*4], rdi
-        xor [rbx + rcx*8 + 16], rsi
-        xor rax, -42
+        push rbp
+        mov	rbp, rsp
+        mov r11, rdi
+        mov r12, rsi
+        mov rax, 1
+        mov rdi, 1
+        mov rsi, r11
+        mov rdx, r12
+        syscall
+        mov	rsp,rbp
+	    pop	rbp
+        mov rax, 0
+        ret
     )", true);
     assembler.assemble();*/
     
