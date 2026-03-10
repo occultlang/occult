@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
+#include <algorithm>
 
 /*
  * A class for stack-oriented codegen, redone
@@ -2994,3 +2995,4 @@ namespace occult::x86_64 {
         }
     };
 } // namespace occult::x86_64
+
