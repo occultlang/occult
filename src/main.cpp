@@ -164,9 +164,9 @@ int main(int argc, char* argv[]) {
     }
 
 
-    /*occult::function_registry::register_function_to_ir<&alloc>(ir);
+    occult::function_registry::register_function_to_ir<&alloc>(ir);
     occult::function_registry::register_function_to_ir<&del>(ir);
-    occult::function_registry::register_function_to_ir<&print_string>(ir);
+    /*occult::function_registry::register_function_to_ir<&print_string>(ir);
     occult::function_registry::register_function_to_ir<&print_integer>(ir);
     occult::function_registry::register_function_to_ir<&print_newline>(ir);
     occult::function_registry::register_function_to_ir<&print_char>(ir);*/
@@ -174,9 +174,9 @@ int main(int argc, char* argv[]) {
     start = std::chrono::high_resolution_clock::now();
     occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
 
-    /* occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
+     occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
     occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
-    occult::function_registry::register_function_to_codegen<&print_string>(jit_runtime);
+   /* occult::function_registry::register_function_to_codegen<&print_string>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_integer>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_newline>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_char>(jit_runtime);*/
