@@ -269,7 +269,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "Main function not found!" << std::endl;
         }
     }
-#elif
+#else
     if (jit) {
         if (auto it = jit_runtime.function_map.find("main"); it != jit_runtime.function_map.end()) {
             start = std::chrono::high_resolution_clock::now();
