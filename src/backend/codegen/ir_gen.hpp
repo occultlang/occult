@@ -272,7 +272,7 @@ namespace occult {
             return "push_single";
         case op_push_shellcode:
             return "push_shellcode";
-        case op_asm_code: 
+        case op_asm_code:
             return "asm_code";
         default:
             return "unknown_opcode";

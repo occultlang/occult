@@ -16,8 +16,8 @@
 #include "parser/parser.hpp"
 #ifdef __linux
 #include <sys/stat.h>
-#include "backend/linker/linker.hpp"
 #include "backend/codegen/x86_64_assembler.hpp"
+#include "backend/linker/linker.hpp"
 
 static jmp_buf jit_jmp_buf;
 static volatile sig_atomic_t jit_signal_caught = 0;
@@ -174,9 +174,9 @@ int main(int argc, char* argv[]) {
     start = std::chrono::high_resolution_clock::now();
     occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
 
-     occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
+    occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
     occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
-   /* occult::function_registry::register_function_to_codegen<&print_string>(jit_runtime);
+    /* occult::function_registry::register_function_to_codegen<&print_string>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_integer>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_newline>(jit_runtime);
      occult::function_registry::register_function_to_codegen<&print_char>(jit_runtime);*/
@@ -205,12 +205,12 @@ int main(int argc, char* argv[]) {
         mov rdx, r12
         syscall
         mov	rsp,rbp
-	    pop	rbp
+        pop	rbp
         mov rax, 0
         ret
     )", true);
     assembler.assemble();*/
-    
+
     /*if (debug && jit) {
       for (const auto& pair : jit_runtime.function_map) {
         std::cout << pair.first << std::endl;

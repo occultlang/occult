@@ -175,6 +175,9 @@ namespace occult {
         if ((b == "int64" || b == "uint64") && ends_with_ptr(a))
             return true;
 
+        if (ends_with_ptr(a) && ends_with_ptr(b))
+            return true;
+
         // All integer types are mutually compatible (implicit widening/narrowing).
         // This is natural in a low-level language where the underlying storage is
         // always 64-bit and the programmer controls the bit width explicitly.

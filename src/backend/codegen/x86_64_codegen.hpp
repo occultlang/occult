@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ir_gen.hpp"
-#include "x86_64_writer.hpp"
 #include "x86_64_assembler.hpp"
+#include "x86_64_writer.hpp"
 
 #include <cstring>
 #include <initializer_list>
@@ -470,11 +470,11 @@ namespace occult::x86_64 {
 
                         break;
                     }
-                case ir_opcode::op_asm_code: 
+                case ir_opcode::op_asm_code:
                     {
                         if (std::holds_alternative<std::string>(code.operand)) {
                             std::string val = std::get<std::string>(code.operand);
-                            
+
                             assembler a(val);
                             w->push_bytes(a.assemble());
                         }
@@ -2860,7 +2860,7 @@ namespace occult::x86_64 {
 
             // patch the initial stack allocation (sub rsp, imm32) to the final
             // totalsizes value
-            if ((!func.uses_shellcode|| !func.uses_assembly) && stack_alloc_placeholder_location > 0) {
+            if ((!func.uses_shellcode || !func.uses_assembly) && stack_alloc_placeholder_location > 0) {
                 // ensure stack is 16-byte aligned for function calls per System V ABI
                 // after call + push rbp, rsp is 16-byte aligned, so keep the frame size a
                 // multiple of 16

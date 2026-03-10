@@ -1,8 +1,8 @@
 #pragma once
-#include "x86_64_writer.hpp"
-#include "x86_64_assembler_defs.hpp"
 #include "../../lexer/lexer_maps.hpp" // for whitespace map
 #include "../../lexer/number_parser.hpp"
+#include "x86_64_assembler_defs.hpp"
+#include "x86_64_writer.hpp"
 
 // used for a subset of x86_64 inline assembly in occult
 
@@ -106,7 +106,9 @@ namespace occult::x86_64 {
         }
 
         assembler_token get_next_token() {
-            if (pos >= source.length()) { return assembler_token("end of assembly", x86_64_instr_token::end_of_assembly_tt); }
+            if (pos >= source.length()) {
+                return assembler_token("end of assembly", x86_64_instr_token::end_of_assembly_tt);
+            }
 
             handle_whitespace();
 
@@ -116,7 +118,7 @@ namespace occult::x86_64 {
 
             if (pos < source.length() && assembler_operator_map.contains(source[pos])) {
                 char ch = source[pos];
-                pos += 1;  
+                pos += 1;
                 return assembler_token(std::string(1, ch), assembler_operator_map[ch]);
             }
 
@@ -137,14 +139,10 @@ namespace occult::x86_64 {
                           << "Type: " << assembler_token::get_typename(s.tt) << "\n";
             }
         }
-        
-        assembler_token peek(std::size_t i = 0) {
-            return assembler_token_vec.at(pos_stream + i);
-        }
 
-        void consume(std::size_t i = 0) {
-            pos_stream += 1 + i;
-        }
+        assembler_token peek(std::size_t i = 0) { return assembler_token_vec.at(pos_stream + i); }
+
+        void consume(std::size_t i = 0) { pos_stream += 1 + i; }
 
         std::int64_t parse_signed_imm() {
             bool negative = false;
@@ -168,10 +166,14 @@ namespace occult::x86_64 {
         // value (0, 1, 2, 3) expected by the mem struct.
         static std::size_t encode_scale(std::size_t actual) {
             switch (actual) {
-                case 2: return 1;
-                case 4: return 2;
-                case 8: return 3;
-                default: return 0; 
+            case 2:
+                return 1;
+            case 4:
+                return 2;
+            case 8:
+                return 3;
+            default:
+                return 0;
             }
         }
 
@@ -191,7 +193,7 @@ namespace occult::x86_64 {
             }
 
             if (peek().tt == x86_64_instr_token::minus_tt) {
-                consume(); 
+                consume();
 
                 if (peek().tt != x86_64_instr_token::number_literal_tt) {
                     throw std::runtime_error("expected displacement after '-' in memory operand");
@@ -204,7 +206,7 @@ namespace occult::x86_64 {
                 if (peek().tt != x86_64_instr_token::bracket_right_tt) {
                     throw std::runtime_error("expected ']' after displacement in memory operand");
                 }
-                consume(); 
+                consume();
                 return mem{base_reg, disp};
             }
 
@@ -231,12 +233,12 @@ namespace occult::x86_64 {
 
                     if (peek().tt == x86_64_instr_token::bracket_right_tt) {
                         // [reg + idx] — scale factor 1, SIB-encoded as 0
-                        consume(); 
+                        consume();
                         return mem{base_reg, idx_reg, static_cast<std::size_t>(0)};
                     }
 
                     if (peek().tt == x86_64_instr_token::multiplication_tt) {
-                        consume(); 
+                        consume();
 
                         if (peek().tt != x86_64_instr_token::number_literal_tt) {
                             throw std::runtime_error("expected scale after '*' in memory operand");
@@ -254,7 +256,7 @@ namespace occult::x86_64 {
 
                         if (peek().tt == x86_64_instr_token::addition_tt || peek().tt == x86_64_instr_token::minus_tt) {
                             bool neg = peek().tt == x86_64_instr_token::minus_tt;
-                            consume(); 
+                            consume();
 
                             if (peek().tt != x86_64_instr_token::number_literal_tt) {
                                 throw std::runtime_error("expected displacement after scale in memory operand");
@@ -263,12 +265,13 @@ namespace occult::x86_64 {
                             auto disp_tok = peek();
                             consume();
                             std::int32_t disp = from_numerical_string<std::int32_t>(disp_tok.lexeme);
-                            if (neg) disp = -disp;
+                            if (neg)
+                                disp = -disp;
 
                             if (peek().tt != x86_64_instr_token::bracket_right_tt) {
                                 throw std::runtime_error("expected ']' in memory operand");
                             }
-                            consume(); 
+                            consume();
                             return mem{base_reg, idx_reg, scale, disp};
                         }
                     }
@@ -278,122 +281,119 @@ namespace occult::x86_64 {
             throw std::runtime_error("invalid memory addressing mode in assembler");
         }
 
-#define EMIT_ARITH(X) \
-    consume(); \
-    if (peek().tt == x86_64_instr_token::bracket_left_tt) { \
-        consume(); \
-        mem dest_mem = parse_mem(); \
-        if (peek().tt != x86_64_instr_token::comma_tt) { \
-            throw std::runtime_error("expected comma in assembler"); \
-        } \
-        consume(); \
-        if (peek().tt == x86_64_instr_token::number_literal_tt || \
-            peek().tt == x86_64_instr_token::minus_tt) { \
-            std::int32_t imm = static_cast<std::int32_t>(parse_signed_imm()); \
-            w.emit_##X(dest_mem, imm); \
-        } \
-        else if (is_gpr(peek().tt)) { \
-            auto reg2 = peek(); \
-            consume(); \
-            w.emit_##X(dest_mem, assembler_token_to_gpr(reg2.tt)); \
-        } \
-        else { \
-            throw std::runtime_error("unsupported source operand for " #X " [mem], X"); \
-        } \
-    } \
-    else if (is_gpr(peek().tt)) { \
-        auto reg = peek(); \
-        consume(); \
-        if (peek().tt != x86_64_instr_token::comma_tt) { \
-            throw std::runtime_error("expected comma in assembler"); \
-        } \
-        consume(); \
-        if (peek().tt == x86_64_instr_token::number_literal_tt || \
-            peek().tt == x86_64_instr_token::minus_tt) { \
-            std::int32_t imm = static_cast<std::int32_t>(parse_signed_imm()); \
-            w.emit_##X(assembler_token_to_gpr(reg.tt), imm); \
-        } \
-        else if (peek().tt == x86_64_instr_token::bracket_left_tt) { \
-            consume(); \
-            mem src_mem = parse_mem(); \
-            w.emit_##X(assembler_token_to_gpr(reg.tt), src_mem); \
-        } \
-        else if (is_gpr(peek().tt)) { \
-            auto reg2 = peek(); \
-            consume(); \
-            w.emit_##X(assembler_token_to_gpr(reg.tt), assembler_token_to_gpr(reg2.tt)); \
-        } \
-        else { \
-            throw std::runtime_error("unsupported source operand for " #X " reg, X"); \
-        } \
-    } \
-    else { \
-        throw std::runtime_error("unsupported destination operand for " #X); \
+#define EMIT_ARITH(X)                                                                                                                                                                                                                          \
+    consume();                                                                                                                                                                                                                                 \
+    if (peek().tt == x86_64_instr_token::bracket_left_tt) {                                                                                                                                                                                    \
+        consume();                                                                                                                                                                                                                             \
+        mem dest_mem = parse_mem();                                                                                                                                                                                                            \
+        if (peek().tt != x86_64_instr_token::comma_tt) {                                                                                                                                                                                       \
+            throw std::runtime_error("expected comma in assembler");                                                                                                                                                                           \
+        }                                                                                                                                                                                                                                      \
+        consume();                                                                                                                                                                                                                             \
+        if (peek().tt == x86_64_instr_token::number_literal_tt || peek().tt == x86_64_instr_token::minus_tt) {                                                                                                                                 \
+            std::int32_t imm = static_cast<std::int32_t>(parse_signed_imm());                                                                                                                                                                  \
+            w.emit_##X(dest_mem, imm);                                                                                                                                                                                                         \
+        }                                                                                                                                                                                                                                      \
+        else if (is_gpr(peek().tt)) {                                                                                                                                                                                                          \
+            auto reg2 = peek();                                                                                                                                                                                                                \
+            consume();                                                                                                                                                                                                                         \
+            w.emit_##X(dest_mem, assembler_token_to_gpr(reg2.tt));                                                                                                                                                                             \
+        }                                                                                                                                                                                                                                      \
+        else {                                                                                                                                                                                                                                 \
+            throw std::runtime_error("unsupported source operand for " #X " [mem], X");                                                                                                                                                        \
+        }                                                                                                                                                                                                                                      \
+    }                                                                                                                                                                                                                                          \
+    else if (is_gpr(peek().tt)) {                                                                                                                                                                                                              \
+        auto reg = peek();                                                                                                                                                                                                                     \
+        consume();                                                                                                                                                                                                                             \
+        if (peek().tt != x86_64_instr_token::comma_tt) {                                                                                                                                                                                       \
+            throw std::runtime_error("expected comma in assembler");                                                                                                                                                                           \
+        }                                                                                                                                                                                                                                      \
+        consume();                                                                                                                                                                                                                             \
+        if (peek().tt == x86_64_instr_token::number_literal_tt || peek().tt == x86_64_instr_token::minus_tt) {                                                                                                                                 \
+            std::int32_t imm = static_cast<std::int32_t>(parse_signed_imm());                                                                                                                                                                  \
+            w.emit_##X(assembler_token_to_gpr(reg.tt), imm);                                                                                                                                                                                   \
+        }                                                                                                                                                                                                                                      \
+        else if (peek().tt == x86_64_instr_token::bracket_left_tt) {                                                                                                                                                                           \
+            consume();                                                                                                                                                                                                                         \
+            mem src_mem = parse_mem();                                                                                                                                                                                                         \
+            w.emit_##X(assembler_token_to_gpr(reg.tt), src_mem);                                                                                                                                                                               \
+        }                                                                                                                                                                                                                                      \
+        else if (is_gpr(peek().tt)) {                                                                                                                                                                                                          \
+            auto reg2 = peek();                                                                                                                                                                                                                \
+            consume();                                                                                                                                                                                                                         \
+            w.emit_##X(assembler_token_to_gpr(reg.tt), assembler_token_to_gpr(reg2.tt));                                                                                                                                                       \
+        }                                                                                                                                                                                                                                      \
+        else {                                                                                                                                                                                                                                 \
+            throw std::runtime_error("unsupported source operand for " #X " reg, X");                                                                                                                                                          \
+        }                                                                                                                                                                                                                                      \
+    }                                                                                                                                                                                                                                          \
+    else {                                                                                                                                                                                                                                     \
+        throw std::runtime_error("unsupported destination operand for " #X);                                                                                                                                                                   \
     }
 
 // single operand: neg, not, mul, div, idiv
-#define EMIT_SINGLE_OP(X) \
-    consume(); \
-    if (peek().tt == x86_64_instr_token::bracket_left_tt) { \
-        consume(); \
-        mem src_mem = parse_mem(); \
-        w.emit_##X(src_mem); \
-    } \
-    else if (is_gpr(peek().tt)) { \
-        auto reg = peek(); \
-        consume(); \
-        w.emit_##X(assembler_token_to_gpr(reg.tt)); \
-    } \
-    else { \
-        throw std::runtime_error("unsupported operand for " #X); \
+#define EMIT_SINGLE_OP(X)                                                                                                                                                                                                                      \
+    consume();                                                                                                                                                                                                                                 \
+    if (peek().tt == x86_64_instr_token::bracket_left_tt) {                                                                                                                                                                                    \
+        consume();                                                                                                                                                                                                                             \
+        mem src_mem = parse_mem();                                                                                                                                                                                                             \
+        w.emit_##X(src_mem);                                                                                                                                                                                                                   \
+    }                                                                                                                                                                                                                                          \
+    else if (is_gpr(peek().tt)) {                                                                                                                                                                                                              \
+        auto reg = peek();                                                                                                                                                                                                                     \
+        consume();                                                                                                                                                                                                                             \
+        w.emit_##X(assembler_token_to_gpr(reg.tt));                                                                                                                                                                                            \
+    }                                                                                                                                                                                                                                          \
+    else {                                                                                                                                                                                                                                     \
+        throw std::runtime_error("unsupported operand for " #X);                                                                                                                                                                               \
     }
 
 // shl/shr/sar - reg, imm8  or  reg, cl
-#define EMIT_SHIFT(X) \
-    consume(); \
-    if (!is_gpr(peek().tt)) { \
-        throw std::runtime_error("expected register for " #X); \
-    } \
-    { \
-        auto reg = peek(); \
-        consume(); \
-        if (peek().tt != x86_64_instr_token::comma_tt) { \
-            throw std::runtime_error("expected comma in " #X); \
-        } \
-        consume(); \
-        if (peek().tt == x86_64_instr_token::cl) { \
-            consume(); \
-            w.emit_##X(assembler_token_to_gpr(reg.tt)); \
-        } \
-        else if (peek().tt == x86_64_instr_token::number_literal_tt || \
-                 peek().tt == x86_64_instr_token::minus_tt) { \
-            std::int64_t imm = parse_signed_imm(); \
-            w.emit_##X(assembler_token_to_gpr(reg.tt), imm); \
-        } \
-        else { \
-            throw std::runtime_error("unsupported source for " #X); \
-        } \
+#define EMIT_SHIFT(X)                                                                                                                                                                                                                          \
+    consume();                                                                                                                                                                                                                                 \
+    if (!is_gpr(peek().tt)) {                                                                                                                                                                                                                  \
+        throw std::runtime_error("expected register for " #X);                                                                                                                                                                                 \
+    }                                                                                                                                                                                                                                          \
+    {                                                                                                                                                                                                                                          \
+        auto reg = peek();                                                                                                                                                                                                                     \
+        consume();                                                                                                                                                                                                                             \
+        if (peek().tt != x86_64_instr_token::comma_tt) {                                                                                                                                                                                       \
+            throw std::runtime_error("expected comma in " #X);                                                                                                                                                                                 \
+        }                                                                                                                                                                                                                                      \
+        consume();                                                                                                                                                                                                                             \
+        if (peek().tt == x86_64_instr_token::cl) {                                                                                                                                                                                             \
+            consume();                                                                                                                                                                                                                         \
+            w.emit_##X(assembler_token_to_gpr(reg.tt));                                                                                                                                                                                        \
+        }                                                                                                                                                                                                                                      \
+        else if (peek().tt == x86_64_instr_token::number_literal_tt || peek().tt == x86_64_instr_token::minus_tt) {                                                                                                                            \
+            std::int64_t imm = parse_signed_imm();                                                                                                                                                                                             \
+            w.emit_##X(assembler_token_to_gpr(reg.tt), imm);                                                                                                                                                                                   \
+        }                                                                                                                                                                                                                                      \
+        else {                                                                                                                                                                                                                                 \
+            throw std::runtime_error("unsupported source for " #X);                                                                                                                                                                            \
+        }                                                                                                                                                                                                                                      \
     }
 
 // xmm, xmm only - addss/addsd/subss/subsd/mulss/mulsd/divss/divsd
-#define EMIT_SIMD_ARITH(X) \
-    consume(); \
-    if (!is_xmm(peek().tt)) { \
-        throw std::runtime_error("expected xmm dest for " #X); \
-    } \
-    { \
-        auto dest_tok = peek(); \
-        consume(); \
-        if (peek().tt != x86_64_instr_token::comma_tt) { \
-            throw std::runtime_error("expected comma in " #X); \
-        } \
-        consume(); \
-        if (!is_xmm(peek().tt)) { \
-            throw std::runtime_error("expected xmm src for " #X); \
-        } \
-        auto src_tok = peek(); \
-        consume(); \
-        w.emit_##X(assembler_token_to_simd[dest_tok.tt], assembler_token_to_simd[src_tok.tt]); \
+#define EMIT_SIMD_ARITH(X)                                                                                                                                                                                                                     \
+    consume();                                                                                                                                                                                                                                 \
+    if (!is_xmm(peek().tt)) {                                                                                                                                                                                                                  \
+        throw std::runtime_error("expected xmm dest for " #X);                                                                                                                                                                                 \
+    }                                                                                                                                                                                                                                          \
+    {                                                                                                                                                                                                                                          \
+        auto dest_tok = peek();                                                                                                                                                                                                                \
+        consume();                                                                                                                                                                                                                             \
+        if (peek().tt != x86_64_instr_token::comma_tt) {                                                                                                                                                                                       \
+            throw std::runtime_error("expected comma in " #X);                                                                                                                                                                                 \
+        }                                                                                                                                                                                                                                      \
+        consume();                                                                                                                                                                                                                             \
+        if (!is_xmm(peek().tt)) {                                                                                                                                                                                                              \
+            throw std::runtime_error("expected xmm src for " #X);                                                                                                                                                                              \
+        }                                                                                                                                                                                                                                      \
+        auto src_tok = peek();                                                                                                                                                                                                                 \
+        consume();                                                                                                                                                                                                                             \
+        w.emit_##X(assembler_token_to_simd[dest_tok.tt], assembler_token_to_simd[src_tok.tt]);                                                                                                                                                 \
     }
 
     public:
@@ -414,30 +414,89 @@ namespace occult::x86_64 {
             while (pos_stream < assembler_token_vec.size()) {
                 auto& instr = assembler_token_vec.at(pos_stream);
 
-                switch(instr.tt) {
-                    case x86_64_instr_token::syscall_tt: { consume(); w.emit_syscall(); break; }
-                    case x86_64_instr_token::ret_tt: { consume(); w.emit_ret(); break; }
-                    case x86_64_instr_token::neg_tt:  { EMIT_SINGLE_OP(neg)  break; }
-                    case x86_64_instr_token::not_tt:  { EMIT_SINGLE_OP(not)  break; }
-                    case x86_64_instr_token::mul_tt:  { EMIT_SINGLE_OP(mul)  break; }
-                    case x86_64_instr_token::div_tt:  { EMIT_SINGLE_OP(div)  break; }
-                    case x86_64_instr_token::idiv_tt: { EMIT_SINGLE_OP(idiv) break; }
+                switch (instr.tt) {
+                case x86_64_instr_token::syscall_tt:
+                    {
+                        consume();
+                        w.emit_syscall();
+                        break;
+                    }
+                case x86_64_instr_token::ret_tt:
+                    {
+                        consume();
+                        w.emit_ret();
+                        break;
+                    }
+                case x86_64_instr_token::neg_tt:
+                    {
+                        EMIT_SINGLE_OP(neg) break;
+                    }
+                case x86_64_instr_token::not_tt:
+                    {
+                        EMIT_SINGLE_OP(not) break;
+                    }
+                case x86_64_instr_token::mul_tt:
+                    {
+                        EMIT_SINGLE_OP(mul) break;
+                    }
+                case x86_64_instr_token::div_tt:
+                    {
+                        EMIT_SINGLE_OP(div) break;
+                    }
+                case x86_64_instr_token::idiv_tt:
+                    {
+                        EMIT_SINGLE_OP(idiv) break;
+                    }
 
-                    case x86_64_instr_token::shl_tt: { EMIT_SHIFT(shl) break; }
-                    case x86_64_instr_token::shr_tt: { EMIT_SHIFT(shr) break; }
-                    case x86_64_instr_token::sar_tt: { EMIT_SHIFT(sar) break; }
+                case x86_64_instr_token::shl_tt:
+                    {
+                        EMIT_SHIFT(shl) break;
+                    }
+                case x86_64_instr_token::shr_tt:
+                    {
+                        EMIT_SHIFT(shr) break;
+                    }
+                case x86_64_instr_token::sar_tt:
+                    {
+                        EMIT_SHIFT(sar) break;
+                    }
 
-                    case x86_64_instr_token::addss_tt: { EMIT_SIMD_ARITH(addss) break; }
-                    case x86_64_instr_token::addsd_tt: { EMIT_SIMD_ARITH(addsd) break; }
-                    case x86_64_instr_token::subss_tt: { EMIT_SIMD_ARITH(subss) break; }
-                    case x86_64_instr_token::subsd_tt: { EMIT_SIMD_ARITH(subsd) break; }
-                    case x86_64_instr_token::mulss_tt: { EMIT_SIMD_ARITH(mulss) break; }
-                    case x86_64_instr_token::mulsd_tt: { EMIT_SIMD_ARITH(mulsd) break; }
-                    case x86_64_instr_token::divss_tt: { EMIT_SIMD_ARITH(divss) break; }
-                    case x86_64_instr_token::divsd_tt: { EMIT_SIMD_ARITH(divsd) break; }
+                case x86_64_instr_token::addss_tt:
+                    {
+                        EMIT_SIMD_ARITH(addss) break;
+                    }
+                case x86_64_instr_token::addsd_tt:
+                    {
+                        EMIT_SIMD_ARITH(addsd) break;
+                    }
+                case x86_64_instr_token::subss_tt:
+                    {
+                        EMIT_SIMD_ARITH(subss) break;
+                    }
+                case x86_64_instr_token::subsd_tt:
+                    {
+                        EMIT_SIMD_ARITH(subsd) break;
+                    }
+                case x86_64_instr_token::mulss_tt:
+                    {
+                        EMIT_SIMD_ARITH(mulss) break;
+                    }
+                case x86_64_instr_token::mulsd_tt:
+                    {
+                        EMIT_SIMD_ARITH(mulsd) break;
+                    }
+                case x86_64_instr_token::divss_tt:
+                    {
+                        EMIT_SIMD_ARITH(divss) break;
+                    }
+                case x86_64_instr_token::divsd_tt:
+                    {
+                        EMIT_SIMD_ARITH(divsd) break;
+                    }
 
-                    // imul one or three operand
-                    case x86_64_instr_token::imul_tt: {
+                // imul one or three operand
+                case x86_64_instr_token::imul_tt:
+                    {
                         consume();
 
                         if (!is_gpr(peek().tt)) {
@@ -486,8 +545,9 @@ namespace occult::x86_64 {
                         break;
                     }
 
-                    // call reg or [mem] only (rel32 needs label resolution, not yet supported)
-                    case x86_64_instr_token::call_tt: {
+                // call reg or [mem] only (rel32 needs label resolution, not yet supported)
+                case x86_64_instr_token::call_tt:
+                    {
                         consume();
 
                         if (peek().tt == x86_64_instr_token::bracket_left_tt) {
@@ -507,8 +567,9 @@ namespace occult::x86_64 {
                         break;
                     }
 
-                    // lea reg, [mem]
-                    case x86_64_instr_token::lea_tt: {
+                // lea reg, [mem]
+                case x86_64_instr_token::lea_tt:
+                    {
                         consume();
 
                         if (!is_gpr(peek().tt)) {
@@ -534,9 +595,10 @@ namespace occult::x86_64 {
                         break;
                     }
 
-                    // movsx / movzx size inferred from source register
-                    case x86_64_instr_token::movsx_tt:
-                    case x86_64_instr_token::movzx_tt: {
+                // movsx / movzx size inferred from source register
+                case x86_64_instr_token::movsx_tt:
+                case x86_64_instr_token::movzx_tt:
+                    {
                         bool is_sx = (instr.tt == x86_64_instr_token::movsx_tt);
                         consume();
 
@@ -557,15 +619,19 @@ namespace occult::x86_64 {
                             mem src_mem = parse_mem();
                             // without a size hint in the source memory operand we default to 8-bit;
                             // callers should use movzx/movsx with a typed register source when possible
-                            if (is_sx) w.emit_movsx(assembler_token_to_gpr(dest_reg.tt), src_mem, true);
-                            else       w.emit_movzx(assembler_token_to_gpr(dest_reg.tt), src_mem, true);
+                            if (is_sx)
+                                w.emit_movsx(assembler_token_to_gpr(dest_reg.tt), src_mem, true);
+                            else
+                                w.emit_movzx(assembler_token_to_gpr(dest_reg.tt), src_mem, true);
                         }
                         else if (is_gpr(peek().tt)) {
                             auto src_reg = peek();
                             consume();
-                            bool is_8 = is_gpr8(src_reg.tt);  // false means 16-bit source
-                            if (is_sx) w.emit_movsx(assembler_token_to_gpr(dest_reg.tt), assembler_token_to_gpr(src_reg.tt), is_8);
-                            else       w.emit_movzx(assembler_token_to_gpr(dest_reg.tt), assembler_token_to_gpr(src_reg.tt), is_8);
+                            bool is_8 = is_gpr8(src_reg.tt); // false means 16-bit source
+                            if (is_sx)
+                                w.emit_movsx(assembler_token_to_gpr(dest_reg.tt), assembler_token_to_gpr(src_reg.tt), is_8);
+                            else
+                                w.emit_movzx(assembler_token_to_gpr(dest_reg.tt), assembler_token_to_gpr(src_reg.tt), is_8);
                         }
                         else {
                             throw std::runtime_error("unsupported source operand for movsx/movzx");
@@ -574,8 +640,9 @@ namespace occult::x86_64 {
                         break;
                     }
 
-                    // movsxd 32-bit source sign-extended to 64-bit dest
-                    case x86_64_instr_token::movsxd_tt: {
+                // movsxd 32-bit source sign-extended to 64-bit dest
+                case x86_64_instr_token::movsxd_tt:
+                    {
                         consume();
 
                         if (!is_gpr(peek().tt)) {
@@ -607,9 +674,10 @@ namespace occult::x86_64 {
                         break;
                     }
 
-                    // movss / movsd xmm<->xmm, xmm<-[mem], [mem]<-xmm
-                    case x86_64_instr_token::movss_tt:
-                    case x86_64_instr_token::movsd_tt: {
+                // movss / movsd xmm<->xmm, xmm<-[mem], [mem]<-xmm
+                case x86_64_instr_token::movss_tt:
+                case x86_64_instr_token::movsd_tt:
+                    {
                         bool is_ss = (instr.tt == x86_64_instr_token::movss_tt);
                         consume();
 
@@ -629,8 +697,10 @@ namespace occult::x86_64 {
                             auto src_tok = peek();
                             consume();
 
-                            if (is_ss) w.emit_movss(dest_mem, assembler_token_to_simd[src_tok.tt]);
-                            else       w.emit_movsd(dest_mem, assembler_token_to_simd[src_tok.tt]);
+                            if (is_ss)
+                                w.emit_movss(dest_mem, assembler_token_to_simd[src_tok.tt]);
+                            else
+                                w.emit_movsd(dest_mem, assembler_token_to_simd[src_tok.tt]);
                         }
                         else if (is_xmm(peek().tt)) {
                             auto dest_tok = peek();
@@ -645,15 +715,19 @@ namespace occult::x86_64 {
                                 // xmm, [mem]
                                 consume();
                                 mem src_mem = parse_mem();
-                                if (is_ss) w.emit_movss(assembler_token_to_simd[dest_tok.tt], src_mem);
-                                else       w.emit_movsd(assembler_token_to_simd[dest_tok.tt], src_mem);
+                                if (is_ss)
+                                    w.emit_movss(assembler_token_to_simd[dest_tok.tt], src_mem);
+                                else
+                                    w.emit_movsd(assembler_token_to_simd[dest_tok.tt], src_mem);
                             }
                             else if (is_xmm(peek().tt)) {
                                 // xmm, xmm
                                 auto src_tok = peek();
                                 consume();
-                                if (is_ss) w.emit_movss(assembler_token_to_simd[dest_tok.tt], assembler_token_to_simd[src_tok.tt]);
-                                else       w.emit_movsd(assembler_token_to_simd[dest_tok.tt], assembler_token_to_simd[src_tok.tt]);
+                                if (is_ss)
+                                    w.emit_movss(assembler_token_to_simd[dest_tok.tt], assembler_token_to_simd[src_tok.tt]);
+                                else
+                                    w.emit_movsd(assembler_token_to_simd[dest_tok.tt], assembler_token_to_simd[src_tok.tt]);
                             }
                             else {
                                 throw std::runtime_error("unsupported source operand for movss/movsd");
@@ -666,8 +740,9 @@ namespace occult::x86_64 {
                         break;
                     }
 
-                    // movq xmm, reg  or  reg, xmm
-                    case x86_64_instr_token::movq_tt: {
+                // movq xmm, reg  or  reg, xmm
+                case x86_64_instr_token::movq_tt:
+                    {
                         consume();
 
                         if (is_xmm(peek().tt)) {
@@ -710,11 +785,12 @@ namespace occult::x86_64 {
 
                         break;
                     }
-                    case x86_64_instr_token::pop_tt: {
-                        consume(); 
+                case x86_64_instr_token::pop_tt:
+                    {
+                        consume();
 
                         if (peek().tt == x86_64_instr_token::bracket_left_tt) {
-                            consume(); 
+                            consume();
                             mem dest_mem = parse_mem();
                             w.emit_pop(dest_mem);
                         }
@@ -729,11 +805,12 @@ namespace occult::x86_64 {
 
                         break;
                     }
-                    case x86_64_instr_token::push_tt: {
-                        consume(); 
+                case x86_64_instr_token::push_tt:
+                    {
+                        consume();
 
                         if (peek().tt == x86_64_instr_token::bracket_left_tt) {
-                            consume(); 
+                            consume();
                             mem src_mem = parse_mem();
                             w.emit_push(src_mem);
                         }
@@ -742,8 +819,7 @@ namespace occult::x86_64 {
                             consume();
                             w.emit_push(assembler_token_to_gpr(reg.tt));
                         }
-                        else if (peek().tt == x86_64_instr_token::number_literal_tt ||
-                                peek().tt == x86_64_instr_token::minus_tt) {
+                        else if (peek().tt == x86_64_instr_token::number_literal_tt || peek().tt == x86_64_instr_token::minus_tt) {
                             std::int64_t imm = parse_signed_imm();
                             w.emit_push(imm);
                         }
@@ -753,26 +829,41 @@ namespace occult::x86_64 {
 
                         break;
                     }
-                    case x86_64_instr_token::xor_tt: { EMIT_ARITH(xor) break; }
-                    case x86_64_instr_token::and_tt: { EMIT_ARITH(and) break; }
-                    case x86_64_instr_token::or_tt: { EMIT_ARITH(or) break; }
-                    case x86_64_instr_token::sub_tt: { EMIT_ARITH(sub) break; }
-                    case x86_64_instr_token::add_tt: { EMIT_ARITH(add) break; }
-                    case x86_64_instr_token::mov_tt: {
-                        consume(); 
+                case x86_64_instr_token::xor_tt:
+                    {
+                        EMIT_ARITH(xor) break;
+                    }
+                case x86_64_instr_token::and_tt:
+                    {
+                        EMIT_ARITH(and) break;
+                    }
+                case x86_64_instr_token::or_tt:
+                    {
+                        EMIT_ARITH(or) break;
+                    }
+                case x86_64_instr_token::sub_tt:
+                    {
+                        EMIT_ARITH(sub) break;
+                    }
+                case x86_64_instr_token::add_tt:
+                    {
+                        EMIT_ARITH(add) break;
+                    }
+                case x86_64_instr_token::mov_tt:
+                    {
+                        consume();
 
                         if (peek().tt == x86_64_instr_token::bracket_left_tt) { // destination is memory
-                            consume(); 
+                            consume();
 
                             mem dest_mem = parse_mem();
 
                             if (peek().tt != x86_64_instr_token::comma_tt) {
                                 throw std::runtime_error("expected comma in assembler");
                             }
-                            consume(); 
+                            consume();
 
-                            if (peek().tt == x86_64_instr_token::number_literal_tt ||
-                                peek().tt == x86_64_instr_token::minus_tt) { // mov [mem], imm
+                            if (peek().tt == x86_64_instr_token::number_literal_tt || peek().tt == x86_64_instr_token::minus_tt) { // mov [mem], imm
                                 std::int32_t imm = static_cast<std::int32_t>(parse_signed_imm());
                                 w.emit_mov(dest_mem, imm);
                             }
@@ -792,15 +883,14 @@ namespace occult::x86_64 {
                             if (peek().tt != x86_64_instr_token::comma_tt) {
                                 throw std::runtime_error("expected comma in assembler");
                             }
-                            consume(); 
+                            consume();
 
-                            if (peek().tt == x86_64_instr_token::number_literal_tt ||
-                                peek().tt == x86_64_instr_token::minus_tt) { // mov reg, imm
+                            if (peek().tt == x86_64_instr_token::number_literal_tt || peek().tt == x86_64_instr_token::minus_tt) { // mov reg, imm
                                 std::int64_t imm = parse_signed_imm();
                                 w.emit_mov(assembler_token_to_gpr(reg.tt), imm);
                             }
                             else if (peek().tt == x86_64_instr_token::bracket_left_tt) { // mov reg, [mem]
-                                consume(); 
+                                consume();
                                 mem src_mem = parse_mem();
                                 w.emit_mov(assembler_token_to_gpr(reg.tt), src_mem);
                             }
@@ -819,7 +909,8 @@ namespace occult::x86_64 {
 
                         break;
                     }
-                    default: {
+                default:
+                    {
                         pos_stream++;
                         break;
                     }
@@ -832,7 +923,7 @@ namespace occult::x86_64 {
 
             return w.get_code();
         }
-        
+
         assembler(const std::string& assembly, const bool debug = false) : source(assembly), debug(debug) {}
     };
 } // namespace occult::x86_64

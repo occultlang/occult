@@ -492,7 +492,7 @@ namespace occult {
 
                     token = get_next_token();
                     continue;
-}
+                }
             }
 
             token = get_next_token();

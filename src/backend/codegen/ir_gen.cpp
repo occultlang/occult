@@ -74,13 +74,13 @@ namespace occult {
 
                     break;
                 }
-            case cst_type::func_uses_asm: 
+            case cst_type::func_uses_asm:
                 {
                     function.uses_assembly = true;
 
-                    break;   
+                    break;
                 }
-            case cst_type::asm_code: 
+            case cst_type::asm_code:
                 {
                     for (auto& str_literal : c->get_children()) {
                         if (str_literal->get_type() == cst_type::stringliteral) {
@@ -91,7 +91,7 @@ namespace occult {
 
                             break;
                         }
-                    }                    
+                    }
 
                     break;
                 }
@@ -2576,7 +2576,7 @@ namespace occult {
             std::string sh = uses_shellcode ? "True" : "False";
             std::string sh_asm = uses_assembly ? "True" : "False";
             std::cout << "Shellcode: " << sh << "\n";
-            std::cout << "Assembly: " << sh_asm <<  "\n";
+            std::cout << "Assembly: " << sh_asm << "\n";
             std::cout << "Name: " << name << "\n";
 
             std::cout << "Args:\n";

@@ -2409,6 +2409,45 @@ namespace occult {
         if (match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme)) {
             return parse_custom_type();
         }
+        if (match(peek(), identifier_tt) && cst_generic_type_cache.contains(peek().lexeme)) { // T* var = expr; or T var = expr;
+            const auto type_name = peek().lexeme;
+            consume(); // consume generic type identifier
+
+            auto node = cst::new_node<cst_generic_type>(type_name);
+
+            if (match(peek(), multiply_operator_tt)) {
+                while (match(peek(), multiply_operator_tt)) {
+                    consume();
+                    node->num_pointers++;
+                }
+            }
+
+            if (match(peek(), identifier_tt)) {
+                node->add_child(parse_identifier());
+            }
+            else {
+                throw parsing_error("<identifier>", peek(), pos, std::source_location::current().function_name());
+            }
+
+            if (match(peek(), assignment_tt)) {
+                node->add_child(parse_assignment());
+
+                if (match(peek(), semicolon_tt)) {
+                    throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
+                }
+
+                parse_expression_until(node->get_children().at(1).get(), semicolon_tt);
+            }
+
+            if (match(peek(), semicolon_tt)) {
+                consume();
+            }
+            else {
+                throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+            }
+
+            return node;
+        }
         /*if (match(peek(), dereference_operator_tt)) {
             auto deref_count = 0;
             while (!match(peek(), left_paren_tt) && !match(peek(), identifier_tt)) {
