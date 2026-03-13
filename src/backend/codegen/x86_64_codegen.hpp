@@ -4,6 +4,7 @@
 #include "x86_64_assembler.hpp"
 #include "x86_64_writer.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <initializer_list>
 #include <limits>
@@ -13,7 +14,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
-#include <algorithm>
 
 /*
  * A class for stack-oriented codegen, redone
@@ -1696,9 +1696,6 @@ namespace occult::x86_64 {
 
                         // collect arguments with their types
                         std::vector<std::pair<std::variant<grp, simd128>, bool>> args; // pair<reg, is_fp>
-                        // Track spilled args: when we run out of registers during argument
-                        // collection, spill already-collected args to temp stack slots to
-                        // free registers, then reload them after all args are collected.
                         struct spilled_arg {
                             std::int32_t offset;
                             bool is_fp;
@@ -1713,10 +1710,8 @@ namespace occult::x86_64 {
                             }
 
                             auto spill_collected_args = [&]() {
-                                // Spill some already-collected GP args to free registers
                                 for (std::size_t k = 0; k < args.size(); k++) {
                                     if (!args[k].second && !arg_spill_info[k].has_value()) {
-                                        // GP arg, not yet spilled
                                         grp r = std::get<grp>(args[k].first);
                                         totalsizes += 8;
                                         std::int32_t sp_off = -totalsizes;
@@ -1726,7 +1721,6 @@ namespace occult::x86_64 {
                                         return true;
                                     }
                                 }
-                                // Try spilling FP args
                                 for (std::size_t k = 0; k < args.size(); k++) {
                                     if (args[k].second && !arg_spill_info[k].has_value()) {
                                         simd128 r = std::get<simd128>(args[k].first);
@@ -1744,17 +1738,12 @@ namespace occult::x86_64 {
                             if (is_fp) {
                                 if (simd_pool.empty()) {
                                     if (!spill_collected_args()) {
-                                        std::cout << RED
-                                                  << "[CODEGEN ERROR] Not enough FP arguments on stack for "
-                                                     "function call: "
-                                                  << func_name << RESET << std::endl;
+                                        std::cout << RED << "[CODEGEN ERROR] Not enough FP arguments on stack for function call: " << func_name << RESET << std::endl;
                                         for (auto& [reg_var, is_arg_fp] : args) {
-                                            if (is_arg_fp) {
+                                            if (is_arg_fp)
                                                 simd_pool.free(std::get<simd128>(reg_var));
-                                            }
-                                            else {
+                                            else
                                                 pool.free(std::get<grp>(reg_var));
-                                            }
                                         }
                                         return;
                                     }
@@ -1764,17 +1753,12 @@ namespace occult::x86_64 {
                             else {
                                 if (pool.empty()) {
                                     if (!spill_collected_args()) {
-                                        std::cout << RED
-                                                  << "[CODEGEN ERROR] Not enough GP arguments on stack for "
-                                                     "function call: "
-                                                  << func_name << RESET << std::endl;
+                                        std::cout << RED << "[CODEGEN ERROR] Not enough GP arguments on stack for function call: " << func_name << RESET << std::endl;
                                         for (auto& [reg_var, is_arg_fp] : args) {
-                                            if (is_arg_fp) {
+                                            if (is_arg_fp)
                                                 simd_pool.free(std::get<simd128>(reg_var));
-                                            }
-                                            else {
+                                            else
                                                 pool.free(std::get<grp>(reg_var));
-                                            }
                                         }
                                         return;
                                     }
@@ -1784,7 +1768,6 @@ namespace occult::x86_64 {
                             arg_spill_info.emplace_back(std::nullopt);
                         }
 
-                        // Reload any spilled args back into registers
                         for (std::size_t k = 0; k < args.size(); k++) {
                             if (arg_spill_info[k].has_value()) {
                                 auto& sp = arg_spill_info[k].value();
@@ -1802,11 +1785,6 @@ namespace occult::x86_64 {
                         }
 
                         std::reverse(args.begin(), args.end());
-
-                        // shadow space for Windows
-                        if (!is_systemv) {
-                            w->emit_sub(rsp, 32);
-                        }
 
                         std::vector<grp> caller_saved_gp;
                         std::vector<simd128> caller_saved_simd;
@@ -1842,7 +1820,6 @@ namespace occult::x86_64 {
 
                         std::size_t gp_reg_idx = 0;
                         std::size_t fp_reg_idx = 0;
-                        const std::size_t caller_saved_bytes = caller_saved_gp.size() * 8 + caller_saved_simd.size() * 16;
                         std::vector<std::pair<std::variant<grp, simd128>, bool>> stack_args;
 
                         for (std::size_t arg_idx = 0; arg_idx < args.size(); arg_idx++) {
@@ -1894,7 +1871,16 @@ namespace occult::x86_64 {
                             }
                         }
 
-                        // pushing to stack reverse order
+                        const std::size_t stack_args_bytes = stack_args.size() * 8;
+                        const std::size_t caller_saved_bytes = caller_saved_gp.size() * 8 + caller_saved_simd.size() * 16;
+
+
+                        const std::size_t current_mod = (totalsizes + caller_saved_bytes + stack_args_bytes) % 16;
+                        const std::size_t alignment_padding = (8 + 16 - current_mod) % 16;
+                        if (alignment_padding != 0) {
+                            w->emit_sub(rsp, static_cast<std::int32_t>(alignment_padding));
+                        }
+
                         for (auto it_stack = stack_args.rbegin(); it_stack != stack_args.rend(); ++it_stack) {
                             auto [reg_var, is_fp] = *it_stack;
                             if (is_fp) {
@@ -1910,60 +1896,48 @@ namespace occult::x86_64 {
                             }
                         }
 
-                        const std::size_t stack_args_bytes = stack_args.size() * 8;
-                        const std::size_t current_mod = (totalsizes + caller_saved_bytes + stack_args_bytes) % 16;
-                        const std::size_t alignment_padding = (8 + 16 - current_mod) % 16;
-                        if (alignment_padding != 0) {
-                            w->emit_sub(rsp, static_cast<std::int32_t>(alignment_padding));
+
+                        if (!is_systemv) {
+                            w->emit_sub(rsp, 32);
                         }
 
                         auto target_fn = function_map[func_name];
                         w->emit_mov(rax, reinterpret_cast<std::int64_t>(target_fn));
                         w->emit_call(rax);
 
-                        if (alignment_padding != 0) {
-                            w->emit_add(rsp, static_cast<std::int32_t>(alignment_padding));
+
+                        if (!is_systemv) {
+                            w->emit_add(rsp, 32);
                         }
 
                         if (!stack_args.empty()) {
                             w->emit_add(rsp, static_cast<std::int32_t>(stack_args_bytes));
                         }
 
-                        // restore xmm
+                        if (alignment_padding != 0) {
+                            w->emit_add(rsp, static_cast<std::int32_t>(alignment_padding));
+                        }
+
                         for (auto it_simd = caller_saved_simd.rbegin(); it_simd != caller_saved_simd.rend(); ++it_simd) {
                             w->emit_movsd(*it_simd, mem{rsp, 0});
                             w->emit_add(rsp, 16);
                         }
 
-                        // restore gpr
+                        // restore caller-saved GP registers
                         if (is_systemv) {
                             for (auto it_gp = caller_saved_gp.rbegin(); it_gp != caller_saved_gp.rend(); ++it_gp) {
                                 w->emit_pop(*it_gp);
                             }
                         }
 
-                        // windows shadow space cleanup
-                        if (!is_systemv) {
-                            w->emit_add(rsp, 32);
-                        }
-
                         auto ret_it = function_return_types.find(func_name);
                         const std::string ret_type = (ret_it != function_return_types.end()) ? ret_it->second : "";
                         bool ret_is_fp = (ret_type == "float32" || ret_type == "float64");
 
-                        // Determine whether this call's return value will be consumed.
-                        // We simulate the register pool depth from this point forward:
-                        // - ops that push values (push, load, call-with-return) increase depth
-                        // - ops that consume values (add, store, etc.) decrease depth
-                        // If the depth ever goes below 0, it means this call's return
-                        // value was consumed as part of an expression (e.g., f(a) + f(b)).
-                        // If we reach a label/jump or the depth never goes negative,
-                        // the return value is not consumed (standalone call).
                         bool should_push_return = false;
                         if (!ret_type.empty() && i + 1 < func.code.size()) {
                             auto next_op = func.code.at(i + 1).op;
                             switch (next_op) {
-                            // Opcodes that immediately consume the return value
                             case ir_opcode::op_store:
                             case ir_opcode::op_store_at_addr:
                             case ir_opcode::op_array_store_element:
@@ -2007,34 +1981,21 @@ namespace occult::x86_64 {
                             case ir_opcode::op_reference:
                             case ir_opcode::op_array_access_element:
                             case ir_opcode::op_ret:
-                            case ir_opcode::op_call: // nested function call uses return as
-                                                     // argument
+                            case ir_opcode::op_call:
                             case ir_opcode::op_struct_store:
                                 should_push_return = true;
                                 break;
-                            // When the next op is a value-producing op (push/load), do a
-                            // depth-tracking scan to determine if this call's return value
-                            // is eventually consumed as part of an expression like f(a)+f(b).
                             case ir_opcode::op_push:
                             case ir_opcode::op_push_single:
                             case ir_opcode::op_load:
                                 {
-                                    // depth tracks the number of values added to the pool AFTER
-                                    // this call's return value. If a consuming op would make
-                                    // depth go negative, it means our return value is needed.
                                     int depth = 0;
                                     for (std::size_t la = i + 1; la < func.code.size(); ++la) {
                                         auto la_op = func.code.at(la).op;
-                                        // value-producing ops
                                         if (la_op == ir_opcode::op_push || la_op == ir_opcode::op_push_single || la_op == ir_opcode::op_push_for_ret || la_op == ir_opcode::op_load || la_op == ir_opcode::op_member_access ||
                                             la_op == ir_opcode::op_array_access_element) {
                                             depth++;
                                         }
-                                        // call: consumes its arguments and produces one return value.
-                                        // Net change = 1 - arg_count. For a 1-arg call: net 0.
-                                        // For the pattern f(a)+f(b): push a → depth 1, call f(1 arg)
-                                        // → depth 1 (1-1+1=1). Then add consumes 2 → depth -1 < 0,
-                                        // meaning our return value is needed.
                                         else if (la_op == ir_opcode::op_call) {
                                             int call_arg_count = 0;
                                             const auto& call_type = func.code.at(la).type;
@@ -2051,39 +2012,32 @@ namespace occult::x86_64 {
                                                     break;
                                                 }
                                             }
-                                            depth -= call_arg_count; // consumed arguments
+                                            depth -= call_arg_count;
                                             if (depth < 0) {
                                                 should_push_return = true;
                                                 break;
                                             }
-                                            depth += 1; // produced return value
+                                            depth += 1;
                                         }
-                                        // comparison ops: consume 2, produce 0 → net -2
-                                        // Must be handled separately from arithmetic ops because
-                                        // they leave nothing on the pool (only set CPU flags).
-                                        // e.g. call → push_literal → cmp: depth goes 1 → -1 < 0,
-                                        // so the call's return value IS needed.
                                         else if (la_op == ir_opcode::op_cmp || la_op == ir_opcode::op_cmpf32 || la_op == ir_opcode::op_cmpf64) {
-                                            depth -= 2; // consumes 2, produces 0
+                                            depth -= 2;
                                             if (depth < 0) {
                                                 should_push_return = true;
                                                 break;
                                             }
                                         }
-                                        // binary ops: consume 2, produce 1 → net -1
                                         else if (la_op == ir_opcode::op_add || la_op == ir_opcode::op_sub || la_op == ir_opcode::op_mul || la_op == ir_opcode::op_div || la_op == ir_opcode::op_mod || la_op == ir_opcode::op_imul ||
                                                  la_op == ir_opcode::op_idiv || la_op == ir_opcode::op_imod || la_op == ir_opcode::op_addf32 || la_op == ir_opcode::op_subf32 || la_op == ir_opcode::op_mulf32 ||
                                                  la_op == ir_opcode::op_divf32 || la_op == ir_opcode::op_modf32 || la_op == ir_opcode::op_addf64 || la_op == ir_opcode::op_subf64 || la_op == ir_opcode::op_mulf64 ||
                                                  la_op == ir_opcode::op_divf64 || la_op == ir_opcode::op_modf64 || la_op == ir_opcode::op_logical_and || la_op == ir_opcode::op_logical_or || la_op == ir_opcode::op_bitwise_and ||
                                                  la_op == ir_opcode::op_bitwise_or || la_op == ir_opcode::op_bitwise_xor || la_op == ir_opcode::op_bitwise_lshift || la_op == ir_opcode::op_bitwise_rshift ||
                                                  la_op == ir_opcode::op_ibitwise_rshift) {
-                                            depth -= 1; // consumes 2, produces 1
+                                            depth -= 1;
                                             if (depth < 0) {
                                                 should_push_return = true;
                                                 break;
                                             }
                                         }
-                                        // store/ret consume 1, produce 0
                                         else if (la_op == ir_opcode::op_store || la_op == ir_opcode::op_store_at_addr || la_op == ir_opcode::op_ret || la_op == ir_opcode::op_member_store || la_op == ir_opcode::op_array_store_element ||
                                                  la_op == ir_opcode::op_dereference_assign) {
                                             depth -= 1;
@@ -2091,20 +2045,16 @@ namespace occult::x86_64 {
                                                 should_push_return = true;
                                                 break;
                                             }
-                                            break; // store/ret ends the expression
+                                            break;
                                         }
-                                        // unary ops: consume 1, produce 1 → net 0
                                         else if (la_op == ir_opcode::op_negate || la_op == ir_opcode::op_negatef32 || la_op == ir_opcode::op_negatef64 || la_op == ir_opcode::op_not || la_op == ir_opcode::op_bitwise_not ||
                                                  la_op == ir_opcode::op_dereference || la_op == ir_opcode::op_reference) {
                                             // net 0 change
                                         }
-                                        // control flow and statement boundaries break the analysis
                                         else if (la_op == ir_opcode::op_jmp || la_op == ir_opcode::op_jz || la_op == ir_opcode::op_jnz || la_op == ir_opcode::op_jl || la_op == ir_opcode::op_jle || la_op == ir_opcode::op_jg ||
                                                  la_op == ir_opcode::op_jge || la_op == ir_opcode::op_jb || la_op == ir_opcode::op_jbe || la_op == ir_opcode::op_ja || la_op == ir_opcode::op_jae || la_op == ir_opcode::op_struct_decl) {
-                                            break; // can't analyze across jumps or struct declarations
+                                            break;
                                         }
-                                        // no-op markers: skip them
-                                        // (label, mark_for_array_access, array_decl, etc.)
                                     }
                                     break;
                                 }
@@ -2129,7 +2079,6 @@ namespace occult::x86_64 {
 
                         break;
                     }
-
                 /* arrays */
                 case ir_opcode::op_array_decl:
                     {
@@ -2995,4 +2944,3 @@ namespace occult::x86_64 {
         }
     };
 } // namespace occult::x86_64
-
