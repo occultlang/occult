@@ -1,8 +1,7 @@
-### Credits
+### Learning Resources
 - [ELF Header](https://wiki.osdev.org/ELF_Tutorial) (Tysm Nisan)<br/>
 - [JIT](https://solarianprogrammer.com/2018/01/10/writing-minimal-x86-64-jit-compiler-cpp/) <br/>
 - [Shunting Yard](https://github.com/kamyu104/LintCode/blob/master/C%2B%2B/convert-expression-to-reverse-polish-notation.cpp) <br/>
-- [Assembly Functions](https://github.com/simon-whitehead/assembly-fun/blob/master/linux-x64/7.malloc/7.malloc.s) <br/>
 - [Coder64](http://ref.x86asm.net/coder64.html) <br/>
 - [Defuse](https://defuse.ca/online-x86-assembler.htm) <br/>
 - [PE Header](https://wiki.osdev.org/PE) (Tysm Nisan)
