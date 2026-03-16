@@ -86,4 +86,4 @@ _____________________________________________________________________________
 - ARM64 Support
 _____________________________________________________________________________
 
-### [Credits](https://github.com/occultlang/occult/blob/main/CREDITS.md)
+### [Resources Used](https://github.com/occultlang/occult/blob/main/RESOURCES.md)
