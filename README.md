@@ -47,7 +47,7 @@ _____________________________________________________________________________
 
 ### Building for Linux / MacOS
 ```bash
-git clone https://github.com/occultlang/occult.git && cd occult
+git clone --recurse-submodules https://github.com/occultlang/occult.git && cd occult
 chmod +x build.sh
 ./build.sh
 ```
