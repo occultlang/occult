@@ -18,8 +18,7 @@ namespace occult {
 
         XXH3_128bits_reset(state);
 
-        // v2 invalidates v1 cache entries because cached call patching/registration changed.
-        const std::string version = "occult-ir-v2";
+        const std::string version = "occult-ir-v1";
         XXH3_128bits_update(state, version.data(), version.size());
         XXH3_128bits_update(state, func.name.data(), func.name.size());
         XXH3_128bits_update(state, func.type.data(), func.type.size());
