@@ -1,6 +1,9 @@
 #pragma once
 
+#ifndef _WIN64
 #include "code_cache.hpp"
+#endif
+
 #include "ir_gen.hpp"
 #include "x86_64_assembler.hpp"
 #include "x86_64_writer.hpp"
@@ -2836,7 +2839,7 @@ namespace occult::x86_64 {
                 }
             }
         }
-
+#ifndef _WIN64
         void patch_and_register_cached(ir_function& func, std::vector<std::uint8_t>& cached_code, const std::unordered_map<std::string, jit_function>& cached_function_map,
                                        const std::unordered_map<std::uint64_t, std::string>& cached_string_literals, bool use_jit) {
             function_map.insert({func.name, nullptr}); // prevent recursive cache patching from re-entering itself.
@@ -2988,6 +2991,7 @@ namespace occult::x86_64 {
                 std::cout << GREEN << "[CACHE] Registered cached function: " << func.name << RESET << "\n";
             }
         }
+#endif
 
         void compile_function(ir_function& func, const bool use_jit) {
             static std::unordered_set<std::string> compiling_functions;
@@ -3014,8 +3018,8 @@ namespace occult::x86_64 {
 
             compiling_functions.insert(func.name);
 
-            // try cache
-            auto cached_bytes = load_cached_code(func.name);
+#ifndef _WIN64           
+            auto cached_bytes = load_cached_code(func.name);  // try cache
             if (!cached_bytes.empty() && cached_bytes.size() >= sizeof(bytecode_header)) {
                 const auto* header = reinterpret_cast<const bytecode_header*>(cached_bytes.data());
                 IRHash current_hash = hash_ir_function(func);
@@ -3080,6 +3084,7 @@ namespace occult::x86_64 {
                     return;
                 }
             }
+#endif
 
             // fresh compilation
             if (debug) {
@@ -3101,8 +3106,10 @@ namespace occult::x86_64 {
 
             function_raw_code_map.insert({func.name, w->get_code()});
 
-            write_cached_code(func, function_raw_code_map, function_map, string_literals);
+#ifndef _WIN64           
 
+            write_cached_code(func, function_raw_code_map, function_map, string_literals);
+#endif
             w->setup_function();
             writers.push_back(std::move(w));
 
