@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 enum Status {
     OK = 200,
@@ -7,8 +7,8 @@ enum Status {
 }
 
 fn main() i64 {
-    printf("%i\n", Status::OK);
-    printf("%i\n", Status::NotFound);
-    printf("%i\n", Status::ServerError);
+    std::printf("%i\n", Status::OK);
+    std::printf("%i\n", Status::NotFound);
+    std::printf("%i\n", Status::ServerError);
     return 0;
 }

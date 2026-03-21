@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn get_str(string s) string {
   return s;
@@ -6,7 +6,7 @@ fn get_str(string s) string {
 
 fn main() i64 {
   string s = get_str("what\n");
-  print_string(s);
+  std::print_string(s);
   
   return 0;
 }

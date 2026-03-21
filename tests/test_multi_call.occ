@@ -1,12 +1,12 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
-    print_string("Line 1\n");
-    print_integer(1);
-    print_newline();
-    print_string("Line 2\n");
-    print_integer(2);
-    print_newline();
-    print_string("Done\n");
+    std::print_string("Line 1\n");
+    std::print_integer(1);
+    std::print_newline();
+    std::print_string("Line 2\n");
+    std::print_integer(2);
+    std::print_newline();
+    std::print_string("Done\n");
     return 0;
 }

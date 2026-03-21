@@ -1,11 +1,11 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 include "test_generic_include_lib.occ"
 
 fn main() i64 {
     GenPair<i64> p;
     p.first = 10;
     p.second = 20;
-    printf("%i\n", p.first + p.second);
-    printf("%i\n", gen_add<i64>(3, 4));
+    std::printf("%i\n", p.first + p.second);
+    std::printf("%i\n", gen_add<i64>(3, 4));
     return 0;
 }

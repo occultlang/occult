@@ -1,3 +1,14 @@
+include "../std/memory.occ"
+include "../std/stdio.occ"
+
+fn alloc(i64 len) i64 {
+    return std::malloc(len);
+}
+
+fn del(i64 ptr) {
+    std::free(ptr);
+}
+
 fn malloc(i64 size) shellcode i64 { 0x55 0x48 0x89 0xE5 0x48 0x89 0xFE 0xB8 0x0C 0x00 0x00 0x00 0x48 0x31 0xFF 0x0F 0x05 0x48 0x89 0xC7 0x48 0x01 0xF7 0xB8 0x0C 0x00 0x00 0x00 0x0F 0x05 0x48 0x89 0xEC 0x5D 0xC3 }
 
 fn syscall_write(i64 fd, i64 buf, i64 count) shellcode i64 {
@@ -25,7 +36,7 @@ fn print_string(i64 str) {
 }
 
 fn print_integer(i64 num) {
-    i64 char_buf = alloc(1);
+    i64 char_buf = std::malloc(1);
     
     if num < 0 {
         $char_buf = 45;
@@ -66,26 +77,26 @@ fn print_integer(i64 num) {
 }
 
 fn main() {
-    print_string("Starting tests...\n");
+    std::print_string("Starting tests...\n");
     
-    print_string("Test 1: Basic variable\n");
+    std::print_string("Test 1: Basic variable\n");
     i64 a = 10;
-    print_integer(a);
-    print_string("\n");
+    std::print_integer(a);
+    std::print_string("\n");
     
-    print_string("Test 2: Array\n");
+    std::print_string("Test 2: Array\n");
     array[3] i64 arr;
     arr[0] = 100;
-    print_integer(arr[0]);
-    print_string("\n");
+    std::print_integer(arr[0]);
+    std::print_string("\n");
     
-    print_string("Test 3: Memory\n");
-    i64 mem = alloc(8);
+    std::print_string("Test 3: Memory\n");
+    i64 mem = std::malloc(8);
     $mem = 42;
-    print_integer($mem);
-    print_string("\n");
+    std::print_integer($mem);
+    std::print_string("\n");
     
-    print_string("Test 4: Loop with array\n");
+    std::print_string("Test 4: Loop with array\n");
     i64 i = 0;
     loop {
         if i >= 3 {
@@ -94,8 +105,8 @@ fn main() {
         arr[i] = i * 10;
         i = i + 1;
     }
-    print_string("Done\n");
+    std::print_string("Done\n");
     
-    print_string("All tests passed!\n");
+    std::print_string("All tests passed!\n");
     return 0;
 }

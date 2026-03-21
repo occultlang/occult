@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 fn sum_all(i64 count, ...) i64 {
     i64 total = 0;
@@ -11,8 +11,8 @@ fn sum_all(i64 count, ...) i64 {
 }
 
 fn main() {
-    printf("Sum of 3: %d\n", sum_all(3, 10, 20, 30));
-    printf("Sum of 5: %d\n", sum_all(5, 1, 2, 3, 4, 5));
-    printf("%d %d %d %d %d\n", 100, 200, 300, 400, 500);
+    std::printf("Sum of 3: %d\n", sum_all(3, 10, 20, 30));
+    std::printf("Sum of 5: %d\n", sum_all(5, 1, 2, 3, 4, 5));
+    std::printf("%d %d %d %d %d\n", 100, 200, 300, 400, 500);
     return 0;
 }

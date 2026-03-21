@@ -1,19 +1,19 @@
 // Test case for stdio with functions
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn greet(string name) i64 {
-    print_string("Hello, ");
-    print_string(name);
-    print_string("!");
-    print_newline();
+    std::print_string("Hello, ");
+    std::print_string(name);
+    std::print_string("!");
+    std::print_newline();
     return 0;
 }
 
 fn print_sum(i64 a, i64 b) i64 {
     i64 sum = a + b;
-    print_string("Sum: ");
-    print_integer(sum);
-    print_newline();
+    std::print_string("Sum: ");
+    std::print_integer(sum);
+    std::print_newline();
     return sum;
 }
 

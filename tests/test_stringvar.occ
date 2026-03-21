@@ -1,9 +1,9 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
   string s = "Hello, World\n";
   
-  print_string(s);
+  std::print_string(s);
   
   return 0;
 }

@@ -1,12 +1,12 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
-    print_string("Test 1: Variables\n");
+    std::print_string("Test 1: Variables\n");
     i64 x = 10;
-    print_integer(x);
-    print_newline();
+    std::print_integer(x);
+    std::print_newline();
     
-    print_string("Test 2: Dynamic array indexing\n");
+    std::print_string("Test 2: Dynamic array indexing\n");
     array[5] i64 nums;
     i64 idx = 0;
     loop {
@@ -16,9 +16,9 @@ fn main() i64 {
         nums[idx] = idx * 10;
         idx = idx + 1;
     }
-    print_integer(nums[2]);
-    print_newline();
+    std::print_integer(nums[2]);
+    std::print_newline();
     
-    print_string("Done\n");
+    std::print_string("Done\n");
     return 0;
 }

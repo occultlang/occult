@@ -1,3 +1,14 @@
+include "../std/memory.occ"
+include "../std/stdio.occ"
+
+fn alloc(i64 len) i64 {
+    return std::malloc(len);
+}
+
+fn del(i64 ptr) {
+    std::free(ptr);
+}
+
 fn malloc(i64 size) shellcode i64 { 0x55 0x48 0x89 0xE5 0x48 0x89 0xFE 0xB8 0x0C 0x00 0x00 0x00 0x48 0x31 0xFF 0x0F 0x05 0x48 0x89 0xC7 0x48 0x01 0xF7 0xB8 0x0C 0x00 0x00 0x00 0x0F 0x05 0x48 0x89 0xEC 0x5D 0xC3 }
 
 fn syscall_write(i64 fd, i64 buf, i64 count) shellcode i64 {
@@ -26,7 +37,7 @@ fn print_string(i64 str) {
 
 fn print_integer(i64 num) {
     // Use a static buffer to avoid repeated allocations
-    i64 char_buf = alloc(1);
+    i64 char_buf = std::malloc(1);
     
     if num < 0 {
         $char_buf = 45;
@@ -67,33 +78,33 @@ fn print_integer(i64 num) {
 }
 
 fn main() {
-    print_string("=== Complex Test with Custom Print Functions ===\n\n");
+    std::print_string("=== Complex Test with Custom Print Functions ===\n\n");
     
-    print_string("Test 1: Variables\n");
+    std::print_string("Test 1: Variables\n");
     i64 a = 10;
     i64 b = 20;
-    print_string("  a = ");
-    print_integer(a);
-    print_string(", b = ");
-    print_integer(b);
-    print_string(", sum = ");
-    print_integer(a + b);
-    print_string("\n");
+    std::print_string("  a = ");
+    std::print_integer(a);
+    std::print_string(", b = ");
+    std::print_integer(b);
+    std::print_string(", sum = ");
+    std::print_integer(a + b);
+    std::print_string("\n");
     
-    print_string("\nTest 2: Array\n");
+    std::print_string("\nTest 2: Array\n");
     array[5] i64 arr;
     arr[0] = 100;
     arr[1] = 200;
     arr[2] = 300;
     arr[3] = 400;
     arr[4] = 500;
-    print_string("  arr[0] = ");
-    print_integer(arr[0]);
-    print_string(", arr[4] = ");
-    print_integer(arr[4]);
-    print_string("\n");
+    std::print_string("  arr[0] = ");
+    std::print_integer(arr[0]);
+    std::print_string(", arr[4] = ");
+    std::print_integer(arr[4]);
+    std::print_string("\n");
     
-    print_string("\nTest 3: Dynamic array access\n");
+    std::print_string("\nTest 3: Dynamic array access\n");
     i64 sum = 0;
     i64 i = 0;
     loop {
@@ -103,23 +114,23 @@ fn main() {
         sum = sum + arr[i];
         i = i + 1;
     }
-    print_string("  Sum of array: ");
-    print_integer(sum);
-    print_string("\n");
+    std::print_string("  Sum of array: ");
+    std::print_integer(sum);
+    std::print_string("\n");
     
-    print_string("\nTest 4: Memory allocation\n");
-    i64 mem1 = alloc(8);
+    std::print_string("\nTest 4: Memory allocation\n");
+    i64 mem1 = std::malloc(8);
     $mem1 = 42;
-    print_string("  Value: ");
-    print_integer($mem1);
-    print_string("\n");
+    std::print_string("  Value: ");
+    std::print_integer($mem1);
+    std::print_string("\n");
     
-    print_string("\nTest 5: Linked list\n");
-    i64 node1 = alloc(16);
+    std::print_string("\nTest 5: Linked list\n");
+    i64 node1 = std::malloc(16);
     $node1 = 1000;
     $(node1 + 8) = 0;
     
-    i64 node2 = alloc(16);
+    i64 node2 = std::malloc(16);
     $node2 = 2000;
     $(node2 + 8) = 0;
     
@@ -131,22 +142,22 @@ fn main() {
         if current == 0 {
             break;
         }
-        print_string("  Node ");
-        print_integer(count);
-        print_string(": ");
-        print_integer($current);
-        print_string("\n");
+        std::print_string("  Node ");
+        std::print_integer(count);
+        std::print_string(": ");
+        std::print_integer($current);
+        std::print_string("\n");
         
         current = $(current + 8);
         count = count + 1;
     }
     
-    print_string("\nTest 6: Array with pointers and reverse traversal\n");
+    std::print_string("\nTest 6: Array with pointers and reverse traversal\n");
     array[4] i64 nodes;
-    nodes[0] = alloc(24);
-    nodes[1] = alloc(24);
-    nodes[2] = alloc(24);
-    nodes[3] = alloc(24);
+    nodes[0] = std::malloc(24);
+    nodes[1] = std::malloc(24);
+    nodes[2] = std::malloc(24);
+    nodes[3] = std::malloc(24);
     
     $(nodes[0]) = 100;
     $(nodes[0] + 8) = nodes[1];
@@ -164,31 +175,31 @@ fn main() {
     $(nodes[3] + 8) = 0;
     $(nodes[3] + 16) = 4;
     
-    print_string("  Forward:\n");
+    std::print_string("  Forward:\n");
     current = nodes[0];
     loop {
         if current == 0 {
             break;
         }
-        print_string("    val=");
-        print_integer($current);
-        print_string(", id=");
-        print_integer($(current + 16));
-        print_string("\n");
+        std::print_string("    val=");
+        std::print_integer($current);
+        std::print_string(", id=");
+        std::print_integer($(current + 16));
+        std::print_string("\n");
         current = $(current + 8);
     }
     
-    print_string("  Reverse:\n");
+    std::print_string("  Reverse:\n");
     i64 rev = 3;
     loop {
         i64 node_addr = nodes[rev];
-        print_string("    nodes[");
-        print_integer(rev);
-        print_string("]: val=");
-        print_integer($node_addr);
-        print_string(", id=");
-        print_integer($(node_addr + 16));
-        print_string("\n");
+        std::print_string("    nodes[");
+        std::print_integer(rev);
+        std::print_string("]: val=");
+        std::print_integer($node_addr);
+        std::print_string(", id=");
+        std::print_integer($(node_addr + 16));
+        std::print_string("\n");
         
         if rev == 0 {
             break;
@@ -196,6 +207,6 @@ fn main() {
         rev = rev - 1;
     }
     
-    print_string("\n=== All Tests Passed! ===\n");
+    std::print_string("\n=== All Tests Passed! ===\n");
     return 0;
 }

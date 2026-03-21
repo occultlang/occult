@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 // Global constants
 const i64 MAX_ITEMS = 5;
@@ -20,25 +20,29 @@ fn categorize(i64 cat) i64 {
         case 0:
         case 1:
         case 2: {
-            printf("basic type (A/B/C)\n");
+            std::print_string("basic type (A/B/C)\n");
         }
         case 10:
         case 11: {
-            printf("advanced type (D/E)\n");
+            std::print_string("advanced type (D/E)\n");
         }
         default: {
-            printf("unknown type\n");
+            std::print_string("unknown type\n");
         }
     }
     return 0;
 }
 
 fn process_item(i64 id) i64 {
-    printf("processing item %d, total so far: %d\n", id, total_count);
+    std::print_string("processing item ");
+    std::print_integer(id);
+    std::print_string(", total so far: ");
+    std::print_integer(total_count);
+    std::print_string("\n");
 
     // Use global const in comparison
     if (id < MAX_ITEMS) {
-        printf("  within limit\n");
+        std::print_string("  within limit\n");
     }
     return 0;
 }
@@ -60,19 +64,21 @@ fn main() i64 {
 
     // Enum in expressions
     i64 cat_sum = Category::TypeA + Category::TypeB + Category::TypeC;
-    printf("category sum: %d\n", cat_sum);
+    std::print_string("category sum: ");
+    std::print_integer(cat_sum);
+    std::print_string("\n");
 
     // Switch on enum value
     i64 my_type = Category::TypeD;
     switch (my_type) {
         case 10: {
-            printf("TypeD confirmed\n");
+            std::print_string("TypeD confirmed\n");
         }
         default: {
-            printf("not TypeD\n");
+            std::print_string("not TypeD\n");
         }
     }
 
-    printf("combined test done\n");
+    std::print_string("combined test done\n");
     return 0;
 }

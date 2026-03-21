@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 generic<TypeA>
 struct GenericNode {
@@ -15,6 +15,6 @@ fn main() {
     GenericNode<f32> generic_node;
     generic_node.t_a = 3.14;
 
-    printf("%i\n", add<i32>(10, 20));
-    printf("%.2f\n", generic_node.t_a);
+    std::printf("%i\n", add<i32>(10, 20));
+    std::printf("%.2f\n", generic_node.t_a);
 } 

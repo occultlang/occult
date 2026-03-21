@@ -1,15 +1,15 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
-    i64* p = alloc(8);
+    i64* p = std::malloc(8);
     $p = 10;
 
-    print_integer(p);
-    print_string("\n");
-    print_integer($p);
-    print_string("\n");
+    std::print_integer(p);
+    std::print_string("\n");
+    std::print_integer($p);
+    std::print_string("\n");
     
-    del(p);
+    std::free(p);
 
     return 0;
 }

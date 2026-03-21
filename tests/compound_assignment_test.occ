@@ -1,19 +1,19 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 // Helper function to check and report
 fn check(i64 expected, i64 actual, string desc) {
-    print_string("Checking ");
-    print_string(desc);
-    print_string(": ");
+    std::print_string("Checking ");
+    std::print_string(desc);
+    std::print_string(": ");
 
     if expected == actual {
-        print_string("PASS\n");
+        std::print_string("PASS\n");
     } else {
-        print_string("FAIL - expected ");
-        print_integer(expected);
-        print_string(" but got ");
-        print_integer(actual);
-        print_string("\n");
+        std::print_string("FAIL - expected ");
+        std::print_integer(expected);
+        std::print_string(" but got ");
+        std::print_integer(actual);
+        std::print_string("\n");
     }
 }
 
@@ -27,7 +27,7 @@ fn test_arithmetic() {
     n /= 5;       check(176, n, "n /= 5");
     n %= 13;      check(7,  n, "n %= 13");   // 176 % 13 = 7
 
-    print_string("arithmetic tests done\n");
+    std::print_string("arithmetic tests done\n");
 }
 
 // 2. Bitwise compound assignments
@@ -50,7 +50,7 @@ fn test_bitwise() {
     shift >>= 3;              // 16
     check(16,  shift, "shift >>= 3");
 
-    print_string("bitwise tests done\n");
+    std::print_string("bitwise tests done\n");
 }
 
 // 3. Compound ops with expressions on RHS
@@ -68,7 +68,7 @@ fn test_expressions() {
     x -= y << 2;          // 112 - 16 = 96
     check(96, x, "x -= y<<2");
 
-    print_string("expression rhs tests done\n");
+    std::print_string("expression rhs tests done\n");
 }
 
 // 4. Negative numbers and edge cases
@@ -90,16 +90,16 @@ fn test_edges() {
     neg <<= 1;            // -32
     check(-32, neg, "neg <<= 1");
 
-    print_string("edge case tests done\n");
+    std::print_string("edge case tests done\n");
 }
 
 fn main() {
-    print_string("Starting compound assignment tests...\n\n");
+    std::print_string("Starting compound assignment tests...\n\n");
 
     test_arithmetic();
     test_bitwise();
     test_expressions();
     test_edges();
 
-    print_string("\nAll compound op tests finished.\n");
+    std::print_string("\nAll compound op tests finished.\n");
 }

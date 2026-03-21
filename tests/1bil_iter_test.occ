@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn test() i64 {
   i64 i = 0;
@@ -9,7 +9,7 @@ fn test() i64 {
     test = test + 1;
     
     if i == 500000000 {
-      print_string("500million\n");
+      std::print_string("500million\n");
     }
   }
 

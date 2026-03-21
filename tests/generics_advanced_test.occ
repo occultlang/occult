@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 generic<T>
 fn multiply(T a, T b) T {
@@ -23,18 +23,18 @@ struct Wrapper {
 }
 
 fn main() {
-    printf("%i\n", multiply<i64>(6, 7));
+    std::printf("%i\n", multiply<i64>(6, 7));
 
-    printf("%i\n", identity<i32>(99));
+    std::printf("%i\n", identity<i32>(99));
 
     Pair<i64> p;
     p.first = 10;
     p.second = 20;
-    printf("%i\n", p.first + p.second);
+    std::printf("%i\n", p.first + p.second);
 
     Wrapper<i64> w;
     w.value = 42;
-    printf("%i\n", w.value);
+    std::printf("%i\n", w.value);
 
-    printf("%i\n", multiply<i32>(3, 4));
+    std::printf("%i\n", multiply<i32>(3, 4));
 }

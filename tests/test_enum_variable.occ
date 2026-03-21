@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 enum State {
     Idle,
@@ -8,13 +8,13 @@ enum State {
 
 fn main() i64 {
     State s = State::Running;
-    printf("State = %i\n", s);
+    std::printf("State = %i\n", s);
 
     if (s == State::Running) {
-        printf("Is running!\n");
+        std::printf("Is running!\n");
     }
 
     s = State::Stopped;
-    printf("New state = %i\n", s);
+    std::printf("New state = %i\n", s);
     return 0;
 }

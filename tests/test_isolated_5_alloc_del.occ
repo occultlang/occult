@@ -1,6 +1,8 @@
+include "../std/stdio.occ"
+
 fn main() i64 {
     i64 address;
-    address = alloc(8);
-    del(address);
+    address = std::malloc(8);
+    std::free(address);
     return 0;
 }

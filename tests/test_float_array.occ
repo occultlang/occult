@@ -1,6 +1,6 @@
 // Test float arithmetic and cast to i64 (BUG H7 related)
 // Expected: return 0 (int_sum should be 7)
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
     f32 a = 1.5;

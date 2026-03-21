@@ -1,23 +1,33 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 i64 global_x = 42;
 i64 global_y = 100;
 
 fn print_globals() i64 {
-    printf("from print_globals: x=%d, y=%d\n", global_x, global_y);
+    std::print_string("from print_globals: x=");
+    std::print_integer(global_x);
+    std::print_string(", y=");
+    std::print_integer(global_y);
+    std::print_string("\n");
     return 0;
 }
 
 fn add_globals() i64 {
     i64 sum = global_x + global_y;
-    printf("sum from add_globals: %d\n", sum);
+    std::print_string("sum from add_globals: ");
+    std::print_integer(sum);
+    std::print_string("\n");
     return sum;
 }
 
 fn main() i64 {
-    printf("from main: x=%d, y=%d\n", global_x, global_y);
+    std::print_string("from main: x=");
+    std::print_integer(global_x);
+    std::print_string(", y=");
+    std::print_integer(global_y);
+    std::print_string("\n");
     print_globals();
     add_globals();
-    printf("done\n");
+    std::print_string("done\n");
     return 0;
 }

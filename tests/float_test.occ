@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn ret_float(f32 f) f32 {
     f32 a = f;
@@ -10,10 +10,10 @@ fn main() {
     f32 test2 = ret_float(3.14);
     
     if test2 == test && test2 == 3.14 {
-        print_string("true\n");
+        std::print_string("true\n");
     }
     else {
-        print_string("false\n");
+        std::print_string("false\n");
     }
 
     return 0;

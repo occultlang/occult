@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
     i64 orig = 10;
@@ -8,12 +8,12 @@ fn main() i64 {
     
     $$addr2 = 40; // how to dereference
 
-    print_integer(addr); // raw address 
-    print_string("\n");
-    print_integer($addr); // 40
-    print_string("\n");
-    print_integer($$addr2); // 40
-    print_string("\n");
+    std::print_integer(addr); // raw address 
+    std::print_string("\n");
+    std::print_integer($addr); // 40
+    std::print_string("\n");
+    std::print_integer($$addr2); // 40
+    std::print_string("\n");
     
     return 0;
 }

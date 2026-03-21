@@ -1,6 +1,6 @@
 // Test i64(-3.9) = -3 (BUG 9 fix)
 // Expected: return 0 (all 3 casts correct)
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
     i64 a = i64(-3.9);

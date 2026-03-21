@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 generic<T>
 struct gnode {
@@ -8,7 +8,7 @@ struct gnode {
 
 generic<T>
 fn alloc_gnode(T val) gnode<T>* {
-    gnode<T>* n = alloc(16);
+    gnode<T>* n = std::malloc(16);
     n.val = val;
     n.next = 0;
     return n;
@@ -16,8 +16,8 @@ fn alloc_gnode(T val) gnode<T>* {
 
 fn main() i64 {
     gnode<i64>* head = alloc_gnode<i64>(10);
-    print_integer(head.val);
-    print_string("\n");
-    del(head);
+    std::print_integer(head.val);
+    std::print_string("\n");
+    std::free(head);
     return 0;
 }

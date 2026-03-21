@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 module math {
     fn add(i64 a, i64 b) i64 {
@@ -12,10 +12,10 @@ module math {
 
 fn main() i64 {
     i64 sum = math::add(3, 4);
-    printf("3 + 4 = %d\n", sum);
+    std::printf("3 + 4 = %d\n", sum);
 
     i64 product = math::multiply(5, 6);
-    printf("5 * 6 = %d\n", product);
+    std::printf("5 * 6 = %d\n", product);
 
     return 0;
 }

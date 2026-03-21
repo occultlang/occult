@@ -98,8 +98,8 @@ namespace occult {
         return header;
     }
 
-    void write_cached_code(const ir_function& func, const std::map<std::string, std::vector<std::uint8_t>>& function_raw_code_map,
-                           const std::unordered_map<std::string, jit_function>& function_map, const std::unordered_map<std::uint64_t, std::string>& string_literals) {
+    void write_cached_code(const ir_function& func, const std::map<std::string, std::vector<std::uint8_t>>& function_raw_code_map, const std::unordered_map<std::string, jit_function>& function_map,
+                           const std::unordered_map<std::uint64_t, std::string>& string_literals) {
         std::vector<std::uint8_t> serialized_string_map;
         std::vector<std::uint8_t> serialized_addr_map;
 

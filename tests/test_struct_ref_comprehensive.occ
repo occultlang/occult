@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 struct Point {
     i64 x;
@@ -36,37 +36,37 @@ fn main() {
     
     // Test basic set
     set_point(p, 100, 200);
-    print_string("After set(100,200): (");
-    print_integer(p.x);
-    print_string(", ");
-    print_integer(p.y);
-    print_string(") expected (100, 200)\n");
+    std::print_string("After set(100,200): (");
+    std::print_integer(p.x);
+    std::print_string(", ");
+    std::print_integer(p.y);
+    std::print_string(") expected (100, 200)\n");
     
     // Test reading through ref
     i64 x = get_x(p);
     i64 y = get_y(p);
-    print_string("get_x = ");
-    print_integer(x);
-    print_string(" expected 100\n");
-    print_string("get_y = ");
-    print_integer(y);
-    print_string(" expected 200\n");
+    std::print_string("get_x = ");
+    std::print_integer(x);
+    std::print_string(" expected 100\n");
+    std::print_string("get_y = ");
+    std::print_integer(y);
+    std::print_string(" expected 200\n");
     
     // Test read-modify-write
     add_to_point(p, 5, 10);
-    print_string("After add(5,10): (");
-    print_integer(p.x);
-    print_string(", ");
-    print_integer(p.y);
-    print_string(") expected (105, 210)\n");
+    std::print_string("After add(5,10): (");
+    std::print_integer(p.x);
+    std::print_string(", ");
+    std::print_integer(p.y);
+    std::print_string(") expected (105, 210)\n");
     
     // Test swap
     swap_coords(p);
-    print_string("After swap: (");
-    print_integer(p.x);
-    print_string(", ");
-    print_integer(p.y);
-    print_string(") expected (210, 105)\n");
+    std::print_string("After swap: (");
+    std::print_integer(p.x);
+    std::print_string(", ");
+    std::print_integer(p.y);
+    std::print_string(") expected (210, 105)\n");
     
     return 0;
 }

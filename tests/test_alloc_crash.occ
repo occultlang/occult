@@ -1,6 +1,8 @@
+include "../std/stdio.occ"
+
 fn main() i64 {
     i64 my_ptr;
-    my_ptr = alloc(64);
-    del(my_ptr);
+    my_ptr = std::malloc(64);
+    std::free(my_ptr);
     return 0;
 }

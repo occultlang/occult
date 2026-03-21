@@ -1,6 +1,6 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
-    print_string("Hello, World!\n");
+    std::print_string("Hello, World!\n");
     return 0;
 }

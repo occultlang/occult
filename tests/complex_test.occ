@@ -1,26 +1,26 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn malloc(i64 size) shellcode i64 { 0x55 0x48 0x89 0xE5 0x48 0x89 0xFE 0xB8 0x0C 0x00 0x00 0x00 0x48 0x31 0xFF 0x0F 0x05 0x48 0x89 0xC7 0x48 0x01 0xF7 0xB8 0x0C 0x00 0x00 0x00 0x0F 0x05 0x48 0x89 0xEC 0x5D 0xC3 }
 
 fn main() {
     // Create a more complex linked structure with data and metadata
-    i64 root = alloc(24);
+    i64 root = std::malloc(24);
     $root = 100;              // value
     $(root + 8) = 0;          // next pointer
     $(root + 16) = 5;         // metadata: node ID
     
     // Build chain with nested mallocs
-    $(root + 8) = alloc(24);
+    $(root + 8) = std::malloc(24);
     i64 node2_addr = root + 8;
     i64 node2 = $node2_addr;
     $node2 = 200;
-    $(node2 + 8) = alloc(24);
+    $(node2 + 8) = std::malloc(24);
     $(node2 + 16) = 10;
     
     i64 node3_addr = node2 + 8;
     i64 node3 = $node3_addr;
     $node3 = 300;
-    $(node3 + 8) = alloc(24);
+    $(node3 + 8) = std::malloc(24);
     $(node3 + 16) = 15;
     
     i64 node4_addr = node3 + 8;
@@ -29,7 +29,7 @@ fn main() {
     $(node4 + 8) = 0;  // null terminator
     $(node4 + 16) = 20;
     
-    print_string("=== Linked List Traversal ===\n");
+    std::print_string("=== Linked List Traversal ===\n");
     
     // Traverse and print all fields
     i64 current = root;
@@ -43,13 +43,13 @@ fn main() {
         i64 meta_addr = current + 16;
         i64 metadata = $meta_addr;
         
-        print_string("Node ");
-        print_integer(index);
-        print_string(": value=");
-        print_integer(value);
-        print_string(", id=");
-        print_integer(metadata);
-        print_string("\n");
+        std::print_string("Node ");
+        std::print_integer(index);
+        std::print_string(": value=");
+        std::print_integer(value);
+        std::print_string(", id=");
+        std::print_integer(metadata);
+        std::print_string("\n");
         
         sum = sum + value;
         
@@ -64,16 +64,16 @@ fn main() {
         index = index + 1;
     }
     
-    print_string("\n=== Summary ===\n");
-    print_string("Total nodes: ");
-    print_integer(index + 1);
-    print_string("\n");
-    print_string("Sum of values: ");
-    print_integer(sum);
-    print_string("\n");
+    std::print_string("\n=== Summary ===\n");
+    std::print_string("Total nodes: ");
+    std::print_integer(index + 1);
+    std::print_string("\n");
+    std::print_string("Sum of values: ");
+    std::print_integer(sum);
+    std::print_string("\n");
     
     // Reverse traversal - store addresses in array
-    print_string("\n=== Reverse Order ===\n");
+    std::print_string("\n=== Reverse Order ===\n");
     array[10] i64 nodes;
     
     current = root;
@@ -92,15 +92,15 @@ fn main() {
 
     i64 i = count - 1;
     loop {
-        print_string("Node ");
-        print_integer(i);
-        print_string(": ");
+        std::print_string("Node ");
+        std::print_integer(i);
+        std::print_string(": ");
         
         i64 node_addr = nodes[i];
         i64 val = $node_addr;
         
-        print_integer(val);
-        print_string("\n");
+        std::print_integer(val);
+        std::print_string("\n");
         
         if i == 0 {
             break;

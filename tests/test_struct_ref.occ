@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 struct Point {
     i64 x;
@@ -15,19 +15,19 @@ fn main() {
     p.x = 1;
     p.y = 2;
     
-    print_string("Before: p = (");
-    print_integer(p.x);
-    print_string(", ");
-    print_integer(p.y);
-    print_string(")\n");
+    std::print_string("Before: p = (");
+    std::print_integer(p.x);
+    std::print_string(", ");
+    std::print_integer(p.y);
+    std::print_string(")\n");
     
     set_point(p, 10, 20);
     
-    print_string("After set_point: p = (");
-    print_integer(p.x);
-    print_string(", ");
-    print_integer(p.y);
-    print_string(")\n");
+    std::print_string("After set_point: p = (");
+    std::print_integer(p.x);
+    std::print_string(", ");
+    std::print_integer(p.y);
+    std::print_string(")\n");
     
     return 0;
 }

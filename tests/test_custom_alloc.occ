@@ -1,17 +1,17 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
-    print_string("Testing custom alloc/del\n");
+    std::print_string("Testing custom alloc/del\n");
     
-    i64 p = alloc(8);
+    i64 p = std::malloc(8);
     $p = 42;
     
-    print_string("Stored value: ");
-    print_integer($p);
-    print_newline();
+    std::print_string("Stored value: ");
+    std::print_integer($p);
+    std::print_newline();
     
-    del(p);
+    std::free(p);
     
-    print_string("Done\n");
+    std::print_string("Done\n");
     return 0;
 }

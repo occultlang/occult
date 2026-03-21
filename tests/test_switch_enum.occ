@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 enum Color {
     Red,
@@ -11,16 +11,16 @@ fn main() i64 {
 
     switch (c) {
         case 0: {
-            printf("Red\n");
+            std::printf("Red\n");
         }
         case 1: {
-            printf("Green\n");
+            std::printf("Green\n");
         }
         case 2: {
-            printf("Blue\n");
+            std::printf("Blue\n");
         }
         default: {
-            printf("Unknown\n");
+            std::printf("Unknown\n");
         }
     }
 

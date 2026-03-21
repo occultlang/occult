@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 // Enum with auto-increment starting at 0
 enum Fruit {
@@ -28,22 +28,22 @@ enum Priority {
 fn check_fruit(i64 f) i64 {
     switch (f) {
         case 0: {
-            printf("Apple\n");
+            std::printf("Apple\n");
         }
         case 1: {
-            printf("Banana\n");
+            std::printf("Banana\n");
         }
         case 2: {
-            printf("Cherry\n");
+            std::printf("Cherry\n");
         }
         case 3: {
-            printf("Date\n");
+            std::printf("Date\n");
         }
         case 4: {
-            printf("Elderberry\n");
+            std::printf("Elderberry\n");
         }
         default: {
-            printf("Unknown fruit\n");
+            std::printf("Unknown fruit\n");
         }
     }
     return 0;
@@ -51,23 +51,23 @@ fn check_fruit(i64 f) i64 {
 
 fn main() i64 {
     // Test auto-increment values
-    printf("Apple=%d\n", Fruit::Apple);
-    printf("Banana=%d\n", Fruit::Banana);
-    printf("Cherry=%d\n", Fruit::Cherry);
-    printf("Date=%d\n", Fruit::Date);
-    printf("Elderberry=%d\n", Fruit::Elderberry);
+    std::printf("Apple=%d\n", Fruit::Apple);
+    std::printf("Banana=%d\n", Fruit::Banana);
+    std::printf("Cherry=%d\n", Fruit::Cherry);
+    std::printf("Date=%d\n", Fruit::Date);
+    std::printf("Elderberry=%d\n", Fruit::Elderberry);
 
     // Test explicit values
-    printf("None=%d\n", ErrorCode::None);
-    printf("IOError=%d\n", ErrorCode::IOError);
-    printf("ParseError=%d\n", ErrorCode::ParseError);
-    printf("RuntimeError=%d\n", ErrorCode::RuntimeError);
+    std::printf("None=%d\n", ErrorCode::None);
+    std::printf("IOError=%d\n", ErrorCode::IOError);
+    std::printf("ParseError=%d\n", ErrorCode::ParseError);
+    std::printf("RuntimeError=%d\n", ErrorCode::RuntimeError);
 
     // Test mixed auto and explicit
-    printf("Low=%d\n", Priority::Low);
-    printf("Medium=%d\n", Priority::Medium);
-    printf("High=%d\n", Priority::High);
-    printf("Critical=%d\n", Priority::Critical);
+    std::printf("Low=%d\n", Priority::Low);
+    std::printf("Medium=%d\n", Priority::Medium);
+    std::printf("High=%d\n", Priority::High);
+    std::printf("Critical=%d\n", Priority::Critical);
 
     // Test enum in switch
     i64 f = Fruit::Cherry;
@@ -75,13 +75,13 @@ fn main() i64 {
 
     // Test enum comparison
     if (Fruit::Apple == 0) {
-        printf("Apple is 0\n");
+        std::printf("Apple is 0\n");
     }
 
     // Test enum in expressions
     i64 sum = Fruit::Apple + Fruit::Banana + Fruit::Cherry;
-    printf("sum of first 3 fruits=%d\n", sum);
+    std::printf("sum of first 3 fruits=%d\n", sum);
 
-    printf("enum fuzz done\n");
+    std::printf("enum fuzz done\n");
     return 0;
 }

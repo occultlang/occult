@@ -1,4 +1,6 @@
+include "../std/stdio.occ"
+
 fn main() {
-    i64 p = alloc(64);
-    del(p);
+    i64 p = std::malloc(64);
+    std::free(p);
 }

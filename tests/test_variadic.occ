@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 fn variadic_sum(i64 count, ...) i64 {
     i64 total = 0;
@@ -11,6 +11,6 @@ fn variadic_sum(i64 count, ...) i64 {
 }
 
 fn main() {
-    print_integer(variadic_sum(3, 10, 20, 30));
-    print_newline();
+    std::print_integer(variadic_sum(3, 10, 20, 30));
+    std::print_newline();
 }

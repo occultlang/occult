@@ -1,9 +1,9 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
     i64 x;
     x = 42;
-    print_integer(x);
-    print_newline();
+    std::print_integer(x);
+    std::print_newline();
     return 0;
 }

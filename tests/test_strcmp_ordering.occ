@@ -1,13 +1,13 @@
 // Test strcmp returns proper ordering (BUG 16 fix)
 // Expected: return 0 (all 3 checks pass)
-include "../lib/strlib.occ"
+include "../std/strlib.occ"
 
 fn main() i64 {
     i64 pass = 0;
     // equal strings
-    if strcmp("abc", "abc") == 0 { pass = pass + 1; }
+    if strlib::strcmp("abc", "abc") == 0 { pass = pass + 1; }
     // prefix bug fix
-    if strcmp("ab", "abc") != 0 { pass = pass + 1; }
-    if strcmp("abc", "ab") != 0 { pass = pass + 1; }
+    if strlib::strcmp("ab", "abc") != 0 { pass = pass + 1; }
+    if strlib::strcmp("abc", "ab") != 0 { pass = pass + 1; }
     return pass - 3;
 }

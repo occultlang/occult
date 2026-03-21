@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
     // Test 1: fallthrough from case 1 to case 2 block
@@ -6,13 +6,13 @@ fn main() i64 {
     switch (x) {
         case 1:
         case 2: {
-            printf("1 or 2\n");
+            std::printf("1 or 2\n");
         }
         case 3: {
-            printf("3\n");
+            std::printf("3\n");
         }
         default: {
-            printf("other\n");
+            std::printf("other\n");
         }
     }
 
@@ -20,15 +20,15 @@ fn main() i64 {
     i64 y = 3;
     switch (y) {
         case 1: {
-            printf("one\n");
+            std::printf("one\n");
         }
         case 3:
         case 4:
         case 5: {
-            printf("3, 4, or 5\n");
+            std::printf("3, 4, or 5\n");
         }
         default: {
-            printf("default\n");
+            std::printf("default\n");
         }
     }
 
@@ -37,13 +37,13 @@ fn main() i64 {
     switch (z) {
         case 1:
         case 2: {
-            printf("1 or 2\n");
+            std::printf("1 or 2\n");
         }
         default: {
-            printf("no match default\n");
+            std::printf("no match default\n");
         }
     }
 
-    printf("done\n");
+    std::printf("done\n");
     return 0;
 }

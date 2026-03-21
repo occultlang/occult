@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 generic<T>
 struct Pair {
@@ -16,6 +16,6 @@ fn make_pair(T a, T b) Pair<T> {
 
 fn main() {
     Pair<i64> p = make_pair<i64>(10, 20);
-    printf("%i\n", p.first);
-    printf("%i\n", p.second);
+    std::printf("%i\n", p.first);
+    std::printf("%i\n", p.second);
 }

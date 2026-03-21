@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 module std {
     module math {
@@ -13,7 +13,7 @@ module std {
 
     module io {
         fn greet() i64 {
-            printf("Hello from std::io!\n");
+            std::printf("Hello from std::io!\n");
             return 0;
         }
     }
@@ -21,10 +21,10 @@ module std {
 
 fn main() i64 {
     i64 sum = std::math::add(10, 20);
-    printf("10 + 20 = %d\n", sum);
+    std::printf("10 + 20 = %d\n", sum);
 
     i64 diff = std::math::sub(30, 15);
-    printf("30 - 15 = %d\n", diff);
+    std::printf("30 - 15 = %d\n", diff);
 
     std::io::greet();
 

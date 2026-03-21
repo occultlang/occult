@@ -1,7 +1,7 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
     i64 msg = "Test\n";
-    print_string(msg);
+    std::print_string(msg);
     return 0;
 }

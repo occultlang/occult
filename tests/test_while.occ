@@ -1,10 +1,10 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn whilefunc(i64 n) i64 {
   i64 i = 0;
   
   while n > i {
-    print_string("hi world\n");
+    std::print_string("hi world\n");
     
     i = i + 1;
   }

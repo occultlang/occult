@@ -1,8 +1,8 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
   for i64 i = 0 when i < 10 do i = i + 1 {
-     printf("%i\n", i);
+     std::printf("%i\n", i);
   }
 
   return 0;

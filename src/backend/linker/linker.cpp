@@ -42,7 +42,7 @@ namespace occult {
 
         const std::uint64_t main_addr = base_addr + header_size + locations["main"];
 
-        // _start trampoline 
+        // _start trampoline
         final_code[0] = 0x48;
         final_code[1] = 0xB8;
         for (std::uint8_t j = 0; j < 8; ++j) {

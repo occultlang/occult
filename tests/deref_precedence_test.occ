@@ -1,7 +1,7 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() {
-    i64 v = alloc(16);
+    i64 v = std::malloc(16);
 
     $v = 100;
 
@@ -9,10 +9,10 @@ fn main() {
 
     i64 total = $(v + 8) + $v; // 300
 
-    print_integer(total);
-    print_string("\n");
+    std::print_integer(total);
+    std::print_string("\n");
     
-    del(v);
+    std::free(v);
 }
 
 

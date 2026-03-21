@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 struct point_2d {
     i64 x;
@@ -21,14 +21,14 @@ fn create_3d_point(i64 x, i64 y, i64 z) point_3d {
 }
 
 fn print_point3d(point_3d p) {
-    print_integer(p.p_2d.x);
-    print_string("\n");
+    std::print_integer(p.p_2d.x);
+    std::print_string("\n");
 
-    print_integer(p.p_2d.y);
-    print_string("\n");
+    std::print_integer(p.p_2d.y);
+    std::print_string("\n");
 
-    print_integer(p.z);
-    print_string("\n");
+    std::print_integer(p.z);
+    std::print_string("\n");
 }
 
 fn main() {

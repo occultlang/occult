@@ -1,6 +1,6 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() {
-  print_float(256.319313, 4);
-  print_string("\n");
+  std::__printf_float(__bitcast_i64(f64(256.319313)), 4);
+  std::print_string("\n");
 }

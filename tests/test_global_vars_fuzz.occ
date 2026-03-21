@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 i64 counter = 0;
 i64 max_val = 100;
@@ -18,16 +18,16 @@ fn get_step() i64 {
 
 fn use_globals_in_expr() i64 {
     i64 result = counter + max_val + step;
-    printf("sum of globals: %d\n", result);
+    std::printf("sum of globals: %d\n", result);
     return result;
 }
 
 fn use_globals_in_if() i64 {
     if (counter == 0) {
-        printf("counter is zero\n");
+        std::printf("counter is zero\n");
     }
     if (max_val > 50) {
-        printf("max_val > 50\n");
+        std::printf("max_val > 50\n");
     }
     return 0;
 }
@@ -35,13 +35,13 @@ fn use_globals_in_if() i64 {
 fn use_globals_in_switch() i64 {
     switch (step) {
         case 10: {
-            printf("step is 10\n");
+            std::printf("step is 10\n");
         }
         case 20: {
-            printf("step is 20\n");
+            std::printf("step is 20\n");
         }
         default: {
-            printf("step is other\n");
+            std::printf("step is other\n");
         }
     }
     return 0;
@@ -49,9 +49,9 @@ fn use_globals_in_switch() i64 {
 
 fn main() i64 {
     // Test: access globals from helper functions
-    printf("counter=%d\n", get_counter());
-    printf("max=%d\n", get_max());
-    printf("step=%d\n", get_step());
+    std::printf("counter=%d\n", get_counter());
+    std::printf("max=%d\n", get_max());
+    std::printf("step=%d\n", get_step());
 
     use_globals_in_expr();
     use_globals_in_if();
@@ -62,8 +62,8 @@ fn main() i64 {
     while (i < step) {
         i = i + 1;
     }
-    printf("looped %d times\n", i);
+    std::printf("looped %d times\n", i);
 
-    printf("global fuzz done\n");
+    std::printf("global fuzz done\n");
     return 0;
 }

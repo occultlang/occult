@@ -1,17 +1,17 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
     // Test case 1: match first case
     i64 a = 1;
     switch (a) {
         case 1: {
-            printf("matched 1\n");
+            std::printf("matched 1\n");
         }
         case 2: {
-            printf("matched 2\n");
+            std::printf("matched 2\n");
         }
         default: {
-            printf("no match\n");
+            std::printf("no match\n");
         }
     }
 
@@ -19,13 +19,13 @@ fn main() i64 {
     i64 b = 99;
     switch (b) {
         case 1: {
-            printf("matched 1\n");
+            std::printf("matched 1\n");
         }
         case 2: {
-            printf("matched 2\n");
+            std::printf("matched 2\n");
         }
         default: {
-            printf("default hit\n");
+            std::printf("default hit\n");
         }
     }
 
@@ -33,10 +33,10 @@ fn main() i64 {
     i64 c = 3;
     switch (c + 1) {
         case 4: {
-            printf("3+1=4 works\n");
+            std::printf("3+1=4 works\n");
         }
         default: {
-            printf("expr failed\n");
+            std::printf("expr failed\n");
         }
     }
 
@@ -44,13 +44,13 @@ fn main() i64 {
     i64 d = 10;
     switch (d) {
         case 1: {
-            printf("should not print\n");
+            std::printf("should not print\n");
         }
         case 2: {
-            printf("should not print\n");
+            std::printf("should not print\n");
         }
     }
 
-    printf("done\n");
+    std::printf("done\n");
     return 0;
 }

@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 // Test cross-generic struct references in fields (forward and backward)
 
@@ -19,7 +19,7 @@ struct child_entry {
 
 generic<T>
 fn alloc_tree_node(T val) tree_node<T>* {
-    tree_node<T>* n = alloc(24);
+    tree_node<T>* n = std::malloc(24);
     n.val = val;
     n.first_child = 0;
     n.num_children = 0;
@@ -28,7 +28,7 @@ fn alloc_tree_node(T val) tree_node<T>* {
 
 generic<T>
 fn add_child(tree_node<T>* parent, tree_node<T>* child) i64 {
-    child_entry<T>* entry = alloc(16);
+    child_entry<T>* entry = std::malloc(16);
     entry.child_node = child;
     entry.next = parent.first_child;
     parent.first_child = entry;
@@ -40,11 +40,11 @@ generic<T>
 fn print_tree(tree_node<T>* node, i64 depth) i64 {
     i64 d = 0;
     while (d < depth) {
-        printf("  ");
+        std::printf("  ");
         d = d + 1;
     }
-    print_integer(node.val);
-    printf("\n");
+    std::print_integer(node.val);
+    std::printf("\n");
 
     child_entry<T>* entry = node.first_child;
     while (entry != 0) {
@@ -62,10 +62,10 @@ fn free_tree(tree_node<T>* node) i64 {
         child_entry<T>* next = entry.next;
         tree_node<T>* child = entry.child_node;
         free_tree<T>(child);
-        del(entry);
+        std::free(entry);
         entry = next;
     }
-    del(node);
+    std::free(node);
     return 0;
 }
 
@@ -77,10 +77,10 @@ fn main() i64 {
     add_child<i64>(root, n2);
     add_child<i64>(root, n3);
 
-    printf("Tree:\n");
+    std::printf("Tree:\n");
     print_tree<i64>(root, 0);
 
-    printf("Children: %d\n", root.num_children);
+    std::printf("Children: %d\n", root.num_children);
 
     free_tree<i64>(root);
     return 0;

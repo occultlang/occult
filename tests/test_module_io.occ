@@ -1,8 +1,8 @@
-import io;
+include "../std/stdio.occ"
 
 fn main() i64 {
-    io::printf("Hello from io module!\n");
-    io::printf("number: %d\n", 42);
-    io::printf("io module done\n");
+    std::printf("Hello from io module!\n");
+    std::printf("number: %d\n", 42);
+    std::printf("io module done\n");
     return 0;
 }

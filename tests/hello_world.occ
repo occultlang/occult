@@ -1,5 +1,5 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() {
-  print_string("1234567890       ");
+  std::print_string("1234567890       ");
 }

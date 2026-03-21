@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 enum Direction {
     North,
@@ -19,6 +19,6 @@ fn main() i64 {
     p.y = 20;
     p.facing = Direction::East;
 
-    printf("x=%i y=%i facing=%i\n", p.x, p.y, p.facing);
+    std::printf("x=%i y=%i facing=%i\n", p.x, p.y, p.facing);
     return 0;
 }

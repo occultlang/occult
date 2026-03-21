@@ -1,45 +1,45 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn test_int_if_elseif_else() {
     i64 x = 2;
     
-    print_string("Testing int if/elseif/else with x=2:\n");
+    std::print_string("Testing int if/elseif/else with x=2:\n");
     
     if x == 1 {
-        print_string("  Result: x == 1 (WRONG!)\n");
+        std::print_string("  Result: x == 1 (WRONG!)\n");
     }
     elseif x == 2 {
-        print_string("  Result: x == 2 (CORRECT!)\n");
+        std::print_string("  Result: x == 2 (CORRECT!)\n");
     }
     elseif x == 3 {
-        print_string("  Result: x == 3 (WRONG!)\n");
+        std::print_string("  Result: x == 3 (WRONG!)\n");
     }
     else {
-        print_string("  Result: else (WRONG!)\n");
+        std::print_string("  Result: else (WRONG!)\n");
     }
 }
 
 fn test_float_if_elseif_else() {
     f32 x = 2.0;
     
-    print_string("Testing float if/elseif/else with x=2.0:\n");
+    std::print_string("Testing float if/elseif/else with x=2.0:\n");
     
     if x == 1.0 {
-        print_string("  Result: x == 1.0 (WRONG!)\n");
+        std::print_string("  Result: x == 1.0 (WRONG!)\n");
     }
     elseif x == 2.0 {
-        print_string("  Result: x == 2.0 (CORRECT!)\n");
+        std::print_string("  Result: x == 2.0 (CORRECT!)\n");
     }
     elseif x == 3.0 {
-        print_string("  Result: x == 3.0 (WRONG!)\n");
+        std::print_string("  Result: x == 3.0 (WRONG!)\n");
     }
     else {
-        print_string("  Result: else (WRONG!)\n");
+        std::print_string("  Result: else (WRONG!)\n");
     }
 }
 
 fn test_float_arithmetic() {
-    print_string("Testing float arithmetic:\n");
+    std::print_string("Testing float arithmetic:\n");
     
     f32 a = 3.5;
     f32 b = 2.0;
@@ -48,96 +48,96 @@ fn test_float_arithmetic() {
     f32 prod = a * b;
     f32 quot = a / b;
     
-    print_string("  3.5 + 2.0 = ");
-    print_float(sum, 3);
-    print_string("\n");
+    std::print_string("  3.5 + 2.0 = ");
+    std::__printf_float(__bitcast_i64(f64(sum)), 3);
+    std::print_string("\n");
     
-    print_string("  3.5 - 2.0 = ");
-    print_float(diff, 3);
-    print_string("\n");
+    std::print_string("  3.5 - 2.0 = ");
+    std::__printf_float(__bitcast_i64(f64(diff)), 3);
+    std::print_string("\n");
     
-    print_string("  3.5 * 2.0 = ");
-    print_float(prod, 3);
-    print_string("\n");
+    std::print_string("  3.5 * 2.0 = ");
+    std::__printf_float(__bitcast_i64(f64(prod)), 3);
+    std::print_string("\n");
     
-    print_string("  3.5 / 2.0 = ");
-    print_float(quot, 3);
-    print_string("\n");
+    std::print_string("  3.5 / 2.0 = ");
+    std::__printf_float(__bitcast_i64(f64(quot)), 3);
+    std::print_string("\n");
 }
 
 fn test_float_comparison() {
-    print_string("Testing float comparisons:\n");
+    std::print_string("Testing float comparisons:\n");
     
     f32 a = 3.14;
     f32 b = 2.0;
     
     if a > b {
-        print_string("  3.14 > 2.0: true (CORRECT!)\n");
+        std::print_string("  3.14 > 2.0: true (CORRECT!)\n");
     }
     else {
-        print_string("  3.14 > 2.0: false (WRONG!)\n");
+        std::print_string("  3.14 > 2.0: false (WRONG!)\n");
     }
     
     if a < b {
-        print_string("  3.14 < 2.0: true (WRONG!)\n");
+        std::print_string("  3.14 < 2.0: true (WRONG!)\n");
     }
     else {
-        print_string("  3.14 < 2.0: false (CORRECT!)\n");
+        std::print_string("  3.14 < 2.0: false (CORRECT!)\n");
     }
     
     if a == b {
-        print_string("  3.14 == 2.0: true (WRONG!)\n");
+        std::print_string("  3.14 == 2.0: true (WRONG!)\n");
     }
     else {
-        print_string("  3.14 == 2.0: false (CORRECT!)\n");
+        std::print_string("  3.14 == 2.0: false (CORRECT!)\n");
     }
 }
 
 fn test_multiple_elseif() {
-    print_string("Testing multiple elseif with x=3:\n");
+    std::print_string("Testing multiple elseif with x=3:\n");
     
     i64 x = 3;
     
     if x == 1 {
-        print_string("  Result: x == 1 (WRONG!)\n");
+        std::print_string("  Result: x == 1 (WRONG!)\n");
     }
     elseif x == 2 {
-        print_string("  Result: x == 2 (WRONG!)\n");
+        std::print_string("  Result: x == 2 (WRONG!)\n");
     }
     elseif x == 3 {
-        print_string("  Result: x == 3 (CORRECT!)\n");
+        std::print_string("  Result: x == 3 (CORRECT!)\n");
     }
     elseif x == 4 {
-        print_string("  Result: x == 4 (WRONG!)\n");
+        std::print_string("  Result: x == 4 (WRONG!)\n");
     }
     else {
-        print_string("  Result: else (WRONG!)\n");
+        std::print_string("  Result: else (WRONG!)\n");
     }
 }
 
 fn main() {
-    print_string("=================================\n");
-    print_string("IF/ELSEIF/ELSE and FLOAT TESTS\n");
-    print_string("=================================\n\n");
+    std::print_string("=================================\n");
+    std::print_string("IF/ELSEIF/ELSE and FLOAT TESTS\n");
+    std::print_string("=================================\n\n");
     
     test_int_if_elseif_else();
-    print_string("\n");
+    std::print_string("\n");
     
     test_float_if_elseif_else();
-    print_string("\n");
+    std::print_string("\n");
     
     test_float_arithmetic();
-    print_string("\n");
+    std::print_string("\n");
     
     test_float_comparison();
-    print_string("\n");
+    std::print_string("\n");
     
     test_multiple_elseif();
-    print_string("\n");
+    std::print_string("\n");
     
-    print_string("=================================\n");
-    print_string("ALL TESTS COMPLETED\n");
-    print_string("=================================\n");
+    std::print_string("=================================\n");
+    std::print_string("ALL TESTS COMPLETED\n");
+    std::print_string("=================================\n");
     
     return 0;
 }

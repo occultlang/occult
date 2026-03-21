@@ -1,11 +1,11 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 include "test_enum_include_lib.occ"
 
 fn main() i64 {
     i64 t = TokenType::Keyword;
-    printf("TokenType::Number = %i\n", TokenType::Number);
-    printf("TokenType::String = %i\n", TokenType::String);
-    printf("TokenType::Identifier = %i\n", TokenType::Identifier);
-    printf("TokenType::Keyword = %i\n", t);
+    std::printf("TokenType::Number = %i\n", TokenType::Number);
+    std::printf("TokenType::String = %i\n", TokenType::String);
+    std::printf("TokenType::Identifier = %i\n", TokenType::Identifier);
+    std::printf("TokenType::Keyword = %i\n", t);
     return 0;
 }

@@ -1,4 +1,4 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
     // Edge case: const without initialization should fail
@@ -6,13 +6,13 @@ fn main() i64 {
     const i64 a = 1;
     const i64 b = 2;
     i64 c = a + b;
-    printf("a + b = ");
-    printf("%d\n", c);
+    std::printf("a + b = ");
+    std::printf("%d\n", c);
 
     // Edge case: const with different types
     const i32 small = 42;
-    printf("small = ");
-    printf("%d\n", small);
+    std::printf("small = ");
+    std::printf("%d\n", small);
 
     return 0;
 }

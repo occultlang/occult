@@ -1,10 +1,11 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 const i64 MAX_SIZE = 100;
 
 fn main() i64 {
-    printf("MAX_SIZE = ");
-    printf("%d\n", MAX_SIZE);
+    std::print_string("MAX_SIZE = ");
+    std::print_integer(MAX_SIZE);
+    std::print_string("\n");
 
     return 0;
 }

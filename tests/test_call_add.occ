@@ -1,4 +1,4 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn double_it(i64 n) i64 {
     return n * 2;
@@ -21,22 +21,22 @@ fn fib(i64 n) i64 {
 fn main() i64 {
     // Test: f(a) + f(b) should add both results
     i64 result = double_it(3) + double_it(4);
-    print_integer(result);
-    print_string("\n");
+    std::print_integer(result);
+    std::print_string("\n");
 
     // Test: multiple call additions
     i64 r2 = add_one(10) + add_one(20);
-    print_integer(r2);
-    print_string("\n");
+    std::print_integer(r2);
+    std::print_string("\n");
 
     // Test: fibonacci recursion
     i64 f5 = fib(5);
-    print_integer(f5);
-    print_string("\n");
+    std::print_integer(f5);
+    std::print_string("\n");
 
     i64 f10 = fib(10);
-    print_integer(f10);
-    print_string("\n");
+    std::print_integer(f10);
+    std::print_string("\n");
 
     return 0;
 }

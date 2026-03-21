@@ -1,5 +1,5 @@
-import vec from lib;
-import io from lib;
+include "../std/stdio.occ"
+include "../std/vec.occ"
 
 fn main() i64 {
     vec::Vec<i64>* v = vec::new<i64>();
@@ -8,18 +8,16 @@ fn main() i64 {
         vec::push<i64>(v, i);
     }
 
-    io::printf("Vec elements: ");
+    std::printf("Vec elements: ");
     i64 i = 0;
     while i < v.length {
-        io::printf("%i ", vec::get<i64>(v, i));
+        std::printf("%i ", vec::get<i64>(v, i));
         i += 1;
     }
-    io::printf("\n");
+    std::printf("\n");
 
-    io::printf("Length: %i\n", v.length);
-    io::printf("Capacity: %i\n", v.capacity);
-
-    vec::free<i64>(v);
+    std::printf("Length: %i\n", v.length);
+    std::printf("Capacity: %i\n", v.capacity);
 
     return 0;
 }

@@ -1,17 +1,20 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 i64 global_x = 10;
 i64 global_y = 20;
 
 fn main() i64 {
-    printf("global_x = ");
-    printf("%d\n", global_x);
-    printf("global_y = ");
-    printf("%d\n", global_y);
+    std::print_string("global_x = ");
+    std::print_integer(global_x);
+    std::print_string("\n");
+    std::print_string("global_y = ");
+    std::print_integer(global_y);
+    std::print_string("\n");
 
     i64 sum = global_x + global_y;
-    printf("sum = ");
-    printf("%d\n", sum);
+    std::print_string("sum = ");
+    std::print_integer(sum);
+    std::print_string("\n");
 
     return 0;
 }

@@ -1,7 +1,7 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn main() i64 {
-    print_string("Before alloc");
-    print_newline();
+    std::print_string("Before alloc");
+    std::print_newline();
     return 0;
 }

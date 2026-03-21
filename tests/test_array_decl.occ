@@ -1,8 +1,8 @@
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 fn range(i64 from, i64 to) i64 {
     i64 len = (to - from) * 8;
-    i64 new = alloc(len); 
+    i64 new = std::malloc(len); 
     
     for i64 i = from when i < to do i = i + 1 {
         i64 tmp = new + ((i - from) * 8);
@@ -20,17 +20,17 @@ fn main() {
         sum = sum + arr_test[i];
     }
     
-    print_string("Sum for array is: ");
-    print_integer(sum);
-    print_string("\n");
+    std::print_string("Sum for array is: ");
+    std::print_integer(sum);
+    std::print_string("\n");
     
     i64 ranged = range(0, sum);
     
     for i64 i = 0 when i < sum do i = i + 1 {
         i64 tmp = ranged + (i * 8);
-        print_integer($tmp);
-        print_string("\n");
+        std::print_integer($tmp);
+        std::print_string("\n");
     }
     
-    del(ranged);
+    std::free(ranged);
 }
