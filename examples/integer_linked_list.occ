@@ -1,7 +1,7 @@
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 fn alloc_node(i64 val) i64* {
-    i64* node = alloc(16); 
+    i64* node = std::malloc(16); 
     if (node == 0) {
         return 0;
     }
@@ -31,7 +31,7 @@ fn free_list(i64* head) i64 {
     while (current != 0) {
         i64* next_field = current + 8;
         i64* next_node = $next_field;
-        del(current);
+        std::free(current);
         current = next_node;
     }
 
@@ -42,7 +42,7 @@ fn print_all_elems(i64* head) i64 {
     i64* current = head;
 
     while (current != 0) {
-        print_integer($current);
+        std::print_integer($current);
         i64* next_field = current + 8;
         current = $next_field;
     }
@@ -69,7 +69,7 @@ fn main() i64 {
     i64* n3 = alloc_next_node(n2, 30);  // 3rd val: 30
     alloc_next_node(n3, 40); // 4th val: 40
 
-    print_integer(sum_list(head)); // sum: 100
+    std::print_integer(sum_list(head)); // sum: 100
     print_all_elems(head); 
 
     free_list(head);

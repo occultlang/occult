@@ -1,7 +1,7 @@
 // generic_linked_list.occ - Generic singly-linked list using Occult generics
 // Demonstrates generic struct with pointer and fully generic helper functions
 
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 generic<T>
 struct gnode {
@@ -11,7 +11,7 @@ struct gnode {
 
 generic<T>
 fn alloc_gnode(T val) gnode<T>* {
-    gnode<T>* n = alloc(16);
+    gnode<T>* n = std::malloc(16);
     n.val = val;
     n.next = 0;
     return n;
@@ -55,7 +55,7 @@ fn free_list(gnode<T>* head) i64 {
     gnode<T>* current = head;
     while (current != 0) {
         gnode<T>* next_node = current.next;
-        del(current);
+        std::free(current);
         current = next_node;
     }
     return 0;
@@ -67,22 +67,22 @@ fn main() i64 {
     append<i64>(head, 30);
     append<i64>(head, 40);
 
-    print_string("List: ");
+    std::print_string("List: ");
     gnode<i64>* current = head;
     while (current != 0) {
-        print_integer(current.val);
-        print_string(" ");
+        std::print_integer(current.val);
+        std::print_string(" ");
         current = current.next;
     }
-    print_string("\n");
+    std::print_string("\n");
 
-    print_string("Sum: ");
-    print_integer(sum_list<i64>(head));
-    print_string("\n");
+    std::print_string("Sum: ");
+    std::print_integer(sum_list<i64>(head));
+    std::print_string("\n");
 
-    print_string("Length: ");
-    print_integer(list_length<i64>(head));
-    print_string("\n");
+    std::print_string("Length: ");
+    std::print_integer(list_length<i64>(head));
+    std::print_string("\n");
 
     free_list<i64>(head);
 

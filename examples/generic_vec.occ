@@ -1,7 +1,7 @@
 // generic_vec.occ - Generic Vec (dynamic array) using Occult generics
 // Demonstrates a resizable vector with fully generic element type
 
-include "../lib/printf.occ"
+include "../std/stdio.occ"
 
 generic<T>
 struct Vec {
@@ -12,10 +12,10 @@ struct Vec {
 
 generic<T>
 fn vec_new() Vec<T>* {
-    Vec<T>* arr = alloc(24); // Vec struct: 3 x 8-byte fields (data ptr, length, capacity)
+    Vec<T>* arr = std::malloc(24); // Vec struct: 3 x 8-byte fields (data ptr, length, capacity)
     arr.capacity = 4;
     arr.length = 0;
-    arr.data = alloc(arr.capacity * 8); // 8 bytes per element slot
+    arr.data = std::malloc(arr.capacity * 8); // 8 bytes per element slot
     return arr;
 }
 
@@ -23,7 +23,7 @@ generic<T>
 fn vec_push(Vec<T>* arr, T val) i64 {
     if arr.length == arr.capacity {
         i64 new_cap = arr.capacity * 2;
-        i64* new_data = alloc(new_cap * 8);
+        i64* new_data = std::malloc(new_cap * 8);
 
         i64 i = 0;
         while (i < arr.length) {
@@ -33,7 +33,7 @@ fn vec_push(Vec<T>* arr, T val) i64 {
             i = i + 1;
         }
 
-        del(arr.data);
+        std::free(arr.data);
         arr.data = new_data;
         arr.capacity = new_cap;
     }
@@ -53,8 +53,8 @@ fn vec_get(Vec<T>* arr, i64 index) T {
 
 generic<T>
 fn vec_free(Vec<T>* arr) i64 {
-    del(arr.data);
-    del(arr);
+    std::free(arr.data);
+    std::free(arr);
     return 0;
 }
 
@@ -69,16 +69,16 @@ fn main() i64 {
     vec_push<i64>(v, 50);
     vec_push<i64>(v, 60);
 
-    printf("Vec elements: ");
+    std::printf("Vec elements: ");
     i64 i = 0;
     while (i < v.length) {
-        printf("%i ", vec_get<i64>(v, i));
+        std::printf("%i ", vec_get<i64>(v, i));
         i = i + 1;
     }
-    printf("\n");
+    std::printf("\n");
 
-    printf("Length: %i\n", v.length);
-    printf("Capacity: %i\n", v.capacity);
+    std::printf("Length: %i\n", v.length);
+    std::printf("Capacity: %i\n", v.capacity);
 
     vec_free<i64>(v);
 

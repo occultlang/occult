@@ -1,7 +1,7 @@
 // generic_dynamic_array.occ - Generic dynamic array using Occult generics
 // Demonstrates a resizable array with fully generic element type, push, and get operations
 
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 generic<T>
 struct dyn_array {
@@ -12,10 +12,10 @@ struct dyn_array {
 
 generic<T>
 fn dyn_array_new() dyn_array<T>* {
-    dyn_array<T>* arr = alloc(24);
+    dyn_array<T>* arr = std::malloc(24);
     arr.capacity = 4;
     arr.length = 0;
-    arr.data = alloc(arr.capacity * 8);
+    arr.data = std::malloc(arr.capacity * 8);
     return arr;
 }
 
@@ -23,7 +23,7 @@ generic<T>
 fn dyn_array_push(dyn_array<T>* arr, T val) i64 {
     if arr.length == arr.capacity {
         i64 new_cap = arr.capacity * 2;
-        i64* new_data = alloc(new_cap * 8);
+        i64* new_data = std::malloc(new_cap * 8);
 
         i64 i = 0;
         while (i < arr.length) {
@@ -33,7 +33,7 @@ fn dyn_array_push(dyn_array<T>* arr, T val) i64 {
             i = i + 1;
         }
 
-        del(arr.data);
+        std::free(arr.data);
         arr.data = new_data;
         arr.capacity = new_cap;
     }
@@ -53,8 +53,8 @@ fn dyn_array_get(dyn_array<T>* arr, i64 index) T {
 
 generic<T>
 fn dyn_array_free(dyn_array<T>* arr) i64 {
-    del(arr.data);
-    del(arr);
+    std::free(arr.data);
+    std::free(arr);
     return 0;
 }
 
@@ -69,22 +69,22 @@ fn main() i64 {
     dyn_array_push<i64>(arr, 50);
     dyn_array_push<i64>(arr, 60);
 
-    print_string("Array elements: ");
+    std::print_string("Array elements: ");
     i64 i = 0;
     while (i < arr.length) {
-        print_integer(dyn_array_get<i64>(arr, i));
-        print_string(" ");
+        std::print_integer(dyn_array_get<i64>(arr, i));
+        std::print_string(" ");
         i = i + 1;
     }
-    print_string("\n");
+    std::print_string("\n");
 
-    print_string("Length: ");
-    print_integer(arr.length);
-    print_string("\n");
+    std::print_string("Length: ");
+    std::print_integer(arr.length);
+    std::print_string("\n");
 
-    print_string("Capacity: ");
-    print_integer(arr.capacity);
-    print_string("\n");
+    std::print_string("Capacity: ");
+    std::print_integer(arr.capacity);
+    std::print_string("\n");
 
     dyn_array_free<i64>(arr);
 

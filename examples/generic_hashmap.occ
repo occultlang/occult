@@ -10,8 +10,8 @@
 // HashEntry<K,V>  : key(8) + value(8) + next*(8)   = 24 bytes
 // HashMap<K,V>    : buckets*(8) + count(8) + len(8) + key_type(8) = 32 bytes
 
-include "../lib/printf.occ"
-include "../lib/strlib.occ"
+include "../std/stdio.occ"
+include "../std/strlib.occ"
 
 // ── Entry node ────────────────────────────────────────────────────────────────
 
@@ -58,11 +58,11 @@ fn hm_str_hash(string key, i64 n) i64 {
 
 generic<K, V>
 fn hashmap_new() HashMap<K, V>* {
-    HashMap<K, V>* map = alloc(32);
+    HashMap<K, V>* map = std::malloc(32);
     map.bucket_count = 16;
     map.length = 0;
     map.key_type = 0;
-    map.buckets = alloc(map.bucket_count * 8);
+    map.buckets = std::malloc(map.bucket_count * 8);
     i64 i = 0;
     while (i < map.bucket_count) {
         i64* slot = map.buckets + i * 8;
@@ -74,11 +74,11 @@ fn hashmap_new() HashMap<K, V>* {
 
 generic<V>
 fn hashmap_new_str() HashMap<string, V>* {
-    HashMap<string, V>* map = alloc(32);
+    HashMap<string, V>* map = std::malloc(32);
     map.bucket_count = 16;
     map.length = 0;
     map.key_type = 1;
-    map.buckets = alloc(map.bucket_count * 8);
+    map.buckets = std::malloc(map.bucket_count * 8);
     i64 i = 0;
     while (i < map.bucket_count) {
         i64* slot = map.buckets + i * 8;
@@ -93,7 +93,7 @@ fn hashmap_new_str() HashMap<string, V>* {
 generic<K, V>
 fn hashmap_rehash(HashMap<K, V>* map) i64 {
     i64 new_count = map.bucket_count * 2;
-    i64* new_buckets = alloc(new_count * 8);
+    i64* new_buckets = std::malloc(new_count * 8);
     i64 i = 0;
     while (i < new_count) {
         i64* slot = new_buckets + i * 8;
@@ -121,7 +121,7 @@ fn hashmap_rehash(HashMap<K, V>* map) i64 {
         }
         b = b + 1;
     }
-    del(map.buckets);
+    std::free(map.buckets);
     map.buckets = new_buckets;
     map.bucket_count = new_count;
     return 0;
@@ -145,7 +145,7 @@ fn hashmap_insert(HashMap<K, V>* map, K key, V val) i64 {
     HashEntry<K, V>* entry = $bslot;
     while (entry != 0) {
         if map.key_type == 1 {
-            if strcmp(entry.key, key) == 0 {
+            if strlib::strcmp(entry.key, key) == 0 {
                 entry.value = val;
                 return 0;
             }
@@ -158,7 +158,7 @@ fn hashmap_insert(HashMap<K, V>* map, K key, V val) i64 {
         }
         entry = entry.next;
     }
-    HashEntry<K, V>* node = alloc(24);
+    HashEntry<K, V>* node = std::malloc(24);
     node.key = key;
     node.value = val;
     HashEntry<K, V>* head = $bslot;
@@ -183,7 +183,7 @@ fn hashmap_get(HashMap<K, V>* map, K key) V {
     HashEntry<K, V>* entry = $bslot;
     while (entry != 0) {
         if map.key_type == 1 {
-            if strcmp(entry.key, key) == 0 {
+            if strlib::strcmp(entry.key, key) == 0 {
                 return entry.value;
             }
         }
@@ -212,7 +212,7 @@ fn hashmap_contains(HashMap<K, V>* map, K key) i64 {
     HashEntry<K, V>* entry = $bslot;
     while (entry != 0) {
         if map.key_type == 1 {
-            if strcmp(entry.key, key) == 0 {
+            if strlib::strcmp(entry.key, key) == 0 {
                 return 1;
             }
         }
@@ -243,7 +243,7 @@ fn hashmap_erase(HashMap<K, V>* map, K key) i64 {
     while (entry != 0) {
         i64 found = 0;
         if map.key_type == 1 {
-            if strcmp(entry.key, key) == 0 {
+            if strlib::strcmp(entry.key, key) == 0 {
                 found = 1;
             }
         }
@@ -259,7 +259,7 @@ fn hashmap_erase(HashMap<K, V>* map, K key) i64 {
             else {
                 prev.next = entry.next;
             }
-            del(entry);
+            std::free(entry);
             map.length = map.length - 1;
             return 1;
         }
@@ -279,13 +279,13 @@ fn hashmap_free(HashMap<K, V>* map) i64 {
         HashEntry<K, V>* entry = $bslot;
         while (entry != 0) {
             HashEntry<K, V>* next_entry = entry.next;
-            del(entry);
+            std::free(entry);
             entry = next_entry;
         }
         b = b + 1;
     }
-    del(map.buckets);
-    del(map);
+    std::free(map.buckets);
+    std::free(map);
     return 0;
 }
 
@@ -293,55 +293,55 @@ fn hashmap_free(HashMap<K, V>* map) i64 {
 
 fn main() i64 {
     // i64 keys
-    printf("=== HashMap<i64, i64> ===\n");
+    std::printf("=== HashMap<i64, i64> ===\n");
     HashMap<i64, i64>* imap = hashmap_new<i64, i64>();
     hashmap_insert<i64, i64>(imap, 1,  100);
     hashmap_insert<i64, i64>(imap, 2,  200);
     hashmap_insert<i64, i64>(imap, 42, 4200);
-    printf("[1]=%i [2]=%i [42]=%i\n",
+    std::printf("[1]=%i [2]=%i [42]=%i\n",
         hashmap_get<i64, i64>(imap, 1),
         hashmap_get<i64, i64>(imap, 2),
         hashmap_get<i64, i64>(imap, 42));
     hashmap_insert<i64, i64>(imap, 2, 999);
-    printf("[2] updated=%i  contains[1]=%i\n",
+    std::printf("[2] updated=%i  contains[1]=%i\n",
         hashmap_get<i64, i64>(imap, 2),
         hashmap_contains<i64, i64>(imap, 1));
     hashmap_erase<i64, i64>(imap, 1);
-    printf("contains[1] after erase=%i  length=%i\n",
+    std::printf("contains[1] after erase=%i  length=%i\n",
         hashmap_contains<i64, i64>(imap, 1), imap.length);
     hashmap_free<i64, i64>(imap);
 
     // i32 keys
-    printf("\n=== HashMap<i32, i64> ===\n");
+    std::printf("\n=== HashMap<i32, i64> ===\n");
     HashMap<i32, i64>* i32map = hashmap_new<i32, i64>();
     hashmap_insert<i32, i64>(i32map, 10, 1000);
     hashmap_insert<i32, i64>(i32map, 20, 2000);
     hashmap_insert<i32, i64>(i32map, 30, 3000);
-    printf("[10]=%i [20]=%i [30]=%i\n",
+    std::printf("[10]=%i [20]=%i [30]=%i\n",
         hashmap_get<i32, i64>(i32map, 10),
         hashmap_get<i32, i64>(i32map, 20),
         hashmap_get<i32, i64>(i32map, 30));
     hashmap_free<i32, i64>(i32map);
 
     // string content keys — hashmap_new_str uses strcmp + djb2
-    printf("\n=== HashMap<string, i64> ===\n");
+    std::printf("\n=== HashMap<string, i64> ===\n");
     HashMap<string, i64>* smap = hashmap_new_str<i64>();
     hashmap_insert<string, i64>(smap, "apple",  100);
     hashmap_insert<string, i64>(smap, "banana", 200);
     hashmap_insert<string, i64>(smap, "cherry", 300);
     hashmap_insert<string, i64>(smap, "date",   400);
-    printf("apple=%i banana=%i cherry=%i date=%i\n",
+    std::printf("apple=%i banana=%i cherry=%i date=%i\n",
         hashmap_get<string, i64>(smap, "apple"),
         hashmap_get<string, i64>(smap, "banana"),
         hashmap_get<string, i64>(smap, "cherry"),
         hashmap_get<string, i64>(smap, "date"));
-    printf("contains 'banana'=%i  contains 'mango'=%i\n",
+    std::printf("contains 'banana'=%i  contains 'mango'=%i\n",
         hashmap_contains<string, i64>(smap, "banana"),
         hashmap_contains<string, i64>(smap, "mango"));
     hashmap_insert<string, i64>(smap, "banana", 999);
-    printf("banana updated=%i\n", hashmap_get<string, i64>(smap, "banana"));
+    std::printf("banana updated=%i\n", hashmap_get<string, i64>(smap, "banana"));
     hashmap_erase<string, i64>(smap, "cherry");
-    printf("contains 'cherry' after erase=%i  length=%i\n",
+    std::printf("contains 'cherry' after erase=%i  length=%i\n",
         hashmap_contains<string, i64>(smap, "cherry"), smap.length);
 
     // trigger rehash
@@ -354,8 +354,8 @@ fn main() i64 {
     hashmap_insert<string, i64>(smap, "mango",      1100);
     hashmap_insert<string, i64>(smap, "nectarine",  1200);
     hashmap_insert<string, i64>(smap, "orange",     1300);
-    printf("length=%i bucket_count=%i\n", smap.length, smap.bucket_count);
-    printf("mango=%i  orange=%i\n",
+    std::printf("length=%i bucket_count=%i\n", smap.length, smap.bucket_count);
+    std::printf("mango=%i  orange=%i\n",
         hashmap_get<string, i64>(smap, "mango"),
         hashmap_get<string, i64>(smap, "orange"));
     hashmap_free<string, i64>(smap);

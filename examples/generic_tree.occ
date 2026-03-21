@@ -2,7 +2,7 @@
 // Demonstrates an AST-like tree where each node stores a value and a variable
 // number of children using a linked child list (not a binary tree)
 
-include "../lib/stdio.occ"
+include "../std/stdio.occ"
 
 // A child list entry: points to a tree_node and its sibling
 generic<T>
@@ -21,7 +21,7 @@ struct tree_node {
 
 generic<T>
 fn alloc_tree_node(T val) tree_node<T>* {
-    tree_node<T>* n = alloc(24);
+    tree_node<T>* n = std::malloc(24);
     n.val = val;
     n.first_child = 0;
     n.num_children = 0;
@@ -30,7 +30,7 @@ fn alloc_tree_node(T val) tree_node<T>* {
 
 generic<T>
 fn add_child(tree_node<T>* parent, tree_node<T>* child) i64 {
-    child_entry<T>* entry = alloc(16);
+    child_entry<T>* entry = std::malloc(16);
     entry.child_node = child;
     entry.next = parent.first_child;
     parent.first_child = entry;
@@ -43,12 +43,12 @@ fn print_tree(tree_node<T>* node, i64 depth) i64 {
     // Indent based on depth
     i64 d = 0;
     while (d < depth) {
-        print_string("  ");
+        std::print_string("  ");
         d = d + 1;
     }
 
-    print_integer(node.val);
-    print_string("\n");
+    std::print_integer(node.val);
+    std::print_string("\n");
 
     // Traverse children
     child_entry<T>* entry = node.first_child;
@@ -68,10 +68,10 @@ fn free_tree(tree_node<T>* node) i64 {
         child_entry<T>* next = entry.next;
         tree_node<T>* child = entry.child_node;
         free_tree<T>(child);
-        del(entry);
+        std::free(entry);
         entry = next;
     }
-    del(node);
+    std::free(node);
     return 0;
 }
 
@@ -102,12 +102,12 @@ fn main() i64 {
     add_child<i64>(n4, n7);
     add_child<i64>(n7, n8);
 
-    print_string("Jagged Tree (depth-first):\n");
+    std::print_string("Jagged Tree (depth-first):\n");
     print_tree<i64>(root, 0);
 
-    print_string("Root children count: ");
-    print_integer(root.num_children);
-    print_string("\n");
+    std::print_string("Root children count: ");
+    std::print_integer(root.num_children);
+    std::print_string("\n");
 
     free_tree<i64>(root);
 
