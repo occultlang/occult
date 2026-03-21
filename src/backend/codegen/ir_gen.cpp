@@ -771,7 +771,7 @@ namespace occult {
             }
         }
         else {
-            // assume struct type — emit reference if needed
+            // assume struct type - emit reference if needed
             if (is_ref) {
                 function.code.emplace_back(op_reference);
             }
@@ -2274,7 +2274,7 @@ namespace occult {
             function.code.emplace_back(op_load, base_var);
 
             // For dereferenced struct access ($p.x), the load gives us the pointer value
-            // which is already the struct base address — no additional dereference needed
+            // which is already the struct base address - no additional dereference needed
             // since the op_load on a reference variable does MOV (not LEA)
 
             for (size_t i = 0; i < member_chain.size() - 1; i++) {
@@ -2643,11 +2643,13 @@ namespace occult {
                 if (const auto type = c->get_type(); type == cst_type::function) {
                     auto func = generate_function(cst::cast_raw<cst_function>(c.get()));
 
-                    for (const auto& [gname, gtype] : global_var_types) {
-                        local_variable_map[func][gname] = gtype;
+                    if (!func.uses_shellcode && !func.uses_assembly) {
+                        for (const auto& [gname, gtype] : global_var_types) {
+                            local_variable_map[func][gname] = gtype;
+                        }
                     }
 
-                    if (!global_vars.empty()) {
+                    if (!global_vars.empty() && !func.uses_shellcode && !func.uses_assembly) {
                         ir_function temp_func;
                         temp_func.name = "__global_init";
                         temp_func.type = "int64";

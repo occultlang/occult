@@ -232,7 +232,7 @@ namespace occult::x86_64 {
                     grp idx_reg = assembler_token_to_gpr(idx_tok.tt);
 
                     if (peek().tt == x86_64_instr_token::bracket_right_tt) {
-                        // [reg + idx] — scale factor 1, SIB-encoded as 0
+                        // [reg + idx] - scale factor 1, SIB-encoded as 0
                         consume();
                         return mem{base_reg, idx_reg, static_cast<std::size_t>(0)};
                     }

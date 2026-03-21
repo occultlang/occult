@@ -7,95 +7,116 @@ namespace occult {
         auto start = std::chrono::high_resolution_clock::now();
 
         std::unordered_map<std::uint64_t, std::string> func_addr_map;
-
-        for (const auto& pair : function_map) {
-            // Copy address of functions to map the address itself to the name of the
-            // function
-            func_addr_map[reinterpret_cast<std::uint64_t>(pair.second)] = pair.first;
-        }
+        for (const auto& [name, fn] : function_map)
+            func_addr_map[reinterpret_cast<std::uint64_t>(fn)] = name;
 
         std::vector<std::uint8_t> final_code;
         std::unordered_map<std::string, std::uint64_t> locations;
 
-        std::size_t offset = 0;
-        for (const auto& m : function_raw_code_map) {
-            locations[m.first] = offset; // Store the correct function start offset
-            final_code.insert(final_code.end(), m.second.begin(), m.second.end());
+        constexpr std::size_t start_stub_size = 24;
+        final_code.resize(start_stub_size, 0x90);
+
+        for (const auto& [name, code] : function_raw_code_map) {
+            locations[name] = final_code.size();
+            final_code.insert(final_code.end(), code.begin(), code.end());
 
             if (debug)
-                std::cout << BLUE << "[LINKER INFO] Added function: " << YELLOW << "\"" << m.first << "\"" << RESET << std::endl;
-
-            offset += m.second.size(); // Move offset forward
+                std::cout << BLUE << "[LINKER INFO] Added function: " << YELLOW << "\"" << name << "\"" << RESET << "\n";
         }
 
-        const std::uint64_t base_addr = 0x400000;
-        const std::uint64_t header_size = sizeof(elf_header) + sizeof(elf_program_header);
-        std::uint64_t entry_addr = base_addr + locations["main"] + header_size;
+        const std::size_t text_size = final_code.size();
+
+        if (locations.find("main") == locations.end()) {
+            std::cerr << RED << "[LINKER ERROR] No 'main' function found\n" << RESET;
+            return;
+        }
+
+        constexpr std::uint64_t base_addr = 0x400000;
+        constexpr std::uint64_t header_size = sizeof(elf_header) + sizeof(elf_program_header);
+        const std::uint64_t entry_addr = base_addr + header_size;
 
         if (debug) {
-            std::cout << BLUE << "[LINKER INFO] Base address: " << RED << "0x" << std::hex << base_addr << std::dec << RESET << std::endl;
-            std::cout << BLUE << "[LINKER INFO] Entry address: " << RED << "0x" << std::hex << entry_addr << std::dec << RESET << std::endl;
+            std::cout << BLUE << "[LINKER INFO] Base address: " << RED << "0x" << std::hex << base_addr << std::dec << RESET << "\n";
+            std::cout << BLUE << "[LINKER INFO] Entry address: " << RED << "0x" << std::hex << entry_addr << std::dec << RESET << "\n";
         }
 
+        const std::uint64_t main_addr = base_addr + header_size + locations["main"];
 
-        std::unordered_map<std::uint64_t, std::uint64_t> relocation_map; // old JIT addr to final vaddr
+        // _start trampoline 
+        final_code[0] = 0x48;
+        final_code[1] = 0xB8;
+        for (std::uint8_t j = 0; j < 8; ++j) {
+            final_code[2 + j] = static_cast<std::uint8_t>((main_addr >> (j * 8)) & 0xFF);
+        }
+        final_code[10] = 0xFF;
+        final_code[11] = 0xD0;
+        final_code[12] = 0x48;
+        final_code[13] = 0x89;
+        final_code[14] = 0xC7;
+        final_code[15] = 0x48;
+        final_code[16] = 0xC7;
+        final_code[17] = 0xC0;
+        final_code[18] = 0x3C;
+        final_code[19] = 0x00;
+        final_code[20] = 0x00;
+        final_code[21] = 0x00;
+        final_code[22] = 0x0F;
+        final_code[23] = 0x05;
 
-        for (const auto& [old_host_addr, content] : string_literals) {
-            std::uint64_t str_offset = final_code.size();
+        std::unordered_map<std::uint64_t, std::uint64_t> relocation_map;
 
-            // write length prefix (exactly as codegen does)
-            std::uint64_t len = content.size();
-            for (int j = 0; j < 8; ++j) {
+        for (const auto& [old_addr, content] : string_literals) {
+            const std::uint64_t str_offset = final_code.size();
+            const std::uint64_t len = content.size();
+
+            for (std::uint8_t j = 0; j < 8; ++j)
                 final_code.push_back(static_cast<std::uint8_t>((len >> (j * 8)) & 0xFF));
-            }
 
             final_code.insert(final_code.end(), content.begin(), content.end());
             final_code.push_back(0);
 
-            // pointer must point to DATA, not the length header
-            std::uint64_t new_data_addr = base_addr + header_size + str_offset + 8;
+            const std::uint64_t new_data_addr = base_addr + header_size + str_offset + 8;
+            relocation_map[old_addr] = new_data_addr;
 
-            relocation_map[old_host_addr] = new_data_addr;
-
-            if (debug) {
-                std::cout << BLUE << "[LINKER INFO] Placed string \"" << content << "\" (len=" << len << ") -> data at 0x" << std::hex << new_data_addr << std::dec << RESET << std::endl;
-            }
+            if (debug)
+                std::cout << BLUE << "[LINKER INFO] Placed string \"" << content << "\" -> 0x" << std::hex << new_data_addr << std::dec << RESET << "\n";
         }
 
-        for (std::size_t i = 0; i < final_code.size() - 12; ++i) {
-            uint8_t b1 = final_code[i];
-            uint8_t b2 = final_code[i + 1];
+        for (std::size_t i = 0; i + 11 < final_code.size(); ++i) {
+            const std::uint8_t b1 = final_code[i];
+            const std::uint8_t b2 = final_code[i + 1];
 
-            // Function call: 48 B8 xx xx xx xx xx xx xx xx 48 FF D0
-            if (b1 == 0x48 && b2 == 0xB8 && i + 12 < final_code.size() && final_code[i + 10] == 0x48 && final_code[i + 11] == 0xFF && final_code[i + 12] == 0xD0) {
+            const bool is_movabs_rax = (b1 == 0x48 && b2 == 0xB8);
+            const bool call_2b = is_movabs_rax && i + 11 < final_code.size() && final_code[i + 10] == 0xFF && final_code[i + 11] == 0xD0;
+            const bool call_3b = is_movabs_rax && i + 12 < final_code.size() && final_code[i + 10] == 0x48 && final_code[i + 11] == 0xFF && final_code[i + 12] == 0xD0;
 
+            if (call_2b || call_3b) {
                 std::uint64_t old_addr = 0;
-                for (int j = 0; j < 8; ++j)
+                for (std::uint8_t j = 0; j < 8; ++j)
                     old_addr |= static_cast<std::uint64_t>(final_code[i + 2 + j]) << (j * 8);
 
                 if (auto it = func_addr_map.find(old_addr); it != func_addr_map.end()) {
-                    std::string name = it->second;
-                    std::uint64_t new_addr = base_addr + header_size + locations[name];
+                    const std::string& name = it->second;
+                    const std::uint64_t new_addr = base_addr + header_size + locations[name];
 
-                    for (int j = 0; j < 8; ++j)
+                    for (std::uint8_t j = 0; j < 8; ++j)
                         final_code[i + 2 + j] = (new_addr >> (j * 8)) & 0xFF;
 
-                    if (debug) {
-                        std::cout << BLUE << "[LINKER INFO] Patched call to \"" << name << "\" → 0x" << std::hex << new_addr << std::dec << RESET << "\n";
-                    }
+                    if (debug)
+                        std::cout << BLUE << "[LINKER INFO] Patched call to \"" << name << "\" -> 0x" << std::hex << new_addr << std::dec << RESET << "\n";
                 }
+                i += call_3b ? 12 : 10;
                 continue;
             }
 
-            // Any data pointer: 48 Bx xx xx xx xx xx xx xx xx  (mov r64, imm64)
-            if (b1 == 0x48 && b2 >= 0xB8 && b2 <= 0xBF) {
+            if ((b1 == 0x48 || b1 == 0x49) && b2 >= 0xB8 && b2 <= 0xBF) {
                 std::uint64_t old_addr = 0;
-                for (int j = 0; j < 8; ++j)
+                for (std::uint8_t j = 0; j < 8; ++j)
                     old_addr |= static_cast<std::uint64_t>(final_code[i + 2 + j]) << (j * 8);
 
                 if (auto it = relocation_map.find(old_addr); it != relocation_map.end()) {
-                    std::uint64_t new_addr = it->second;
-                    for (int j = 0; j < 8; ++j)
+                    const std::uint64_t new_addr = it->second;
+                    for (std::uint8_t j = 0; j < 8; ++j)
                         final_code[i + 2 + j] = (new_addr >> (j * 8)) & 0xFF;
 
                     if (debug)
@@ -107,11 +128,9 @@ namespace occult {
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> duration = end - start;
 
-        if (showtime) {
+        if (showtime)
             std::cout << GREEN << "[OCCULTC] Completed linking functions \033[0m" << duration.count() << "ms\n";
-        }
 
-        // Generate the final binary
-        elf::generate_binary(binary_name, final_code, entry_addr);
+        elf::generate_binary(binary_name, final_code, entry_addr, base_addr, base_addr, 0, text_size);
     }
 } // namespace occult

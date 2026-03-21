@@ -7,7 +7,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include "backend/codegen/function_registry.hpp"
 #include "backend/codegen/ir_gen.hpp"
 #include "backend/codegen/x86_64_codegen.hpp"
 #include "code_analysis/linter.hpp"
@@ -16,6 +15,7 @@
 #include "parser/parser.hpp"
 #ifdef __linux
 #include <sys/stat.h>
+#include "backend/codegen/code_cache.hpp"
 #include "backend/codegen/x86_64_assembler.hpp"
 #include "backend/linker/linker.hpp"
 
@@ -38,22 +38,6 @@ void display_help() {
               << "  -d,   --debug             Enable debug mode (implies --time)\n"
               << "  -o,   --output <file>     Output native binary\n"
               << "  -h,   --help              Show this message\n";
-}
-
-OCCULT_FUNC_DECL(std::int64_t, alloc, (std::int64_t sz), std::int64_t) {
-    if (sz <= 0 || static_cast<std::uint64_t>(sz) > SIZE_MAX) {
-        return 0;
-    }
-    auto ptr = malloc(static_cast<std::size_t>(sz));
-    return reinterpret_cast<std::int64_t>(ptr);
-}
-
-OCCULT_FUNC_DECL(std::int64_t, del, (std::int64_t* ptr), std::int64_t) {
-    if (ptr == nullptr) {
-        return 0;
-    }
-    free(ptr);
-    return 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -162,23 +146,8 @@ int main(int argc, char* argv[]) {
         occult::ir_gen::visualize_stack_ir(ir);
     }
 
-
-    /*occult::function_registry::register_function_to_ir<&alloc>(ir);
-    occult::function_registry::register_function_to_ir<&del>(ir);
-    occult::function_registry::register_function_to_ir<&print_string>(ir);
-    occult::function_registry::register_function_to_ir<&print_integer>(ir);
-    occult::function_registry::register_function_to_ir<&print_newline>(ir);
-    occult::function_registry::register_function_to_ir<&print_char>(ir);*/
-
     start = std::chrono::high_resolution_clock::now();
     occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
-
-    /*occult::function_registry::register_function_to_codegen<&alloc>(jit_runtime);
-   occult::function_registry::register_function_to_codegen<&del>(jit_runtime);
-   occult::function_registry::register_function_to_codegen<&print_string>(jit_runtime);
-    occult::function_registry::register_function_to_codegen<&print_integer>(jit_runtime);
-    occult::function_registry::register_function_to_codegen<&print_newline>(jit_runtime);
-    occult::function_registry::register_function_to_codegen<&print_char>(jit_runtime);*/
 
     try {
         jit_runtime.compile(jit);
@@ -192,23 +161,6 @@ int main(int argc, char* argv[]) {
     if (showtime) {
         std::cout << GREEN << "[OCCULTC] Completed converting IR to machine code \033[0m" << duration.count() << "ms\n";
     }
-
-    /*occult::x86_64::assembler assembler(R"(
-        push rbp
-        mov	rbp, rsp
-        mov r11, rdi
-        mov r12, rsi
-        mov rax, 1
-        mov rdi, 1
-        mov rsi, r11
-        mov rdx, r12
-        syscall
-        mov	rsp,rbp
-        pop	rbp
-        mov rax, 0
-        ret
-    )", true);
-    assembler.assemble();*/
 
     /*if (debug && jit) {
       for (const auto& pair : jit_runtime.function_map) {

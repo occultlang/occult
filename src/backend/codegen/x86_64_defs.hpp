@@ -71,10 +71,10 @@ namespace occult::x86_64 {
 
     // addressing modes
     enum class mod_field : std::uint8_t {
-        indirect = 0b00,       // [reg] — no displacement (except special case RIP-relative)
-        disp8 = 0b01,          // [reg + disp8] — 8-bit displacement
-        disp32 = 0b10,         // [reg + disp32] — 32-bit displacement
-        register_direct = 0b11 // reg — register to register (no memory)
+        indirect = 0b00,       // [reg] - no displacement (except special case RIP-relative)
+        disp8 = 0b01,          // [reg + disp8] - 8-bit displacement
+        disp32 = 0b10,         // [reg + disp32] - 32-bit displacement
+        register_direct = 0b11 // reg - register to register (no memory)
     };
 
     // general purpose registers

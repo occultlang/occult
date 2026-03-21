@@ -3,6 +3,7 @@
 #include "ir_gen.hpp"
 #include "x86_64_assembler.hpp"
 #include "x86_64_writer.hpp"
+#include "code_cache.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -1491,7 +1492,6 @@ namespace occult::x86_64 {
 
                         if (!func.uses_shellcode && !func.uses_assembly) {
                             if (!use_jit && is_main) {
-                                w->emit_pop(rax);
                                 w->emit_function_epilogue();
                                 w->emit_mov(rdi, rax);
                                 w->emit_mov(rax, int64_t(60));
@@ -1902,6 +1902,10 @@ namespace occult::x86_64 {
                         }
 
                         auto target_fn = function_map[func_name];
+                        if (target_fn == nullptr) {
+                            std::cout << RED << "[CODEGEN ERROR] Function \"" << func_name << "\" unresolved (null target)." << RESET << std::endl;
+                            return;
+                        }
                         w->emit_mov(rax, reinterpret_cast<std::int64_t>(target_fn));
                         w->emit_call(rax);
 
@@ -2833,59 +2837,288 @@ namespace occult::x86_64 {
             }
         }
 
-        void compile_function(ir_function& func, const bool use_jit) {
-            static std::unordered_set<std::string> compiling_functions;
+        void patch_and_register_cached(ir_function& func, std::vector<std::uint8_t>& cached_code, const std::unordered_map<std::string, jit_function>& cached_function_map, const std::unordered_map<std::uint64_t, std::string>& cached_string_literals, bool use_jit) {
+        function_map.insert({func.name, nullptr}); // prevent recursive cache patching from re-entering itself.
 
-            if (!func.type.empty()) {
-                function_return_types[func.name] = func.type;
-            }
+        struct pending_call_patch {
+            std::size_t imm_offset;
+            std::string callee;
+        };
 
-            if (func.is_external && function_map.contains(func.name)) {
-                return;
-            }
+        std::vector<pending_call_patch> pending_calls;
 
-            if (debug && function_map.contains(func.name)) {
-                /*std::cout << BLUE << "[CODEGEN INFO] Symbol " << YELLOW << "\"" <<
-                   func.name << "\"" << BLUE << " already exists, probably already
-                   compiled or is compiling." << RESET << std::endl;*/
-                return;
-            }
+        std::unordered_map<std::uint64_t, std::string> old_addr_to_name;
+        for (const auto& [name, fn] : cached_function_map) {
+            old_addr_to_name[reinterpret_cast<std::uint64_t>(fn)] = name;
+        }
+        
+        // relocate all string literals 
+        std::unordered_map<std::uint64_t, std::uint64_t> string_old_to_new;
+        for (const auto& [old_addr, content] : cached_string_literals) {
+            constexpr std::size_t header_size = 8;
+            const std::size_t storage_size = header_size + content.size() + 8;
+            
+            auto buf = std::make_unique<std::uint8_t[]>(storage_size);
 
-            if (compiling_functions.contains(func.name)) {
-                return;
-            }
+            std::memset(buf.get(), 0, storage_size);
 
-            compiling_functions.insert(func.name);
+            *reinterpret_cast<std::uint64_t*>(buf.get()) = content.size();
 
-            if (debug) {
-                std::cout << BLUE << "[CODEGEN INFO] Compiling function: " << YELLOW << "\"" << func.name << "\"\n" << RESET;
-            }
+            std::memcpy(buf.get() + header_size, content.data(), content.size());
 
-            auto w = std::make_unique<x86_64_writer>(debug);
-            function_map.insert({func.name, reinterpret_cast<jit_function>(w->memory)});
+            const std::uint64_t new_addr = reinterpret_cast<std::uint64_t>(buf.get() + header_size);
 
-            if (!func.uses_shellcode && !func.uses_assembly) {
-                w->emit_function_prologue();
-            }
-
-            bool is_main = false;
-            if (func.name == "main") {
-                is_main = true;
-            }
-
-            generate_code(func, w.get(), is_main, use_jit);
+            string_literals[new_addr] = content;
+            string_old_to_new[old_addr] = new_addr;
+            literal_pool.push_back(std::move(buf));
 
             if (debug) {
-                std::cout << GREEN << "[CODEGEN SUCCESS] Generated code for " << YELLOW << "\"" << func.name << "\"\n" << RESET;
-                w->print_bytes();
+                std::cout << BLUE << "[CACHE] String relocated: \"" << content.substr(0, 40)
+                        << "\"  old=0x" << std::hex << old_addr
+                        << " -> new=0x" << new_addr << std::dec << RESET << "\n";
             }
-
-            function_raw_code_map.insert({func.name, w->get_code()});
-            w->setup_function();
-            writers.push_back(std::move(w));
-            compiling_functions.erase(func.name);
         }
 
+        // similar scanning to the linker for AOT, just relocating shit 
+        const std::size_t code_size = cached_code.size();
+        for (std::size_t i = 0; i < code_size; ) {
+            const std::uint8_t b0 = cached_code[i];
+            const std::uint8_t b1 = (i + 1 < code_size) ? cached_code[i + 1] : 0;
+
+            const bool is_movabs = (b0 == 0x48 || b0 == 0x49)
+                                && (b1 >= 0xB8 && b1 <= 0xBF)
+                                && (i + 10 <= code_size);
+            if (!is_movabs) {
+                ++i;
+
+                continue;
+            }
+
+            std::uint64_t embedded_addr = 0;
+            for (int j = 0; j < 8; ++j) {
+                embedded_addr |= static_cast<std::uint64_t>(cached_code[i + 2 + j]) << (j * 8);
+            }
+
+            // movabs rax followed by call rax
+            if (b0 == 0x48 && b1 == 0xB8) {
+                const bool call_2b = (i + 12 <= code_size)
+                                && cached_code[i + 10] == 0xFF
+                                && cached_code[i + 11] == 0xD0;
+
+                const bool call_3b = (i + 13 <= code_size)
+                                && cached_code[i + 10] == 0x48
+                                && cached_code[i + 11] == 0xFF
+                                && cached_code[i + 12] == 0xD0;
+
+                if (call_2b || call_3b) {
+                    auto it = old_addr_to_name.find(embedded_addr);
+
+                    if (it != old_addr_to_name.end()) {
+                        const std::string& callee = it->second;
+
+                        auto callee_it = function_map.find(callee);
+
+                        const bool callee_ready = (callee_it != function_map.end() && callee_it->second != nullptr);
+
+                        if (!callee_ready) { 
+                            auto fn_it = std::ranges::find_if(ir_funcs, [&](const auto& f) { return f.name == callee; });
+
+                            if (fn_it != ir_funcs.end() && callee != func.name) {
+                                compile_function(*fn_it, use_jit);
+                            }
+                        }
+
+                        auto target_it = function_map.find(callee);
+
+                        if (target_it != function_map.end() && target_it->second != nullptr) {
+                            const std::uint64_t new_addr = reinterpret_cast<std::uint64_t>(target_it->second);
+
+                            for (int j = 0; j < 8; ++j) {
+                                cached_code[i + 2 + j] = static_cast<std::uint8_t>((new_addr >> (j * 8)) & 0xFF);
+                            }
+
+                            if (debug) {
+                                std::cout << BLUE << "[CACHE] Patched call -> " << callee << " = 0x" << std::hex << new_addr << std::dec << RESET << "\n";
+                            }
+                        }
+                        else {
+                            pending_calls.push_back({i + 2, callee});
+                        }
+                    }
+                    
+                    i += call_3b ? 13 : 12;
+
+                    continue;
+                }
+            }
+
+            // any movabs r64 carrying a string literal pointer
+            {
+                auto it = string_old_to_new.find(embedded_addr);
+                if (it != string_old_to_new.end()) {
+                    const std::uint64_t new_addr = it->second;
+                    for (int j = 0; j < 8; ++j) {
+                        cached_code[i + 2 + j] = static_cast<std::uint8_t>((new_addr >> (j * 8)) & 0xFF);
+                    }
+
+                    if (debug) {
+                        std::cout << BLUE <<  "[CACHE] Patched string ptr 0x" << std::hex << embedded_addr << " -> 0x" << new_addr << std::dec << RESET << "\n";
+                    }
+                }
+
+                i += 10;
+            }
+        }
+
+        auto w = std::make_unique<x86_64_writer>(debug);
+        function_map[func.name] = reinterpret_cast<jit_function>(w->memory);
+
+        for (const auto& pending : pending_calls) {
+            auto target_it = function_map.find(pending.callee);
+
+            if (target_it == function_map.end() || target_it->second == nullptr) {
+                throw std::runtime_error("cache patch failed: unresolved function \"" + pending.callee + "\"");
+            }
+
+            const std::uint64_t new_addr = reinterpret_cast<std::uint64_t>(target_it->second);
+
+            for (int j = 0; j < 8; ++j) {
+                cached_code[pending.imm_offset + j] = static_cast<std::uint8_t>((new_addr >> (j * 8)) & 0xFF);
+            }
+        }
+
+        w->push_bytes(cached_code);
+        w->setup_function();
+        function_raw_code_map.insert({func.name, std::move(cached_code)});
+        writers.push_back(std::move(w));
+
+        if (debug) {
+            std::cout << GREEN << "[CACHE] Registered cached function: " << func.name << RESET << "\n";
+        }
+    }
+
+    void compile_function(ir_function& func, const bool use_jit) {
+        static std::unordered_set<std::string> compiling_functions;
+
+        if (!func.type.empty()) {
+            function_return_types[func.name] = func.type;
+        }
+
+        if (function_map.contains(func.name)) {
+            if (debug) {
+                std::cout << BLUE << "[CODEGEN SKIP] Already registered: " << YELLOW << func.name << RESET << "\n";
+            }
+
+            return;
+        }
+
+        if (func.is_external) {
+            return;
+        }
+
+        if (compiling_functions.contains(func.name)) {
+            return;
+        }
+
+        compiling_functions.insert(func.name);
+
+        // try cache 
+        auto cached_bytes = load_cached_code(func.name);
+        if (!cached_bytes.empty() && cached_bytes.size() >= sizeof(bytecode_header)) {
+            const auto* header = reinterpret_cast<const bytecode_header*>(cached_bytes.data());
+            IRHash current_hash = hash_ir_function(func);
+
+            if (header->magic == OCCULT_MAGIC && header->ir_hash_low  == current_hash.low64 && header->ir_hash_high == current_hash.high64) {
+                if (debug) {
+                    std::cout << GREEN << "[CODEGEN CACHE HIT] " << func.name << RESET << "\n";
+                }
+
+                std::vector<std::uint8_t> cached_code(cached_bytes.begin() + header->code_offset, cached_bytes.begin() + header->code_offset + header->code_size);
+
+                std::unordered_map<std::string, jit_function> cached_function_map;
+                std::unordered_map<std::uint64_t, std::string> cached_string_literals;
+
+                // parse address map
+                std::size_t i = header->address_map_offset;
+                while (i + 8 <= header->const_pool_offset) {
+                    std::uint64_t addr = 0;
+
+                    for (int b = 0; b < 8; ++b) {
+                        addr |= static_cast<std::uint64_t>(cached_bytes[i++]) << (b * 8);
+                    }
+
+                    std::string name;
+
+                    while (i < header->const_pool_offset && cached_bytes[i] != '\0') {
+                        name += static_cast<char>(cached_bytes[i++]);
+                    }
+
+                    ++i;
+
+                    if (!name.empty()) {
+                        cached_function_map[name] = reinterpret_cast<jit_function>(addr);
+                    }
+                }
+
+                // parse string literals
+                i = header->const_pool_offset;
+                while (i + 16 <= cached_bytes.size()) {
+                    std::uint64_t addr = 0, len = 0;
+                    for (int b = 0; b < 8; ++b) {
+                        addr |= static_cast<std::uint64_t>(cached_bytes[i++]) << (b * 8);
+                    }
+
+                    for (int b = 0; b < 8; ++b) {
+                        len  |= static_cast<std::uint64_t>(cached_bytes[i++]) << (b * 8);
+                    }
+
+                    if (i + len > cached_bytes.size()) { break; }
+
+                    std::string lit(reinterpret_cast<const char*>(cached_bytes.data() + i), len);
+
+                    i += len + 1;
+
+                    cached_string_literals[addr] = std::move(lit);
+                }
+
+                patch_and_register_cached(func, cached_code, cached_function_map, cached_string_literals, use_jit);
+                compiling_functions.erase(func.name);
+                return;
+            }
+        }
+
+        // fresh compilation
+        if (debug) {
+            std::cout << BLUE << "[CODEGEN] Compiling: " << YELLOW << func.name << RESET << "\n";
+        }
+
+        auto w = std::make_unique<x86_64_writer>(debug);
+        function_map.insert({func.name, reinterpret_cast<jit_function>(w->memory)});
+
+        if (!func.uses_shellcode && !func.uses_assembly) {
+            w->emit_function_prologue();
+        }
+
+        bool is_main = (func.name == "main");
+        generate_code(func, w.get(), is_main, use_jit);
+
+        // grab raw pointer BEFORE the move 
+        x86_64_writer* w_raw = w.get();
+
+        function_raw_code_map.insert({func.name, w->get_code()});
+
+        write_cached_code(func, function_raw_code_map, function_map, string_literals);
+
+        w->setup_function();
+        writers.push_back(std::move(w)); 
+
+        if (debug) {
+            std::cout << GREEN << "[CODEGEN SUCCESS] " << func.name << RESET << "\n";
+            w_raw->print_bytes();
+        }
+
+        compiling_functions.erase(func.name);
+    }
     public:
         std::unordered_map<std::string, jit_function> function_map;
         std::map<std::string, std::vector<std::uint8_t>> function_raw_code_map;
