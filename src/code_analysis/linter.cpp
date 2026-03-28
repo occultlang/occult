@@ -544,10 +544,11 @@ namespace occult {
                 if (!node->get_children().empty()) {
                     const auto& first = node->get_children().front();
                     if (first->get_type() == cst_type::identifier) {
-                        if (!known_functions.count(first->content)) {
+                        const bool is_method_style = !first->content.empty() && first->content.front() == '.';
+                        if (!is_method_style && !known_functions.count(first->content)) {
                             errors.emplace_back("Call to undeclared function '" + first->content + "'");
                         }
-                        else {
+                        else if (!is_method_style) {
                             // count actual arguments (functionargument nodes)
                             int actual_args = 0;
                             for (std::size_t i = 1; i < node->get_children().size(); ++i) {

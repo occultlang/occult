@@ -794,7 +794,18 @@ namespace occult::x86_64 {
                                 // for float types, r was not allocated yet - allocate now
                                 r = pool.alloc();
                             }
-                            w->emit_lea(r, mem{rbp, offset});
+
+                            // Taking a reference of an already-reference-typed variable should
+                            // forward the underlying address value, not produce pointer-to-pointer.
+                            // This is required for reference forwarding across function calls.
+                            const bool is_reference_typed_var = var_type.ends_with("_reference") && !struct_layouts.contains(var_type);
+                            if (is_reference_typed_var) {
+                                w->emit_mov(r, mem{rbp, offset});
+                            }
+                            else {
+                                w->emit_lea(r, mem{rbp, offset});
+                            }
+
                             is_reference_next = false;
                             pool.push(r);
                             break;
@@ -3018,8 +3029,8 @@ namespace occult::x86_64 {
 
             compiling_functions.insert(func.name);
 
-#ifndef _WIN64           
-            auto cached_bytes = load_cached_code(func.name);  // try cache
+#ifndef _WIN64
+            auto cached_bytes = load_cached_code(func.name); // try cache
             if (!cached_bytes.empty() && cached_bytes.size() >= sizeof(bytecode_header)) {
                 const auto* header = reinterpret_cast<const bytecode_header*>(cached_bytes.data());
                 IRHash current_hash = hash_ir_function(func);
@@ -3106,7 +3117,7 @@ namespace occult::x86_64 {
 
             function_raw_code_map.insert({func.name, w->get_code()});
 
-#ifndef _WIN64           
+#ifndef _WIN64
 
             write_cached_code(func, function_raw_code_map, function_map, string_literals);
 #endif

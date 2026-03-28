@@ -19,6 +19,18 @@
 // add other cases to array declaration for types
 
 namespace occult {
+    static bool is_vessel_struct(cst* struct_def) {
+        if (!struct_def || struct_def->get_type() != cst_type::structure) {
+            return false;
+        }
+        for (std::size_t i = 1; i < struct_def->get_children().size(); ++i) {
+            if (struct_def->get_children()[i]->get_type() == cst_type::function) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     ir_function ir_gen::generate_function(cst_function* func_node) {
         ir_function function;
 
@@ -783,25 +795,64 @@ namespace occult {
         const auto node = cst::cast_raw<cst_functioncall>(c);
 
         const auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name of call
+        std::string resolved_call_name = identifier->content;
+
+        if (!resolved_call_name.empty() && resolved_call_name.front() == '.' && node->get_children().size() > 1) {
+            const auto self_arg = cst::cast_raw<cst_functionarg>(node->get_children().at(1).get());
+            if (self_arg && !self_arg->get_children().empty() && self_arg->get_children().front()->get_type() == cst_type::identifier) {
+                const std::string self_name = self_arg->get_children().front()->content;
+                auto self_it = local_variable_map[function].find(self_name);
+                if (self_it != local_variable_map[function].end()) {
+                    std::string self_type = self_it->second;
+                    if (self_type.ends_with("_ptr")) {
+                        self_type = self_type.substr(0, self_type.size() - 4);
+                    }
+                    if (self_type.ends_with("_reference")) {
+                        self_type = self_type.substr(0, self_type.size() - 10);
+                    }
+                    std::string method_suffix = resolved_call_name;
+                    if (!method_suffix.empty() && method_suffix.front() == '.') {
+                        method_suffix = "::" + method_suffix.substr(1);
+                    }
+                    const std::string direct_candidate = self_type + method_suffix;
+
+                    if (func_map.contains(direct_candidate)) {
+                        resolved_call_name = direct_candidate;
+                    }
+                    else {
+                        for (const auto& [fname, _] : func_map) {
+                            if (fname.size() >= direct_candidate.size() && fname.compare(fname.size() - direct_candidate.size(), direct_candidate.size(), direct_candidate) == 0) {
+                                resolved_call_name = fname;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (resolved_call_name != identifier->content) {
+            identifier->content = resolved_call_name;
+        }
 
         // Handle bitcast intrinsics: __bitcast_f64(i64) -> f64, __bitcast_i64(f64) -> i64
-        if (identifier->content == "__bitcast_f64") {
+        if (resolved_call_name == "__bitcast_f64") {
             const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(1).get());
             generate_common(function, arg_node, "int64");
             function.code.emplace_back(op_bitcast, std::string("float64"), std::string("int64"));
             return;
         }
-        if (identifier->content == "__bitcast_i64") {
+        if (resolved_call_name == "__bitcast_i64") {
             const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(1).get());
             generate_common(function, arg_node, "float64");
             function.code.emplace_back(op_bitcast, std::string("int64"), std::string("float64"));
             return;
         }
 
-        const auto func_it = func_map.find(identifier->content);
+        const auto func_it = func_map.find(resolved_call_name);
         if (func_it == func_map.end()) {
             if (debug) {
-                std::cout << CYAN << "[IR GEN] External/built-in function call: " << identifier->content << RESET << std::endl;
+                std::cout << CYAN << "[IR GEN] External/built-in function call: " << resolved_call_name << RESET << std::endl;
             }
 
             auto arg_location = 1;
@@ -814,7 +865,7 @@ namespace occult {
             }
 
             int actual_arg_count = arg_location - 1;
-            function.code.emplace_back(op_call, identifier->content, std::to_string(actual_arg_count));
+            function.code.emplace_back(op_call, resolved_call_name, std::to_string(actual_arg_count));
 
             return;
         }
@@ -948,10 +999,10 @@ namespace occult {
 
         int actual_arg_count = arg_location - 1;
         if (func_it->second.is_variadic) {
-            function.code.emplace_back(op_call, identifier->content, std::to_string(actual_arg_count));
+            function.code.emplace_back(op_call, resolved_call_name, std::to_string(actual_arg_count));
         }
         else {
-            function.code.emplace_back(op_call, identifier->content);
+            function.code.emplace_back(op_call, resolved_call_name);
         }
     }
 
@@ -2252,6 +2303,18 @@ namespace occult {
         cst* assignment_node = nullptr;
         bool is_deref = member_access_node->num_pointers > 0 || children[0]->num_pointers > 0;
 
+        std::string base_struct_type;
+        auto var_it_for_access = local_variable_map[function].find(base_var);
+        if (var_it_for_access != local_variable_map[function].end()) {
+            base_struct_type = var_it_for_access->second;
+            if (base_struct_type.ends_with("_ptr")) {
+                base_struct_type = base_struct_type.substr(0, base_struct_type.size() - 4);
+            }
+            if (base_struct_type.ends_with("_reference")) {
+                base_struct_type = base_struct_type.substr(0, base_struct_type.size() - 10);
+            }
+        }
+
         for (size_t i = 1; i < children.size(); i++) {
             if (children[i]->get_type() == cst_type::assignment) {
                 is_assignment = true;
@@ -2268,6 +2331,19 @@ namespace occult {
                 std::cout << "." << member;
             }
             std::cout << std::endl;
+        }
+
+        if (!base_struct_type.empty()) {
+            auto struct_it = custom_type_map.find(base_struct_type);
+            if (struct_it != custom_type_map.end() && is_vessel_struct(struct_it->second) && !member_chain.empty()) {
+                bool writing_member = is_assignment;
+                if (children.back()->get_type() == cst_type::functioncall) {
+                    writing_member = true;
+                }
+                if (!writing_member && base_var != "self") {
+                    throw std::runtime_error("vessel member '" + member_chain.back() + "' is private");
+                }
+            }
         }
 
         if (is_assignment) {
@@ -2461,9 +2537,35 @@ namespace occult {
 
                     function.code.emplace_back(op_dereference_assign, deref_count);
                     generate_common(function, expr, "int64");
-                    // function.code.emplace_back(op_load, identifier->content);
-
-                    generate_common_generic<std::int64_t>(function, assignment);
+                    if (assignment) {
+                        for (const auto& ac : assignment->get_children()) {
+                            switch (ac->get_type()) {
+                            case cst_type::number_literal:
+                            case cst_type::float_literal:
+                            case cst_type::charliteral:
+                                handle_push_types(function, ac.get(), "int64");
+                                break;
+                            case cst_type::identifier:
+                                function.code.emplace_back(op_load, ac->content);
+                                break;
+                            case cst_type::functioncall:
+                                generate_function_call(function, ac.get());
+                                break;
+                            case cst_type::arrayaccess:
+                                generate_array_access(function, cst::cast_raw<cst_arrayaccess>(ac.get()));
+                                break;
+                            case cst_type::memberaccess:
+                                generate_member_access(function, cst::cast_raw<cst_memberaccess>(ac.get()));
+                                break;
+                            case cst_type::dereference:
+                                function.code.emplace_back(op_dereference, from_numerical_string<std::int64_t>(ac->content));
+                                break;
+                            default:
+                                generate_arith_and_bitwise_operators(function, ac.get(), "int64");
+                                break;
+                            }
+                        }
+                    }
 
                     function.code.emplace_back(op_store_at_addr);
 
@@ -2677,6 +2779,23 @@ namespace occult {
                     }
 
                     functions.emplace_back(std::move(func));
+                }
+                else if (type == cst_type::structure) {
+                    for (const auto& member : c->get_children()) {
+                        if (member->get_type() != cst_type::function) {
+                            continue;
+                        }
+
+                        auto func = generate_function(cst::cast_raw<cst_function>(member.get()));
+
+                        if (!func.uses_shellcode && !func.uses_assembly) {
+                            for (const auto& [gname, gtype] : global_var_types) {
+                                local_variable_map[func][gname] = gtype;
+                            }
+                        }
+
+                        functions.emplace_back(std::move(func));
+                    }
                 }
             }
 

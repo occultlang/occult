@@ -32,6 +32,7 @@ namespace occult {
         std::unordered_set<std::string> instantiated_generics;
 
         std::unordered_map<std::string, std::unordered_map<std::string, std::int64_t>> enum_definitions;
+        std::unordered_set<std::string> vessel_types;
 
         std::vector<std::string> module_prefix_stack; // current nesting of module names
         std::vector<std::string> imported_modules;    // imported module paths (e.g. "std::math")
@@ -112,6 +113,7 @@ namespace occult {
         std::unique_ptr<cst_array> parse_array();
 
         std::unique_ptr<cst_struct> parse_struct();
+        std::unique_ptr<cst_struct> parse_vessel();
 
         std::unique_ptr<cst_enum> parse_enum();
 
