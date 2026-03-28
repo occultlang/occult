@@ -1,0 +1,17 @@
+module a {
+    module b {
+        enum Kind {
+            One = 1,
+            Two = 2
+        }
+
+        fn sum_kind() i64 {
+            return Kind::One + Kind::Two;
+        }
+    }
+}
+
+fn main() i64 {
+    i64 x = a::b::Kind::Two;
+    return x + a::b::sum_kind();
+}

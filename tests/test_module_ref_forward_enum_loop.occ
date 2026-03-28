@@ -1,0 +1,52 @@
+enum TokenType {
+    NIL_TOK,
+    NUMBER_TOK,
+    EOF_TOK
+}
+
+module lexer {
+    fn advance(i64@ pos) {
+        $pos += 1;
+    }
+
+    fn get_next(i64@ pos) TokenType {
+        if $pos >= 3 {
+            return TokenType::EOF_TOK;
+        }
+
+        advance(pos);
+        return TokenType::NUMBER_TOK;
+    }
+
+    fn analyze(i64@ pos) i64 {
+        TokenType tt = get_next(pos);
+        i64 guard = 0;
+
+        while tt != TokenType::EOF_TOK {
+            guard += 1;
+
+            if guard > 20 {
+                return -1;
+            }
+
+            tt = get_next(pos);
+        }
+
+        if $pos != 3 {
+            return -2;
+        }
+
+        return guard;
+    }
+}
+
+fn main() i64 {
+    i64 pos = 0;
+    i64 count = lexer::analyze(pos);
+
+    if count != 3 {
+        return 1;
+    }
+
+    return 0;
+}

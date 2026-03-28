@@ -1,0 +1,18 @@
+vessel Counter {
+    i64 counter_internal_value_x9;
+
+    fn add(i64 delta) {
+        self.counter_internal_value_x9 += delta;
+    }
+
+    fn get() i64 {
+        return self.counter_internal_value_x9;
+    }
+}
+
+fn main() i64 {
+    Counter c;
+    c.add(5);
+    c.add(7);
+    return c.get();
+}

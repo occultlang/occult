@@ -1,0 +1,10 @@
+fn main() i64 {
+    i64 value = 10;
+    i64* p = @value;
+
+    $p += 5;
+    $p *= 2;
+    $p -= 3;
+
+    return value;
+}
