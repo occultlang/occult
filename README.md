@@ -51,12 +51,11 @@ git clone --recurse-submodules https://github.com/occultlang/occult.git && cd oc
 chmod +x build.sh
 ./build.sh
 ```
-### Building for Visual Studio on Windows (You must install LLVM with clang inside Visual Studio Installer)
+### Building for Visual Studio on Windows (You must install LLVM with clang inside Visual Studio Installer) 
 ```bash
-git clone --recurse-submodules https://github.com/occultlang/occult.git && cd occult
-cmake -G "<YOUR VISUAL STUDIO VERSION>"
-# i.e "Visual Studio 18 2026" for V.S 2026
-# running cmake -G should just give you options to choose from
+git clone --recurse-submodules https://github.com/occultlang/occult.git
+cd occult
+./build.bat
 ```
 Change the C++ Language Standard to the latest version
 
