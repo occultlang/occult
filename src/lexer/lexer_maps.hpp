@@ -40,7 +40,7 @@ namespace occult {
         {"return", return_keyword_tt}, {"break", break_keyword_tt},     {"continue", continue_keyword_tt}, {"while", while_keyword_tt},   {"for", for_keyword_tt},         {"include", include_keyword_tt},     {"i64", int64_keyword_tt},
         {"i32", int32_keyword_tt},     {"i16", int16_keyword_tt},       {"i8", int8_keyword_tt},           {"u64", uint64_keyword_tt},    {"u32", uint32_keyword_tt},      {"u16", uint16_keyword_tt},          {"u8", uint8_keyword_tt},
         {"f32", float32_keyword_tt},   {"f64", float64_keyword_tt},     {"bool", boolean_keyword_tt},      {"char", char_keyword_tt},     {"string", string_keyword_tt},   {"array", array_keyword_tt},         {"false", false_keyword_tt},
-        {"true", true_keyword_tt},     {"in", in_keyword_tt},           {"struct", struct_keyword_tt},     {"vessel", vessel_keyword_tt}, {"generic", generic_keyword_tt}, {"enum", enum_keyword_tt},           {"switch", switch_keyword_tt},
+        {"true", true_keyword_tt},     {"in", in_keyword_tt},           {"struct", struct_keyword_tt},     {"generic", generic_keyword_tt}, {"enum", enum_keyword_tt},           {"switch", switch_keyword_tt},
         {"case", case_keyword_tt},     {"default", default_keyword_tt}, {"const", const_keyword_tt},       {"module", module_keyword_tt}, {"import", import_keyword_tt},   {"shellcode", shellcode_denoter_tt}, {"is_linux64", is_linux64},
         {"is_win64", is_win64},        {"asm", asm_keyword_tt}};
 
@@ -130,7 +130,6 @@ namespace occult {
                                                                              {function_call_parser_tt, "function_call_parser"},
                                                                              {argument_count_tt, "argument_count"},
                                                                              {struct_keyword_tt, "struct"},
-                                                                             {vessel_keyword_tt, "vessel"},
                                                                              {generic_keyword_tt, "generic"},
                                                                              {enum_keyword_tt, "enum"},
                                                                              {switch_keyword_tt, "switch"},

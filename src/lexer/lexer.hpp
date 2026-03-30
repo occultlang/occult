@@ -109,7 +109,6 @@ namespace occult {
         true_keyword_tt,     // true
         false_keyword_tt,    // false
         struct_keyword_tt,   // struct
-        vessel_keyword_tt,   // vessel
         generic_keyword_tt,
         enum_keyword_tt,    // enum
         switch_keyword_tt,  // switch

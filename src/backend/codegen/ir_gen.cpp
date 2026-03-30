@@ -19,18 +19,6 @@
 // add other cases to array declaration for types
 
 namespace occult {
-    static bool is_vessel_struct(cst* struct_def) {
-        if (!struct_def || struct_def->get_type() != cst_type::structure) {
-            return false;
-        }
-        for (std::size_t i = 1; i < struct_def->get_children().size(); ++i) {
-            if (struct_def->get_children()[i]->get_type() == cst_type::function) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     ir_function ir_gen::generate_function(cst_function* func_node) {
         ir_function function;
 
@@ -2333,19 +2321,6 @@ namespace occult {
             std::cout << std::endl;
         }
 
-        if (!base_struct_type.empty()) {
-            auto struct_it = custom_type_map.find(base_struct_type);
-            if (struct_it != custom_type_map.end() && is_vessel_struct(struct_it->second) && !member_chain.empty()) {
-                bool writing_member = is_assignment;
-                if (children.back()->get_type() == cst_type::functioncall) {
-                    writing_member = true;
-                }
-                if (!writing_member && base_var != "self") {
-                    throw std::runtime_error("vessel member '" + member_chain.back() + "' is private");
-                }
-            }
-        }
-
         if (is_assignment) {
             function.code.emplace_back(op_load, base_var);
 
@@ -2779,23 +2754,6 @@ namespace occult {
                     }
 
                     functions.emplace_back(std::move(func));
-                }
-                else if (type == cst_type::structure) {
-                    for (const auto& member : c->get_children()) {
-                        if (member->get_type() != cst_type::function) {
-                            continue;
-                        }
-
-                        auto func = generate_function(cst::cast_raw<cst_function>(member.get()));
-
-                        if (!func.uses_shellcode && !func.uses_assembly) {
-                            for (const auto& [gname, gtype] : global_var_types) {
-                                local_variable_map[func][gname] = gtype;
-                            }
-                        }
-
-                        functions.emplace_back(std::move(func));
-                    }
                 }
             }
 

@@ -1523,64 +1523,6 @@ namespace occult {
         throw parsing_error("{ in struct declaration", peek(), pos, std::source_location::current().function_name());
     }
 
-    std::unique_ptr<cst_struct> parser::parse_vessel() {
-        consume(); // consume vessel
-
-        auto vessel_node = cst::new_node<cst_struct>();
-
-        auto identifier_node = parse_identifier();
-        const std::string vessel_name = identifier_node->content;
-        vessel_node->content = vessel_name;
-        custom_type_map.insert({vessel_name, vessel_node.get()});
-        vessel_types.insert(vessel_name);
-
-        vessel_node->add_child(std::move(identifier_node));
-
-        if (!match(peek(), left_curly_bracket_tt)) {
-            throw parsing_error("{ in vessel declaration", peek(), pos, std::source_location::current().function_name());
-        }
-        consume();
-
-        while (!match(peek(), right_curly_bracket_tt)) {
-            if (match(peek(), function_keyword_tt)) {
-                auto fn_node = parse_function();
-
-                if (!fn_node->get_children().empty() && fn_node->get_children().front()->get_type() == cst_type::identifier) {
-                    auto* method_name = fn_node->get_children().front().get();
-                    if (method_name->content.find("::") == std::string::npos) {
-                        method_name->content = vessel_name + "::" + method_name->content;
-                    }
-                }
-
-                if (fn_node->get_children().size() > 1 && fn_node->get_children()[1]->get_type() == cst_type::functionarguments) {
-                    auto* args_node = fn_node->get_children()[1].get();
-                    auto self_arg = cst::new_node<cst_struct>();
-                    self_arg->content = vessel_name;
-                    self_arg->num_pointers = 1;
-                    self_arg->add_child(cst::new_node<cst_identifier>("self"));
-                    args_node->get_children().insert(args_node->get_children().begin(), std::move(self_arg));
-                }
-
-                vessel_node->add_child(std::move(fn_node));
-                continue;
-            }
-
-            auto member = parse_datatype();
-            if (!member) {
-                throw parsing_error("datatype or fn in vessel declaration", peek(), pos, std::source_location::current().function_name());
-            }
-            vessel_node->add_child(std::move(member));
-
-            if (!match(peek(), semicolon_tt)) {
-                throw parsing_error("; in vessel declaration", peek(), pos, std::source_location::current().function_name());
-            }
-            consume();
-        }
-
-        consume(); // consume '}'
-        return vessel_node;
-    }
-
     std::unique_ptr<cst_enum> parser::parse_enum() {
         consume(); // consume 'enum'
 
@@ -1817,9 +1759,6 @@ namespace occult {
                             first_child->content = new_name;
                             if (custom_type_map.contains(old_name)) {
                                 custom_type_map[new_name] = custom_type_map[old_name];
-                            }
-                            if (vessel_types.contains(old_name)) {
-                                vessel_types.insert(new_name);
                             }
 
                             for (std::size_t ci = 1; ci < node->get_children().size(); ++ci) {
@@ -2240,20 +2179,6 @@ namespace occult {
                     generic_struct_templates[struct_name] = {type_params, std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end), struct_name};
 
                     custom_type_map.erase(struct_name);
-                    cst_generic_type_cache.clear();
-
-                    return cst::new_node<cst_root>();
-                }
-                else if (match(peek(), vessel_keyword_tt)) {
-                    auto vessel_node = parse_vessel();
-                    auto template_end = pos;
-
-                    auto vessel_name = vessel_node->get_children().front()->content;
-
-                    generic_struct_templates[vessel_name] = {type_params, std::vector<token_t>(stream.begin() + template_start, stream.begin() + template_end), vessel_name};
-
-                    custom_type_map.erase(vessel_name);
-                    vessel_types.erase(vessel_name);
                     cst_generic_type_cache.clear();
 
                     return cst::new_node<cst_root>();
@@ -2981,9 +2906,6 @@ namespace occult {
         if (match(peek(), struct_keyword_tt)) {
             return parse_struct();
         }
-        if (match(peek(), vessel_keyword_tt)) {
-            return parse_vessel();
-        }
         if (match(peek(), enum_keyword_tt)) {
             return parse_enum();
         }
@@ -3478,13 +3400,7 @@ namespace occult {
         pos = 0;
         cst_generic_type_cache.clear();
 
-        std::unique_ptr<cst_struct> struct_node;
-        if (match(peek(), vessel_keyword_tt)) {
-            struct_node = parse_vessel();
-        }
-        else {
-            struct_node = parse_struct();
-        }
+        std::unique_ptr<cst_struct> struct_node = parse_struct();
 
         stream = std::move(saved_stream);
         pos = saved_pos;
@@ -3677,20 +3593,6 @@ namespace occult {
         for (const auto& [k, v] : enums) {
             if (!enum_definitions.contains(k)) {
                 enum_definitions[k] = v;
-            }
-        }
-
-        vessel_types.clear();
-        for (const auto& [k, v] : custom_type_map) {
-            if (!v || v->get_type() != cst_type::structure) {
-                continue;
-            }
-
-            for (std::size_t i = 1; i < v->get_children().size(); ++i) {
-                if (v->get_children()[i]->get_type() == cst_type::function) {
-                    vessel_types.insert(k);
-                    break;
-                }
             }
         }
     }
