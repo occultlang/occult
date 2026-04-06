@@ -1,385 +1,382 @@
 #pragma once
-#include "../lexer/lexer.hpp"
-#include "../util/color_defs.hpp"
 #include <memory>
 #include <vector>
+#include "../lexer/lexer.hpp"
+#include "../util/color_defs.hpp"
 
 namespace occult {
-enum class cst_type {
-  root,
-  block,
-  identifier,
-  function,
-  ifstmt,
-  elsestmt,
-  elseifstmt,
-  loopstmt,
-  whilestmt,
-  forstmt,
-  continuestmt,
-  breakstmt,
-  returnstmt,
-  functionarguments,
-  functioncall,
-  assignment,
-  bool_datatype,
-  int8_datatype, // char
-  int16_datatype,
-  int32_datatype,
-  int64_datatype,
-  uint8_datatype,
-  uint16_datatype,
-  uint32_datatype,
-  uint64_datatype,
-  float32_datatype,
-  float64_datatype,
-  string_datatype,
-  number_literal,
-  float_literal,
-  add_operator,
-  subtract_operator,
-  unary_plus_operator,
-  unary_minus_operator,
-  multiply_operator,
-  division_operator,
-  modulo_operator,
-  bitwise_and,
-  unary_bitwise_not,
-  bitwise_or,
-  xor_operator,
-  bitwise_lshift,
-  bitwise_rshift,
-  and_operator,
-  or_operator,
-  unary_not_operator,
-  equals_operator,
-  not_equals_operator,
-  greater_than_operator,
-  less_than_operator,
-  greater_than_or_equal,
-  less_than_or_equal,
-  greater_than_or_equal_operator,
-  less_than_or_equal_operator,
-  callarg,
-  comma,
-  include,
-  stringliteral,
-  forcondition, // only used in for loops, special condition
-  foriterexpr, // only used in for loops, special for only iteration of integers
-  charliteral,
-  functionargument,
-  label,
-  array,
-  pointer,
-  dimensions_count,
-  dimension,
-  arraybody,
-  arrayelem,
-  arrayaccess,
-  dereference,
-  reference,
-  expr_start,
-  expr_end,
-  structure,
-  customtype,
-  memberaccess,
-  generic_expression,
-  func_uses_shellcode,
-  shellcode,
-  cast_to_datatype,
-  variadic,
-  generic_type,
-  enumeration,
-  enum_access,
-  switchstmt,
-  casestmt,
-  defaultstmt,
-  moduledecl,
-  importdecl,
-  func_uses_asm,
-  asm_code
-};
-
-class cst {
-  std::vector<std::unique_ptr<cst>> children;
-
-public:
-  virtual ~cst() = default;
-
-  cst() = default;
-
-  std::string content; // base class
-  std::size_t num_pointers = 0;
-  bool do_not = false;
-  bool is_reference = false;
-  bool is_const = false;
-
-  template <typename BaseCst = cst> static std::unique_ptr<BaseCst> new_node() {
-    return std::make_unique<BaseCst>();
-  }
+    enum class cst_type {
+        root,
+        block,
+        identifier,
+        function,
+        ifstmt,
+        elsestmt,
+        elseifstmt,
+        loopstmt,
+        whilestmt,
+        forstmt,
+        continuestmt,
+        breakstmt,
+        returnstmt,
+        functionarguments,
+        functioncall,
+        assignment,
+        bool_datatype,
+        int8_datatype, // char
+        int16_datatype,
+        int32_datatype,
+        int64_datatype,
+        uint8_datatype,
+        uint16_datatype,
+        uint32_datatype,
+        uint64_datatype,
+        float32_datatype,
+        float64_datatype,
+        string_datatype,
+        number_literal,
+        float_literal,
+        add_operator,
+        subtract_operator,
+        unary_plus_operator,
+        unary_minus_operator,
+        multiply_operator,
+        division_operator,
+        modulo_operator,
+        bitwise_and,
+        unary_bitwise_not,
+        bitwise_or,
+        xor_operator,
+        bitwise_lshift,
+        bitwise_rshift,
+        and_operator,
+        or_operator,
+        unary_not_operator,
+        equals_operator,
+        not_equals_operator,
+        greater_than_operator,
+        less_than_operator,
+        greater_than_or_equal,
+        less_than_or_equal,
+        greater_than_or_equal_operator,
+        less_than_or_equal_operator,
+        callarg,
+        comma,
+        include,
+        stringliteral,
+        forcondition, // only used in for loops, special condition
+        foriterexpr,  // only used in for loops, special for only iteration of integers
+        charliteral,
+        functionargument,
+        label,
+        array,
+        pointer,
+        dimensions_count,
+        dimension,
+        arraybody,
+        arrayelem,
+        arrayaccess,
+        dereference,
+        reference,
+        expr_start,
+        expr_end,
+        structure,
+        customtype,
+        memberaccess,
+        generic_expression,
+        func_uses_shellcode,
+        shellcode,
+        cast_to_datatype,
+        variadic,
+        generic_type,
+        enumeration,
+        enum_access,
+        switchstmt,
+        casestmt,
+        defaultstmt,
+        moduledecl,
+        importdecl,
+        func_uses_asm,
+        asm_code
+    };
+
+    class cst {
+        std::vector<std::unique_ptr<cst>> children;
+
+    public:
+        virtual ~cst() = default;
+
+        cst() = default;
+
+        std::string content; // base class
+        std::size_t num_pointers = 0;
+        bool do_not = false;
+        bool is_reference = false;
+        bool is_const = false;
 
-  template <typename BaseCst = cst>
-  static std::unique_ptr<BaseCst> new_node(std::string content) {
-    auto node = std::make_unique<BaseCst>();
-    node->content = content;
+        template <typename BaseCst = cst>
+        static std::unique_ptr<BaseCst> new_node() {
+            return std::make_unique<BaseCst>();
+        }
 
-    return node;
-  }
+        template <typename BaseCst = cst>
+        static std::unique_ptr<BaseCst> new_node(std::string content) {
+            auto node = std::make_unique<BaseCst>();
+            node->content = content;
 
-  template <typename BaseCst = cst>
-  static std::unique_ptr<BaseCst> cast(cst *node) {
-    if (auto casted_node = dynamic_cast<BaseCst *>(node)) {
-      return std::unique_ptr<BaseCst>(casted_node);
-    }
+            return node;
+        }
 
-    return nullptr;
-  }
+        template <typename BaseCst = cst>
+        static std::unique_ptr<BaseCst> cast(cst* node) {
+            if (auto casted_node = dynamic_cast<BaseCst*>(node)) {
+                return std::unique_ptr<BaseCst>(casted_node);
+            }
 
-  template <typename BaseCst = cst> static BaseCst *cast_raw(cst *node) {
-    if (auto casted_node = dynamic_cast<BaseCst *>(node)) {
-      return casted_node;
-    }
+            return nullptr;
+        }
 
-    return nullptr;
-  }
+        template <typename BaseCst = cst>
+        static BaseCst* cast_raw(cst* node) {
+            if (auto casted_node = dynamic_cast<BaseCst*>(node)) {
+                return casted_node;
+            }
 
-  void add_child(std::unique_ptr<cst> child) {
-    children.push_back(std::move(child));
-  }
+            return nullptr;
+        }
 
-  std::vector<std::unique_ptr<cst>> &get_children() { return children; }
+        void add_child(std::unique_ptr<cst> child) { children.push_back(std::move(child)); }
 
-  const std::vector<std::unique_ptr<cst>> &get_children_const() const {
-    return children;
-  }
+        std::vector<std::unique_ptr<cst>>& get_children() { return children; }
 
-  virtual cst_type get_type() = 0;
+        const std::vector<std::unique_ptr<cst>>& get_children_const() const { return children; }
 
-  virtual std::string to_string() = 0;
+        virtual cst_type get_type() = 0;
 
-  virtual std::unique_ptr<cst> clone() const = 0;
+        virtual std::string to_string() = 0;
 
-  void visualize(const int depth = 0) {
-    const std::string indent(depth * 2, ' ');
-    std::string output = indent + to_string();
+        virtual std::unique_ptr<cst> clone() const = 0;
 
-    if (std::string content_copy = content; !content_copy.empty()) {
-      size_t pos = 0;
+        void visualize(const int depth = 0) {
+            const std::string indent(depth * 2, ' ');
+            std::string output = indent + to_string();
 
-      while ((pos = content_copy.find('\n', pos)) != std::string::npos) {
-        content_copy.replace(pos, 1, "\\n");
-        pos += 2;
-      }
+            if (std::string content_copy = content; !content_copy.empty()) {
+                size_t pos = 0;
 
-      output += ": " + content_copy;
-    }
+                while ((pos = content_copy.find('\n', pos)) != std::string::npos) {
+                    content_copy.replace(pos, 1, "\\n");
+                    pos += 2;
+                }
 
-    if (do_not) {
-      output += GREEN " (do_not = true)" RESET;
-    }
+                output += ": " + content_copy;
+            }
 
-    if (num_pointers > 0) {
-      output += YELLOW " (num_pointers = " + std::to_string(num_pointers) +
-                ")" + RESET;
-    }
+            if (do_not) {
+                output += GREEN " (do_not = true)" RESET;
+            }
 
-    std::cout << output << "\n";
+            if (num_pointers > 0) {
+                output += YELLOW " (num_pointers = " + std::to_string(num_pointers) + ")" + RESET;
+            }
 
-    for (const auto &child : children) {
-      child->visualize(depth + 1);
-    }
-  }
-};
+            std::cout << output << "\n";
 
-#define NODE(tt, nn)                                                           \
-  class nn final : public cst {                                                \
-  public:                                                                      \
-    cst_type get_type() override { return cst_type::tt; }                      \
-    std::string to_string() override { return #nn; }                           \
-    std::unique_ptr<cst> clone() const override {                              \
-      auto copy = std::make_unique<nn>();                                      \
-      copy->content = content;                                                 \
-      copy->num_pointers = num_pointers;                                       \
-      copy->do_not = do_not;                                                   \
-      copy->is_reference = is_reference;                                       \
-      copy->is_const = is_const;                                               \
-      for (const auto &child : get_children_const()) {                         \
-        copy->add_child(child->clone());                                       \
-      }                                                                        \
-      return copy;                                                             \
-    }                                                                          \
-  };
+            for (const auto& child : children) {
+                child->visualize(depth + 1);
+            }
+        }
+    };
 
-NODE(root, cst_root)
+#define NODE(tt, nn)                                                                                                                                                                                                                           \
+    class nn final : public cst {                                                                                                                                                                                                              \
+    public:                                                                                                                                                                                                                                    \
+        cst_type get_type() override { return cst_type::tt; }                                                                                                                                                                                  \
+        std::string to_string() override { return #nn; }                                                                                                                                                                                       \
+        std::unique_ptr<cst> clone() const override {                                                                                                                                                                                          \
+            auto copy = std::make_unique<nn>();                                                                                                                                                                                                \
+            copy->content = content;                                                                                                                                                                                                           \
+            copy->num_pointers = num_pointers;                                                                                                                                                                                                 \
+            copy->do_not = do_not;                                                                                                                                                                                                             \
+            copy->is_reference = is_reference;                                                                                                                                                                                                 \
+            copy->is_const = is_const;                                                                                                                                                                                                         \
+            for (const auto& child : get_children_const()) {                                                                                                                                                                                   \
+                copy->add_child(child->clone());                                                                                                                                                                                               \
+            }                                                                                                                                                                                                                                  \
+            return copy;                                                                                                                                                                                                                       \
+        }                                                                                                                                                                                                                                      \
+    };
 
-NODE(block, cst_block)
+    NODE(root, cst_root)
 
-NODE(identifier, cst_identifier)
+    NODE(block, cst_block)
 
-NODE(function, cst_function)
+    NODE(identifier, cst_identifier)
 
-NODE(forcondition, cst_forcondition)
+    NODE(function, cst_function)
 
-NODE(foriterexpr, cst_foriterexpr)
+    NODE(forcondition, cst_forcondition)
 
-NODE(functionarguments, cst_functionargs)
+    NODE(foriterexpr, cst_foriterexpr)
 
-NODE(functionargument, cst_functionarg)
+    NODE(functionarguments, cst_functionargs)
 
-NODE(callarg, cst_callarg)
+    NODE(functionargument, cst_functionarg)
 
-NODE(functioncall, cst_functioncall)
+    NODE(callarg, cst_callarg)
 
-NODE(ifstmt, cst_ifstmt)
+    NODE(functioncall, cst_functioncall)
 
-NODE(elsestmt, cst_elsestmt)
+    NODE(ifstmt, cst_ifstmt)
 
-NODE(elseifstmt, cst_elseifstmt)
+    NODE(elsestmt, cst_elsestmt)
 
-NODE(loopstmt, cst_loopstmt)
+    NODE(elseifstmt, cst_elseifstmt)
 
-NODE(whilestmt, cst_whilestmt)
+    NODE(loopstmt, cst_loopstmt)
 
-NODE(forstmt, cst_forstmt)
+    NODE(whilestmt, cst_whilestmt)
 
-NODE(continuestmt, cst_continuestmt)
+    NODE(forstmt, cst_forstmt)
 
-NODE(breakstmt, cst_breakstmt)
+    NODE(continuestmt, cst_continuestmt)
 
-NODE(returnstmt, cst_returnstmt)
+    NODE(breakstmt, cst_breakstmt)
 
-NODE(assignment, cst_assignment)
+    NODE(returnstmt, cst_returnstmt)
 
-NODE(int8_datatype, cst_int8)
+    NODE(assignment, cst_assignment)
 
-NODE(int16_datatype, cst_int16)
+    NODE(int8_datatype, cst_int8)
 
-NODE(int32_datatype, cst_int32)
+    NODE(int16_datatype, cst_int16)
 
-NODE(int64_datatype, cst_int64)
+    NODE(int32_datatype, cst_int32)
 
-NODE(uint8_datatype, cst_uint8)
+    NODE(int64_datatype, cst_int64)
 
-NODE(uint16_datatype, cst_uint16)
+    NODE(uint8_datatype, cst_uint8)
 
-NODE(uint32_datatype, cst_uint32)
+    NODE(uint16_datatype, cst_uint16)
 
-NODE(uint64_datatype, cst_uint64)
+    NODE(uint32_datatype, cst_uint32)
 
-NODE(float32_datatype, cst_float32)
+    NODE(uint64_datatype, cst_uint64)
 
-NODE(float64_datatype, cst_float64)
+    NODE(float32_datatype, cst_float32)
 
-NODE(string_datatype, cst_string)
+    NODE(float64_datatype, cst_float64)
 
-NODE(number_literal, cst_numberliteral)
+    NODE(string_datatype, cst_string)
 
-NODE(float_literal, cst_floatliteral)
+    NODE(number_literal, cst_numberliteral)
 
-NODE(add_operator, cst_add)
+    NODE(float_literal, cst_floatliteral)
 
-NODE(subtract_operator, cst_subtract)
+    NODE(add_operator, cst_add)
 
-NODE(unary_plus_operator, cst_unary_plus)
+    NODE(subtract_operator, cst_subtract)
 
-NODE(unary_minus_operator, cst_unary_minus)
+    NODE(unary_plus_operator, cst_unary_plus)
 
-NODE(multiply_operator, cst_multiply)
+    NODE(unary_minus_operator, cst_unary_minus)
 
-NODE(division_operator, cst_divide)
+    NODE(multiply_operator, cst_multiply)
 
-NODE(modulo_operator, cst_modulo)
+    NODE(division_operator, cst_divide)
 
-NODE(bitwise_and, cst_bitwise_and)
+    NODE(modulo_operator, cst_modulo)
 
-NODE(unary_bitwise_not, cst_unary_bitwise_not)
+    NODE(bitwise_and, cst_bitwise_and)
 
-NODE(bitwise_or, cst_bitwise_or)
+    NODE(unary_bitwise_not, cst_unary_bitwise_not)
 
-NODE(xor_operator, cst_xor)
+    NODE(bitwise_or, cst_bitwise_or)
 
-NODE(bitwise_lshift, cst_bitwise_lshift)
+    NODE(xor_operator, cst_xor)
 
-NODE(bitwise_rshift, cst_bitwise_rshift)
+    NODE(bitwise_lshift, cst_bitwise_lshift)
 
-NODE(and_operator, cst_and)
+    NODE(bitwise_rshift, cst_bitwise_rshift)
 
-NODE(or_operator, cst_or)
+    NODE(and_operator, cst_and)
 
-NODE(unary_not_operator, cst_unary_not)
+    NODE(or_operator, cst_or)
 
-NODE(equals_operator, cst_equals)
+    NODE(unary_not_operator, cst_unary_not)
 
-NODE(not_equals_operator, cst_not_equals)
+    NODE(equals_operator, cst_equals)
 
-NODE(greater_than_operator, cst_greater_than)
+    NODE(not_equals_operator, cst_not_equals)
 
-NODE(less_than_operator, cst_less_than)
+    NODE(greater_than_operator, cst_greater_than)
 
-NODE(greater_than_or_equal_operator, cst_greater_than_or_equal)
+    NODE(less_than_operator, cst_less_than)
 
-NODE(less_than_or_equal_operator, cst_less_than_or_equal)
+    NODE(greater_than_or_equal_operator, cst_greater_than_or_equal)
 
-NODE(comma, cst_comma)
+    NODE(less_than_or_equal_operator, cst_less_than_or_equal)
 
-NODE(include, cst_includestmt)
+    NODE(comma, cst_comma)
 
-NODE(stringliteral, cst_stringliteral)
+    NODE(include, cst_includestmt)
 
-NODE(charliteral, cst_charliteral)
+    NODE(stringliteral, cst_stringliteral)
 
-NODE(label, cst_label)
+    NODE(charliteral, cst_charliteral)
 
-NODE(array, cst_array)
+    NODE(label, cst_label)
 
-NODE(structure, cst_struct)
+    NODE(array, cst_array)
 
-NODE(dimensions_count, cst_dimensions_count)
+    NODE(structure, cst_struct)
 
-NODE(dimension, cst_dimension)
+    NODE(dimensions_count, cst_dimensions_count)
 
-NODE(arraybody, cst_arraybody)
+    NODE(dimension, cst_dimension)
 
-NODE(arrayelem, cst_arrayelement)
+    NODE(arraybody, cst_arraybody)
 
-NODE(arrayaccess, cst_arrayaccess)
+    NODE(arrayelem, cst_arrayelement)
 
-NODE(dereference, cst_dereference)
+    NODE(arrayaccess, cst_arrayaccess)
 
-NODE(reference, cst_reference)
+    NODE(dereference, cst_dereference)
 
-NODE(expr_start, cst_expr_start) // not used
-NODE(expr_end,
-     cst_expr_end) // used to mark an end of an expression for comparisons
-NODE(customtype, cst_customtype)
+    NODE(reference, cst_reference)
 
-NODE(memberaccess, cst_memberaccess)
+    NODE(expr_start, cst_expr_start) // not used
+    NODE(expr_end,
+         cst_expr_end) // used to mark an end of an expression for comparisons
+    NODE(customtype, cst_customtype)
 
-NODE(generic_expression, cst_generic_expr)
+    NODE(memberaccess, cst_memberaccess)
 
-NODE(bool_datatype, cst_bool)
+    NODE(generic_expression, cst_generic_expr)
 
-NODE(func_uses_shellcode, cst_func_uses_shellcode)
-NODE(func_uses_asm, cst_func_uses_asm)
-NODE(shellcode, cst_shellcode)
-NODE(asm_code, cst_asm_code)
+    NODE(bool_datatype, cst_bool)
 
-NODE(cast_to_datatype, cst_cast_to_datatype)
-NODE(variadic, cst_variadic)
+    NODE(func_uses_shellcode, cst_func_uses_shellcode)
+    NODE(func_uses_asm, cst_func_uses_asm)
+    NODE(shellcode, cst_shellcode)
+    NODE(asm_code, cst_asm_code)
 
-NODE(generic_type, cst_generic_type)
+    NODE(cast_to_datatype, cst_cast_to_datatype)
+    NODE(variadic, cst_variadic)
 
-NODE(enumeration, cst_enum)
+    NODE(generic_type, cst_generic_type)
 
-NODE(enum_access, cst_enum_access)
+    NODE(enumeration, cst_enum)
 
-NODE(switchstmt, cst_switchstmt)
+    NODE(enum_access, cst_enum_access)
 
-NODE(casestmt, cst_casestmt)
+    NODE(switchstmt, cst_switchstmt)
 
-NODE(defaultstmt, cst_defaultstmt)
+    NODE(casestmt, cst_casestmt)
 
-NODE(moduledecl, cst_moduledecl)
+    NODE(defaultstmt, cst_defaultstmt)
 
-NODE(importdecl, cst_importdecl)
+    NODE(moduledecl, cst_moduledecl)
+
+    NODE(importdecl, cst_importdecl)
 } // namespace occult

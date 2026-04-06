@@ -1,286 +1,277 @@
 #pragma once
-#include "x86_64_defs.hpp"
 #include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include "x86_64_defs.hpp"
 
 namespace occult::x86_64 {
-enum class x86_64_instr_token : std::uint8_t { // will add more instr i.e jumps,
-                                               // cmp(comiss, etc.) + casting
-                                               // instr
-  mov_tt,
-  syscall_tt,
-  ret_tt,
-  movss_tt,
-  movsd_tt,
-  lea_tt,
-  movsx_tt,
-  movzx_tt,
-  movsxd_tt,
-  push_tt,
-  pop_tt,
-  add_tt,
-  sub_tt,
-  idiv_tt,
-  imul_tt,
-  div_tt,
-  mul_tt,
-  neg_tt,
-  movq_tt,
-  addss_tt,
-  addsd_tt,
-  subss_tt,
-  subsd_tt,
-  divss_tt,
-  divsd_tt,
-  mulss_tt,
-  mulsd_tt,
-  and_tt,
-  or_tt,
-  xor_tt,
-  not_tt,
-  shl_tt,
-  shr_tt,
-  sar_tt,
-  call_tt,
+    enum class x86_64_instr_token : std::uint8_t { // will add more instr i.e jumps,
+                                                   // cmp(comiss, etc.) + casting
+                                                   // instr
+        mov_tt,
+        syscall_tt,
+        ret_tt,
+        movss_tt,
+        movsd_tt,
+        lea_tt,
+        movsx_tt,
+        movzx_tt,
+        movsxd_tt,
+        push_tt,
+        pop_tt,
+        add_tt,
+        sub_tt,
+        idiv_tt,
+        imul_tt,
+        div_tt,
+        mul_tt,
+        neg_tt,
+        movq_tt,
+        addss_tt,
+        addsd_tt,
+        subss_tt,
+        subsd_tt,
+        divss_tt,
+        divsd_tt,
+        mulss_tt,
+        mulsd_tt,
+        and_tt,
+        or_tt,
+        xor_tt,
+        not_tt,
+        shl_tt,
+        shr_tt,
+        sar_tt,
+        call_tt,
 
-  bracket_left_tt,
-  bracket_right_tt,
-  multiplication_tt,
-  minus_tt,
-  addition_tt,
-  comma_tt,
+        bracket_left_tt,
+        bracket_right_tt,
+        multiplication_tt,
+        minus_tt,
+        addition_tt,
+        comma_tt,
 
-  rax,
-  rcx,
-  rdx,
-  rbx,
-  rsp,
-  rbp,
-  rsi,
-  rdi,
-  eax,
-  ecx,
-  edx,
-  ebx,
-  esp,
-  ebp,
-  esi,
-  edi,
-  ax,
-  cx,
-  dx,
-  bx,
-  sp,
-  bp,
-  si,
-  di,
-  al,
-  cl,
-  dl,
-  bl,
-  spl,
-  bpl,
-  sil,
-  dil,
-  r8,
-  r9,
-  r10,
-  r11,
-  r12,
-  r13,
-  r14,
-  r15,
-  r8d,
-  r9d,
-  r10d,
-  r11d,
-  r12d,
-  r13d,
-  r14d,
-  r15d,
-  r8w,
-  r9w,
-  r10w,
-  r11w,
-  r12w,
-  r13w,
-  r14w,
-  r15w,
-  r8b,
-  r9b,
-  r10b,
-  r11b,
-  r12b,
-  r13b,
-  r14b,
-  r15b,
-  rip, // ip
+        rax,
+        rcx,
+        rdx,
+        rbx,
+        rsp,
+        rbp,
+        rsi,
+        rdi,
+        eax,
+        ecx,
+        edx,
+        ebx,
+        esp,
+        ebp,
+        esi,
+        edi,
+        ax,
+        cx,
+        dx,
+        bx,
+        sp,
+        bp,
+        si,
+        di,
+        al,
+        cl,
+        dl,
+        bl,
+        spl,
+        bpl,
+        sil,
+        dil,
+        r8,
+        r9,
+        r10,
+        r11,
+        r12,
+        r13,
+        r14,
+        r15,
+        r8d,
+        r9d,
+        r10d,
+        r11d,
+        r12d,
+        r13d,
+        r14d,
+        r15d,
+        r8w,
+        r9w,
+        r10w,
+        r11w,
+        r12w,
+        r13w,
+        r14w,
+        r15w,
+        r8b,
+        r9b,
+        r10b,
+        r11b,
+        r12b,
+        r13b,
+        r14b,
+        r15b,
+        rip, // ip
 
-  xmm0,
-  xmm1,
-  xmm2,
-  xmm3,
-  xmm4,
-  xmm5,
-  xmm6,
-  xmm7,
-  xmm8,
-  xmm9,
-  xmm10,
-  xmm11,
-  xmm12,
-  xmm13,
-  xmm14,
-  xmm15,
+        xmm0,
+        xmm1,
+        xmm2,
+        xmm3,
+        xmm4,
+        xmm5,
+        xmm6,
+        xmm7,
+        xmm8,
+        xmm9,
+        xmm10,
+        xmm11,
+        xmm12,
+        xmm13,
+        xmm14,
+        xmm15,
 
-  number_literal_tt,
-  end_of_assembly_tt,
-  unknown_tt
-};
+        number_literal_tt,
+        end_of_assembly_tt,
+        unknown_tt
+    };
 
-typedef struct assembler_token {
-  std::string lexeme;
-  x86_64_instr_token tt;
+    typedef struct assembler_token {
+        std::string lexeme;
+        x86_64_instr_token tt;
 
-  static std::string get_typename(const x86_64_instr_token &tt);
+        static std::string get_typename(const x86_64_instr_token& tt);
 
-  explicit assembler_token(
-      std::string lexeme = "",
-      const x86_64_instr_token &tt = x86_64_instr_token::unknown_tt)
-      : lexeme(std::move(lexeme)), tt(tt) {}
-} assembler_token;
+        explicit assembler_token(std::string lexeme = "", const x86_64_instr_token& tt = x86_64_instr_token::unknown_tt) : lexeme(std::move(lexeme)), tt(tt) {}
+    } assembler_token;
 
-inline std::unordered_map<char, x86_64_instr_token> assembler_operator_map{
-    {'[', x86_64_instr_token::bracket_left_tt},
-    {']', x86_64_instr_token::bracket_right_tt},
-    {'*', x86_64_instr_token::multiplication_tt},
-    {'-', x86_64_instr_token::minus_tt},
-    {'+', x86_64_instr_token::addition_tt},
-    {',', x86_64_instr_token::comma_tt}};
+    inline std::unordered_map<char, x86_64_instr_token> assembler_operator_map{{'[', x86_64_instr_token::bracket_left_tt}, {']', x86_64_instr_token::bracket_right_tt}, {'*', x86_64_instr_token::multiplication_tt},
+                                                                               {'-', x86_64_instr_token::minus_tt},        {'+', x86_64_instr_token::addition_tt},      {',', x86_64_instr_token::comma_tt}};
 
-inline std::unordered_map<std::string, x86_64_instr_token> assembler_kw_map = {
-    {"mov", x86_64_instr_token::mov_tt},
-    {"syscall", x86_64_instr_token::syscall_tt},
-    {"ret", x86_64_instr_token::ret_tt},
-    {"movss", x86_64_instr_token::movss_tt},
-    {"movsd", x86_64_instr_token::movsd_tt},
-    {"lea", x86_64_instr_token::lea_tt},
-    {"movsx", x86_64_instr_token::movsx_tt},
-    {"movzx", x86_64_instr_token::movzx_tt},
-    {"movsxd", x86_64_instr_token::movsxd_tt},
-    {"push", x86_64_instr_token::push_tt},
-    {"pop", x86_64_instr_token::pop_tt},
-    {"add", x86_64_instr_token::add_tt},
-    {"sub", x86_64_instr_token::sub_tt},
-    {"idiv", x86_64_instr_token::idiv_tt},
-    {"imul", x86_64_instr_token::imul_tt},
-    {"div", x86_64_instr_token::div_tt},
-    {"mul", x86_64_instr_token::mul_tt},
-    {"neg", x86_64_instr_token::neg_tt},
-    {"movq", x86_64_instr_token::movq_tt},
-    {"addss", x86_64_instr_token::addss_tt},
-    {"addsd", x86_64_instr_token::addsd_tt},
-    {"subss", x86_64_instr_token::subss_tt},
-    {"subsd", x86_64_instr_token::subsd_tt},
-    {"divss", x86_64_instr_token::divss_tt},
-    {"divsd", x86_64_instr_token::divsd_tt},
-    {"mulss", x86_64_instr_token::mulss_tt},
-    {"mulsd", x86_64_instr_token::mulsd_tt},
-    {"and", x86_64_instr_token::and_tt},
-    {"or", x86_64_instr_token::or_tt},
-    {"xor", x86_64_instr_token::xor_tt},
-    {"not", x86_64_instr_token::not_tt},
-    {"shl", x86_64_instr_token::shl_tt},
-    {"shr", x86_64_instr_token::shr_tt},
-    {"sar", x86_64_instr_token::sar_tt},
-    {"call", x86_64_instr_token::call_tt},
-    {"rax", x86_64_instr_token::rax},
-    {"rcx", x86_64_instr_token::rcx},
-    {"rdx", x86_64_instr_token::rdx},
-    {"rbx", x86_64_instr_token::rbx},
-    {"rsp", x86_64_instr_token::rsp},
-    {"rbp", x86_64_instr_token::rbp},
-    {"rsi", x86_64_instr_token::rsi},
-    {"rdi", x86_64_instr_token::rdi},
-    {"eax", x86_64_instr_token::eax},
-    {"ecx", x86_64_instr_token::ecx},
-    {"edx", x86_64_instr_token::edx},
-    {"ebx", x86_64_instr_token::ebx},
-    {"esp", x86_64_instr_token::esp},
-    {"ebp", x86_64_instr_token::ebp},
-    {"esi", x86_64_instr_token::esi},
-    {"edi", x86_64_instr_token::edi},
-    {"ax", x86_64_instr_token::ax},
-    {"cx", x86_64_instr_token::cx},
-    {"dx", x86_64_instr_token::dx},
-    {"bx", x86_64_instr_token::bx},
-    {"sp", x86_64_instr_token::sp},
-    {"bp", x86_64_instr_token::bp},
-    {"si", x86_64_instr_token::si},
-    {"di", x86_64_instr_token::di},
-    {"al", x86_64_instr_token::al},
-    {"cl", x86_64_instr_token::cl},
-    {"dl", x86_64_instr_token::dl},
-    {"bl", x86_64_instr_token::bl},
-    {"spl", x86_64_instr_token::spl},
-    {"bpl", x86_64_instr_token::bpl},
-    {"sil", x86_64_instr_token::sil},
-    {"dil", x86_64_instr_token::dil},
-    {"r8", x86_64_instr_token::r8},
-    {"r9", x86_64_instr_token::r9},
-    {"r10", x86_64_instr_token::r10},
-    {"r11", x86_64_instr_token::r11},
-    {"r12", x86_64_instr_token::r12},
-    {"r13", x86_64_instr_token::r13},
-    {"r14", x86_64_instr_token::r14},
-    {"r15", x86_64_instr_token::r15},
-    {"r8d", x86_64_instr_token::r8d},
-    {"r9d", x86_64_instr_token::r9d},
-    {"r10d", x86_64_instr_token::r10d},
-    {"r11d", x86_64_instr_token::r11d},
-    {"r12d", x86_64_instr_token::r12d},
-    {"r13d", x86_64_instr_token::r13d},
-    {"r14d", x86_64_instr_token::r14d},
-    {"r15d", x86_64_instr_token::r15d},
-    {"r8w", x86_64_instr_token::r8w},
-    {"r9w", x86_64_instr_token::r9w},
-    {"r10w", x86_64_instr_token::r10w},
-    {"r11w", x86_64_instr_token::r11w},
-    {"r12w", x86_64_instr_token::r12w},
-    {"r13w", x86_64_instr_token::r13w},
-    {"r14w", x86_64_instr_token::r14w},
-    {"r15w", x86_64_instr_token::r15w},
-    {"r8b", x86_64_instr_token::r8b},
-    {"r9b", x86_64_instr_token::r9b},
-    {"r10b", x86_64_instr_token::r10b},
-    {"r11b", x86_64_instr_token::r11b},
-    {"r12b", x86_64_instr_token::r12b},
-    {"r13b", x86_64_instr_token::r13b},
-    {"r14b", x86_64_instr_token::r14b},
-    {"r15b", x86_64_instr_token::r15b},
-    {"rip", x86_64_instr_token::rip},
-    {"xmm0", x86_64_instr_token::xmm0},
-    {"xmm1", x86_64_instr_token::xmm1},
-    {"xmm2", x86_64_instr_token::xmm2},
-    {"xmm3", x86_64_instr_token::xmm3},
-    {"xmm4", x86_64_instr_token::xmm4},
-    {"xmm5", x86_64_instr_token::xmm5},
-    {"xmm6", x86_64_instr_token::xmm6},
-    {"xmm7", x86_64_instr_token::xmm7},
-    {"xmm8", x86_64_instr_token::xmm8},
-    {"xmm9", x86_64_instr_token::xmm9},
-    {"xmm10", x86_64_instr_token::xmm10},
-    {"xmm11", x86_64_instr_token::xmm11},
-    {"xmm12", x86_64_instr_token::xmm12},
-    {"xmm13", x86_64_instr_token::xmm13},
-    {"xmm14", x86_64_instr_token::xmm14},
-    {"xmm15", x86_64_instr_token::xmm15},
-};
+    inline std::unordered_map<std::string, x86_64_instr_token> assembler_kw_map = {
+        {"mov", x86_64_instr_token::mov_tt},
+        {"syscall", x86_64_instr_token::syscall_tt},
+        {"ret", x86_64_instr_token::ret_tt},
+        {"movss", x86_64_instr_token::movss_tt},
+        {"movsd", x86_64_instr_token::movsd_tt},
+        {"lea", x86_64_instr_token::lea_tt},
+        {"movsx", x86_64_instr_token::movsx_tt},
+        {"movzx", x86_64_instr_token::movzx_tt},
+        {"movsxd", x86_64_instr_token::movsxd_tt},
+        {"push", x86_64_instr_token::push_tt},
+        {"pop", x86_64_instr_token::pop_tt},
+        {"add", x86_64_instr_token::add_tt},
+        {"sub", x86_64_instr_token::sub_tt},
+        {"idiv", x86_64_instr_token::idiv_tt},
+        {"imul", x86_64_instr_token::imul_tt},
+        {"div", x86_64_instr_token::div_tt},
+        {"mul", x86_64_instr_token::mul_tt},
+        {"neg", x86_64_instr_token::neg_tt},
+        {"movq", x86_64_instr_token::movq_tt},
+        {"addss", x86_64_instr_token::addss_tt},
+        {"addsd", x86_64_instr_token::addsd_tt},
+        {"subss", x86_64_instr_token::subss_tt},
+        {"subsd", x86_64_instr_token::subsd_tt},
+        {"divss", x86_64_instr_token::divss_tt},
+        {"divsd", x86_64_instr_token::divsd_tt},
+        {"mulss", x86_64_instr_token::mulss_tt},
+        {"mulsd", x86_64_instr_token::mulsd_tt},
+        {"and", x86_64_instr_token::and_tt},
+        {"or", x86_64_instr_token::or_tt},
+        {"xor", x86_64_instr_token::xor_tt},
+        {"not", x86_64_instr_token::not_tt},
+        {"shl", x86_64_instr_token::shl_tt},
+        {"shr", x86_64_instr_token::shr_tt},
+        {"sar", x86_64_instr_token::sar_tt},
+        {"call", x86_64_instr_token::call_tt},
+        {"rax", x86_64_instr_token::rax},
+        {"rcx", x86_64_instr_token::rcx},
+        {"rdx", x86_64_instr_token::rdx},
+        {"rbx", x86_64_instr_token::rbx},
+        {"rsp", x86_64_instr_token::rsp},
+        {"rbp", x86_64_instr_token::rbp},
+        {"rsi", x86_64_instr_token::rsi},
+        {"rdi", x86_64_instr_token::rdi},
+        {"eax", x86_64_instr_token::eax},
+        {"ecx", x86_64_instr_token::ecx},
+        {"edx", x86_64_instr_token::edx},
+        {"ebx", x86_64_instr_token::ebx},
+        {"esp", x86_64_instr_token::esp},
+        {"ebp", x86_64_instr_token::ebp},
+        {"esi", x86_64_instr_token::esi},
+        {"edi", x86_64_instr_token::edi},
+        {"ax", x86_64_instr_token::ax},
+        {"cx", x86_64_instr_token::cx},
+        {"dx", x86_64_instr_token::dx},
+        {"bx", x86_64_instr_token::bx},
+        {"sp", x86_64_instr_token::sp},
+        {"bp", x86_64_instr_token::bp},
+        {"si", x86_64_instr_token::si},
+        {"di", x86_64_instr_token::di},
+        {"al", x86_64_instr_token::al},
+        {"cl", x86_64_instr_token::cl},
+        {"dl", x86_64_instr_token::dl},
+        {"bl", x86_64_instr_token::bl},
+        {"spl", x86_64_instr_token::spl},
+        {"bpl", x86_64_instr_token::bpl},
+        {"sil", x86_64_instr_token::sil},
+        {"dil", x86_64_instr_token::dil},
+        {"r8", x86_64_instr_token::r8},
+        {"r9", x86_64_instr_token::r9},
+        {"r10", x86_64_instr_token::r10},
+        {"r11", x86_64_instr_token::r11},
+        {"r12", x86_64_instr_token::r12},
+        {"r13", x86_64_instr_token::r13},
+        {"r14", x86_64_instr_token::r14},
+        {"r15", x86_64_instr_token::r15},
+        {"r8d", x86_64_instr_token::r8d},
+        {"r9d", x86_64_instr_token::r9d},
+        {"r10d", x86_64_instr_token::r10d},
+        {"r11d", x86_64_instr_token::r11d},
+        {"r12d", x86_64_instr_token::r12d},
+        {"r13d", x86_64_instr_token::r13d},
+        {"r14d", x86_64_instr_token::r14d},
+        {"r15d", x86_64_instr_token::r15d},
+        {"r8w", x86_64_instr_token::r8w},
+        {"r9w", x86_64_instr_token::r9w},
+        {"r10w", x86_64_instr_token::r10w},
+        {"r11w", x86_64_instr_token::r11w},
+        {"r12w", x86_64_instr_token::r12w},
+        {"r13w", x86_64_instr_token::r13w},
+        {"r14w", x86_64_instr_token::r14w},
+        {"r15w", x86_64_instr_token::r15w},
+        {"r8b", x86_64_instr_token::r8b},
+        {"r9b", x86_64_instr_token::r9b},
+        {"r10b", x86_64_instr_token::r10b},
+        {"r11b", x86_64_instr_token::r11b},
+        {"r12b", x86_64_instr_token::r12b},
+        {"r13b", x86_64_instr_token::r13b},
+        {"r14b", x86_64_instr_token::r14b},
+        {"r15b", x86_64_instr_token::r15b},
+        {"rip", x86_64_instr_token::rip},
+        {"xmm0", x86_64_instr_token::xmm0},
+        {"xmm1", x86_64_instr_token::xmm1},
+        {"xmm2", x86_64_instr_token::xmm2},
+        {"xmm3", x86_64_instr_token::xmm3},
+        {"xmm4", x86_64_instr_token::xmm4},
+        {"xmm5", x86_64_instr_token::xmm5},
+        {"xmm6", x86_64_instr_token::xmm6},
+        {"xmm7", x86_64_instr_token::xmm7},
+        {"xmm8", x86_64_instr_token::xmm8},
+        {"xmm9", x86_64_instr_token::xmm9},
+        {"xmm10", x86_64_instr_token::xmm10},
+        {"xmm11", x86_64_instr_token::xmm11},
+        {"xmm12", x86_64_instr_token::xmm12},
+        {"xmm13", x86_64_instr_token::xmm13},
+        {"xmm14", x86_64_instr_token::xmm14},
+        {"xmm15", x86_64_instr_token::xmm15},
+    };
 
-inline std::unordered_map<x86_64_instr_token, std::string>
-    assembler_token_typename_map = {
+    inline std::unordered_map<x86_64_instr_token, std::string> assembler_token_typename_map = {
         {x86_64_instr_token::mov_tt, "mov_instr"},
         {x86_64_instr_token::syscall_tt, "syscall_instr"},
         {x86_64_instr_token::ret_tt, "ret_instr"},
@@ -406,107 +397,74 @@ inline std::unordered_map<x86_64_instr_token, std::string>
         {x86_64_instr_token::number_literal_tt, "number_literal"},
         {x86_64_instr_token::end_of_assembly_tt, "end_of_assembly"},
         {x86_64_instr_token::unknown_tt, "unknown"},
-};
+    };
 
-std::string assembler_token::get_typename(const x86_64_instr_token &tt) {
-  if (assembler_token_typename_map.contains(tt)) {
-    return assembler_token_typename_map[tt];
-  }
+    std::string assembler_token::get_typename(const x86_64_instr_token& tt) {
+        if (assembler_token_typename_map.contains(tt)) {
+            return assembler_token_typename_map[tt];
+        }
 
-  throw std::runtime_error("Can't find token typename in assembler");
-}
+        throw std::runtime_error("Can't find token typename in assembler");
+    }
 
-inline std::unordered_map<x86_64_instr_token, grp> assembler_token_to_gpr64 = {
-    {x86_64_instr_token::rax, rax}, {x86_64_instr_token::rcx, rcx},
-    {x86_64_instr_token::rdx, rdx}, {x86_64_instr_token::rbx, rbx},
-    {x86_64_instr_token::rsp, rsp}, {x86_64_instr_token::rbp, rbp},
-    {x86_64_instr_token::rsi, rsi}, {x86_64_instr_token::rdi, rdi},
-    {x86_64_instr_token::r8, r8},   {x86_64_instr_token::r9, r9},
-    {x86_64_instr_token::r10, r10}, {x86_64_instr_token::r11, r11},
-    {x86_64_instr_token::r12, r12}, {x86_64_instr_token::r13, r13},
-    {x86_64_instr_token::r14, r14}, {x86_64_instr_token::r15, r15},
-    {x86_64_instr_token::rip, rip},
-};
+    inline std::unordered_map<x86_64_instr_token, grp> assembler_token_to_gpr64 = {
+        {x86_64_instr_token::rax, rax}, {x86_64_instr_token::rcx, rcx}, {x86_64_instr_token::rdx, rdx}, {x86_64_instr_token::rbx, rbx}, {x86_64_instr_token::rsp, rsp}, {x86_64_instr_token::rbp, rbp},
+        {x86_64_instr_token::rsi, rsi}, {x86_64_instr_token::rdi, rdi}, {x86_64_instr_token::r8, r8},   {x86_64_instr_token::r9, r9},   {x86_64_instr_token::r10, r10}, {x86_64_instr_token::r11, r11},
+        {x86_64_instr_token::r12, r12}, {x86_64_instr_token::r13, r13}, {x86_64_instr_token::r14, r14}, {x86_64_instr_token::r15, r15}, {x86_64_instr_token::rip, rip},
+    };
 
-inline std::unordered_map<x86_64_instr_token, grp> assembler_token_to_gpr32 = {
-    {x86_64_instr_token::eax, rax},  {x86_64_instr_token::ecx, rcx},
-    {x86_64_instr_token::edx, rdx},  {x86_64_instr_token::ebx, rbx},
-    {x86_64_instr_token::esp, rsp},  {x86_64_instr_token::ebp, rbp},
-    {x86_64_instr_token::esi, rsi},  {x86_64_instr_token::edi, rdi},
-    {x86_64_instr_token::r8d, r8},   {x86_64_instr_token::r9d, r9},
-    {x86_64_instr_token::r10d, r10}, {x86_64_instr_token::r11d, r11},
-    {x86_64_instr_token::r12d, r12}, {x86_64_instr_token::r13d, r13},
-    {x86_64_instr_token::r14d, r14}, {x86_64_instr_token::r15d, r15},
-};
+    inline std::unordered_map<x86_64_instr_token, grp> assembler_token_to_gpr32 = {
+        {x86_64_instr_token::eax, rax},  {x86_64_instr_token::ecx, rcx},  {x86_64_instr_token::edx, rdx},  {x86_64_instr_token::ebx, rbx},  {x86_64_instr_token::esp, rsp},  {x86_64_instr_token::ebp, rbp},
+        {x86_64_instr_token::esi, rsi},  {x86_64_instr_token::edi, rdi},  {x86_64_instr_token::r8d, r8},   {x86_64_instr_token::r9d, r9},   {x86_64_instr_token::r10d, r10}, {x86_64_instr_token::r11d, r11},
+        {x86_64_instr_token::r12d, r12}, {x86_64_instr_token::r13d, r13}, {x86_64_instr_token::r14d, r14}, {x86_64_instr_token::r15d, r15},
+    };
 
-inline std::unordered_map<x86_64_instr_token, grp> assembler_token_to_gpr16 = {
-    {x86_64_instr_token::ax, rax},   {x86_64_instr_token::cx, rcx},
-    {x86_64_instr_token::dx, rdx},   {x86_64_instr_token::bx, rbx},
-    {x86_64_instr_token::sp, rsp},   {x86_64_instr_token::bp, rbp},
-    {x86_64_instr_token::si, rsi},   {x86_64_instr_token::di, rdi},
-    {x86_64_instr_token::r8w, r8},   {x86_64_instr_token::r9w, r9},
-    {x86_64_instr_token::r10w, r10}, {x86_64_instr_token::r11w, r11},
-    {x86_64_instr_token::r12w, r12}, {x86_64_instr_token::r13w, r13},
-    {x86_64_instr_token::r14w, r14}, {x86_64_instr_token::r15w, r15},
-};
+    inline std::unordered_map<x86_64_instr_token, grp> assembler_token_to_gpr16 = {
+        {x86_64_instr_token::ax, rax},   {x86_64_instr_token::cx, rcx},   {x86_64_instr_token::dx, rdx},   {x86_64_instr_token::bx, rbx},   {x86_64_instr_token::sp, rsp},   {x86_64_instr_token::bp, rbp},
+        {x86_64_instr_token::si, rsi},   {x86_64_instr_token::di, rdi},   {x86_64_instr_token::r8w, r8},   {x86_64_instr_token::r9w, r9},   {x86_64_instr_token::r10w, r10}, {x86_64_instr_token::r11w, r11},
+        {x86_64_instr_token::r12w, r12}, {x86_64_instr_token::r13w, r13}, {x86_64_instr_token::r14w, r14}, {x86_64_instr_token::r15w, r15},
+    };
 
-inline std::unordered_map<x86_64_instr_token, grp> assembler_token_to_gpr8 = {
-    {x86_64_instr_token::al, rax},   {x86_64_instr_token::cl, rcx},
-    {x86_64_instr_token::dl, rdx},   {x86_64_instr_token::bl, rbx},
-    {x86_64_instr_token::spl, rsp},  {x86_64_instr_token::bpl, rbp},
-    {x86_64_instr_token::sil, rsi},  {x86_64_instr_token::dil, rdi},
-    {x86_64_instr_token::r8b, r8},   {x86_64_instr_token::r9b, r9},
-    {x86_64_instr_token::r10b, r10}, {x86_64_instr_token::r11b, r11},
-    {x86_64_instr_token::r12b, r12}, {x86_64_instr_token::r13b, r13},
-    {x86_64_instr_token::r14b, r14}, {x86_64_instr_token::r15b, r15},
-};
+    inline std::unordered_map<x86_64_instr_token, grp> assembler_token_to_gpr8 = {
+        {x86_64_instr_token::al, rax},   {x86_64_instr_token::cl, rcx},   {x86_64_instr_token::dl, rdx},   {x86_64_instr_token::bl, rbx},   {x86_64_instr_token::spl, rsp},  {x86_64_instr_token::bpl, rbp},
+        {x86_64_instr_token::sil, rsi},  {x86_64_instr_token::dil, rdi},  {x86_64_instr_token::r8b, r8},   {x86_64_instr_token::r9b, r9},   {x86_64_instr_token::r10b, r10}, {x86_64_instr_token::r11b, r11},
+        {x86_64_instr_token::r12b, r12}, {x86_64_instr_token::r13b, r13}, {x86_64_instr_token::r14b, r14}, {x86_64_instr_token::r15b, r15},
+    };
 
-inline grp assembler_token_to_gpr(x86_64_instr_token tt) {
-  if (assembler_token_to_gpr64.contains(tt))
-    return assembler_token_to_gpr64[tt];
-  if (assembler_token_to_gpr32.contains(tt))
-    return assembler_token_to_gpr32[tt];
-  if (assembler_token_to_gpr16.contains(tt))
-    return assembler_token_to_gpr16[tt];
-  if (assembler_token_to_gpr8.contains(tt))
-    return assembler_token_to_gpr8[tt];
-  throw std::runtime_error("token is not a gpr");
-}
+    inline grp assembler_token_to_gpr(x86_64_instr_token tt) {
+        if (assembler_token_to_gpr64.contains(tt))
+            return assembler_token_to_gpr64[tt];
+        if (assembler_token_to_gpr32.contains(tt))
+            return assembler_token_to_gpr32[tt];
+        if (assembler_token_to_gpr16.contains(tt))
+            return assembler_token_to_gpr16[tt];
+        if (assembler_token_to_gpr8.contains(tt))
+            return assembler_token_to_gpr8[tt];
+        throw std::runtime_error("token is not a gpr");
+    }
 
-inline bool is_gpr(x86_64_instr_token tt) {
-  if (assembler_token_to_gpr64.contains(tt))
-    return true;
-  if (assembler_token_to_gpr32.contains(tt))
-    return true;
-  if (assembler_token_to_gpr16.contains(tt))
-    return true;
-  if (assembler_token_to_gpr8.contains(tt))
-    return true;
+    inline bool is_gpr(x86_64_instr_token tt) {
+        if (assembler_token_to_gpr64.contains(tt))
+            return true;
+        if (assembler_token_to_gpr32.contains(tt))
+            return true;
+        if (assembler_token_to_gpr16.contains(tt))
+            return true;
+        if (assembler_token_to_gpr8.contains(tt))
+            return true;
 
-  return false;
-}
+        return false;
+    }
 
-inline std::unordered_map<x86_64_instr_token, simd128> assembler_token_to_simd =
-    {
-        {x86_64_instr_token::xmm0, xmm0},   {x86_64_instr_token::xmm1, xmm1},
-        {x86_64_instr_token::xmm2, xmm2},   {x86_64_instr_token::xmm3, xmm3},
-        {x86_64_instr_token::xmm4, xmm4},   {x86_64_instr_token::xmm5, xmm5},
-        {x86_64_instr_token::xmm6, xmm6},   {x86_64_instr_token::xmm7, xmm7},
-        {x86_64_instr_token::xmm8, xmm8},   {x86_64_instr_token::xmm9, xmm9},
-        {x86_64_instr_token::xmm10, xmm10}, {x86_64_instr_token::xmm11, xmm11},
-        {x86_64_instr_token::xmm12, xmm12}, {x86_64_instr_token::xmm13, xmm13},
-        {x86_64_instr_token::xmm14, xmm14}, {x86_64_instr_token::xmm15, xmm15},
-};
+    inline std::unordered_map<x86_64_instr_token, simd128> assembler_token_to_simd = {
+        {x86_64_instr_token::xmm0, xmm0},   {x86_64_instr_token::xmm1, xmm1},   {x86_64_instr_token::xmm2, xmm2},   {x86_64_instr_token::xmm3, xmm3},   {x86_64_instr_token::xmm4, xmm4},   {x86_64_instr_token::xmm5, xmm5},
+        {x86_64_instr_token::xmm6, xmm6},   {x86_64_instr_token::xmm7, xmm7},   {x86_64_instr_token::xmm8, xmm8},   {x86_64_instr_token::xmm9, xmm9},   {x86_64_instr_token::xmm10, xmm10}, {x86_64_instr_token::xmm11, xmm11},
+        {x86_64_instr_token::xmm12, xmm12}, {x86_64_instr_token::xmm13, xmm13}, {x86_64_instr_token::xmm14, xmm14}, {x86_64_instr_token::xmm15, xmm15},
+    };
 
-inline bool is_xmm(x86_64_instr_token tt) {
-  return assembler_token_to_simd.contains(tt);
-}
+    inline bool is_xmm(x86_64_instr_token tt) { return assembler_token_to_simd.contains(tt); }
 
-inline bool is_gpr8(x86_64_instr_token tt) {
-  return assembler_token_to_gpr8.contains(tt);
-}
+    inline bool is_gpr8(x86_64_instr_token tt) { return assembler_token_to_gpr8.contains(tt); }
 
-inline bool is_gpr16(x86_64_instr_token tt) {
-  return assembler_token_to_gpr16.contains(tt);
-}
+    inline bool is_gpr16(x86_64_instr_token tt) { return assembler_token_to_gpr16.contains(tt); }
 } // namespace occult::x86_64
