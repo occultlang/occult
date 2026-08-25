@@ -45,6 +45,8 @@ if (WIN32)
 	./src/backend/linker/linker.hpp
 	./src/backend/codegen/ir_gen.cpp
 	./src/backend/codegen/ir_gen.hpp 
+	./src/backend/codegen/tac_gen.cpp
+	./src/backend/codegen/tac_gen.hpp 
 	./src/third-party/xxhash/xxhash.h
 	./src/third-party/xxhash/xxhash.c
 	./src/main.cpp)
