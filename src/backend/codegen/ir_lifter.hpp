@@ -5,13 +5,14 @@
 
 namespace occult {
     class ir_lifter {
-        std::vector<rir_function> lifted_functions;
         std::vector<ir_function> functions;
 
     public: 
         ir_lifter(std::vector<ir_function>& functions) : functions(functions) {}
 
-        void lift_to_rir() {
+        std::vector<rir_function> lift() {
+            std::vector<rir_function> lifted_functions;
+
             auto to_rir_operand = [](const ir_operand& v) -> rir_operand {
                 return std::visit([](auto&& x) -> rir_operand {
                     using T = std::decay_t<decltype(x)>;
@@ -44,10 +45,10 @@ namespace occult {
                             r_instr.type = instr.type;
                             r_instr.op = rir_opcode::rop_mov;
                             r_instr.dst = _vreg_allocator.fresh(); 
-                            r_instr.operand[0] = to_rir_operand(instr.operand);
+                            r_instr.src[0] = to_rir_operand(instr.operand);
 
                             sim_stack.emplace_back(r_instr.dst);
-                            translated_func.emplace_back(r_instr);
+                            translated_func.code.emplace_back(r_instr);
 
                             break;
                         }
@@ -56,7 +57,11 @@ namespace occult {
                         }
                     }
                 }
+
+                lifted_functions.emplace_back(translated_func);
             }
+
+            return lifted_functions;
         }
     };
 } // namespace occult
