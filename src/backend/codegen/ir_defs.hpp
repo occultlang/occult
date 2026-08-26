@@ -332,4 +332,61 @@ namespace occult {
     };
 
     enum ir_typename : std::uint8_t { int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, string, boolean };
+
+    // start of register ir (rir)
+
+    enum rir_opcode {
+        rop_null,
+        rop_mov,
+    };
+
+    struct rir_vreg {
+        std::uint32_t id;
+        bool operator==(const rir_vreg& o) const { return id == o.id; }
+    };
+
+    using rir_operand = std::variant<std::monostate, rir_vreg, std::int64_t, std::uint64_t, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t, std::uint8_t, double, float, std::string>;
+
+    struct rir_instr {
+        rir_opcode op;
+        ir_vreg dst{};                    
+        rir_operand src[2]{};            
+        std::vector<rir_operand> extra;   // only populated for call args / other variadic ops
+        std::string type; 
+
+        rir_instr() : op(rop_null) {}
+
+        rir_instr(rir_opcode op, ir_vreg dst) : op(op), dst(dst) {}
+
+        rir_instr(rir_opcode op, ir_vreg dst, rir_operand s0) : op(op), dst(dst) { src[0] = std::move(s0); }
+
+        rir_instr(rir_opcode op, ir_vreg dst, rir_operand s0, rir_operand s1) : op(op), dst(dst) {
+            src[0] = std::move(s0);
+            src[1] = std::move(s1);
+        }
+
+        rir_instr(rir_opcode op, ir_vreg dst, rir_operand s0, std::string type)
+            : op(op), dst(dst), type(std::move(type)) {
+            src[0] = std::move(s0);
+        }
+    };
+
+    using rir_body = std::vector<rir_instr>;
+
+    struct rir_function {
+        rir_body code;
+        std::vector<ir_argument> args;
+        std::string name;
+        std::string type;
+        bool uses_shellcode = false;
+        bool is_external = false;
+        bool is_variadic = false;
+        bool uses_assembly = false;
+        std::uint32_t vreg_count = 0; // how many vregs this function allocated
+    };
+
+    struct vreg_allocator {
+        std::uint32_t next = 0;
+        rir_vreg fresh() { return rir_vreg{ next++ }; }
+    };
 } // namespace occult
