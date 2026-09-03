@@ -16,6 +16,7 @@
 #ifdef __linux
 #include <sys/stat.h>
 #include "backend/codegen/code_cache.hpp"
+#include "backend/codegen/ir_lifter.hpp"
 #include "backend/codegen/x86_64_assembler.hpp"
 #include "backend/linker/linker.hpp"
 
@@ -147,6 +148,18 @@ int main(int argc, char* argv[]) {
     }
 
     start = std::chrono::high_resolution_clock::now();
+    occult::ir_lifter ir_lifter(ir); // lift to register ir
+    auto reg_ir = ir_lifter.lift();
+    end = std::chrono::high_resolution_clock::now();
+    duration = end - start;
+    if (showtime) {
+        std::cout << GREEN << "[OCCULTC] Completed lifting IR \033[0m" << duration.count() << "ms\n";
+    }
+    if (debug) {
+        occult::ir_lifter::visualize_register_ir(reg_ir);
+    }
+
+    /*start = std::chrono::high_resolution_clock::now();
     occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
 
     try {
@@ -168,7 +181,7 @@ int main(int argc, char* argv[]) {
         std::cout << "0x" << std::hex <<
     reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
       }
-    }*/
+    }
 
 #ifdef __linux
     if (jit) {
@@ -249,7 +262,7 @@ int main(int argc, char* argv[]) {
 
         chmod(filenameout.c_str(), S_IRWXU);
     }
-#endif
+#endif*/
 
     return 0;
 }

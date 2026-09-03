@@ -338,29 +338,129 @@ namespace occult {
     enum rir_opcode {
         rop_null,
         rop_mov,
+        rop_add,
+        rop_sub,
+        rop_mul,
+        rop_div,
+        rop_mod,
+        rop_imul,
+        rop_idiv,
+        rop_imod,
+        rop_bitwise_and,
+        rop_bitwise_or,
+        rop_bitwise_xor,
+        rop_bitwise_not,
+        rop_logical_and,
+        rop_logical_or,
+        rop_not,
+        rop_bitwise_lshift,
+        rop_bitwise_rshift,
+        rop_ibitwise_rshift,
+        rop_negate,
+        rop_cmp,
+        rop_label,
+        rop_jmp,
+        rop_jz,
+        rop_jnz,
+        rop_jl,
+        rop_jle,
+        rop_jg,
+        rop_jge,
+        rop_ret,
+        rop_call,
+        rop_load,
+        rop_store,
     };
 
     inline std::string ropcode_to_string(rir_opcode op) {
-        switch (op)
-        {
-            case rop_null: { return "null";  }
-            case rop_mov:  { return "mov"; }
+        switch (op) {
+        case rop_null:
+            return "null";
+        case rop_mov:
+            return "mov";
+        case rop_add:
+            return "add";
+        case rop_sub:
+            return "sub";
+        case rop_mul:
+            return "mul";
+        case rop_div:
+            return "div";
+        case rop_mod:
+            return "mod";
+        case rop_imul:
+            return "imul";
+        case rop_idiv:
+            return "idiv";
+        case rop_imod:
+            return "imod";
+        case rop_bitwise_and:
+            return "bitwise_and";
+        case rop_bitwise_or:
+            return "bitwise_or";
+        case rop_bitwise_xor:
+            return "bitwise_xor";
+        case rop_bitwise_not:
+            return "bitwise_not";
+        case rop_logical_and:
+            return "logical_and";
+        case rop_logical_or:
+            return "logical_or";
+        case rop_not:
+            return "not";
+        case rop_bitwise_lshift:
+            return "bitwise_lshift";
+        case rop_bitwise_rshift:
+            return "bitwise_rshift";
+        case rop_ibitwise_rshift:
+            return "ibitwise_rshift";
+        case rop_negate:
+            return "negate";
+        case rop_cmp:
+            return "cmp";
+        case rop_label:
+            return "label";
+        case rop_jmp:
+            return "jmp";
+        case rop_jz:
+            return "jz";
+        case rop_jnz:
+            return "jnz";
+        case rop_jl:
+            return "jl";
+        case rop_jle:
+            return "jle";
+        case rop_jg:
+            return "jg";
+        case rop_jge:
+            return "jge";
+        case rop_ret:
+            return "ret";
+        case rop_call:
+            return "call";
+        case rop_load:
+            return "load";
+        case rop_store:
+            return "store";
         }
+        return "unknown_opcode";
     }
 
     struct rir_vreg {
         std::uint32_t id;
+        static constexpr std::uint32_t invalid_id = 0xFFFFFFFFu;
         bool operator==(const rir_vreg& o) const { return id == o.id; }
+        bool is_valid() const { return id != invalid_id; }
     };
 
     using rir_operand = std::variant<std::monostate, rir_vreg, std::int64_t, std::uint64_t, std::int32_t, std::uint32_t, std::int16_t, std::uint16_t, std::int8_t, std::uint8_t, double, float, std::string>;
 
     struct rir_instr {
         rir_opcode op;
-        rir_vreg dst{};                    
-        rir_operand src[2]{};            
-        std::vector<rir_operand> extra;   // only populated for call args / other variadic ops
-        std::string type; 
+        rir_vreg dst{};
+        rir_operand src[2]{};
+        std::vector<rir_operand> extra; // only populated for call args / other variadic ops
+        std::string type;
 
         rir_instr() : op(rop_null) {}
 
@@ -373,10 +473,7 @@ namespace occult {
             src[1] = std::move(s1);
         }
 
-        rir_instr(rir_opcode op, rir_vreg dst, rir_operand s0, std::string type)
-            : op(op), dst(dst), type(std::move(type)) {
-            src[0] = std::move(s0);
-        }
+        rir_instr(rir_opcode op, rir_vreg dst, rir_operand s0, std::string type) : op(op), dst(dst), type(std::move(type)) { src[0] = std::move(s0); }
     };
 
     using rir_body = std::vector<rir_instr>;
@@ -395,6 +492,6 @@ namespace occult {
 
     struct vreg_allocator {
         std::uint32_t next = 0;
-        rir_vreg fresh() { return rir_vreg{ next++ }; }
+        rir_vreg fresh() { return rir_vreg{next++}; }
     };
 } // namespace occult
