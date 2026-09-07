@@ -10,7 +10,7 @@ namespace occult {
         struct visitor_register {
             void operator()(std::monostate) const {}
             void operator()(const rir_vreg& v) const { std::cout << "v" << v.id; }
-            void operator()(const std::string& s) const { std::cout << "\"" << s << "\""; }
+            void operator()(const std::string& s) const { std::cout << "[" << s << "]"; }
             template <typename T>
             void operator()(const T& v) const {
                 std::cout << v;
