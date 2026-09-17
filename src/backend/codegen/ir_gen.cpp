@@ -780,7 +780,7 @@ namespace occult {
         }
     }
 
-    void ir_gen::generate_function_call(ir_function& function, cst* c) {
+    void ir_gen::generate_function_call(ir_function& function, cst* c, bool result_used) {
         const auto node = cst::cast_raw<cst_functioncall>(c);
 
         const auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name of call
@@ -854,9 +854,9 @@ namespace occult {
                 ++arg_location;
             }
 
-            int actual_arg_count = arg_location - 1;
-            function.code.emplace_back(op_call, resolved_call_name, std::to_string(actual_arg_count));
-
+            int actual_arg_count = arg_location - 1; 
+            function.code.emplace_back(op_call, resolved_call_name, std::to_string(actual_arg_count), result_used);
+            
             return;
         }
 
@@ -991,10 +991,10 @@ namespace occult {
 
         int actual_arg_count = arg_location - 1;
         if (func_it->second.is_variadic) {
-            function.code.emplace_back(op_call, resolved_call_name, std::to_string(actual_arg_count));
+            function.code.emplace_back(op_call, resolved_call_name, std::to_string(actual_arg_count), result_used);
         }
         else {
-            function.code.emplace_back(op_call, resolved_call_name);
+            function.code.emplace_back(op_call, resolved_call_name, "", result_used);
         }
     }
 
@@ -2554,7 +2554,7 @@ namespace occult {
                 }
             case cst_type::functioncall:
                 {
-                    generate_function_call(function, c.get());
+                    generate_function_call(function, c.get(), false);
 
                     break;
                 }

@@ -286,10 +286,14 @@ namespace occult {
         ir_opcode op;
         ir_operand operand;
         std::string type;
+        bool result_used = false; // only for calls
 
         ir_instr(const ir_opcode op, ir_operand operand) : op(op), operand(std::move(operand)) {}
 
         ir_instr(const ir_opcode op, ir_operand operand, std::string type) : op(op), operand(std::move(operand)), type(std::move(type)) {}
+
+        ir_instr(const ir_opcode op, ir_operand operand, std::string type, bool result_used)
+        : op(op), operand(std::move(operand)), type(std::move(type)), result_used(result_used) {}
 
         explicit ir_instr(const ir_opcode op) : op(op), operand(std::monostate()) {}
     };

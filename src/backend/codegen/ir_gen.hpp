@@ -70,7 +70,7 @@ namespace occult {
 
         void generate_common(ir_function& function, cst* c, std::string type, type_of_push type_push = type_of_push::normal);
 
-        void generate_function_call(ir_function& function, cst* c);
+        void generate_function_call(ir_function& function, cst* c, bool result_used = true);
 
         void generate_return(ir_function& function, cst_returnstmt* return_node);
 

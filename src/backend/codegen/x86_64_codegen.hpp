@@ -220,6 +220,112 @@ namespace occult::x86_64 {
             }
         };
 
+        class register_allocator {
+            std::unordered_map<std::variant<grp, simd128>, bool> register_liveliness = {
+                {rax, false},
+                {rcx, false},
+                {rdx, false},
+                {rbx, false},
+                {rsi, false},
+                {rdi, false},
+                {r8,  false},
+                {r9,  false},
+                {r10, false},
+                {r11, false},
+                {r12, false},
+                {r13, false},
+                {r14, false},
+                {r15, false},
+                {xmm0, false}, 
+                {xmm1, false}, 
+                {xmm2, false}, 
+                {xmm3, false}, 
+                {xmm4, false}, 
+                {xmm5, false}, 
+                {xmm6, false}, 
+                {xmm7, false}, 
+                {xmm8, false}, 
+                {xmm9, false}, 
+                {xmm10, false}, 
+                {xmm11, false}, 
+                {xmm12, false}, 
+                {xmm13, false}, 
+                {xmm14, false}, 
+                {xmm15, false}
+            };
+
+            const std::vector<grp> allocation_order_grp = {
+                rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11,
+                rbx, r12, r13, r14, r15 
+            };
+
+            const std::vector<simd128> allocation_order_simd128 = {
+                xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15
+            };
+
+            std::vector<std::variant<grp, simd128>> register_stack;
+        public:
+            register_allocator() = default;
+
+            // returns true if register is live
+            template<typename RegT>
+            bool check(RegT reg) {
+                auto it = register_liveliness.find(reg);
+
+                return it != register_liveliness.end() && it->second;
+            }
+
+            // turns a specific register live and returns it
+            template<typename RegT>
+            std::optional<RegT> take(RegT reg) {
+                if (!check(reg)) {
+                    register_liveliness[reg] = true;
+
+                    return reg;
+                }
+
+                return std::nullopt;
+            }
+
+            template<typename RegT>
+            void release(RegT reg) {
+                register_liveliness[reg] = false;
+            }
+
+            // allocates register based off of the allocation order
+            template<typename RegT>
+            RegT allocate() {
+                if constexpr (std::is_same_v<RegT, grp>) {
+                    for (auto& reg : allocation_order_grp) {
+                        if (auto taken_reg = take(reg); taken_reg.has_value()) {
+                            return taken_reg.value();
+                        }
+                    }
+                }
+                else if constexpr (std::is_same_v<RegT, simd128>) {
+                    for (auto& reg : allocation_order_simd128) {
+                        if (auto taken_reg = take(reg); taken_reg.has_value()) {
+                            return taken_reg.value();
+                        }
+                    }
+                }
+
+                throw std::runtime_error("Invalid type for register allocator");
+            }
+
+            // pushes register onto register stack
+            template<typename RegT>
+            void push(RegT reg) { register_stack.push_back(reg); }
+
+            // pops register from register stack and returns it
+            template<typename RegT>
+            RegT pop() {
+                auto v = register_stack.back();
+                register_stack.pop_back();
+                return std::get<RegT>(v);
+            }
+        };
+
         using register_pool_gp = register_pool<grp, 8>;
         using register_pool_simd = register_pool<simd128, 16>;
 
@@ -1704,12 +1810,26 @@ namespace occult::x86_64 {
                             return;
                         }
 
-                        int arg_count = it->args.size();
-                        bool is_variadic_call = it->is_variadic && !code.type.empty();
-                        bool is_external_call = it->is_external && !code.type.empty();
-                        if (is_variadic_call || is_external_call) {
+                        // arg_count now guarded: only read `it`'s fields when it actually resolved.
+                        // A callee absent from ir_funcs (pure external/builtin) falls back to the
+                        // explicit count ir_gen put in code.type.
+                        int arg_count = 0;
+                        if (it != ir_funcs.end()) {
+                            arg_count = static_cast<int>(it->args.size());
+                            bool is_variadic_call = it->is_variadic && !code.type.empty();
+                            bool is_external_call = it->is_external && !code.type.empty();
+                            if (is_variadic_call || is_external_call) {
+                                arg_count = std::stoi(code.type);
+                            }
+                        }
+                        else if (!code.type.empty()) {
                             arg_count = std::stoi(code.type);
                         }
+                        else {
+                            std::cout << RED << "[CODEGEN ERROR] Call to \"" << func_name << "\" has unknown arity." << RESET << std::endl;
+                            return;
+                        }
+
                         if (debug) {
                             std::cout << BLUE << "[CODEGEN INFO] Argument count: " << RESET << arg_count << std::endl;
                         }
@@ -1724,7 +1844,7 @@ namespace occult::x86_64 {
 
                         for (int i1 = arg_count - 1; i1 >= 0; i1--) {
                             bool is_fp = false;
-                            if (static_cast<std::size_t>(i1) < it->args.size()) {
+                            if (it != ir_funcs.end() && static_cast<std::size_t>(i1) < it->args.size()) {
                                 const auto& arg_type = it->args[i1].type;
                                 is_fp = (arg_type == "float32" || arg_type == "float64");
                             }
@@ -1759,9 +1879,9 @@ namespace occult::x86_64 {
                                 if (simd_pool.empty()) {
                                     if (!spill_collected_args()) {
                                         std::cout << RED
-                                                  << "[CODEGEN ERROR] Not enough FP arguments on stack "
-                                                     "for function call: "
-                                                  << func_name << RESET << std::endl;
+                                                << "[CODEGEN ERROR] Not enough FP arguments on stack "
+                                                    "for function call: "
+                                                << func_name << RESET << std::endl;
                                         for (auto& [reg_var, is_arg_fp] : args) {
                                             if (is_arg_fp)
                                                 simd_pool.free(std::get<simd128>(reg_var));
@@ -1777,9 +1897,9 @@ namespace occult::x86_64 {
                                 if (pool.empty()) {
                                     if (!spill_collected_args()) {
                                         std::cout << RED
-                                                  << "[CODEGEN ERROR] Not enough GP arguments on stack "
-                                                     "for function call: "
-                                                  << func_name << RESET << std::endl;
+                                                << "[CODEGEN ERROR] Not enough GP arguments on stack "
+                                                    "for function call: "
+                                                << func_name << RESET << std::endl;
                                         for (auto& [reg_var, is_arg_fp] : args) {
                                             if (is_arg_fp)
                                                 simd_pool.free(std::get<simd128>(reg_var));
@@ -1961,137 +2081,7 @@ namespace occult::x86_64 {
                         const std::string ret_type = (ret_it != function_return_types.end()) ? ret_it->second : "";
                         bool ret_is_fp = (ret_type == "float32" || ret_type == "float64");
 
-                        bool should_push_return = false;
-                        if (!ret_type.empty() && i + 1 < func.code.size()) {
-                            auto next_op = func.code.at(i + 1).op;
-                            switch (next_op) {
-                            case ir_opcode::op_store:
-                            case ir_opcode::op_store_at_addr:
-                            case ir_opcode::op_array_store_element:
-                            case ir_opcode::op_member_store:
-                            case ir_opcode::op_add:
-                            case ir_opcode::op_sub:
-                            case ir_opcode::op_mul:
-                            case ir_opcode::op_div:
-                            case ir_opcode::op_mod:
-                            case ir_opcode::op_imul:
-                            case ir_opcode::op_idiv:
-                            case ir_opcode::op_imod:
-                            case ir_opcode::op_negate:
-                            case ir_opcode::op_negatef32:
-                            case ir_opcode::op_negatef64:
-                            case ir_opcode::op_addf32:
-                            case ir_opcode::op_subf32:
-                            case ir_opcode::op_mulf32:
-                            case ir_opcode::op_divf32:
-                            case ir_opcode::op_modf32:
-                            case ir_opcode::op_addf64:
-                            case ir_opcode::op_subf64:
-                            case ir_opcode::op_mulf64:
-                            case ir_opcode::op_divf64:
-                            case ir_opcode::op_modf64:
-                            case ir_opcode::op_cmp:
-                            case ir_opcode::op_cmpf32:
-                            case ir_opcode::op_cmpf64:
-                            case ir_opcode::op_logical_and:
-                            case ir_opcode::op_logical_or:
-                            case ir_opcode::op_not:
-                            case ir_opcode::op_bitwise_and:
-                            case ir_opcode::op_bitwise_or:
-                            case ir_opcode::op_bitwise_xor:
-                            case ir_opcode::op_bitwise_not:
-                            case ir_opcode::op_bitwise_lshift:
-                            case ir_opcode::op_bitwise_rshift:
-                            case ir_opcode::op_ibitwise_rshift:
-                            case ir_opcode::op_dereference:
-                            case ir_opcode::op_dereference_assign:
-                            case ir_opcode::op_reference:
-                            case ir_opcode::op_array_access_element:
-                            case ir_opcode::op_ret:
-                            case ir_opcode::op_call:
-                            case ir_opcode::op_struct_store:
-                                should_push_return = true;
-                                break;
-                            case ir_opcode::op_push:
-                            case ir_opcode::op_push_single:
-                            case ir_opcode::op_load:
-                                {
-                                    int depth = 0;
-                                    for (std::size_t la = i + 1; la < func.code.size(); ++la) {
-                                        auto la_op = func.code.at(la).op;
-                                        if (la_op == ir_opcode::op_push || la_op == ir_opcode::op_push_single || la_op == ir_opcode::op_push_for_ret || la_op == ir_opcode::op_load || la_op == ir_opcode::op_member_access ||
-                                            la_op == ir_opcode::op_array_access_element) {
-                                            depth++;
-                                        }
-                                        else if (la_op == ir_opcode::op_call) {
-                                            int call_arg_count = 0;
-                                            const auto& call_type = func.code.at(la).type;
-                                            if (!call_type.empty() && std::all_of(call_type.begin(), call_type.end(), ::isdigit)) {
-                                                call_arg_count = std::stoi(call_type);
-                                            }
-                                            else {
-                                                std::string call_name = std::get<std::string>(func.code.at(la).operand);
-                                                auto call_it = std::ranges::find_if(ir_funcs, [&](const ir_function& f) { return f.name == call_name; });
-                                                if (call_it != ir_funcs.end()) {
-                                                    call_arg_count = static_cast<int>(call_it->args.size());
-                                                }
-                                                else {
-                                                    break;
-                                                }
-                                            }
-                                            depth -= call_arg_count;
-                                            if (depth < 0) {
-                                                should_push_return = true;
-                                                break;
-                                            }
-                                            depth += 1;
-                                        }
-                                        else if (la_op == ir_opcode::op_cmp || la_op == ir_opcode::op_cmpf32 || la_op == ir_opcode::op_cmpf64) {
-                                            depth -= 2;
-                                            if (depth < 0) {
-                                                should_push_return = true;
-                                                break;
-                                            }
-                                        }
-                                        else if (la_op == ir_opcode::op_add || la_op == ir_opcode::op_sub || la_op == ir_opcode::op_mul || la_op == ir_opcode::op_div || la_op == ir_opcode::op_mod || la_op == ir_opcode::op_imul ||
-                                                 la_op == ir_opcode::op_idiv || la_op == ir_opcode::op_imod || la_op == ir_opcode::op_addf32 || la_op == ir_opcode::op_subf32 || la_op == ir_opcode::op_mulf32 ||
-                                                 la_op == ir_opcode::op_divf32 || la_op == ir_opcode::op_modf32 || la_op == ir_opcode::op_addf64 || la_op == ir_opcode::op_subf64 || la_op == ir_opcode::op_mulf64 ||
-                                                 la_op == ir_opcode::op_divf64 || la_op == ir_opcode::op_modf64 || la_op == ir_opcode::op_logical_and || la_op == ir_opcode::op_logical_or || la_op == ir_opcode::op_bitwise_and ||
-                                                 la_op == ir_opcode::op_bitwise_or || la_op == ir_opcode::op_bitwise_xor || la_op == ir_opcode::op_bitwise_lshift || la_op == ir_opcode::op_bitwise_rshift ||
-                                                 la_op == ir_opcode::op_ibitwise_rshift) {
-                                            depth -= 1;
-                                            if (depth < 0) {
-                                                should_push_return = true;
-                                                break;
-                                            }
-                                        }
-                                        else if (la_op == ir_opcode::op_store || la_op == ir_opcode::op_store_at_addr || la_op == ir_opcode::op_ret || la_op == ir_opcode::op_member_store || la_op == ir_opcode::op_array_store_element ||
-                                                 la_op == ir_opcode::op_dereference_assign) {
-                                            depth -= 1;
-                                            if (depth < 0) {
-                                                should_push_return = true;
-                                                break;
-                                            }
-                                            break;
-                                        }
-                                        else if (la_op == ir_opcode::op_negate || la_op == ir_opcode::op_negatef32 || la_op == ir_opcode::op_negatef64 || la_op == ir_opcode::op_not || la_op == ir_opcode::op_bitwise_not ||
-                                                 la_op == ir_opcode::op_dereference || la_op == ir_opcode::op_reference) {
-                                            // net 0 change
-                                        }
-                                        else if (la_op == ir_opcode::op_jmp || la_op == ir_opcode::op_jz || la_op == ir_opcode::op_jnz || la_op == ir_opcode::op_jl || la_op == ir_opcode::op_jle || la_op == ir_opcode::op_jg ||
-                                                 la_op == ir_opcode::op_jge || la_op == ir_opcode::op_jb || la_op == ir_opcode::op_jbe || la_op == ir_opcode::op_ja || la_op == ir_opcode::op_jae || la_op == ir_opcode::op_struct_decl) {
-                                            break;
-                                        }
-                                    }
-                                    break;
-                                }
-                            default:
-                                should_push_return = false;
-                                break;
-                            }
-                        }
-
-                        if (should_push_return) {
+                        if (code.result_used && !ret_type.empty()) {
                             if (ret_is_fp) {
                                 auto ret_reg = simd_pool.alloc();
                                 w->emit_movsd(ret_reg, xmm0);
@@ -2860,159 +2850,6 @@ namespace occult::x86_64 {
                 }
             }
         }
-#ifndef _WIN64
-        void patch_and_register_cached(ir_function& func, std::vector<std::uint8_t>& cached_code, const std::unordered_map<std::string, jit_function>& cached_function_map,
-                                       const std::unordered_map<std::uint64_t, std::string>& cached_string_literals, bool use_jit) {
-            function_map.insert({func.name, nullptr}); // prevent recursive cache patching from re-entering itself.
-
-            struct pending_call_patch {
-                std::size_t imm_offset;
-                std::string callee;
-            };
-
-            std::vector<pending_call_patch> pending_calls;
-
-            std::unordered_map<std::uint64_t, std::string> old_addr_to_name;
-            for (const auto& [name, fn] : cached_function_map) {
-                old_addr_to_name[reinterpret_cast<std::uint64_t>(fn)] = name;
-            }
-
-            // relocate all string literals
-            std::unordered_map<std::uint64_t, std::uint64_t> string_old_to_new;
-            for (const auto& [old_addr, content] : cached_string_literals) {
-                constexpr std::size_t header_size = 8;
-                const std::size_t storage_size = header_size + content.size() + 8;
-
-                auto buf = std::make_unique<std::uint8_t[]>(storage_size);
-
-                std::memset(buf.get(), 0, storage_size);
-
-                *reinterpret_cast<std::uint64_t*>(buf.get()) = content.size();
-
-                std::memcpy(buf.get() + header_size, content.data(), content.size());
-
-                const std::uint64_t new_addr = reinterpret_cast<std::uint64_t>(buf.get() + header_size);
-
-                string_literals[new_addr] = content;
-                string_old_to_new[old_addr] = new_addr;
-                literal_pool.push_back(std::move(buf));
-
-                if (debug) {
-                    std::cout << BLUE << "[CACHE] String relocated: \"" << content.substr(0, 40) << "\"  old=0x" << std::hex << old_addr << " -> new=0x" << new_addr << std::dec << RESET << "\n";
-                }
-            }
-
-            // similar scanning to the linker for AOT, just relocating shit
-            const std::size_t code_size = cached_code.size();
-            for (std::size_t i = 0; i < code_size;) {
-                const std::uint8_t b0 = cached_code[i];
-                const std::uint8_t b1 = (i + 1 < code_size) ? cached_code[i + 1] : 0;
-
-                const bool is_movabs = (b0 == 0x48 || b0 == 0x49) && (b1 >= 0xB8 && b1 <= 0xBF) && (i + 10 <= code_size);
-                if (!is_movabs) {
-                    ++i;
-
-                    continue;
-                }
-
-                std::uint64_t embedded_addr = 0;
-                for (int j = 0; j < 8; ++j) {
-                    embedded_addr |= static_cast<std::uint64_t>(cached_code[i + 2 + j]) << (j * 8);
-                }
-
-                // movabs rax followed by call rax
-                if (b0 == 0x48 && b1 == 0xB8) {
-                    const bool call_2b = (i + 12 <= code_size) && cached_code[i + 10] == 0xFF && cached_code[i + 11] == 0xD0;
-
-                    const bool call_3b = (i + 13 <= code_size) && cached_code[i + 10] == 0x48 && cached_code[i + 11] == 0xFF && cached_code[i + 12] == 0xD0;
-
-                    if (call_2b || call_3b) {
-                        auto it = old_addr_to_name.find(embedded_addr);
-
-                        if (it != old_addr_to_name.end()) {
-                            const std::string& callee = it->second;
-
-                            auto callee_it = function_map.find(callee);
-
-                            const bool callee_ready = (callee_it != function_map.end() && callee_it->second != nullptr);
-
-                            if (!callee_ready) {
-                                auto fn_it = std::ranges::find_if(ir_funcs, [&](const auto& f) { return f.name == callee; });
-
-                                if (fn_it != ir_funcs.end() && callee != func.name) {
-                                    compile_function(*fn_it, use_jit);
-                                }
-                            }
-
-                            auto target_it = function_map.find(callee);
-
-                            if (target_it != function_map.end() && target_it->second != nullptr) {
-                                const std::uint64_t new_addr = reinterpret_cast<std::uint64_t>(target_it->second);
-
-                                for (int j = 0; j < 8; ++j) {
-                                    cached_code[i + 2 + j] = static_cast<std::uint8_t>((new_addr >> (j * 8)) & 0xFF);
-                                }
-
-                                if (debug) {
-                                    std::cout << BLUE << "[CACHE] Patched call -> " << callee << " = 0x" << std::hex << new_addr << std::dec << RESET << "\n";
-                                }
-                            }
-                            else {
-                                pending_calls.push_back({i + 2, callee});
-                            }
-                        }
-
-                        i += call_3b ? 13 : 12;
-
-                        continue;
-                    }
-                }
-
-                // any movabs r64 carrying a string literal pointer
-                {
-                    auto it = string_old_to_new.find(embedded_addr);
-                    if (it != string_old_to_new.end()) {
-                        const std::uint64_t new_addr = it->second;
-                        for (int j = 0; j < 8; ++j) {
-                            cached_code[i + 2 + j] = static_cast<std::uint8_t>((new_addr >> (j * 8)) & 0xFF);
-                        }
-
-                        if (debug) {
-                            std::cout << BLUE << "[CACHE] Patched string ptr 0x" << std::hex << embedded_addr << " -> 0x" << new_addr << std::dec << RESET << "\n";
-                        }
-                    }
-
-                    i += 10;
-                }
-            }
-
-            auto w = std::make_unique<x86_64_writer>(debug);
-            function_map[func.name] = reinterpret_cast<jit_function>(w->memory);
-
-            for (const auto& pending : pending_calls) {
-                auto target_it = function_map.find(pending.callee);
-
-                if (target_it == function_map.end() || target_it->second == nullptr) {
-                    throw std::runtime_error("cache patch failed: unresolved function \"" + pending.callee + "\"");
-                }
-
-                const std::uint64_t new_addr = reinterpret_cast<std::uint64_t>(target_it->second);
-
-                for (int j = 0; j < 8; ++j) {
-                    cached_code[pending.imm_offset + j] = static_cast<std::uint8_t>((new_addr >> (j * 8)) & 0xFF);
-                }
-            }
-
-            w->push_bytes(cached_code);
-            w->setup_function();
-            function_raw_code_map.insert({func.name, std::move(cached_code)});
-            writers.push_back(std::move(w));
-
-            if (debug) {
-                std::cout << GREEN << "[CACHE] Registered cached function: " << func.name << RESET << "\n";
-            }
-        }
-#endif
 
         void compile_function(ir_function& func, const bool use_jit) {
             static std::unordered_set<std::string> compiling_functions;
@@ -3039,74 +2876,6 @@ namespace occult::x86_64 {
 
             compiling_functions.insert(func.name);
 
-#ifndef _WIN64
-            auto cached_bytes = load_cached_code(func.name); // try cache
-            if (!cached_bytes.empty() && cached_bytes.size() >= sizeof(bytecode_header)) {
-                const auto* header = reinterpret_cast<const bytecode_header*>(cached_bytes.data());
-                IRHash current_hash = hash_ir_function(func);
-
-                if (header->magic == OCCULT_MAGIC && header->ir_hash_low == current_hash.low64 && header->ir_hash_high == current_hash.high64) {
-                    if (debug) {
-                        std::cout << GREEN << "[CODEGEN CACHE HIT] " << func.name << RESET << "\n";
-                    }
-
-                    std::vector<std::uint8_t> cached_code(cached_bytes.begin() + header->code_offset, cached_bytes.begin() + header->code_offset + header->code_size);
-
-                    std::unordered_map<std::string, jit_function> cached_function_map;
-                    std::unordered_map<std::uint64_t, std::string> cached_string_literals;
-
-                    // parse address map
-                    std::size_t i = header->address_map_offset;
-                    while (i + 8 <= header->const_pool_offset) {
-                        std::uint64_t addr = 0;
-
-                        for (int b = 0; b < 8; ++b) {
-                            addr |= static_cast<std::uint64_t>(cached_bytes[i++]) << (b * 8);
-                        }
-
-                        std::string name;
-
-                        while (i < header->const_pool_offset && cached_bytes[i] != '\0') {
-                            name += static_cast<char>(cached_bytes[i++]);
-                        }
-
-                        ++i;
-
-                        if (!name.empty()) {
-                            cached_function_map[name] = reinterpret_cast<jit_function>(addr);
-                        }
-                    }
-
-                    // parse string literals
-                    i = header->const_pool_offset;
-                    while (i + 16 <= cached_bytes.size()) {
-                        std::uint64_t addr = 0, len = 0;
-                        for (int b = 0; b < 8; ++b) {
-                            addr |= static_cast<std::uint64_t>(cached_bytes[i++]) << (b * 8);
-                        }
-
-                        for (int b = 0; b < 8; ++b) {
-                            len |= static_cast<std::uint64_t>(cached_bytes[i++]) << (b * 8);
-                        }
-
-                        if (i + len > cached_bytes.size()) {
-                            break;
-                        }
-
-                        std::string lit(reinterpret_cast<const char*>(cached_bytes.data() + i), len);
-
-                        i += len + 1;
-
-                        cached_string_literals[addr] = std::move(lit);
-                    }
-
-                    patch_and_register_cached(func, cached_code, cached_function_map, cached_string_literals, use_jit);
-                    compiling_functions.erase(func.name);
-                    return;
-                }
-            }
-#endif
-
             // fresh compilation
             if (debug) {
                 std::cout << BLUE << "[CODEGEN] Compiling: " << YELLOW << func.name << RESET << "\n";
@@ -3127,10 +2896,6 @@ namespace occult::x86_64 {
 
             function_raw_code_map.insert({func.name, w->get_code()});
 
-#ifndef _WIN64
-
-            write_cached_code(func, function_raw_code_map, function_map, string_literals);
-#endif
             w->setup_function();
             writers.push_back(std::move(w));
 

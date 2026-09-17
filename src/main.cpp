@@ -9,6 +9,7 @@
 #include <string>
 #include "backend/codegen/ir_gen.hpp"
 #include "backend/codegen/x86_64_codegen.hpp"
+#include "backend/codegen/x86_64_codegen_v2.hpp"
 #include "code_analysis/linter.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/cst.hpp"
@@ -147,7 +148,7 @@ int main(int argc, char* argv[]) {
         occult::ir_gen::visualize_stack_ir(ir);
     }
 
-    start = std::chrono::high_resolution_clock::now();
+    /*start = std::chrono::high_resolution_clock::now();
     occult::ir_lifter ir_lifter(ir); // lift to register ir
     auto reg_ir = ir_lifter.lift();
     end = std::chrono::high_resolution_clock::now();
@@ -157,9 +158,12 @@ int main(int argc, char* argv[]) {
     }
     if (debug) {
         occult::ir_lifter::visualize_register_ir(reg_ir);
-    }
+    }*/
 
-    /*start = std::chrono::high_resolution_clock::now();
+    //occult::x86_64::codegen_v2 codegen_v2(reg_ir, ir_structs, debug);
+    //codegen_v2.compile();
+
+    start = std::chrono::high_resolution_clock::now();
     occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
 
     try {
@@ -178,10 +182,10 @@ int main(int argc, char* argv[]) {
     /*if (debug && jit) {
       for (const auto& pair : jit_runtime.function_map) {
         std::cout << pair.first << std::endl;
-        std::cout << "0x" << std::hex <<
-    reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
+        //std::cout << "0x" << std::hex <<
+    //reinterpret_cast<std::int64_t>(&pair.second) << std::dec << std::endl;
       }
-    }
+    }*/
 
 #ifdef __linux
     if (jit) {
@@ -262,7 +266,7 @@ int main(int argc, char* argv[]) {
 
         chmod(filenameout.c_str(), S_IRWXU);
     }
-#endif*/
+#endif
 
     return 0;
 }
