@@ -160,8 +160,8 @@ int main(int argc, char* argv[]) {
         occult::ir_lifter::visualize_register_ir(reg_ir);
     }*/
 
-    //occult::x86_64::codegen_v2 codegen_v2(reg_ir, ir_structs, debug);
-    //codegen_v2.compile();
+    occult::x86_64::codegen_v2 codegen_v2(ir, ir_structs, debug);
+    codegen_v2.compile();
 
     start = std::chrono::high_resolution_clock::now();
     occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
