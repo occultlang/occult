@@ -1,0 +1,96 @@
+// ABI-neutral calling-convention test (no I/O, so it also runs under
+// `--abi win64` on Linux). main returns the number of failed checks:
+//   occultc -d tests/test_abi_calls.occ            -> "Main returned: 0"
+//   occultc -d --abi win64 tests/test_abi_calls.occ -> "Main returned: 0"
+
+fn i2(i64 a, i64 b) i64 { return a * 10 + b; }
+
+fn i6(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f) i64 {
+    return a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6;
+}
+
+fn i9(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g, i64 h, i64 i) i64 {
+    return a - b + c - d + e - f + g - h + i * 100;
+}
+
+// floats in every register position, then on the stack
+fn f5(f64 a, f64 b, f64 c, f64 d, f64 e) f64 { return a + b * 2.0 + c * 3.0 + d * 4.0 + e * 5.0; }
+
+fn f10(f64 a, f64 b, f64 c, f64 d, f64 e, f64 f, f64 g, f64 h, f64 i, f64 j) f64 {
+    return a + b + c + d + e + f + g + h + i * 10.0 + j * 100.0;
+}
+
+// int/float interleaved: positional (Win64) vs independent counters (SysV)
+fn mix(i64 a, f64 b, i64 c, f64 d, i64 e, f64 f, i64 g, f64 h) f64 {
+    return f64(a) + b * 2.0 + f64(c) * 3.0 + d * 4.0 + f64(e) * 5.0 + f * 6.0 + f64(g) * 7.0 + h * 8.0;
+}
+
+fn fmix_first(f64 a, i64 b, i64 c, i64 d, i64 e, f64 f) f64 { return a + f64(b + c + d + e) + f; }
+
+fn ret_f(i64 a) f64 { return f64(a) / 4.0; }
+
+fn fact(i64 n) i64 {
+    if n <= 1 { return 1; }
+    return n * fact(n - 1);
+}
+
+fn bump(i64@ x, i64 by) { $x = $x + by; }
+
+fn sum_va(i64 n, ...) i64 {
+    i64 s = 0;
+    i64 k = 0;
+    while k < n {
+        s += __varargs[k];
+        k += 1;
+    }
+    return s;
+}
+
+fn apply_fp(fn(i64, i64) i64 f, i64 a, i64 b) i64 { return f(a, b); }
+
+fn check(i64 got, i64 want, i64@ fails) {
+    if got != want { $fails += 1; }
+}
+
+fn main() i64 {
+    i64 fails = 0;
+
+    check(i2(3, 4), 34, fails);
+    check(i6(1, 2, 3, 4, 5, 6), 91, fails);
+    check(i9(1, 2, 3, 4, 5, 6, 7, 8, 9), 896, fails);
+    check(i64(f5(1.0, 2.0, 3.0, 4.0, 5.0) * 100.0), 5500, fails);
+    check(i64(f10(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0)), 1126, fails);
+    check(i64(mix(1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5)), 120, fails);
+    check(i64(fmix_first(0.5, 1, 2, 3, 4, 0.5)), 11, fails);
+    check(i64(ret_f(10) * 100.0), 250, fails);
+    check(fact(10), 3628800, fails);
+
+    // live temporaries across calls, nested calls as args
+    i64 a = 5;
+    i64 r = a + i2(a, 1) * (a + i6(1, 1, 1, 1, 1, i2(0, 1)));
+    check(r, 5 + 51 * (5 + 21), fails);
+    check(i9(i2(0, 1), 2, 3, 4, 5, 6, 7, 8, i6(0, 0, 0, 0, 0, 1)), 1 - 2 + 3 - 4 + 5 - 6 + 7 - 8 + 600, fails);
+
+    // float pressure (Win64 only has xmm0-5 to allocate from)
+    f64 x = 1.5; f64 y = 2.5;
+    f64 deep = x + (y + (x + (y + (x + (y + (x + (y + (x + ret_f(4)))))))));
+    check(i64(deep * 10.0), 185, fails);
+
+    i64 v = 1;
+    bump(v, 41);
+    check(v, 42, fails);
+
+    check(sum_va(3, 10, 20, 30), 60, fails);
+    check(sum_va(6, 1, 2, 3, 4, 5, 6), 21, fails);
+
+    // calls through function pointers use the same convention
+    fn(i64, i64) i64 fp = @i2;
+    check(fp(3, 4), 34, fails);
+    check(apply_fp(@i2, 5, 6), 56, fails);
+    fn(f64, f64, f64, f64, f64) f64 ff = @f5;
+    check(i64(ff(1.0, 2.0, 3.0, 4.0, 5.0) * 100.0), 5500, fails);
+    fn(i64, i64, i64, i64, i64, i64, i64, i64, i64) i64 f9 = @i9;
+    check(f9(1, 2, 3, 4, 5, 6, 7, 8, 9), 896, fails);
+
+    return fails;
+}

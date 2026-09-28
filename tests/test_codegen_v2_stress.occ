@@ -1,0 +1,105 @@
+// Regression test for codegen v2: register pressure / spilling (GP and
+// xmm8-15), calls with live temporaries, >6 int and >8 float args, mixed
+// int/float args, div/shift fixed-register clobbers, float modulo, float
+// struct members, value-producing && / || (control-flow joins), bool
+// returns. Prints "codegen v2: OK" when every check passes.
+include "../std/stdio.occ"
+
+struct P {
+    f64 x;
+    i64 n;
+    f64 y;
+}
+
+fn id(i64 x) i64 { return x; }
+fn fid(f64 x) f64 { return x; }
+fn zero_args() i64 { return 10; }
+
+fn seven(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g) i64 {
+    return a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g * 7;
+}
+
+fn fmix(i64 a, f64 b, i64 c, f64 d, i64 e, f64 f, i64 g, f64 h) f64 {
+    return f64(a) + b * 2.0 + f64(c) * 3.0 + d * 4.0 + f64(e) * 5.0 + f * 6.0 + f64(g) * 7.0 + h * 8.0;
+}
+
+fn f10(f64 a, f64 b, f64 c, f64 d, f64 e, f64 f, f64 g, f64 h, f64 i, f64 j) f64 {
+    return a + b + c + d + e + f + g + h + i * 10.0 + j * 100.0;
+}
+
+fn many(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g, i64 h, f64 x, f64 y) f64 {
+    return f64(a + b + c + d + e + f + g * 10 + h * 100) + x * y;
+}
+
+fn both(i64 x, i64 y) bool { return x > 3 && y == 0; }
+
+fn mk(f64 x, i64 n, f64 y) P* {
+    P* p = std::malloc(24);
+    p.x = x;
+    p.n = n;
+    p.y = y;
+    return p;
+}
+
+fn fib(i64 n) i64 {
+    if n < 2 { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+
+fn check(string name, i64 got, i64 want, i64@ fails) {
+    if got != want {
+        std::printf("FAIL %s: got %i want %i\n", name, got, want);
+        $fails += 1;
+    }
+}
+
+// floats compared as value * 10000 truncated
+fn checkf(string name, f64 got, i64 want_x10000, i64@ fails) {
+    i64 g = i64(got * 10000.0);
+    if g != want_x10000 {
+        std::printf("FAIL %s: got %i want %i (x10000)\n", name, g, want_x10000);
+        $fails += 1;
+    }
+}
+
+fn main() i64 {
+    i64 fails = 0;
+    i64 a = 1; i64 b = 2; i64 c = 3; i64 d = 4; i64 e = 5;
+    i64 f = 6; i64 g = 7; i64 h = 8; i64 i = 9; i64 j = 10;
+
+    check("deep int", a + (b + (c + (d + (e + (f + (g + (h + (i + (j + (a + (b + (c * d)))))))))))), 70, fails);
+    check("calls in expr", a + id(b) * (c + id(d) * (e + id(f))), 95, fails);
+    check("div/mod live", (a + b) + (j * 7) / (c + 0) + (j * 7) % (d + 0) + (h / b), 32, fails);
+    check("shifts live", (a + c) + (j << b) + (h >> a) + (i << (c - a)), 84, fails);
+    check("7 args", seven(1, 2, 3, 4, 5, 6, 7), 140, fails);
+    check("nested stack args", a + seven(id(1), id(2), id(3), id(4), id(5), id(6), seven(1, 1, 1, 1, 1, 1, 1)), 288, fails);
+    check("full pressure call", a + (b + (c + (d + (e + (f + (g + (h + (i + zero_args())))))))), 55, fails);
+
+    f64 x = 1.5; f64 y = 2.5; f64 z = 3.25;
+    checkf("deep float (xmm8+)", x + (y + (z + (x * (y + (z + (x + (y + (z + (x + (y + (z + (x * y)))))))))))), 432500, fails);
+    checkf("float calls in expr", x + fid(y) * (z + fid(x) * (y + fid(z))), 311875, fails);
+    checkf("mixed int/float args", fmix(1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5), 1200000, fails);
+    checkf("10 float args", f10(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0), 11260000, fails);
+    checkf("8 int + 2 float args", many(1, 2, 3, 4, 5, 6, 7, 8, 1.5, 4.0), 8970000, fails);
+    checkf("float mod", 7.5 % 2.0, 15000, fails);
+
+    P* p = mk(1.25, 7, 2.5);
+    checkf("float member", p.x + p.y * 2.0, 62500, fails);
+    check("int member", p.n, 7, fails);
+    std::free(p);
+
+    i64 t = (c * fib(10)) + (c - (1 + 4 + 9)) * (fib(5) + c);
+    check("recursion in expr", t, 77, fails);
+
+    i64 q = (e > 3 && j == 10);
+    check("&& value", q, 1, fails);
+    bool q2 = e < 3 || j == 11;
+    check("|| value", q2, 0, fails);
+    check("bool return t", both(5, 0), 1, fails);
+    check("bool return f", both(1, 0), 0, fails);
+
+    if fails == 0 {
+        std::printf("codegen v2: OK\n");
+    }
+    return fails;
+}
