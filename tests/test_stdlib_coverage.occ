@@ -1,0 +1,96 @@
+// Exercises every public function in std/ (stdio, strlib, memory, vec).
+// Prints "stdlib: OK" when every check passes, otherwise one FAIL line per
+// failed check. main returns the number of failed checks.
+include "../std/stdio.occ"
+include "../std/strlib.occ"
+include "../std/vec.occ"
+
+fn check(string name, i64 got, i64 want, i64@ fails) {
+    if got != want {
+        std::printf("FAIL %s: got %i want %i\n", name, got, want);
+        $fails += 1;
+    }
+}
+
+fn main() i64 {
+    i64 fails = 0;
+
+    // ---- stdio -------------------------------------------------------
+    std::print_string("print_string ");
+    std::print_char(65);
+    std::print_newline();
+    std::print_integer(-12345);
+    std::print_newline();
+    std::printf("printf %i %d %s %c %x %% %.3f %f\n", 42, -7, "str", 66, 255, 3.14159, 0.5);
+    string num = std::i64_to_string(9876);
+    check("i64_to_string", std::strcmp(num, "9876"), 0, fails);
+
+    // ---- strlib ------------------------------------------------------
+    check("strlen", std::strlen("hello"), 5, fails);
+    check("strlen empty", std::strlen(""), 0, fails);
+    check("strlen_fast", std::strlen_fast("hello!"), 6, fails);
+    check("strcmp eq", std::strcmp("abc", "abc"), 0, fails);
+    check("strcmp lt", std::strcmp("abc", "abd") < 0, 1, fails);
+    check("strcmp gt", std::strcmp("abd", "abc") > 0, 1, fails);
+    check("strcmp prefix", std::strcmp("ab", "abc") != 0, 1, fails);
+    check("str_empty yes", std::str_empty(""), 1, fails);
+    check("str_empty no", std::str_empty("x"), 0, fails);
+    check("str_char_at", std::str_char_at("xyz", 1), 121, fails);
+
+    // ---- memory ------------------------------------------------------
+    i64* p = std::malloc(64);
+    i64 k = 0;
+    while k < 8 {
+        $(p + k * 8) = k * 11;
+        k += 1;
+    }
+    p = std::realloc(p, 8192);
+    check("realloc keeps data", $(p + 7 * 8), 77, fails);
+    $(p + 1000 * 8) = 5;
+    check("realloc grows", $(p + 1000 * 8), 5, fails);
+    std::free(p);
+
+    // ---- vec ---------------------------------------------------------
+    std::Vector<i64>* v = std::malloc(32);
+    v.data = 0;
+    std::vector_construct<i64>(v, 8, 2);
+    check("vec empty", std::vector_empty<i64>(v), 1, fails);
+
+    for i64 i = 1 when i <= 5 do i += 1 {
+        std::vector_push_back<i64>(v, i * 10); // 10 20 30 40 50
+    }
+    check("vec length", v.length, 5, fails);
+    check("vec capacity", v.capacity, 8, fails);
+    check("vec at", std::vector_at<i64>(v, 3), 40, fails);
+
+    std::vector_push_front<i64>(v, 5);         // 5 10 20 30 40 50
+    check("vec push_front", std::vector_at<i64>(v, 0), 5, fails);
+    check("vec push_front shift", std::vector_at<i64>(v, 5), 50, fails);
+
+    std::vector_insert<i64>(v, 2, 15);         // 5 10 15 20 30 40 50
+    check("vec insert", std::vector_at<i64>(v, 2), 15, fails);
+    check("vec insert shift", std::vector_at<i64>(v, 3), 20, fails);
+
+    check("vec pop_back", std::vector_pop_back<i64>(v), 50, fails);
+    check("vec pop_front", std::vector_pop_front<i64>(v), 5, fails); // 10 15 20 30 40
+    check("vec length 2", v.length, 5, fails);
+
+    i64 sum = 0;
+    i64 j = 0;
+    while j < v.length {
+        sum += std::vector_at<i64>(v, j);
+        j += 1;
+    }
+    check("vec sum", sum, 115, fails);
+
+    std::vector_clear<i64>(v);
+    check("vec clear", v.length, 0, fails);
+    check("vec empty 2", std::vector_empty<i64>(v), 1, fails);
+    std::vector_free<i64>(v);
+    std::free(v);
+
+    if fails == 0 {
+        std::printf("stdlib: OK\n");
+    }
+    return fails;
+}

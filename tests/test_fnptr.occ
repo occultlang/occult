@@ -1,0 +1,82 @@
+// Function pointers: fn(<params>) <ret> as a type for locals, params,
+// returns, globals and struct fields; @fn and @fn<T> take addresses; calls
+// go through the pointer. Prints "fnptr: OK"; main returns the fail count.
+include "../std/stdio.occ"
+
+fn add(i64 a, i64 b) i64 { return a + b; }
+fn mul(i64 a, i64 b) i64 { return a * b; }
+fn half(f64 x) f64 { return x / 2.0; }
+fn s7(i64 a, i64 b, i64 c, i64 d, i64 e, i64 f, i64 g) i64 { return a + b + c + d + e + f + g; }
+
+generic<T>
+fn twice(T x, T y) T { return x + y + y; }
+
+generic<T>
+fn apply_g(fn(T, T) T f, T a, T b) T { return f(a, b); }
+
+fn apply(fn(i64, i64) i64 f, i64 a, i64 b) i64 { return f(a, b); }
+
+fn pick(i64 k) fn(i64, i64) i64 {
+    if k == 0 { return @add; }
+    return @mul;
+}
+
+struct Ops { fn(i64, i64) i64 op; i64 tag; }
+
+global fn(i64, i64) i64 g_op = @mul;
+global i64 hits = 0;
+fn hit() { hits += 1; }
+
+fn check(i64 got, i64 want, i64@ fails) {
+    if got != want { $fails += 1; }
+}
+
+fn main() i64 {
+    i64 fails = 0;
+
+    fn(i64, i64) i64 op = @add;
+    check(op(2, 3), 5, fails);
+    op = @mul;
+    check(op(2, 3), 6, fails);                    // reassignment
+
+    check(apply(@add, 3, 4), 7, fails);           // callback parameter
+
+    fn(i64, i64) i64 r = pick(1);
+    check(r(3, 4), 12, fails);                    // returned function pointer
+
+    check(g_op(4, 5), 20, fails);                 // global function pointer
+
+    Ops* o = std::malloc(16);
+    o.op = @add;
+    fn(i64, i64) i64 h = o.op;
+    check(h(4, 5), 9, fails);                     // struct field
+
+    fn(i64, i64) i64 tw = @twice<i64>;
+    check(tw(1, 5), 11, fails);                   // generic instantiation
+    check(apply_g<i64>(@mul, 6, 7), 42, fails);   // fn(T,T) T parameter
+
+    fn(f64) f64 fh = @half;
+    check(i64(fh(9.0)), 4, fails);                // float signature + cast
+
+    fn() cb = @hit;
+    cb();
+    cb();
+    check(hits, 2, fails);                        // no-return signature
+
+    fn(i64, i64, i64, i64, i64, i64, i64) i64 p7 = @s7;
+    check(p7(1, 2, 3, 4, 5, 6, 7), 28, fails);    // stack args through pointer
+
+    i64 k = 5;
+    check(k + op(2, 3) * apply(@add, 4, k) - op(k, 1), 5 + 6 * 9 - 5, fails); // live temporaries
+
+    i64* tbl = std::malloc(16);
+    $(tbl + 0) = @add;
+    $(tbl + 8) = @mul;
+    fn(i64, i64) i64 t1 = $(tbl + 8);
+    check(t1(3, 3), 9, fails);                    // dispatch table
+
+    if fails == 0 {
+        std::printf("fnptr: OK\n");
+    }
+    return fails;
+}

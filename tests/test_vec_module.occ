@@ -2,16 +2,18 @@ include "../std/stdio.occ"
 include "../std/vec.occ"
 
 fn main() i64 {
-    vec::Vec<i64>* v = vec::new<i64>();
+    std::Vector<i64>* v = std::malloc(32);
+    v.data = 0;
+    std::vector_construct<i64>(v, 8, 4);
 
     for i64 i = 0 when i < 100 do i += 10 {
-        vec::push<i64>(v, i);
+        std::vector_push_back<i64>(v, i);
     }
 
     std::printf("Vec elements: ");
     i64 i = 0;
     while i < v.length {
-        std::printf("%i ", vec::get<i64>(v, i));
+        std::printf("%i ", std::vector_at<i64>(v, i));
         i += 1;
     }
     std::printf("\n");
@@ -19,5 +21,7 @@ fn main() i64 {
     std::printf("Length: %i\n", v.length);
     std::printf("Capacity: %i\n", v.capacity);
 
+    std::vector_free<i64>(v);
+    std::free(v);
     return 0;
 }

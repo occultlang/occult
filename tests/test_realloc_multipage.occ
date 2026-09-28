@@ -1,0 +1,31 @@
+// Regression: realloc must copy correctly when the buffer grows past its
+// initial page. The old byte-stepped copy loop over-read 7 bytes past the
+// source (dereference always moves 8 bytes) and faulted on the page
+// boundary (SIGSEGV on Linux / hang on Windows). Grows to ~2M elements and
+// checks the first and last words survive each move. Returns 0 on success.
+include "../std/stdio.occ"
+
+fn main() i64 {
+    i64 cap = 8;
+    i64* p = std::malloc(cap * 8);
+    $p = 111;                       // sentinel at the front
+
+    i64 i = 0;
+    i64 fails = 0;
+    while i < 18 {                  // 8 -> ~1M elements, well past a page
+        cap = cap * 2;
+        p = std::realloc(p, cap * 8);
+        $(p + (cap - 1) * 8) = cap;  // touch the far end
+
+        if $p != 111 { fails += 1; }               // front preserved across the copy
+        if $(p + (cap - 1) * 8) != cap { fails += 1; } // far end writable
+        i += 1;
+    }
+
+    std::free(p);
+
+    if fails == 0 {
+        std::printf("realloc multipage: OK\n");
+    }
+    return fails;
+}

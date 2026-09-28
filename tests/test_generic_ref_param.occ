@@ -1,0 +1,38 @@
+// Regression: reference (@) parameters whose type is a generic type param
+// (T@) or a generic struct instantiation (Box<T>@). Previously the parser
+// rejected '@' after a generic type at the argument position; only concrete
+// types accepted it. Returns 0 on success.
+include "../std/stdio.occ"
+
+generic<T>
+struct Box { T v; }
+
+// generic struct passed by reference: mutation must be visible to the caller
+generic<T>
+fn set_box(Box<T>@ b, T val) { b.v = val; }
+
+// generic scalar passed by reference
+generic<T>
+fn add_into(T@ p, T by) { $p = $p + by; }
+
+fn check(i64 got, i64 want, i64@ fails) {
+    if got != want { $fails += 1; }
+}
+
+fn main() i64 {
+    i64 fails = 0;
+
+    Box<i64> b;
+    b.v = 1;
+    set_box<i64>(@b, 42);
+    check(b.v, 42, fails);          // generic struct @ mutated caller
+
+    i64 x = 10;
+    add_into<i64>(@x, 5);
+    check(x, 15, fails);            // generic scalar @ mutated caller
+
+    if fails == 0 {
+        std::printf("generic ref params: OK\n");
+    }
+    return fails;
+}

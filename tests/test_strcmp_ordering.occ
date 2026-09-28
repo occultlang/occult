@@ -5,9 +5,9 @@ include "../std/strlib.occ"
 fn main() i64 {
     i64 pass = 0;
     // equal strings
-    if strlib::strcmp("abc", "abc") == 0 { pass = pass + 1; }
+    if std::strcmp("abc", "abc") == 0 { pass = pass + 1; }
     // prefix bug fix
-    if strlib::strcmp("ab", "abc") != 0 { pass = pass + 1; }
-    if strlib::strcmp("abc", "ab") != 0 { pass = pass + 1; }
+    if std::strcmp("ab", "abc") != 0 { pass = pass + 1; }
+    if std::strcmp("abc", "ab") != 0 { pass = pass + 1; }
     return pass - 3;
 }

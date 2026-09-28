@@ -1,0 +1,35 @@
+// Regression: top-level globals are ONE shared storage location, not a
+// per-function copy. Before the fix each function re-initialized its own
+// copy, so cross-function mutation was lost. Returns 0 on success.
+include "../std/stdio.occ"
+
+i64 counter = 0;
+i64 total = 100;
+f64 accum = 1.5;
+
+fn bump() { counter = counter + 1; }
+fn add_to_total(i64 v) { total = total + v; }
+fn scale_accum() { accum = accum + accum; }
+
+fn check(i64 got, i64 want, i64@ fails) {
+    if got != want { $fails += 1; }
+}
+
+fn main() i64 {
+    i64 fails = 0;
+
+    bump(); bump(); bump();
+    check(counter, 3, fails);          // mutation persists across calls
+
+    add_to_total(20);
+    add_to_total(5);
+    check(total, 125, fails);          // initializer (100) applied + shared writes
+
+    scale_accum();                     // 1.5 -> 3.0
+    check(i64(accum * 10.0), 30, fails); // float global shared + initialized
+
+    if fails == 0 {
+        std::printf("globals shared: OK\n");
+    }
+    return fails;
+}

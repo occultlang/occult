@@ -1,3 +1,4 @@
+// EXPECT-FAIL: reassigning a const must be rejected by the linter
 include "../std/stdio.occ"
 
 fn main() i64 {
