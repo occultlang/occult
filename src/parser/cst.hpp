@@ -113,6 +113,7 @@ namespace occult {
         bool do_not = false;
         bool is_reference = false;
         bool is_const = false;
+        std::string fnptr_sig; // non-empty => this i64 slot is a function pointer, e.g. "fn(int64,int64)int64"
 
         template <typename BaseCst = cst>
         static std::unique_ptr<BaseCst> new_node() {
@@ -200,6 +201,7 @@ namespace occult {
             copy->do_not = do_not;                                                                                                                                                                                                             \
             copy->is_reference = is_reference;                                                                                                                                                                                                 \
             copy->is_const = is_const;                                                                                                                                                                                                         \
+            copy->fnptr_sig = fnptr_sig;                                                                                                                                                                                                       \
             for (const auto& child : get_children_const()) {                                                                                                                                                                                   \
                 copy->add_child(child->clone());                                                                                                                                                                                               \
             }                                                                                                                                                                                                                                  \

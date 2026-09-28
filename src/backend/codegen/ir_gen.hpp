@@ -47,6 +47,10 @@ namespace occult {
         std::unordered_map<ir_function, std::unordered_map<std::string, std::string>,
                            ir_function_hasher> local_array_map; // function -> array name -> type
 
+        // variables holding function pointers: function name -> var -> signature
+        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> fnptr_sigs;
+        std::unordered_map<std::string, std::string> global_fnptr_sigs; // global var -> signature
+
         enum class type_of_push : std::uint8_t {
             normal, // normal push (more than one register)
             ret,    // pushes to return in codegen
@@ -118,5 +122,9 @@ namespace occult {
         std::vector<ir_function> lower_functions();
 
         std::vector<ir_struct> lower_structs();
+
+        // top-level globals (name -> type), filled by lower_functions; codegen
+        // gives these one shared storage slot instead of per-function locals
+        std::vector<std::pair<std::string, std::string>> program_globals;
     };
 } // namespace occult

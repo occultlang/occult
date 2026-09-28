@@ -545,7 +545,28 @@ namespace occult {
                     const auto& first = node->get_children().front();
                     if (first->get_type() == cst_type::identifier) {
                         const bool is_method_style = !first->content.empty() && first->content.front() == '.';
-                        if (!is_method_style && !known_functions.count(first->content)) {
+                        if (auto fp = fnptr_vars.find(first->content); !is_method_style && fp != fnptr_vars.end() && is_declared(first->content)) {
+                            int expected = 0, depth = 0;
+                            bool any = false;
+                            for (std::size_t i = 3; i < fp->second.size(); i++) {
+                                const char ch = fp->second[i];
+                                if (ch == '(') depth++;
+                                if (ch == ')') { if (depth == 0) break; depth--; }
+                                if (ch == ',' && depth == 0) expected++;
+                                else any = true;
+                            }
+                            if (any) expected++;
+                            int actual_args = 0;
+                            for (std::size_t i = 1; i < node->get_children().size(); ++i) {
+                                if (node->get_children().at(i)->get_type() == cst_type::functionargument) {
+                                    actual_args++;
+                                }
+                            }
+                            if (actual_args != expected) {
+                                errors.emplace_back("Function pointer '" + first->content + "' expects " + std::to_string(expected) + " arguments, but " + std::to_string(actual_args) + " were provided");
+                            }
+                        }
+                        else if (!is_method_style && !known_functions.count(first->content)) {
                             errors.emplace_back("Call to undeclared function '" + first->content + "'");
                         }
                         else if (!is_method_style) {
@@ -666,6 +687,9 @@ namespace occult {
                         const auto& id_node = c->get_children().front();
                         if (id_node->get_type() == cst_type::identifier) {
                             declare_var(id_node->content, tname);
+                            if (!c->fnptr_sig.empty()) {
+                                fnptr_vars[id_node->content] = c->fnptr_sig;
+                            }
                             if (c->is_const) {
                                 const_variables.insert(id_node->content);
                             }
@@ -693,6 +717,9 @@ namespace occult {
                         const auto& id_node = c->get_children().front();
                         if (id_node->get_type() == cst_type::identifier) {
                             declare_var(id_node->content, tname);
+                            if (!c->fnptr_sig.empty()) {
+                                fnptr_vars[id_node->content] = c->fnptr_sig;
+                            }
                             if (c->is_const) {
                                 const_variables.insert(id_node->content);
                             }
@@ -1029,6 +1056,9 @@ namespace occult {
                         for (const auto& id : arg->get_children()) {
                             if (id->get_type() == cst_type::identifier) {
                                 declare_var(id->content, atype);
+                                if (!arg->fnptr_sig.empty()) {
+                                    fnptr_vars[id->content] = arg->fnptr_sig;
+                                }
                                 break;
                             }
                         }
@@ -1051,16 +1081,25 @@ namespace occult {
 
         push_scope();
 
+        // declare every global first so functions may use globals declared
+        // later in the file
         for (const auto& c : root->get_children()) {
-            if (c->get_type() == cst_type::function) {
-                lint_function(cst::cast_raw<cst_function>(c.get()));
+            const bool is_struct_var = c->get_type() == cst_type::structure && !c->get_children().empty() &&
+                                       c->get_children().front()->get_type() == cst_type::identifier &&
+                                       (c->num_pointers > 0 || c->get_children().front()->content != c->content);
+            if (is_struct_var && c->num_pointers == 0) {
+                errors.emplace_back("global '" + c->get_children().front()->content + "' of struct type '" + c->content + "' must be a pointer (" + c->content + "*)");
+                continue;
             }
-            else if (is_type_node(c->get_type())) {
+            if (is_type_node(c->get_type()) || is_struct_var) {
                 const std::string tname = type_name_of(c.get());
                 if (!c->get_children().empty()) {
                     const auto& id_node = c->get_children().front();
                     if (id_node->get_type() == cst_type::identifier) {
                         declare_var(id_node->content, tname);
+                        if (!c->fnptr_sig.empty()) {
+                            fnptr_vars[id_node->content] = c->fnptr_sig;
+                        }
                         if (c->is_const) {
                             const_variables.insert(id_node->content);
                             if (c->get_children().size() < 2) {
@@ -1069,6 +1108,12 @@ namespace occult {
                         }
                     }
                 }
+            }
+        }
+
+        for (const auto& c : root->get_children()) {
+            if (c->get_type() == cst_type::function) {
+                lint_function(cst::cast_raw<cst_function>(c.get()));
             }
         }
 

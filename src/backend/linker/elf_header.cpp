@@ -28,7 +28,7 @@ namespace occult {
     elf_program_header elf::generate_program_header(std::uint64_t filesz, std::uint64_t vaddr, std::uint64_t paddr, std::uint64_t memsz) {
         elf_program_header ph = {};
         ph.p_type = PT_LOAD;
-        ph.p_flags = PF_R | PF_X;
+        ph.p_flags = PF_R | PF_W | PF_X; // W so globals (in this segment) are writable
         ph.p_offset = 0;
         ph.p_vaddr = vaddr;
         ph.p_paddr = paddr;

@@ -13,16 +13,12 @@
 include "../std/stdio.occ"
 include "../std/strlib.occ"
 
-// ── Entry node ────────────────────────────────────────────────────────────────
-
 generic<K, V>
 struct HashEntry {
     K key;
     V value;
     HashEntry* next;
 }
-
-// ── HashMap ───────────────────────────────────────────────────────────────────
 
 generic<K, V>
 struct HashMap {
@@ -31,8 +27,6 @@ struct HashMap {
     i64 length;
     i64 key_type;  // 0 = integer/pointer (==), 1 = string content (strcmp)
 }
-
-// ── Hash functions (non-generic, called directly) ─────────────────────────────
 
 fn hm_int_hash(i64 key, i64 n) i64 {
     i64 h = key;
@@ -53,8 +47,6 @@ fn hm_str_hash(string key, i64 n) i64 {
     }
     return (hash & 0x7FFFFFFFFFFFFFFF) % n;
 }
-
-// ── Constructors ──────────────────────────────────────────────────────────────
 
 generic<K, V>
 fn hashmap_new() HashMap<K, V>* {
@@ -87,8 +79,6 @@ fn hashmap_new_str() HashMap<string, V>* {
     }
     return map;
 }
-
-// ── Rehash ────────────────────────────────────────────────────────────────────
 
 generic<K, V>
 fn hashmap_rehash(HashMap<K, V>* map) i64 {
@@ -127,8 +117,6 @@ fn hashmap_rehash(HashMap<K, V>* map) i64 {
     return 0;
 }
 
-// ── Insert / update ───────────────────────────────────────────────────────────
-
 generic<K, V>
 fn hashmap_insert(HashMap<K, V>* map, K key, V val) i64 {
     if map.length > map.bucket_count - map.bucket_count / 4 {
@@ -145,7 +133,7 @@ fn hashmap_insert(HashMap<K, V>* map, K key, V val) i64 {
     HashEntry<K, V>* entry = $bslot;
     while (entry != 0) {
         if map.key_type == 1 {
-            if strlib::strcmp(entry.key, key) == 0 {
+            if std::strcmp(entry.key, key) == 0 {
                 entry.value = val;
                 return 0;
             }
@@ -168,8 +156,6 @@ fn hashmap_insert(HashMap<K, V>* map, K key, V val) i64 {
     return 0;
 }
 
-// ── Lookup ────────────────────────────────────────────────────────────────────
-
 generic<K, V>
 fn hashmap_get(HashMap<K, V>* map, K key) V {
     i64 idx = 0;
@@ -183,7 +169,7 @@ fn hashmap_get(HashMap<K, V>* map, K key) V {
     HashEntry<K, V>* entry = $bslot;
     while (entry != 0) {
         if map.key_type == 1 {
-            if strlib::strcmp(entry.key, key) == 0 {
+            if std::strcmp(entry.key, key) == 0 {
                 return entry.value;
             }
         }
@@ -196,8 +182,6 @@ fn hashmap_get(HashMap<K, V>* map, K key) V {
     }
     return 0;
 }
-
-// ── Membership test ───────────────────────────────────────────────────────────
 
 generic<K, V>
 fn hashmap_contains(HashMap<K, V>* map, K key) i64 {
@@ -212,7 +196,7 @@ fn hashmap_contains(HashMap<K, V>* map, K key) i64 {
     HashEntry<K, V>* entry = $bslot;
     while (entry != 0) {
         if map.key_type == 1 {
-            if strlib::strcmp(entry.key, key) == 0 {
+            if std::strcmp(entry.key, key) == 0 {
                 return 1;
             }
         }
@@ -225,8 +209,6 @@ fn hashmap_contains(HashMap<K, V>* map, K key) i64 {
     }
     return 0;
 }
-
-// ── Erase ─────────────────────────────────────────────────────────────────────
 
 generic<K, V>
 fn hashmap_erase(HashMap<K, V>* map, K key) i64 {
@@ -243,7 +225,7 @@ fn hashmap_erase(HashMap<K, V>* map, K key) i64 {
     while (entry != 0) {
         i64 found = 0;
         if map.key_type == 1 {
-            if strlib::strcmp(entry.key, key) == 0 {
+            if std::strcmp(entry.key, key) == 0 {
                 found = 1;
             }
         }
@@ -269,8 +251,6 @@ fn hashmap_erase(HashMap<K, V>* map, K key) i64 {
     return 0;
 }
 
-// ── Destructor ────────────────────────────────────────────────────────────────
-
 generic<K, V>
 fn hashmap_free(HashMap<K, V>* map) i64 {
     i64 b = 0;
@@ -288,8 +268,6 @@ fn hashmap_free(HashMap<K, V>* map) i64 {
     std::free(map);
     return 0;
 }
-
-// ── Demo ──────────────────────────────────────────────────────────────────────
 
 fn main() i64 {
     // i64 keys
@@ -323,7 +301,7 @@ fn main() i64 {
         hashmap_get<i32, i64>(i32map, 30));
     hashmap_free<i32, i64>(i32map);
 
-    // string content keys — hashmap_new_str uses strcmp + djb2
+    // string content keys hashmap_new_str uses strcmp + djb2
     std::printf("\n=== HashMap<string, i64> ===\n");
     HashMap<string, i64>* smap = hashmap_new_str<i64>();
     hashmap_insert<string, i64>(smap, "apple",  100);

@@ -59,6 +59,7 @@ namespace occult {
         op_cmpf64,
         op_ret,
         op_call,
+        op_call_indirect, // operand = fn-pointer signature, type = argc; callee is pushed before the args
         op_syscall,
         op_addf32,
         op_divf32,
@@ -202,6 +203,8 @@ namespace occult {
             return "ret";
         case op_call:
             return "call";
+        case op_call_indirect:
+            return "call_indirect";
         case op_syscall:
             return "syscall";
         case op_addf32:

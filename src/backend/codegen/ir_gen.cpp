@@ -38,6 +38,12 @@ namespace occult {
 
                     break;
                 }
+            case cst_type::bool_datatype:
+                {
+                    function.type = "bool";
+
+                    break;
+                }
             case cst_type::float32_datatype:
                 {
                     function.type = "float32";
@@ -166,6 +172,9 @@ namespace occult {
                 function.args.emplace_back(variable_name, type);
                 // register function arguments in local_variable_map for type tracking
                 local_variable_map[function][variable_name] = type;
+                if (!arg->fnptr_sig.empty()) {
+                    fnptr_sigs[function.name][variable_name] = arg->fnptr_sig;
+                }
             }
         }
     }
@@ -561,6 +570,36 @@ namespace occult {
                         else if (first_child->get_type() == cst_type::number_literal) {
                             src_type = "int64";
                         }
+                        else if (first_child->get_type() == cst_type::functioncall && !first_child->get_children().empty()) {
+                            // source type is the callee's return type
+                            const std::string& callee = first_child->get_children().front()->content;
+                            if (auto f_it = func_map.find(callee); f_it != func_map.end()) {
+                                src_type = f_it->second.type.empty() ? "int64" : f_it->second.type;
+                            }
+                            else {
+                                // call through a function pointer: return type is the signature's tail
+                                std::string fsig;
+                                if (auto f = fnptr_sigs.find(function.name); f != fnptr_sigs.end() && f->second.contains(callee)) {
+                                    fsig = f->second.at(callee);
+                                }
+                                else if (global_fnptr_sigs.contains(callee)) {
+                                    fsig = global_fnptr_sigs.at(callee);
+                                }
+                                if (!fsig.empty()) {
+                                    int depth = 0;
+                                    for (std::size_t i = 3; i < fsig.size(); i++) {
+                                        if (fsig[i] == '(') depth++;
+                                        if (fsig[i] == ')') {
+                                            if (depth == 0) {
+                                                src_type = fsig.substr(i + 1);
+                                                break;
+                                            }
+                                            depth--;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         else if (first_child->get_type() == cst_type::cast_to_datatype) {
                             // nested cast: source type is the target type of the inner cast
                             src_type = first_child->content;
@@ -574,6 +613,12 @@ namespace occult {
                     }
                     else if (src_type == "float64") {
                         generate_common_generic<double>(function, c.get(), "float64");
+                    }
+                    else if (!src_type.empty()) {
+                        // integer source: literals inside must be integers
+                        // even when the enclosing context is a float (e.g.
+                        // `f64(a * 10)` in a function returning f64)
+                        generate_common_generic<std::int64_t>(function, c.get(), "int64");
                     }
                     else {
                         generate_common_generic<IntType>(function, c.get());
@@ -836,6 +881,64 @@ namespace occult {
             const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(1).get());
             generate_common(function, arg_node, "float64");
             function.code.emplace_back(op_bitcast, std::string("int64"), std::string("float64"));
+            return;
+        }
+
+        // call through a function-pointer variable (local, parameter or global)
+        std::string fsig;
+        if (auto f = fnptr_sigs.find(function.name); f != fnptr_sigs.end()) {
+            if (auto v = f->second.find(resolved_call_name); v != f->second.end()) {
+                fsig = v->second;
+            }
+        }
+        if (fsig.empty()) {
+            if (auto g = global_fnptr_sigs.find(resolved_call_name); g != global_fnptr_sigs.end()) {
+                fsig = g->second;
+            }
+        }
+        if (!fsig.empty()) {
+            // split "fn(a,b)ret" into top-level parameter types
+            std::vector<std::string> params;
+            {
+                int depth = 0;
+                std::string cur;
+                for (std::size_t i = 3; i < fsig.size(); i++) {
+                    const char ch = fsig[i];
+                    if (ch == '(') depth++;
+                    if (ch == ')') {
+                        if (depth == 0) break;
+                        depth--;
+                    }
+                    if (ch == ',' && depth == 0) {
+                        params.push_back(cur);
+                        cur.clear();
+                        continue;
+                    }
+                    cur += ch;
+                }
+                if (!cur.empty()) params.push_back(cur);
+            }
+
+            function.code.emplace_back(op_load, resolved_call_name); // callee first
+
+            std::size_t argi = 0;
+            auto arg_location = 1;
+            while (node->get_children().at(arg_location).get()->content != "end_call") {
+                const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(arg_location).get());
+                std::string ptype = argi < params.size() ? params[argi] : "int64";
+                if (ptype.starts_with("fn(")) {
+                    ptype = "int64";
+                }
+                generate_common(function, arg_node, ptype);
+                ++arg_location;
+                ++argi;
+            }
+
+            if (argi != params.size()) {
+                throw std::runtime_error("call through function pointer '" + resolved_call_name + "' expects " + std::to_string(params.size()) + " argument(s), got " + std::to_string(argi));
+            }
+
+            function.code.emplace_back(op_call_indirect, fsig, std::to_string(argi), result_used);
             return;
         }
 
@@ -2440,6 +2543,10 @@ namespace occult {
 
                     const auto identifier = cst::cast_raw<cst_identifier>(node->get_children().front().get()); // name
 
+                    if (!node->fnptr_sig.empty()) {
+                        fnptr_sigs[function.name][identifier->content] = node->fnptr_sig;
+                    }
+
                     if (node->get_children().size() > 1 && node->get_children().back()->get_type() == cst_type::assignment) {
                         const auto assignment = cst::cast_raw<cst_assignment>(node->get_children().back().get());
                         generate_common(function, assignment,
@@ -2540,6 +2647,9 @@ namespace occult {
                                 break;
                             case cst_type::dereference:
                                 function.code.emplace_back(op_dereference, from_numerical_string<std::int64_t>(ac->content));
+                                break;
+                            case cst_type::reference:
+                                function.code.emplace_back(op_reference); // $p = @x / $p = @fn
                                 break;
                             default:
                                 generate_arith_and_bitwise_operators(function, ac.get(), "int64");
@@ -2705,11 +2815,13 @@ namespace occult {
                 const auto type = c->get_type();
                 if (type == cst_type::int8_datatype || type == cst_type::int16_datatype || type == cst_type::int32_datatype || type == cst_type::int64_datatype || type == cst_type::uint8_datatype || type == cst_type::uint16_datatype ||
                     type == cst_type::uint32_datatype || type == cst_type::uint64_datatype || type == cst_type::float32_datatype || type == cst_type::float64_datatype || type == cst_type::string_datatype ||
-                    type == cst_type::bool_datatype) {
+                    type == cst_type::bool_datatype ||
+                    (type == cst_type::structure && c->num_pointers > 0 && !c->get_children().empty() &&
+                     c->get_children().front()->get_type() == cst_type::identifier)) {
 
                     global_vars.push_back(c.get());
 
-                    std::string type_with_ptrs = c->to_string().substr(4, c->to_string().size());
+                    std::string type_with_ptrs = (type == cst_type::structure) ? c->content : c->to_string().substr(4, c->to_string().size());
                     if (c->num_pointers > 0) {
                         type_with_ptrs += "_ptr";
                     }
@@ -2717,48 +2829,71 @@ namespace occult {
                         const auto id = cst::cast_raw<cst_identifier>(c->get_children().front().get());
                         if (id) {
                             global_var_types[id->content] = type_with_ptrs;
+                            if (!c->fnptr_sig.empty()) {
+                                global_fnptr_sigs[id->content] = c->fnptr_sig;
+                            }
                         }
                     }
                 }
             }
 
+            // publish the global set so codegen can give each one shared
+            // storage (a single writable slot) rather than a per-function local
+            program_globals.clear();
+            for (const auto& [gname, gtype] : global_var_types) {
+                program_globals.emplace_back(gname, gtype);
+            }
+
+            // one shared initializer run once before main, NOT prepended to
+            // every function (that gave each function its own reset copy)
+            if (!global_vars.empty()) {
+                ir_function init_func;
+                init_func.name = "__global_init";
+                init_func.type = "int64";
+
+                for (const auto& [gname, gtype] : global_var_types) {
+                    local_variable_map[init_func][gname] = gtype;
+                }
+
+                for (auto* gv : global_vars) {
+                    std::string gv_type = (gv->get_type() == cst_type::structure) ? gv->content : gv->to_string().substr(4, gv->to_string().size());
+                    if (gv->num_pointers > 0) {
+                        gv_type += "_ptr";
+                    }
+
+                    if (gv->get_children().size() > 1 && gv->get_children().back()->get_type() == cst_type::assignment) {
+                        const auto identifier = cst::cast_raw<cst_identifier>(gv->get_children().front().get());
+                        const auto assignment = cst::cast_raw<cst_assignment>(gv->get_children().back().get());
+                        generate_common(init_func, assignment, gv_type);
+                        init_func.code.emplace_back(op_store, identifier->content, gv_type);
+                    }
+                }
+
+                init_func.code.emplace_back(op_ret);
+                func_map.emplace(init_func.name, init_func);
+                functions.emplace_back(init_func);
+            }
+
             for (const auto& c : root->get_children()) {
                 if (const auto type = c->get_type(); type == cst_type::function) {
-                    auto func = generate_function(cst::cast_raw<cst_function>(c.get()));
-
-                    if (!func.uses_shellcode && !func.uses_assembly) {
-                        for (const auto& [gname, gtype] : global_var_types) {
-                            local_variable_map[func][gname] = gtype;
-                        }
-                    }
-
-                    if (!global_vars.empty() && !func.uses_shellcode && !func.uses_assembly) {
-                        ir_function temp_func;
-                        temp_func.name = "__global_init";
-                        temp_func.type = "int64";
-
-                        for (auto* gv : global_vars) {
-                            std::string gv_type = gv->to_string().substr(4, gv->to_string().size());
-                            if (gv->num_pointers > 0) {
-                                gv_type += "_ptr";
-                            }
-
-                            if (!gv->get_children().empty()) {
-                                if (gv->get_children().size() > 1 && gv->get_children().back()->get_type() == cst_type::assignment) {
-                                    const auto identifier = cst::cast_raw<cst_identifier>(gv->get_children().front().get());
-                                    const auto assignment = cst::cast_raw<cst_assignment>(gv->get_children().back().get());
-                                    generate_common(temp_func, assignment, gv_type);
-                                    temp_func.code.emplace_back(op_store, identifier->content, gv_type);
+                    // seed global types (keyed by function name — the map hashes
+                    // on name only) so type-driven lowering, e.g. float vs int
+                    // arithmetic, sees globals during this function's lowering.
+                    // codegen still routes globals to shared storage, not locals.
+                    if (!global_var_types.empty()) {
+                        for (const auto& ch : c->get_children()) {
+                            if (ch->get_type() == cst_type::identifier) {
+                                ir_function key;
+                                key.name = ch->content;
+                                for (const auto& [gname, gtype] : global_var_types) {
+                                    local_variable_map[key][gname] = gtype;
                                 }
+                                break;
                             }
                         }
-
-                        std::vector<ir_instr> merged;
-                        merged.insert(merged.end(), temp_func.code.begin(), temp_func.code.end());
-                        merged.insert(merged.end(), func.code.begin(), func.code.end());
-                        func.code = std::move(merged);
                     }
 
+                    auto func = generate_function(cst::cast_raw<cst_function>(c.get()));
                     functions.emplace_back(std::move(func));
                 }
             }

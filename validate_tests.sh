@@ -52,6 +52,20 @@ for test_file in tests/*.occ; do
     error_output=$(timeout 5 ./build/occultc "$test_file" 2>&1 >/dev/null)
     compile_result=$?
     
+    # Negative tests: first line "// EXPECT-FAIL" means the compiler must reject it
+    if head -1 "$test_file" | grep -q "EXPECT-FAIL"; then
+        if [ $compile_result -ne 0 ] && [ $compile_result -ne 124 ] && [ $compile_result -ne 139 ]; then
+            echo -e "${GREEN}PASS${NC} $base_name (rejected as expected)"
+            ((passed_tests++))
+        else
+            echo -e "${RED}FAIL${NC} $base_name (expected a compile error)"
+            ((failed_tests++))
+            failed_files+=("$base_name")
+            error_details+=("$base_name: compiled but should have been rejected")
+        fi
+        continue
+    fi
+    
     # Check for compilation errors (parse errors, function not found)
     if echo "$error_output" | grep -qE "PARSE ERROR|Function '[^']*' not found|Function \"[^\"]*\" not found"; then
         echo -e "${RED}FAIL${NC} $base_name (compilation error)"

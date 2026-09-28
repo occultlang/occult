@@ -9,14 +9,12 @@
 #include <string>
 #include "backend/codegen/ir_gen.hpp"
 #include "backend/codegen/x86_64_codegen.hpp"
-#include "backend/codegen/x86_64_codegen_v2.hpp"
 #include "code_analysis/linter.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/cst.hpp"
 #include "parser/parser.hpp"
 #ifdef __linux
 #include <sys/stat.h>
-#include "backend/codegen/code_cache.hpp"
 #include "backend/codegen/ir_lifter.hpp"
 #include "backend/codegen/x86_64_assembler.hpp"
 #include "backend/linker/linker.hpp"
@@ -39,6 +37,7 @@ void display_help() {
               << "  -t,   --time              Show compilation time per stage\n"
               << "  -d,   --debug             Enable debug mode (implies --time)\n"
               << "  -o,   --output <file>     Output native binary\n"
+              << "        --abi <sysv|win64>  Calling convention (default: host)\n"
               << "  -h,   --help              Show this message\n";
 }
 
@@ -52,6 +51,7 @@ int main(int argc, char* argv[]) {
     bool jit = true; // we will default to JIT
 
     std::string filenameout;
+    occult::x86_64::call_abi abi = occult::x86_64::host_abi();
 
     for (int i = 1; i < argc; ++i) {
         if (std::string arg = argv[i]; arg == "-d" || arg == "--debug") {
@@ -72,6 +72,12 @@ int main(int argc, char* argv[]) {
             else {
                 filenameout = "a.out";
             }
+        }
+        else if (arg == "--abi" && i + 1 < argc) {
+            const std::string v = argv[++i];
+            if (v == "win64") abi = occult::x86_64::call_abi::win64;
+            else if (v == "sysv") abi = occult::x86_64::call_abi::sysv;
+            else { std::cout << "Unknown ABI: " << v << " (expected sysv or win64)\n"; return 1; }
         }
         else if (arg == "-h" || arg == "--help") {
             display_help();
@@ -160,14 +166,11 @@ int main(int argc, char* argv[]) {
         occult::ir_lifter::visualize_register_ir(reg_ir);
     }*/
 
-    occult::x86_64::codegen_v2 codegen_v2(ir, ir_structs, debug);
-    codegen_v2.compile();
-
     start = std::chrono::high_resolution_clock::now();
-    occult::x86_64::codegen jit_runtime(ir, ir_structs, debug);
+    occult::x86_64::codegen_v2 codegen_v2(ir, ir_structs, debug, abi, ir_gen.program_globals);
 
     try {
-        jit_runtime.compile(jit);
+        codegen_v2.compile(jit);
     }
     catch (const std::exception& e) {
         std::cerr << RED << "[OCCULTC] Code generation failed: " << RESET << e.what() << std::endl;
@@ -189,10 +192,9 @@ int main(int argc, char* argv[]) {
 
 #ifdef __linux
     if (jit) {
-        if (auto it = jit_runtime.function_map.find("main"); it != jit_runtime.function_map.end()) {
+        if (auto it = codegen_v2.function_locs.find("main"); it != codegen_v2.function_locs.end()) {
             start = std::chrono::high_resolution_clock::now();
 
-            // Install signal handlers to catch JIT crashes
             struct sigaction sa{}, old_sigsegv{}, old_sigabrt{}, old_sigfpe{}, old_sigbus{};
             sa.sa_handler = jit_signal_handler;
             sa.sa_flags = 0;
@@ -204,10 +206,13 @@ int main(int argc, char* argv[]) {
 
             std::int64_t res = 0;
             if (setjmp(jit_jmp_buf) == 0) {
-                res = reinterpret_cast<std::int64_t (*)()>(it->second)();
+                if (codegen_v2.function_locs.count("__global_init")) {
+                    codegen_v2.get_function<std::int64_t(*)()>("__global_init")();
+                }
+                auto main_fn = codegen_v2.get_function<std::int64_t(*)()>("main");
+                res = main_fn();
             }
             else {
-                // Restore default signal handlers
                 sigaction(SIGSEGV, &old_sigsegv, nullptr);
                 sigaction(SIGABRT, &old_sigabrt, nullptr);
                 sigaction(SIGFPE, &old_sigfpe, nullptr);
@@ -216,7 +221,6 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            // Restore default signal handlers
             sigaction(SIGSEGV, &old_sigsegv, nullptr);
             sigaction(SIGABRT, &old_sigabrt, nullptr);
             sigaction(SIGFPE, &old_sigfpe, nullptr);
@@ -239,10 +243,13 @@ int main(int argc, char* argv[]) {
     }
 #else
     if (jit) {
-        if (auto it = jit_runtime.function_map.find("main"); it != jit_runtime.function_map.end()) {
+        if (auto it = codegen_v2.function_locs.find("main"); it != codegen_v2.function_locs.end()) {
             start = std::chrono::high_resolution_clock::now();
 
-            std::int64_t res = reinterpret_cast<std::int64_t (*)()>(it->second)();
+            if (codegen_v2.function_locs.count("__global_init")) {
+                codegen_v2.get_function<std::int64_t (*)()>("__global_init")();
+            }
+            std::int64_t res = codegen_v2.get_function<std::int64_t (*)()>("main")();
 
             end = std::chrono::high_resolution_clock::now();
             duration = end - start;
@@ -261,8 +268,8 @@ int main(int argc, char* argv[]) {
     }
 #endif
 #ifdef __linux
-    else if (!jit) {
-        occult::linker::link_and_create_binary(filenameout, jit_runtime.function_map, jit_runtime.function_raw_code_map, jit_runtime.string_literals, debug, showtime);
+    if (!jit) {
+        occult::linker::link_blob(filenameout, codegen_v2.get_code(), codegen_v2.function_locs, codegen_v2.string_relocs, codegen_v2.string_literals, codegen_v2.global_relocs, codegen_v2.globals_size(), debug, showtime);
 
         chmod(filenameout.c_str(), S_IRWXU);
     }

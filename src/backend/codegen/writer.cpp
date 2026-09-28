@@ -27,7 +27,7 @@ namespace occult {
     }
 
 #ifdef __linux__
-    jit_function writer::setup_function() {
+    jit_function writer::setup_function(std::uint32_t offset_for_func) {
         const std::size_t required_size = code.size();
 
         if (required_size == 0) {
@@ -44,6 +44,12 @@ namespace occult {
             allocated_size = new_size;
         }
 
+        // may be called more than once (e.g. to look up several entry
+        // points): make the region writable again before refreshing it
+        if (mprotect(memory, allocated_size, PROT_READ | PROT_WRITE) != 0) {
+            throw std::runtime_error("Failed to set memory writable");
+        }
+
         std::memcpy(memory, code.data(), required_size);
 
         const std::size_t aligned_size = ((required_size + page_size - 1) / page_size) * page_size;
@@ -51,13 +57,17 @@ namespace occult {
             throw std::runtime_error("Failed to set memory executable");
         }
 
-        return reinterpret_cast<jit_function>(memory);
+        return reinterpret_cast<jit_function>(reinterpret_cast<std::uint8_t*>(memory) + offset_for_func);
     }
 #endif
 
 #ifdef _WIN64
-    jit_function writer::setup_function() {
+    jit_function writer::setup_function(std::uint32_t offset_for_func) {
         const std::size_t required_size = code.size();
+
+        if (required_size == 0) {
+            return nullptr;
+        }
 
         if (required_size > allocated_size) {
             const std::size_t new_size = ((required_size / page_size) + 1) * page_size;
@@ -67,18 +77,15 @@ namespace occult {
                 throw std::runtime_error("Failed to allocate additional memory");
             }
 
-            std::memcpy(new_memory, memory, code.size());
-
             VirtualFree(memory, 0, MEM_RELEASE);
 
             memory = new_memory;
             allocated_size = new_size;
         }
-        else {
-            std::memcpy(memory, code.data(), required_size);
-        }
 
-        return reinterpret_cast<jit_function>(memory);
+        std::memcpy(memory, code.data(), required_size);
+
+        return reinterpret_cast<jit_function>(reinterpret_cast<std::uint8_t*>(memory) + offset_for_func);
     }
 #endif
 
@@ -93,4 +100,5 @@ namespace occult {
 
     const std::size_t& writer::get_string_location(const std::string& str) { return string_locations[str]; }
 
+    void* writer::get_memory() const { return memory; }
 } // namespace occult

@@ -42,7 +42,7 @@ namespace occult {
                                                                       {"u8", uint8_keyword_tt},        {"f32", float32_keyword_tt},     {"f64", float64_keyword_tt},     {"bool", boolean_keyword_tt},  {"char", char_keyword_tt},
                                                                       {"string", string_keyword_tt},   {"array", array_keyword_tt},     {"false", false_keyword_tt},     {"true", true_keyword_tt},     {"in", in_keyword_tt},
                                                                       {"struct", struct_keyword_tt},   {"generic", generic_keyword_tt}, {"enum", enum_keyword_tt},       {"switch", switch_keyword_tt}, {"case", case_keyword_tt},
-                                                                      {"default", default_keyword_tt}, {"const", const_keyword_tt},     {"module", module_keyword_tt},   {"import", import_keyword_tt}, {"shellcode", shellcode_denoter_tt},
+                                                                      {"default", default_keyword_tt}, {"const", const_keyword_tt},     {"global", global_keyword_tt},     {"module", module_keyword_tt},   {"import", import_keyword_tt}, {"shellcode", shellcode_denoter_tt},
                                                                       {"is_linux64", is_linux64},      {"is_win64", is_win64},          {"asm", asm_keyword_tt}};
 
     inline std::unordered_map<token_type, std::string> token_typename_map = {{whitespace_tt, "whitespace"},
@@ -137,6 +137,7 @@ namespace occult {
                                                                              {case_keyword_tt, "case"},
                                                                              {default_keyword_tt, "default"},
                                                                              {const_keyword_tt, "const"},
+                                                                             {global_keyword_tt, "global"},
                                                                              {module_keyword_tt, "module"},
                                                                              {import_keyword_tt, "import"},
                                                                              {scope_resolution_tt, "scope_resolution"},

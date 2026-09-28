@@ -1,42 +1,20 @@
 #pragma once
-
-#ifndef _WIN64
-#include "code_cache.hpp"
-#endif
-
+#include "x86_64_writer.hpp"
 #include "ir_gen.hpp"
 #include "x86_64_assembler.hpp"
-#include "x86_64_writer.hpp"
 
-#include <algorithm>
 #include <cstring>
-#include <initializer_list>
-#include <limits>
-#include <map>
 #include <optional>
-#include <ranges>
+#include <limits>
+#include <algorithm>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
 
-/*
- * A class for stack-oriented codegen, redone
- */
-
-// IMPORTANT (IGNORE FOR NOW?)
-// there's a bug with stack sizing (call and totalsize, we must properly deal
-// with subtracting rsp for variables and maintaining the correct stack size
-// after calls)
+// a renewed stack codegen, more organized and stable
 
 namespace occult::x86_64 {
-    static std::unordered_map<std::string, std::size_t> typename_sizes = {
-        {"int64", 8}, {"int32", 4}, {"int16", 2}, {"int8", 1}, {"uint64", 8}, {"uint32", 4}, {"uint16", 2}, {"uint8", 1}, {"float32", 4}, {"float64", 8},
-    }; /* we might have to use this instead of an 8-byte aligned stack, i'm not sure
-        */
-    static const std::unordered_map<std::string, std::string> cast_keyword_to_typename = {
-        {"i8", "int8"}, {"i16", "int16"}, {"i32", "int32"}, {"i64", "int64"}, {"u8", "uint8"}, {"u16", "uint16"}, {"u32", "uint32"}, {"u64", "uint64"}, {"f32", "float32"}, {"f64", "float64"},
-    };
-    inline static std::vector<std::unique_ptr<std::uint8_t[]>> literal_pool;
 
     struct array_metadata {
         std::string type;
@@ -47,7 +25,7 @@ namespace occult::x86_64 {
     struct struct_member_info {
         std::string name;
         std::string type;
-        std::int32_t offset; // offset from struct base (0, 8, 16, ...)
+        std::int32_t offset;
     };
 
     struct struct_layout {
@@ -65,209 +43,68 @@ namespace occult::x86_64 {
         }
     };
 
-    class codegen {
-#ifdef __linux
-        bool is_systemv = true;
-#elif _WIN64
-        bool is_systemv = false;
+    static const std::unordered_map<std::string, std::string> cast_keyword_to_typename = {
+        {"i8", "int8"}, {"i16", "int16"}, {"i32", "int32"}, {"i64", "int64"},
+        {"u8", "uint8"}, {"u16", "uint16"}, {"u32", "uint32"}, {"u64", "uint64"},
+        {"f32", "float32"}, {"f64", "float64"},
+    };
+
+    enum class call_abi { sysv, win64 };
+
+    constexpr call_abi host_abi() {
+#ifdef _WIN64
+        return call_abi::win64;
+#else
+        return call_abi::sysv;
 #endif
+    }
 
-        template <typename RegT, std::size_t RegSize>
-        class register_pool {
-            struct stack_value {
-                bool is_spilled = false;
-                RegT reg;
-                std::int32_t offset = 0;
-            };
-
-            std::vector<RegT> free_regs;
-            std::vector<RegT> initial_free_regs; // saved for reset()
-            std::vector<stack_value> reg_stack;
-
-            x86_64_writer* writer = nullptr;
-            std::int32_t* total_stack_size = nullptr;
-            bool r_debug;
-
-        public:
-            explicit register_pool(x86_64_writer* w, std::initializer_list<RegT> initial_regs) : initial_free_regs(initial_regs), writer(w), r_debug(w->debug) { free_regs = initial_free_regs; }
-
-            void set_stack_size_tracker(std::int32_t* ptr) { total_stack_size = ptr; }
-
-            RegT alloc() {
-                if (free_regs.empty()) {
-                    if (!reg_stack.empty() && total_stack_size) {
-                        for (size_t i = 0; i < reg_stack.size(); ++i) {
-                            if (!reg_stack[i].is_spilled) {
-                                RegT r = reg_stack[i].reg;
-                                *total_stack_size += static_cast<std::int32_t>(RegSize);
-                                std::int32_t spill_offset = -*total_stack_size;
-
-                                if constexpr (std::is_same_v<RegT, grp>) {
-                                    writer->emit_mov(mem{rbp, spill_offset}, r);
-                                }
-                                else if constexpr (std::is_same_v<RegT, simd128>) {
-                                    writer->emit_movsd(mem{rbp, spill_offset},
-                                                       r); // or emit_movaps if aligned
-                                }
-
-                                reg_stack[i].is_spilled = true;
-                                reg_stack[i].offset = spill_offset;
-                                free_regs.push_back(r);
-                                break;
-                            }
-                        }
-                    }
-
-                    if (free_regs.empty()) {
-                        writer->print_bytes();
-                        throw std::runtime_error("no registers free / cannot spill");
-                    }
-                }
-
-                RegT r = free_regs.back();
-                free_regs.pop_back();
-                return r;
-            }
-
-            void free(RegT r) { free_regs.push_back(r); }
-
-            void push(RegT r) { reg_stack.push_back({.is_spilled = false, .reg = r, .offset = 0}); }
-
-            RegT pop() {
-                if (reg_stack.empty()) {
-                    /*if (r_debug) {
-                        writer->print_bytes();
-                    }*/
-                    RegT r = alloc();
-                    if constexpr (std::is_same_v<RegT, grp>) {
-                        writer->emit_xor(r, r);
-
-                        /*if (r_debug) {
-                            std::cout << "IR TRACE:\n";
-                            for (std::size_t j = instr_index; j < func.code.size(); ++j) {
-                                ir_instr& code = func.code.at(j);
-                                std::cout << opcode_to_string(code.op) << " ";
-                                std::visit(visitor_stack(), code.operand);
-                                if (!code.type.empty()) {
-                                    std::cout << "(type = " << code.type << ")";
-                                }
-                                std::cout << "\n";
-                            }
-                        }*/
-                    }
-                    return r;
-                }
-
-                stack_value val = reg_stack.back();
-                reg_stack.pop_back();
-
-                if (val.is_spilled) {
-                    RegT r = alloc();
-
-                    if constexpr (std::is_same_v<RegT, grp>) {
-                        writer->emit_mov(r, mem{rbp, val.offset});
-                    }
-                    else if constexpr (std::is_same_v<RegT, simd128>) {
-                        writer->emit_movsd(r, mem{rbp, val.offset});
-                    }
-
-                    return r;
-                }
-                else {
-                    return val.reg;
-                }
-            }
-
-            [[nodiscard]] RegT top() {
-                if (reg_stack.empty()) {
-                    writer->print_bytes();
-                    throw std::runtime_error("stack empty");
-                }
-
-                stack_value& val = reg_stack.back();
-                if (val.is_spilled) {
-                    RegT r = alloc();
-
-                    if constexpr (std::is_same_v<RegT, grp>) {
-                        writer->emit_mov(r, mem{rbp, val.offset});
-                    }
-                    else if constexpr (std::is_same_v<RegT, simd128>) {
-                        writer->emit_movsd(r, mem{rbp, val.offset});
-                    }
-
-                    val.is_spilled = false;
-                    val.reg = r;
-                }
-                return val.reg;
-            }
-
-            void reset() {
-                reg_stack.clear();
-                free_regs = initial_free_regs; // restore original free list
-            }
-
-            [[nodiscard]] bool empty() const { return reg_stack.empty(); }
-            [[nodiscard]] size_t stack_size() const { return reg_stack.size(); }
-
-            [[nodiscard]] std::vector<RegT> get_active_registers() const {
-                std::vector<RegT> regs;
-                for (const auto& val : reg_stack) {
-                    if (!val.is_spilled) {
-                        regs.push_back(val.reg);
-                    }
-                }
-                return regs;
-            }
-        };
+    class codegen_v2 {    
+        bool debug; 
+        call_abi abi = host_abi();
 
         class register_allocator {
             std::unordered_map<std::variant<grp, simd128>, bool> register_liveliness = {
-                {rax, false},
-                {rcx, false},
-                {rdx, false},
-                {rbx, false},
-                {rsi, false},
-                {rdi, false},
-                {r8,  false},
-                {r9,  false},
-                {r10, false},
-                {r11, false},
-                {r12, false},
-                {r13, false},
-                {r14, false},
-                {r15, false},
-                {xmm0, false}, 
-                {xmm1, false}, 
-                {xmm2, false}, 
-                {xmm3, false}, 
-                {xmm4, false}, 
-                {xmm5, false}, 
-                {xmm6, false}, 
-                {xmm7, false}, 
-                {xmm8, false}, 
-                {xmm9, false}, 
-                {xmm10, false}, 
-                {xmm11, false}, 
-                {xmm12, false}, 
-                {xmm13, false}, 
-                {xmm14, false}, 
+                {rax, false}, {rcx, false}, {rdx, false}, {rbx, false}, {rsi, false},
+                {rdi, false}, {r8,  false}, {r9,  false}, {r10, false}, {r11, false},
+                {r12, false}, {r13, false}, {r14, false}, {r15, false},
+                
+                {xmm0, false},  {xmm1, false}, {xmm2, false}, {xmm3, false}, {xmm4, false}, 
+                {xmm5, false}, {xmm6, false}, {xmm7, false}, {xmm8, false}, {xmm9, false}, 
+                {xmm10, false}, {xmm11, false}, {xmm12, false}, {xmm13, false}, {xmm14, false}, 
                 {xmm15, false}
             };
 
-            const std::vector<grp> allocation_order_grp = {
-                rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11,
-                rbx, r12, r13, r14, r15 
+            std::vector<grp> allocation_order_grp = {
+                rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11
             };
 
-            const std::vector<simd128> allocation_order_simd128 = {
+            std::vector<simd128> allocation_order_simd128 = {
                 xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15
             };
 
-            std::vector<std::variant<grp, simd128>> register_stack;
+            struct stack_entry {
+                bool is_spilled = false;
+                std::variant<grp, simd128> reg{};
+                std::int32_t offset = 0;
+            };
+
+            std::vector<stack_entry> register_stack;
+
+            x86_64_writer* writer = nullptr;
+            std::int32_t* stack_size_tracker = nullptr;
         public:
             register_allocator() = default;
 
-            // returns true if register is live
+            void configure(x86_64_writer* writer_, std::int32_t* stack_size_tracker_, call_abi abi_) {
+                writer = writer_;
+                stack_size_tracker = stack_size_tracker_;
+                if (abi_ == call_abi::win64) {
+                    allocation_order_grp = {rax, rcx, rdx, r8, r9, r10, r11};
+                    allocation_order_simd128 = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5};
+                }
+            }
+
             template<typename RegT>
             bool check(RegT reg) {
                 auto it = register_liveliness.find(reg);
@@ -275,7 +112,6 @@ namespace occult::x86_64 {
                 return it != register_liveliness.end() && it->second;
             }
 
-            // turns a specific register live and returns it
             template<typename RegT>
             std::optional<RegT> take(RegT reg) {
                 if (!check(reg)) {
@@ -292,11 +128,50 @@ namespace occult::x86_64 {
                 register_liveliness[reg] = false;
             }
 
-            // allocates register based off of the allocation order
+            void release(const std::variant<grp, simd128>& reg) {
+                std::visit([this](auto&& r) { register_liveliness[r] = false; }, reg);
+            }
+
+            void force_evict(grp reg) {
+                if (!check(reg)) {
+                    return;
+                }
+
+                for (auto& entry : register_stack) {
+                    if (entry.is_spilled || !std::holds_alternative<grp>(entry.reg) || std::get<grp>(entry.reg) != reg) {
+                        continue;
+                    }
+
+                    if (!writer || !stack_size_tracker) {
+                        throw std::runtime_error("register_allocator: force_evict() requires configure() to have been called");
+                    }
+
+                    *stack_size_tracker += 8;
+                    std::int32_t off = -*stack_size_tracker;
+                    writer->emit_mov(mem{rbp, off}, reg);
+                    entry.is_spilled = true;
+                    entry.offset = off;
+                    release(reg);
+                    return;
+                }
+
+                release(reg);
+            }
+
             template<typename RegT>
-            RegT allocate() {
+            RegT allocate(std::initializer_list<grp> excluded = {}) {
+                auto is_excluded = [&](const RegT& r) {
+                    if constexpr (std::is_same_v<RegT, grp>) {
+                        for (grp e : excluded) {
+                            if (e == r) return true;
+                        }
+                    }
+                    return false;
+                };
+
                 if constexpr (std::is_same_v<RegT, grp>) {
                     for (auto& reg : allocation_order_grp) {
+                        if (is_excluded(reg)) continue;
                         if (auto taken_reg = take(reg); taken_reg.has_value()) {
                             return taken_reg.value();
                         }
@@ -310,36 +185,1386 @@ namespace occult::x86_64 {
                     }
                 }
 
-                throw std::runtime_error("Invalid type for register allocator");
+                if (writer && stack_size_tracker) {
+                    for (auto& entry : register_stack) {
+                        if (entry.is_spilled || !std::holds_alternative<RegT>(entry.reg)) {
+                            continue;
+                        }
+
+                        RegT r = std::get<RegT>(entry.reg);
+                        if (is_excluded(r)) {
+                            continue;
+                        }
+
+                        *stack_size_tracker += 8;
+                        std::int32_t off = -*stack_size_tracker;
+
+                        if constexpr (std::is_same_v<RegT, grp>) {
+                            writer->emit_mov(mem{rbp, off}, r);
+                        }
+                        else {
+                            writer->emit_movsd(mem{rbp, off}, r);
+                        }
+
+                        entry.is_spilled = true;
+                        entry.offset = off;
+                        release(r);
+
+                        if (auto taken = take(r); taken.has_value()) {
+                            return taken.value();
+                        }
+                    }
+                }
+
+                throw std::runtime_error("Invalid type for register allocator (no free registers, nothing left to spill)");
             }
 
-            // pushes register onto register stack
             template<typename RegT>
-            void push(RegT reg) { register_stack.push_back(reg); }
+            void push(RegT reg) { register_stack.push_back(stack_entry{false, reg, 0}); }
 
-            // pops register from register stack and returns it
             template<typename RegT>
             RegT pop() {
-                auto v = register_stack.back();
+                if (register_stack.empty()) {
+                    throw std::runtime_error("register_allocator::pop() on empty stack");
+                }
+
+                auto entry = register_stack.back();
                 register_stack.pop_back();
-                return std::get<RegT>(v);
+
+                if (entry.is_spilled) {
+                    RegT r = allocate<RegT>();
+                    if constexpr (std::is_same_v<RegT, grp>) {
+                        writer->emit_mov(r, mem{rbp, entry.offset});
+                    }
+                    else {
+                        writer->emit_movsd(r, mem{rbp, entry.offset});
+                    }
+                    return r;
+                }
+
+                return std::get<RegT>(entry.reg);
+            }
+
+            std::variant<grp, simd128> pop_variant() {
+                if (register_stack.empty()) {
+                    throw std::runtime_error("register_allocator::pop_variant() on empty stack");
+                }
+
+                auto entry = register_stack.back();
+                register_stack.pop_back();
+
+                if (entry.is_spilled) {
+                    if (std::holds_alternative<grp>(entry.reg)) {
+                        grp r = allocate<grp>();
+                        writer->emit_mov(r, mem{rbp, entry.offset});
+                        return r;
+                    }
+                    else {
+                        simd128 r = allocate<simd128>();
+                        writer->emit_movsd(r, mem{rbp, entry.offset});
+                        return r;
+                    }
+                }
+
+                return entry.reg;
+            }
+
+            template<typename RegT>
+            RegT top() {
+                if (register_stack.empty()) {
+                    throw std::runtime_error("register_allocator::top() on empty stack");
+                }
+
+                auto& entry = register_stack.back();
+
+                if (entry.is_spilled) {
+                    RegT r = allocate<RegT>();
+                    if constexpr (std::is_same_v<RegT, grp>) {
+                        writer->emit_mov(r, mem{rbp, entry.offset});
+                    }
+                    else {
+                        writer->emit_movsd(r, mem{rbp, entry.offset});
+                    }
+                    entry.is_spilled = false;
+                    entry.reg = r;
+                }
+
+                return std::get<RegT>(entry.reg);
+            }
+
+            std::vector<std::variant<grp, simd128>> snapshot() const {
+                std::vector<std::variant<grp, simd128>> result;
+                for (auto& entry : register_stack) {
+                    if (!entry.is_spilled) {
+                        result.push_back(entry.reg);
+                    }
+                }
+                return result;
+            }
+
+            bool empty() const { return register_stack.empty(); }
+
+            void spill_all() {
+                for (auto& entry : register_stack) {
+                    if (entry.is_spilled) {
+                        continue;
+                    }
+                    *stack_size_tracker += 8;
+                    std::int32_t off = -*stack_size_tracker;
+                    if (std::holds_alternative<grp>(entry.reg)) {
+                        writer->emit_mov(mem{rbp, off}, std::get<grp>(entry.reg));
+                    }
+                    else {
+                        writer->emit_movsd(mem{rbp, off}, std::get<simd128>(entry.reg));
+                    }
+                    entry.is_spilled = true;
+                    entry.offset = off;
+                    release(entry.reg);
+                }
+            }
+
+            struct entry_view {
+                bool is_spilled;
+                std::variant<grp, simd128> reg;
+                std::int32_t offset;
+            };
+
+            std::vector<entry_view> state() const {
+                std::vector<entry_view> s;
+                s.reserve(register_stack.size());
+                for (auto& e : register_stack) {
+                    s.push_back({e.is_spilled, e.reg, e.offset});
+                }
+                return s;
+            }
+
+            void restore(const std::vector<entry_view>& s) {
+                for (auto& [reg, live] : register_liveliness) {
+                    live = false;
+                }
+                register_stack.clear();
+                for (auto& e : s) {
+                    register_stack.push_back(stack_entry{e.is_spilled, e.reg, e.offset});
+                    if (!e.is_spilled) {
+                        std::visit([this](auto&& r) { register_liveliness[r] = true; }, e.reg);
+                    }
+                }
+            }
+
+            entry_view pop_spilled() {
+                if (register_stack.empty()) {
+                    throw std::runtime_error("register_allocator::pop_spilled() on empty stack");
+                }
+                auto e = register_stack.back();
+                register_stack.pop_back();
+                if (!e.is_spilled) {
+                    throw std::runtime_error("register_allocator::pop_spilled() on a register-resident entry");
+                }
+                return {e.is_spilled, e.reg, e.offset};
+            }
+
+            static bool same_location(const entry_view& a, const entry_view& b) {
+                if (a.is_spilled != b.is_spilled) return false;
+                if (a.is_spilled) return a.offset == b.offset;
+                return a.reg == b.reg;
+            }
+
+            bool top_is_simd() const {
+                return !register_stack.empty() && std::holds_alternative<simd128>(register_stack.back().reg);
             }
         };
 
-        using register_pool_gp = register_pool<grp, 8>;
-        using register_pool_simd = register_pool<simd128, 16>;
-
-        std::vector<ir_function> ir_funcs;
-        std::vector<ir_struct> ir_structs;
-        std::vector<std::unique_ptr<x86_64_writer>> writers;
-        std::unordered_map<std::string, std::int32_t> cleanup_size_map;
+        std::unique_ptr<x86_64_writer> w; 
+        std::vector<ir_function> stack_ir; 
+        std::vector<ir_struct> ir_structs; 
+        public:
+        std::unordered_map<std::string, std::uint32_t> function_locs;
+        private:
         std::unordered_map<std::string, std::string> function_return_types;
+        std::unordered_map<std::string, std::vector<std::string>> function_arg_types;
+        std::unordered_map<std::string, std::vector<std::string>> function_arg_names;
+        std::unordered_set<std::string> variable_arity_functions;
         std::unordered_map<std::string, struct_layout> struct_layouts;
+        std::vector<std::unique_ptr<std::uint8_t[]>> literal_pool;
+        std::vector<std::pair<std::string, std::size_t>> call_patch_list;
+        std::vector<std::pair<std::string, std::size_t>> func_addr_patch_list; // function, offset of lea disp32
 
-        bool debug;
+        // lea dst, [rip + disp32] to a function in this blob; disp backpatched
+        // once every function has a location (position independent)
+        void emit_function_addr(grp dst, const std::string& fname) {
+            const auto v = static_cast<std::uint8_t>(dst);
+            const std::uint8_t idx = (v >= static_cast<std::uint8_t>(r8) && v <= static_cast<std::uint8_t>(r15)) ? static_cast<std::uint8_t>(8 + (v - static_cast<std::uint8_t>(r8))) : static_cast<std::uint8_t>(v & 7);
+            w->push_bytes({static_cast<std::uint8_t>(0x48 | (idx >= 8 ? 0x04 : 0)), 0x8D, static_cast<std::uint8_t>(((idx & 7) << 3) | 0x05), 0, 0, 0, 0});
+            func_addr_patch_list.emplace_back(fname, w->get_code().size() - 4);
+        }
+
+        // globals, one shared, writable slot each (8 bytes), addressed by
+        // absolute address baked in with movabs same scheme as string
+        // literals, since the JIT code blob itself is mapped execute only.
+        std::unordered_map<std::string, std::int32_t> global_offsets;
+        std::unordered_map<std::string, std::string> global_types;   
+        std::unique_ptr<std::uint8_t[]> globals_storage;
+
+        // loads the absolute address of global name into dst and records
+        // a relocation so the AOT linker can repoint it into the data segment
+        void emit_global_addr(register_allocator& reg_alloc, grp dst, const std::string& name) {
+            (void)reg_alloc;
+            std::int32_t off = global_offsets.at(name);
+            std::int64_t abs = reinterpret_cast<std::int64_t>(globals_storage.get() + off);
+            w->emit_mov(dst, abs);
+            global_relocs.emplace_back(w->get_code().size() - 8, off);
+        }
+
+        public:
+        std::unordered_map<std::uint64_t, std::string> string_literals;
+        std::vector<std::pair<std::size_t, std::uint64_t>> string_relocs;
+        std::vector<std::pair<std::size_t, std::int32_t>> global_relocs; // (imm64 code offset, global offset)
+        std::int32_t globals_size() const { return static_cast<std::int32_t>(global_offsets.size()) * 8; }
+        private:
+
+        template<typename OperandT>
+        static std::optional<std::uint64_t> extract_uint_operand(const OperandT& opnd) {
+            if (std::holds_alternative<std::int64_t>(opnd))  return static_cast<std::uint64_t>(std::get<std::int64_t>(opnd));
+            if (std::holds_alternative<std::uint64_t>(opnd)) return std::get<std::uint64_t>(opnd);
+            if (std::holds_alternative<std::int32_t>(opnd))  return static_cast<std::uint64_t>(std::get<std::int32_t>(opnd));
+            if (std::holds_alternative<std::uint32_t>(opnd)) return std::get<std::uint32_t>(opnd);
+            if (std::holds_alternative<std::int16_t>(opnd))  return static_cast<std::uint64_t>(std::get<std::int16_t>(opnd));
+            if (std::holds_alternative<std::uint16_t>(opnd)) return std::get<std::uint16_t>(opnd);
+            if (std::holds_alternative<std::int8_t>(opnd))   return static_cast<std::uint64_t>(std::get<std::int8_t>(opnd));
+            if (std::holds_alternative<std::uint8_t>(opnd))  return std::get<std::uint8_t>(opnd);
+            return std::nullopt;
+        }
+
+        template<typename T>
+        void handle_push(register_allocator& reg_alloc, ir_instr& instr) {
+            if constexpr (std::is_same_v<T, double>) {
+                double val = std::get<double>(instr.operand);
+                auto xmm = reg_alloc.allocate<simd128>();
+                auto reg = reg_alloc.allocate<grp>();
+                w->emit_mov(reg, double_to_bits(val));
+                w->emit_movq(xmm, reg);
+                reg_alloc.release<grp>(reg);
+                reg_alloc.push<simd128>(xmm);
+            }
+            else if constexpr (std::is_same_v<T, float>) {
+                float val = std::get<float>(instr.operand);
+                auto xmm = reg_alloc.allocate<simd128>();
+                auto reg = reg_alloc.allocate<grp>();
+                w->emit_mov(as_32(reg), float_to_bits(val));
+                w->emit_movd(xmm, as_32(reg));
+                reg_alloc.release<grp>(reg);
+                reg_alloc.push<simd128>(xmm);
+            }
+            else if constexpr (std::is_same_v<T, std::string>) {
+                const std::string& str = std::get<std::string>(instr.operand);
+                constexpr std::size_t header_size = 8;
+                const std::size_t storage_size = header_size + str.size() + 8;
+
+                auto buf = std::make_unique<std::uint8_t[]>(storage_size);
+                std::memset(buf.get(), 0, storage_size);
+                *reinterpret_cast<std::uint64_t*>(buf.get()) = str.size();
+                std::memcpy(buf.get() + header_size, str.data(), str.size());
+
+                auto literal_ptr = buf.get() + header_size;
+                std::uint64_t host_addr = reinterpret_cast<std::uint64_t>(literal_ptr);
+
+                string_literals[host_addr] = str;
+                literal_pool.push_back(std::move(buf));
+
+                auto reg = reg_alloc.allocate<grp>();
+                w->emit_mov(reg, reinterpret_cast<std::int64_t>(literal_ptr));
+                string_relocs.emplace_back(w->get_code().size() - 8, host_addr);
+                reg_alloc.push<grp>(reg);
+            }
+            else if constexpr (std::is_integral_v<T>) {
+                T val = std::get<T>(instr.operand);
+                auto reg = reg_alloc.allocate<grp>();
+
+                if constexpr (sizeof(T) < 4 && std::is_signed_v<T>) {
+                    w->emit_mov(reg, static_cast<std::int64_t>(val));
+                }
+                else if constexpr (sizeof(T) < 4) {
+                    w->emit_mov(reg, static_cast<std::uint64_t>(val));
+                }
+                else {
+                    w->emit_mov(reg, val);
+                }
+
+                reg_alloc.push<grp>(reg);
+            }
+            else {
+            }
+        }
+
+        struct push_visitor {
+            codegen_v2* self;
+            register_allocator& reg_alloc;
+            ir_instr& instr;
+
+            template<typename T>
+            void operator()(const T&) const {
+                self->handle_push<T>(reg_alloc, instr);
+            }
+        };
+
+        void handle_store(register_allocator& reg_alloc, ir_instr& instr,
+                           std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                           std::unordered_map<std::string, std::string>& local_variable_map_types,
+                           std::unordered_map<std::string, std::string>& local_struct_var_types,
+                           std::int32_t& totalsizes) {
+            auto var_name = std::get<std::string>(instr.operand);
+            auto var_type = instr.type;
+            auto it = local_variable_map.find(var_name);
+
+            if (it == local_variable_map.end() && global_offsets.contains(var_name)) {
+                const std::string& gtype = global_types[var_name];
+                const bool fstore = (gtype == "float32" || gtype == "float64") || reg_alloc.top_is_simd();
+                if (fstore) {
+                    auto simd_reg = reg_alloc.pop<simd128>();
+                    grp gbase = reg_alloc.allocate<grp>();
+                    emit_global_addr(reg_alloc, gbase, var_name);
+                    if (gtype == "float32") w->emit_movss(mem{gbase}, simd_reg);
+                    else                    w->emit_movsd(mem{gbase}, simd_reg);
+                    reg_alloc.release<simd128>(simd_reg);
+                    reg_alloc.release<grp>(gbase);
+                }
+                else {
+                    grp val = reg_alloc.pop<grp>();
+                    grp gbase = reg_alloc.allocate<grp>();
+                    emit_global_addr(reg_alloc, gbase, var_name);
+                    w->emit_mov(mem{gbase}, val); // 8-byte slot; typed load narrows on read
+                    reg_alloc.release<grp>(val);
+                    reg_alloc.release<grp>(gbase);
+                }
+                return;
+            }
+
+            bool is_float_store = (var_type == "float32" || var_type == "float64");
+
+            if (!is_float_store && it != local_variable_map.end()) {
+                auto type_it = local_variable_map_types.find(var_name);
+                if (type_it != local_variable_map_types.end() && (type_it->second == "float32" || type_it->second == "float64")) {
+                    is_float_store = true;
+                    var_type = type_it->second;
+                }
+            }
+
+            if (!is_float_store && reg_alloc.top_is_simd()) {
+                is_float_store = true;
+                var_type = "float64";
+            }
+
+            if (is_float_store) {
+                auto simd_reg = reg_alloc.pop<simd128>();
+                std::int32_t offset;
+
+                if (it == local_variable_map.end()) {
+                    totalsizes += 8;
+                    offset = -totalsizes;
+                    local_variable_map.insert({var_name, totalsizes});
+                    local_variable_map_types.insert({var_name, var_type});
+                }
+                else {
+                    offset = -it->second;
+                }
+
+                if (var_type == "float32") w->emit_movss(mem{rbp, offset}, simd_reg);
+                else                       w->emit_movsd(mem{rbp, offset}, simd_reg);
+
+                reg_alloc.release<simd128>(simd_reg);
+                return;
+            }
+
+            grp r = reg_alloc.pop<grp>();
+            std::int32_t offset;
+
+            if (it == local_variable_map.end()) {
+                totalsizes += 8;
+                offset = -totalsizes;
+                local_variable_map.insert({var_name, totalsizes});
+                local_variable_map_types.insert({var_name, var_type});
+            }
+            else {
+                offset = -it->second;
+
+                auto struct_it = local_struct_var_types.find(var_name);
+                if (struct_it != local_struct_var_types.end()) {
+                    auto layout_it = struct_layouts.find(struct_it->second);
+                    if (layout_it != struct_layouts.end()) {
+                        grp tmp = reg_alloc.allocate<grp>();
+                        std::int32_t actual_size = layout_it->second.total_size;
+                        for (std::int32_t off = 0; off < actual_size; off += 8) {
+                            w->emit_mov(tmp, mem{r, off});
+                            w->emit_mov(mem{rbp, offset + off}, tmp);
+                        }
+                        reg_alloc.release<grp>(tmp);
+                        reg_alloc.release<grp>(r);
+                        return;
+                    }
+                }
+            }
+
+            if (var_type == "int8" || var_type == "uint8" || var_type == "bool") {
+                w->emit_mov(mem{bpl, offset}, as_8(r));
+            }
+            else if (var_type == "int16" || var_type == "uint16") {
+                w->emit_mov(mem{bp, offset}, as_16(r));
+            }
+            else if (var_type == "int32" || var_type == "uint32") {
+                w->emit_mov(mem{ebp, offset}, as_32(r));
+            }
+            else {
+                w->emit_mov(mem{rbp, offset}, r);
+            }
+
+            reg_alloc.release<grp>(r);
+        }
+
+        void handle_load(register_allocator& reg_alloc, ir_instr& instr,
+                          std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                          std::unordered_map<std::string, std::string>& local_variable_map_types,
+                          std::unordered_map<std::string, std::string>& local_struct_var_types,
+                          bool& is_reference_next,
+                          bool& is_dereference_next, std::size_t& deref_count_normal,
+                          bool& is_dereference_assign_next, std::size_t& deref_count_assign) {
+            const auto& var_name = std::get<std::string>(instr.operand);
+            auto it = local_variable_map.find(var_name);
+
+            if (it == local_variable_map.end()) {
+                if (global_offsets.contains(var_name)) {
+                    const std::string& gtype = global_types[var_name];
+                    grp gbase = reg_alloc.allocate<grp>();
+                    emit_global_addr(reg_alloc, gbase, var_name);
+
+                    if (is_reference_next) {
+                        is_reference_next = false;
+                        reg_alloc.push<grp>(gbase); // the global's address itself
+                        return;
+                    }
+                    if (is_dereference_next) {
+                        w->emit_mov(gbase, mem{gbase}); // the global's value (a pointer)
+                        for (std::size_t s = 0; s < deref_count_normal; s++) w->emit_mov(gbase, mem{gbase});
+                        is_dereference_next = false;
+                        deref_count_normal = 0;
+                        reg_alloc.push<grp>(gbase);
+                        return;
+                    }
+                    if (is_dereference_assign_next) {
+                        w->emit_mov(gbase, mem{gbase});
+                        for (std::size_t s = 1; s < deref_count_assign; s++) w->emit_mov(gbase, mem{gbase});
+                        deref_count_assign = 0;
+                        is_dereference_assign_next = false;
+                        reg_alloc.push<grp>(gbase);
+                        return;
+                    }
+                    if (gtype == "float32" || gtype == "float64") {
+                        auto simd_reg = reg_alloc.allocate<simd128>();
+                        if (gtype == "float64") w->emit_movsd(simd_reg, mem{gbase});
+                        else                    w->emit_movss(simd_reg, mem{gbase});
+                        reg_alloc.release<grp>(gbase);
+                        reg_alloc.push<simd128>(simd_reg);
+                        return;
+                    }
+                    if (gtype == "int8" || gtype == "bool") w->emit_movsx(gbase, mem{gbase});
+                    else if (gtype == "uint8")              w->emit_movzx(gbase, mem{gbase});
+                    else if (gtype == "int16")              w->emit_movsx(gbase, mem{gbase}, false);
+                    else if (gtype == "uint16")             w->emit_movzx(gbase, mem{gbase}, false);
+                    else if (gtype == "int32")              w->emit_movsxd(gbase, mem{gbase});
+                    else if (gtype == "uint32")             w->emit_mov(as_32(gbase), mem{gbase});
+                    else                                    w->emit_mov(gbase, mem{gbase}); // int64/uint64/string/ptr
+                    reg_alloc.push<grp>(gbase);
+                    return;
+                }
+                if (function_arg_types.contains(var_name)) {
+                    if (!is_reference_next) {
+                        throw std::runtime_error("Use @" + var_name + " to take the address of function " + var_name);
+                    }
+                    is_reference_next = false;
+                    grp r = reg_alloc.allocate<grp>();
+                    emit_function_addr(r, var_name);
+                    reg_alloc.push<grp>(r);
+                    return;
+                }
+                throw std::runtime_error("Attempted to load undeclared variable: " + var_name);
+            }
+
+            const auto& var_type = local_variable_map_types[var_name];
+            std::int32_t offset = -it->second;
+
+            if (is_reference_next) {
+                auto r = reg_alloc.allocate<grp>();
+
+                const bool is_reference_typed_var = var_type.ends_with("_reference") && !struct_layouts.contains(var_type);
+                if (is_reference_typed_var) {
+                    w->emit_mov(r, mem{rbp, offset});
+                }
+                else {
+                    w->emit_lea(r, mem{rbp, offset});
+                }
+
+                is_reference_next = false;
+                reg_alloc.push<grp>(r);
+                return;
+            }
+
+            if (is_dereference_next) {
+                auto r = reg_alloc.allocate<grp>();
+
+                for (std::size_t size = 1; size <= deref_count_normal; size++) {
+                    if (size == 1) {
+                        w->emit_mov(r, mem{rbp, offset});
+                        w->emit_mov(r, mem{r});
+                    }
+                    else {
+                        w->emit_mov(r, mem{r});
+                    }
+                }
+
+                is_dereference_next = false;
+                deref_count_normal = 0;
+                reg_alloc.push<grp>(r);
+                return;
+            }
+
+            if (is_dereference_assign_next) {
+                auto r = reg_alloc.allocate<grp>();
+
+                for (std::size_t size = 1; size <= deref_count_assign; size++) {
+                    if (size == 1) {
+                        w->emit_mov(r, mem{rbp, offset});
+                    }
+                    else {
+                        w->emit_mov(r, mem{r});
+                    }
+                }
+
+                deref_count_assign = 0;
+                is_dereference_assign_next = false;
+                reg_alloc.push<grp>(r);
+                return;
+            }
+
+            if (var_type == "float32" || var_type == "float64") {
+                auto simd_reg = reg_alloc.allocate<simd128>();
+                if (var_type == "float64") w->emit_movsd(simd_reg, mem{rbp, offset});
+                else                       w->emit_movss(simd_reg, mem{rbp, offset});
+                reg_alloc.push<simd128>(simd_reg);
+                return;
+            }
+
+            auto r = reg_alloc.allocate<grp>();
+            bool loaded = false;
+
+            if (var_type == "int8" || var_type == "bool")      { w->emit_movsx(r, mem{rbp, offset}); loaded = true; }
+            else if (var_type == "uint8")                       { w->emit_movzx(r, mem{rbp, offset}); loaded = true; }
+            else if (var_type == "int16")                       { w->emit_movsx(r, mem{rbp, offset}, false); loaded = true; }
+            else if (var_type == "uint16")                      { w->emit_movzx(r, mem{rbp, offset}, false); loaded = true; }
+            else if (var_type == "int32")                       { w->emit_movsxd(r, mem{rbp, offset}); loaded = true; }
+            else if (var_type == "uint32")                      { w->emit_mov(as_32(r), mem{rbp, offset}); loaded = true; }
+            else if (var_type == "int64" || var_type == "uint64" || var_type == "string") { w->emit_mov(r, mem{rbp, offset}); loaded = true; }
+
+            if (!loaded && local_struct_var_types.contains(var_name)) {
+                w->emit_lea(r, mem{rbp, offset});
+                loaded = true;
+            }
+
+            if (!loaded) {
+                w->emit_mov(r, mem{rbp, offset});
+            }
+
+            reg_alloc.push<grp>(r);
+        }
+
+        void handle_cmp(register_allocator& reg_alloc, ir_instr& instr) {
+            switch (instr.op) {
+                case ir_opcode::op_cmpf64: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+
+                    w->emit_comisd(lhs, rhs);
+
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.release<simd128>(lhs);
+                    
+                    break;
+                }
+                case ir_opcode::op_cmpf32: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+
+                    w->emit_comiss(lhs, rhs);
+
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.release<simd128>(lhs);
+
+                    break;
+                }
+                case ir_opcode::op_cmp: {
+                    auto pop_or_zero = [&]() -> grp {
+                        if (!reg_alloc.empty()) {
+                            return reg_alloc.pop<grp>();
+                        }
+                        grp z = reg_alloc.allocate<grp>();
+                        w->emit_xor(z, z);
+                        return z;
+                    };
+
+                    auto rhs = pop_or_zero();
+                    auto lhs = pop_or_zero();
+
+                    w->emit_cmp(lhs, rhs);
+
+                    reg_alloc.release<grp>(rhs);
+                    reg_alloc.release<grp>(lhs);
+
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        void handle_setcc(register_allocator& reg_alloc, ir_instr& instr) {
+            auto target = reg_alloc.allocate<grp>();
+
+            switch (instr.op) {
+                case ir_opcode::op_setz:  w->emit_setz(target); break;
+                case ir_opcode::op_setnz: w->emit_setnz(target); break;
+                case ir_opcode::op_setl:  w->emit_setl(target); break;
+                case ir_opcode::op_setle: w->emit_setle(target); break;
+                case ir_opcode::op_setg:  w->emit_setnle(target); break;
+                case ir_opcode::op_setge: w->emit_setnl(target); break;
+                default: break;
+            }
+
+            w->emit_movzx(target, target, true);
+
+            reg_alloc.push<grp>(target);
+        }
+
+        void handle_not(register_allocator& reg_alloc, ir_instr& instr) {
+            (void)instr;
+            auto r = reg_alloc.pop<grp>();
+            w->emit_cmp(r, 0);
+            w->emit_setz(r);
+            w->emit_movzx(r, r, true);
+            reg_alloc.push<grp>(r);
+        }
+
+        void handle_cast(register_allocator& reg_alloc, ir_instr& instr) {
+            if (instr.op == ir_opcode::op_bitcast) {
+                const auto& target_type = std::get<std::string>(instr.operand);
+                const auto& source_type = instr.type;
+
+                bool target_is_float = (target_type == "float32" || target_type == "float64");
+                bool source_is_float = (source_type == "float32" || source_type == "float64");
+
+                if (source_is_float && !target_is_float) {
+                    auto src = reg_alloc.pop<simd128>();
+                    auto dst = reg_alloc.allocate<grp>();
+                    w->emit_movq(dst, src);
+                    reg_alloc.release<simd128>(src);
+                    reg_alloc.push<grp>(dst);
+                }
+                else if (!source_is_float && target_is_float) {
+                    auto src = reg_alloc.pop<grp>();
+                    auto dst = reg_alloc.allocate<simd128>();
+                    w->emit_movq(dst, src);
+                    reg_alloc.release<grp>(src);
+                    reg_alloc.push<simd128>(dst);
+                }
+                return;
+            }
+
+            const auto& raw_target = std::get<std::string>(instr.operand);
+            auto norm_it = cast_keyword_to_typename.find(raw_target);
+            const std::string& target_type = (norm_it != cast_keyword_to_typename.end()) ? norm_it->second : raw_target;
+
+            const bool target_is_float32 = (target_type == "float32");
+            const bool target_is_float64 = (target_type == "float64");
+            const bool target_is_float = target_is_float32 || target_is_float64;
+
+            auto src_norm_it = cast_keyword_to_typename.find(instr.type);
+            const std::string& src_type = (src_norm_it != cast_keyword_to_typename.end()) ? src_norm_it->second : instr.type;
+            const bool source_is_f64 = (src_type == "float64");
+            const bool source_is_f32 = (src_type == "float32");
+            const bool source_is_float = src_type.empty() ? reg_alloc.top_is_simd() : (source_is_f32 || source_is_f64);
+
+            if (source_is_float && target_is_float) {
+                auto src = reg_alloc.pop<simd128>();
+                auto dst = reg_alloc.allocate<simd128>();
+                if (target_is_float64) w->emit_cvtss2sd(dst, src);
+                else                   w->emit_cvtsd2ss(dst, src);
+                reg_alloc.release<simd128>(src);
+                reg_alloc.push<simd128>(dst);
+            }
+            else if (source_is_float && !target_is_float) {
+                auto src = reg_alloc.pop<simd128>();
+                auto dst = reg_alloc.allocate<grp>();
+                if (source_is_f64) w->emit_cvttsd2si(dst, src);
+                else                w->emit_cvttss2si(dst, src);
+                reg_alloc.release<simd128>(src);
+                reg_alloc.push<grp>(dst);
+            }
+            else if (!source_is_float && target_is_float) {
+                auto src = reg_alloc.pop<grp>();
+                auto dst = reg_alloc.allocate<simd128>();
+                if (target_is_float32) w->emit_cvtsi2ss(dst, src);
+                else                    w->emit_cvtsi2sd(dst, src);
+                reg_alloc.release<grp>(src);
+                reg_alloc.push<simd128>(dst);
+            }
+            else {
+                auto r = reg_alloc.pop<grp>();
+                if (target_type == "int8")        w->emit_movsx(r, r, true);
+                else if (target_type == "uint8")  w->emit_movzx(r, r, true);
+                else if (target_type == "int16")  w->emit_movsx(r, r, false);
+                else if (target_type == "uint16") w->emit_movzx(r, r, false);
+                else if (target_type == "int32")  w->emit_movsxd(r, r);
+                else if (target_type == "uint32") w->emit_mov(as_32(r), as_32(r));
+                reg_alloc.push<grp>(r);
+            }
+        }
+
+        void handle_arith(register_allocator& reg_alloc, ir_instr& instr) {
+            switch (instr.op) {
+                case ir_opcode::op_add: {
+                    auto rhs = reg_alloc.pop<grp>();
+                    auto lhs = reg_alloc.pop<grp>();
+                    w->emit_add(lhs, rhs);
+                    reg_alloc.release<grp>(rhs);
+                    reg_alloc.push<grp>(lhs);
+                    break;
+                }
+                case ir_opcode::op_sub: {
+                    auto rhs = reg_alloc.pop<grp>();
+                    auto lhs = reg_alloc.pop<grp>();
+                    w->emit_sub(lhs, rhs);
+                    reg_alloc.release<grp>(rhs);
+                    reg_alloc.push<grp>(lhs);
+                    break;
+                }
+                case ir_opcode::op_bitwise_and: {
+                    auto rhs = reg_alloc.pop<grp>();
+                    auto lhs = reg_alloc.pop<grp>();
+                    w->emit_and(lhs, rhs);
+                    reg_alloc.release<grp>(rhs);
+                    reg_alloc.push<grp>(lhs);
+                    break;
+                }
+                case ir_opcode::op_bitwise_or: {
+                    auto rhs = reg_alloc.pop<grp>();
+                    auto lhs = reg_alloc.pop<grp>();
+                    w->emit_or(lhs, rhs);
+                    reg_alloc.release<grp>(rhs);
+                    reg_alloc.push<grp>(lhs);
+                    break;
+                }
+                case ir_opcode::op_bitwise_xor: {
+                    auto rhs = reg_alloc.pop<grp>();
+                    auto lhs = reg_alloc.pop<grp>();
+                    w->emit_xor(lhs, rhs);
+                    reg_alloc.release<grp>(rhs);
+                    reg_alloc.push<grp>(lhs);
+                    break;
+                }
+                case ir_opcode::op_negate: {
+                    auto r = reg_alloc.pop<grp>();
+                    w->emit_neg(r);
+                    reg_alloc.push<grp>(r);
+                    break;
+                }
+                case ir_opcode::op_bitwise_not: {
+                    auto r = reg_alloc.pop<grp>();
+                    w->emit_not(r);
+                    reg_alloc.push<grp>(r);
+                    break;
+                }
+
+                case ir_opcode::op_bitwise_lshift:
+                case ir_opcode::op_bitwise_rshift:
+                case ir_opcode::op_ibitwise_rshift: {
+                    auto rhs = reg_alloc.pop<grp>();
+                    auto lhs = reg_alloc.pop<grp>();
+
+                    if (lhs == rcx) {
+                        grp tmp = reg_alloc.allocate<grp>({rcx});
+                        w->emit_mov(tmp, lhs);
+                        reg_alloc.release<grp>(lhs);
+                        lhs = tmp;
+                    }
+                    if (rhs != rcx) {
+                        reg_alloc.force_evict(rcx);
+                        reg_alloc.take<grp>(rcx);
+                        w->emit_mov(rcx, rhs);
+                        reg_alloc.release<grp>(rhs);
+                    }
+
+                    if (instr.op == ir_opcode::op_bitwise_lshift)      w->emit_shl(lhs);
+                    else if (instr.op == ir_opcode::op_bitwise_rshift) w->emit_shr(lhs);
+                    else                                                w->emit_sar(lhs);
+
+                    reg_alloc.release<grp>(rcx);
+                    reg_alloc.push<grp>(lhs);
+
+                    break;
+                }
+
+                case ir_opcode::op_mul:
+                case ir_opcode::op_imul: {
+                    auto rhs = reg_alloc.pop<grp>();
+                    auto lhs = reg_alloc.pop<grp>();
+
+                    if (rhs == rax || rhs == rdx) {
+                        grp tmp = reg_alloc.allocate<grp>({rax, rdx});
+                        w->emit_mov(tmp, rhs);
+                        reg_alloc.release<grp>(rhs);
+                        rhs = tmp;
+                    }
+
+                    if (lhs != rax) {
+                        reg_alloc.force_evict(rax);
+                        reg_alloc.take<grp>(rax);
+                        w->emit_mov(rax, lhs);
+                        reg_alloc.release<grp>(lhs);
+                    }
+
+                    reg_alloc.force_evict(rdx);
+
+                    if (instr.op == ir_opcode::op_mul) w->emit_mul(rhs);
+                    else                                w->emit_imul(rhs);
+
+                    reg_alloc.release<grp>(rhs);
+                    reg_alloc.push<grp>(rax);
+
+                    break;
+                }
+
+                case ir_opcode::op_mod:
+                case ir_opcode::op_div:
+                case ir_opcode::op_imod:
+                case ir_opcode::op_idiv: {
+                    auto rhs = reg_alloc.pop<grp>();
+                    auto lhs = reg_alloc.pop<grp>();
+
+                    if (rhs == rax || rhs == rdx) {
+                        grp tmp = reg_alloc.allocate<grp>({rax, rdx});
+                        w->emit_mov(tmp, rhs);
+                        reg_alloc.release<grp>(rhs);
+                        rhs = tmp;
+                    }
+
+                    if (lhs != rax) {
+                        reg_alloc.force_evict(rax);
+                        reg_alloc.take<grp>(rax);
+                        w->emit_mov(rax, lhs);
+                        reg_alloc.release<grp>(lhs);
+                    }
+
+                    reg_alloc.force_evict(rdx);
+                    if (!reg_alloc.check(rdx)) {
+                        reg_alloc.take<grp>(rdx);
+                    }
+
+                    w->emit_cqo();
+                    w->emit_idiv(rhs);
+
+                    bool want_quotient = (instr.op == ir_opcode::op_div || instr.op == ir_opcode::op_idiv);
+                    grp result = want_quotient ? rax : rdx;
+                    grp discard = want_quotient ? rdx : rax;
+
+                    reg_alloc.release<grp>(rhs);
+                    reg_alloc.release<grp>(discard);
+                    reg_alloc.push<grp>(result);
+
+                    break;
+                }
+
+                default:
+                    break;
+            }
+        }
+
+        void handle_arith_float(register_allocator& reg_alloc, ir_instr& instr) {
+            switch (instr.op) {
+                case ir_opcode::op_addf32: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    w->emit_addss(lhs, rhs);
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.push<simd128>(lhs);
+                    break;
+                }
+                case ir_opcode::op_addf64: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    w->emit_addsd(lhs, rhs);
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.push<simd128>(lhs);
+                    break;
+                }
+                case ir_opcode::op_subf32: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    w->emit_subss(lhs, rhs);
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.push<simd128>(lhs);
+                    break;
+                }
+                case ir_opcode::op_subf64: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    w->emit_subsd(lhs, rhs);
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.push<simd128>(lhs);
+                    break;
+                }
+                case ir_opcode::op_mulf32: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    w->emit_mulss(lhs, rhs);
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.push<simd128>(lhs);
+                    break;
+                }
+                case ir_opcode::op_mulf64: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    w->emit_mulsd(lhs, rhs);
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.push<simd128>(lhs);
+                    break;
+                }
+                case ir_opcode::op_divf32: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    w->emit_divss(lhs, rhs);
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.push<simd128>(lhs);
+                    break;
+                }
+                case ir_opcode::op_divf64: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    w->emit_divsd(lhs, rhs);
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.push<simd128>(lhs);
+                    break;
+                }
+                case ir_opcode::op_modf32: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    auto tmp1 = reg_alloc.allocate<simd128>();
+                    auto tmp2 = reg_alloc.allocate<simd128>();
+                    auto tmp_gpr = reg_alloc.allocate<grp>();
+
+                    w->emit_fmod_float(lhs, lhs, rhs, tmp1, tmp2, tmp_gpr);
+
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.release<simd128>(tmp1);
+                    reg_alloc.release<simd128>(tmp2);
+                    reg_alloc.release<grp>(tmp_gpr);
+                    reg_alloc.push<simd128>(lhs);
+
+                    break;
+                }
+                case ir_opcode::op_modf64: {
+                    auto rhs = reg_alloc.pop<simd128>();
+                    auto lhs = reg_alloc.pop<simd128>();
+                    auto tmp1 = reg_alloc.allocate<simd128>();
+                    auto tmp2 = reg_alloc.allocate<simd128>();
+                    auto tmp_gpr = reg_alloc.allocate<grp>();
+
+                    w->emit_fmod_double(lhs, lhs, rhs, tmp1, tmp2, tmp_gpr);
+
+                    reg_alloc.release<simd128>(rhs);
+                    reg_alloc.release<simd128>(tmp1);
+                    reg_alloc.release<simd128>(tmp2);
+                    reg_alloc.release<grp>(tmp_gpr);
+                    reg_alloc.push<simd128>(lhs);
+
+                    break;
+                }
+                case ir_opcode::op_negatef32: {
+                    auto val = reg_alloc.pop<simd128>();
+                    auto zero = reg_alloc.allocate<simd128>();
+                    w->emit_xorps(zero, zero);
+                    w->emit_subss(zero, val);
+                    reg_alloc.release<simd128>(val);
+                    reg_alloc.push<simd128>(zero);
+                    break;
+                }
+                case ir_opcode::op_negatef64: {
+                    auto val = reg_alloc.pop<simd128>();
+                    auto zero = reg_alloc.allocate<simd128>();
+                    w->emit_xorps(zero, zero);
+                    w->emit_subsd(zero, val);
+                    reg_alloc.release<simd128>(val);
+                    reg_alloc.push<simd128>(zero);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        enum push_mode {
+            single,
+            ret,
+            normal
+        };
+
+        void handle_return(ir_function& func, register_allocator& reg_alloc, push_mode push_mode) {
+            bool is_float_return = (func.type == "float32" || func.type == "float64");
+
+            if (push_mode != ret) {
+                if (is_float_return) {
+                    if (!reg_alloc.empty()) {
+                        auto result = reg_alloc.pop<simd128>();
+
+                        if (func.type == "float64") {
+                            w->emit_movsd(xmm0, result);
+                        }
+                        else if (func.type == "float32") {
+                            w->emit_movss(xmm0, result);
+                        }
+
+                        reg_alloc.release<simd128>(result);
+                    }
+                }
+                else {
+                    if (!reg_alloc.empty()) {
+                        auto result = reg_alloc.pop<grp>();
+
+                        w->emit_mov(rax, result);
+
+                        const auto& t = func.type;
+                        if (t == "int8")                        w->emit_movsx(rax, rax, true);
+                        else if (t == "uint8" || t == "bool")   w->emit_movzx(rax, rax, true);
+                        else if (t == "int16")                  w->emit_movsx(rax, rax, false);
+                        else if (t == "uint16")                 w->emit_movzx(rax, rax, false);
+                        else if (t == "int32")                  w->emit_movsxd(rax, rax);
+                        else if (t == "uint32")                 w->emit_mov(as_32(rax), as_32(rax));
+
+                        reg_alloc.release<grp>(result);
+                    }
+                }
+            }
+
+            if (!func.uses_shellcode && !func.uses_assembly) {
+                w->emit_function_epilogue();
+                w->emit_ret();
+            }
+            else {
+                w->emit_ret();
+            }
+        }
+
+        struct arg_location {
+            bool in_register;
+            std::variant<grp, simd128> reg;
+            std::size_t stack_index;
+        };
+
+        std::int32_t shadow_space() const { return abi == call_abi::win64 ? 32 : 0; }
+
+        std::vector<arg_location> classify_args(const std::vector<bool>& is_float) const {
+            std::vector<arg_location> out;
+            out.reserve(is_float.size());
+            std::size_t stack_index = 0;
+
+            if (abi == call_abi::win64) {
+                constexpr grp gp[] = {rcx, rdx, r8, r9};
+                constexpr simd128 fp[] = {xmm0, xmm1, xmm2, xmm3};
+                for (std::size_t k = 0; k < is_float.size(); k++) {
+                    if (k < 4) out.push_back({true, is_float[k] ? std::variant<grp, simd128>(fp[k]) : std::variant<grp, simd128>(gp[k]), 0});
+                    else       out.push_back({false, {}, stack_index++});
+                }
+                return out;
+            }
+
+            constexpr grp gp[] = {rdi, rsi, rdx, rcx, r8, r9};
+            constexpr simd128 fp[] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
+            std::size_t gp_idx = 0, fp_idx = 0;
+            for (bool f : is_float) {
+                if (f && fp_idx < 8)       out.push_back({true, fp[fp_idx++], 0});
+                else if (!f && gp_idx < 6) out.push_back({true, gp[gp_idx++], 0});
+                else                       out.push_back({false, {}, stack_index++});
+            }
+            return out;
+        }
+
+        void handle_prologue_args(ir_function& func,
+                                   std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                                   std::unordered_map<std::string, std::string>& local_variable_map_types,
+                                   std::unordered_map<std::string, array_metadata>& local_array_metadata,
+                                   std::int32_t& totalsizes) {
+            if (func.uses_shellcode || func.uses_assembly || func.args.empty()) {
+                return;
+            }
+
+            std::vector<bool> is_float;
+            for (auto& arg : func.args) {
+                is_float.push_back(arg.type == "float32" || arg.type == "float64");
+            }
+            const auto locs = classify_args(is_float);
+
+            for (std::size_t k = 0; k < func.args.size(); k++) {
+                auto& arg = func.args[k];
+
+                totalsizes += 8;
+                std::int32_t offset = -totalsizes;
+                const auto& loc = locs[k];
+
+                if (loc.in_register) {
+                    if (is_float[k]) w->emit_movsd(mem{rbp, offset}, std::get<simd128>(loc.reg));
+                    else             w->emit_mov(mem{rbp, offset}, std::get<grp>(loc.reg));
+                }
+                else {
+                    const auto src = static_cast<std::int32_t>(16 + shadow_space() + 8 * loc.stack_index);
+                    if (is_float[k]) {
+                        w->emit_movsd(xmm0, mem{rbp, src});
+                        w->emit_movsd(mem{rbp, offset}, xmm0);
+                    }
+                    else {
+                        w->emit_mov(rax, mem{rbp, src});
+                        w->emit_mov(mem{rbp, offset}, rax);
+                    }
+                }
+
+                local_variable_map.insert({arg.name, totalsizes});
+                local_variable_map_types.insert({arg.name, arg.type});
+            }
+
+            if (func.is_variadic) {
+                std::vector<std::string> va_arg_names;
+                for (const auto& arg : func.args) {
+                    if (arg.name.size() >= 4 && arg.name.substr(0, 4) == "__va") {
+                        va_arg_names.push_back(arg.name);
+                    }
+                }
+
+                if (!va_arg_names.empty()) {
+                    std::size_t va_count = va_arg_names.size();
+                    std::int32_t total_mem = static_cast<std::int32_t>(va_count * 8);
+                    total_mem = ((total_mem + 15) / 16) * 16;
+
+                    std::int32_t base_offset = -totalsizes - total_mem;
+                    totalsizes += total_mem;
+
+                    for (std::size_t j = 0; j < va_count; j++) {
+                        auto va_offset = local_variable_map[va_arg_names[j]];
+                        std::int32_t element_offset = base_offset + static_cast<std::int32_t>(j * 8);
+                        w->emit_mov(rax, mem{rbp, -static_cast<std::int32_t>(va_offset)});
+                        w->emit_mov(mem{rbp, element_offset}, rax);
+                    }
+
+                    local_variable_map["__varargs"] = base_offset;
+                    local_variable_map_types["__varargs"] = "int64";
+                    local_array_metadata["__varargs"] = {"int64", {va_count}, total_mem};
+                }
+            }
+        }
+
+        std::size_t get_call_arg_count(const std::string& name, ir_instr& instr) {
+            auto it = function_arg_types.find(name);
+            if (it != function_arg_types.end()) {
+                if (variable_arity_functions.contains(name) && !instr.type.empty()) {
+                    return static_cast<std::size_t>(std::stoi(instr.type));
+                }
+                return it->second.size();
+            }
+            if (!instr.type.empty()) {
+                return static_cast<std::size_t>(std::stoi(instr.type));
+            }
+
+            throw std::runtime_error("Call to \"" + name + "\" has unknown arity");
+        }
+
+        // "fn(int64,fn(int64)int64)float64" -> params {int64, fn(int64)int64}, ret float64
+        static void split_fnptr_sig(const std::string& sig, std::vector<std::string>& params, std::string& ret) {
+            std::size_t i = 3; // past "fn("
+            int depth = 0;
+            std::string cur;
+            for (; i < sig.size(); i++) {
+                const char c = sig[i];
+                if (c == '(') depth++;
+                if (c == ')') {
+                    if (depth == 0) break;
+                    depth--;
+                }
+                if (c == ',' && depth == 0) {
+                    params.push_back(cur);
+                    cur.clear();
+                    continue;
+                }
+                cur += c;
+            }
+            if (!cur.empty()) params.push_back(cur);
+            ret = (i + 1 < sig.size()) ? sig.substr(i + 1) : "int64";
+        }
+
+        void handle_call(register_allocator& reg_alloc, ir_instr& instr) {
+            const bool indirect = (instr.op == ir_opcode::op_call_indirect);
+            std::string name;
+            std::vector<std::string> ind_params;
+            std::string ind_ret;
+            std::size_t arg_count;
+
+            if (indirect) {
+                split_fnptr_sig(std::get<std::string>(instr.operand), ind_params, ind_ret);
+                arg_count = ind_params.size();
+            }
+            else {
+                name = std::get<std::string>(instr.operand);
+                arg_count = get_call_arg_count(name, instr);
+            }
+
+            reg_alloc.spill_all();
+
+            std::vector<register_allocator::entry_view> args(arg_count);
+            for (std::size_t k = 0; k < arg_count; k++) {
+                args[arg_count - 1 - k] = reg_alloc.pop_spilled();
+            }
+
+            // indirect: the callee address was pushed before the args
+            register_allocator::entry_view callee{};
+            if (indirect) {
+                callee = reg_alloc.pop_spilled();
+            }
+
+            const std::vector<std::string>* param_types = nullptr;
+            if (indirect) {
+                param_types = &ind_params;
+            }
+            else if (auto it = function_arg_types.find(name); it != function_arg_types.end()) {
+                param_types = &it->second;
+            }
+
+            std::vector<bool> is_float(arg_count);
+            for (std::size_t k = 0; k < arg_count; k++) {
+                auto& a = args[k];
+                bool arg_is_float = std::holds_alternative<simd128>(a.reg);
+
+                if (param_types && k < param_types->size()) {
+                    const auto& type = (*param_types)[k];
+                    const bool param_is_float = (type == "float32" || type == "float64");
+                    const bool is_va_slot = !indirect && function_arg_names[name][k].starts_with("__va");
+
+                    if (arg_is_float && !param_is_float) {
+                        if (!is_va_slot) {
+                            w->emit_movsd(xmm0, mem{rbp, a.offset});
+                            w->emit_cvttsd2si(rax, xmm0);
+                            w->emit_mov(mem{rbp, a.offset}, rax);
+                        }
+                        arg_is_float = false;
+                    }
+                    else if (!arg_is_float && param_is_float && !is_va_slot) {
+                        w->emit_mov(rax, mem{rbp, a.offset});
+                        if (type == "float32") w->emit_cvtsi2ss(xmm0, rax);
+                        else                   w->emit_cvtsi2sd(xmm0, rax);
+                        w->emit_movsd(mem{rbp, a.offset}, xmm0);
+                        arg_is_float = true;
+                    }
+                }
+
+                is_float[k] = arg_is_float;
+            }
+
+            const auto locs = classify_args(is_float);
+
+            std::vector<std::size_t> stack_args;
+            for (std::size_t k = 0; k < arg_count; k++) {
+                if (!locs[k].in_register) stack_args.push_back(k);
+            }
+
+            const bool padded = (stack_args.size() % 2) != 0;
+            if (padded) {
+                w->emit_sub(rsp, 8);
+            }
+
+            for (auto it = stack_args.rbegin(); it != stack_args.rend(); ++it) {
+                w->emit_push(mem{rbp, args[*it].offset});
+            }
+
+            for (std::size_t k = 0; k < arg_count; k++) {
+                if (!locs[k].in_register) continue;
+                if (std::holds_alternative<simd128>(locs[k].reg)) w->emit_movsd(std::get<simd128>(locs[k].reg), mem{rbp, args[k].offset});
+                else                                              w->emit_mov(std::get<grp>(locs[k].reg), mem{rbp, args[k].offset});
+            }
+
+            if (shadow_space()) {
+                w->emit_sub(rsp, shadow_space());
+            }
+
+            if (indirect) {
+                // r11 is scratch and never an argument register in either ABI
+                w->emit_mov(r11, mem{rbp, callee.offset});
+                w->push_bytes({0x41, 0xFF, 0xD3}); // call r11
+            }
+            else {
+                w->push_bytes({opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP});
+                call_patch_list.emplace_back(name, w->get_code().size() - 5);
+            }
+
+            const std::int32_t cleanup = static_cast<std::int32_t>(stack_args.size() * 8) + shadow_space() + (padded ? 8 : 0);
+            if (cleanup) {
+                w->emit_add(rsp, cleanup);
+            }
+
+            const std::string* ret_ptr = nullptr;
+            if (indirect) {
+                ret_ptr = &ind_ret;
+            }
+            else if (auto ret_it = function_return_types.find(name); ret_it != function_return_types.end()) {
+                ret_ptr = &ret_it->second;
+            }
+            if (ret_ptr && instr.result_used) {
+                const std::string& ret_type = *ret_ptr;
+                if (ret_type == "float32" || ret_type == "float64") {
+                    auto r = reg_alloc.allocate<simd128>();
+                    w->emit_movsd(r, xmm0);
+                    reg_alloc.push<simd128>(r);
+                }
+                else {
+                    auto r = reg_alloc.allocate<grp>();
+                    w->emit_mov(r, rax);
+                    reg_alloc.push<grp>(r);
+                }
+            }
+        }
+
+        void backpatch_calls() {
+            auto& code = w->get_code();
+
+            for (auto& [name, disp_loc] : func_addr_patch_list) {
+                auto it = function_locs.find(name);
+                if (it == function_locs.end()) {
+                    throw std::runtime_error("Address taken of function \"" + name + "\" which was never compiled");
+                }
+                const std::int32_t disp = static_cast<std::int32_t>(it->second) - static_cast<std::int32_t>(disp_loc + 4);
+                for (int i = 0; i < 4; ++i) {
+                    code[disp_loc + i] = static_cast<std::uint8_t>((disp >> (i * 8)) & 0xFF);
+                }
+            }
+
+            for (auto& [name, loc] : call_patch_list) {
+                auto it = function_locs.find(name);
+                if (it == function_locs.end()) {
+                    throw std::runtime_error("Call target \"" + name + "\" was never compiled");
+                }
+
+                std::int32_t offset = static_cast<std::int32_t>(it->second) - static_cast<std::int32_t>(loc + 5);
+
+                code[loc] = opcode::CALL_rel32;
+                for (int i = 0; i < 4; ++i) {
+                    code[loc + 1 + i] = static_cast<std::uint8_t>((offset >> (i * 8)) & 0xFF);
+                }
+            }
+        }
 
         static void backpatch_jump(const ir_opcode op, const std::size_t location, std::size_t label_location, x86_64_writer* w) {
-            const std::int32_t offset = label_location - (location + ((op == ir_opcode::op_jmp) ? 5 : 6));
+            const std::int32_t offset = static_cast<std::int32_t>(label_location) - static_cast<std::int32_t>(location + ((op == ir_opcode::op_jmp) ? 5 : 6));
             auto& code = w->get_code();
 
             switch (op) {
@@ -396,198 +1621,526 @@ namespace occult::x86_64 {
             }
         }
 
-        void generate_code(ir_function& func, x86_64_writer* w, bool is_main, bool use_jit) {
-            register_pool_gp pool(w, {r10, r11, r12, r13, r14, r15, rbx});
-            // Pool allocates from back of list: xmm1 first, then xmm2-7, then xmm0
-            // (reserved as last-resort so it stays free for function returns/args),
-            // then xmm8-15.
-            register_pool_simd simd_pool(w, {xmm15, xmm14, xmm13, xmm12, xmm11, xmm10, xmm9, xmm8, xmm0, xmm7, xmm6, xmm5, xmm4, xmm3, xmm2, xmm1});
+        void handle_array_decl(ir_function& func, std::size_t& i, ir_instr& instr,
+                                std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                                std::unordered_map<std::string, array_metadata>& local_array_metadata,
+                                std::int32_t& totalsizes) {
+            auto name = std::get<std::string>(instr.operand);
+            auto type = std::get<std::string>(func.code.at(++i).operand);
+            auto dimensions = std::get<std::uint64_t>(func.code.at(++i).operand);
+
+            std::vector<std::uint64_t> dimensions_vec;
+            for (std::size_t j = 0; j < dimensions; j++) {
+                dimensions_vec.emplace_back(std::get<std::uint64_t>(func.code.at(++i).operand));
+            }
+
+            std::size_t element_size = 8;
+            std::size_t element_count = 1;
+            for (const auto& dim : dimensions_vec) {
+                element_count *= dim;
+            }
+
+            std::int32_t total_mem = static_cast<std::int32_t>(element_count * element_size);
+            total_mem = ((total_mem + 15) / 16) * 16;
+
+            std::int32_t base_offset = -totalsizes - total_mem;
+            totalsizes += total_mem;
+
+            local_array_metadata[name] = {type, dimensions_vec, total_mem};
+            local_variable_map[name] = base_offset;
+        }
+
+        void handle_array_store_element(register_allocator& reg_alloc, ir_function& func, std::size_t i,
+                                         std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                                         std::unordered_map<std::string, array_metadata>& local_array_metadata,
+                                         std::uint64_t& index_to_push) {
+            auto array_name = std::get<std::string>(func.code.at(i).operand);
+            auto it = local_variable_map.find(array_name);
+
+            if (it == local_variable_map.end()) {
+                throw std::runtime_error("Array \"" + array_name + "\" not found");
+            }
+
+            std::int32_t array_base_offset = it->second;
+            auto& store_meta = local_array_metadata[array_name];
+            bool is_float_array = (store_meta.type == "float32" || store_meta.type == "float64");
+
+            bool has_constant_index = false;
+            for (std::size_t j = 1; j <= 50 && i >= j; j++) {
+                auto prev_op = func.code.at(i - j).op;
+                if (prev_op == ir_opcode::op_declare_where_to_store) { has_constant_index = true; break; }
+                if (prev_op == ir_opcode::op_mark_for_array_access)  { has_constant_index = false; break; }
+            }
+
+            std::optional<std::uint64_t> inline_const_index;
+            if (!has_constant_index && i >= 2 && func.code.at(i - 1).op == ir_opcode::op_mark_for_array_access && func.code.at(i - 2).op == ir_opcode::op_push) {
+                inline_const_index = extract_uint_operand(func.code.at(i - 2).operand);
+            }
+
+            if (has_constant_index) {
+                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * index_to_push);
+
+                if (is_float_array) {
+                    auto simd_reg = reg_alloc.pop<simd128>();
+                    if (store_meta.type == "float32") w->emit_cvtss2sd(simd_reg, simd_reg);
+                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
+                    reg_alloc.release<simd128>(simd_reg);
+                }
+                else {
+                    auto content = reg_alloc.pop<grp>();
+                    w->emit_mov(mem{rbp, element_offset}, content);
+                    reg_alloc.release<grp>(content);
+                }
+                index_to_push = (std::numeric_limits<std::uint64_t>::max)();
+                return;
+            }
+
+            if (inline_const_index.has_value()) {
+                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_const_index.value());
+
+                if (is_float_array) {
+                    auto simd_reg = reg_alloc.pop<simd128>();
+                    auto idx_reg = reg_alloc.pop<grp>();
+                    reg_alloc.release<grp>(idx_reg);
+                    if (store_meta.type == "float32") w->emit_cvtss2sd(simd_reg, simd_reg);
+                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
+                    reg_alloc.release<simd128>(simd_reg);
+                }
+                else {
+                    auto content = reg_alloc.pop<grp>();
+                    auto idx_reg = reg_alloc.pop<grp>();
+                    reg_alloc.release<grp>(idx_reg);
+                    w->emit_mov(mem{rbp, element_offset}, content);
+                    reg_alloc.release<grp>(content);
+                }
+                return;
+            }
+
+            if (index_to_push != (std::numeric_limits<std::uint64_t>::max)()) {
+                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * index_to_push);
+
+                if (is_float_array) {
+                    auto simd_reg = reg_alloc.pop<simd128>();
+                    if (store_meta.type == "float32") w->emit_cvtss2sd(simd_reg, simd_reg);
+                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
+                    reg_alloc.release<simd128>(simd_reg);
+                }
+                else {
+                    auto content = reg_alloc.pop<grp>();
+                    w->emit_mov(mem{rbp, element_offset}, content);
+                    reg_alloc.release<grp>(content);
+                }
+                index_to_push = (std::numeric_limits<std::uint64_t>::max)();
+                return;
+            }
+
+            if (is_float_array) {
+                auto simd_reg = reg_alloc.pop<simd128>();
+                auto index_reg = reg_alloc.pop<grp>();
+
+                auto addr_reg = reg_alloc.allocate<grp>();
+                w->emit_lea(addr_reg, mem{rbp, array_base_offset});
+                w->emit_shl(index_reg, 3);
+                w->emit_add(addr_reg, index_reg);
+
+                if (store_meta.type == "float32") w->emit_cvtss2sd(simd_reg, simd_reg);
+                w->emit_movsd(mem{addr_reg}, simd_reg);
+
+                reg_alloc.release<grp>(addr_reg);
+                reg_alloc.release<grp>(index_reg);
+                reg_alloc.release<simd128>(simd_reg);
+            }
+            else {
+                auto content = reg_alloc.pop<grp>();
+                auto index_reg = reg_alloc.pop<grp>();
+
+                auto addr_reg = reg_alloc.allocate<grp>();
+                w->emit_lea(addr_reg, mem{rbp, array_base_offset});
+                w->emit_shl(index_reg, 3);
+                w->emit_add(addr_reg, index_reg);
+
+                w->emit_mov(mem{addr_reg}, content);
+
+                reg_alloc.release<grp>(addr_reg);
+                reg_alloc.release<grp>(index_reg);
+                reg_alloc.release<grp>(content);
+            }
+        }
+
+        void handle_array_access_element(register_allocator& reg_alloc, ir_function& func, std::size_t i, ir_instr& instr,
+                                          std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                                          std::unordered_map<std::string, array_metadata>& local_array_metadata) {
+            auto array_name = std::get<std::string>(instr.operand);
+            auto it = local_variable_map.find(array_name);
+            if (it == local_variable_map.end()) {
+                throw std::runtime_error("Array \"" + array_name + "\" not found");
+            }
+
+            auto& local_metadata = local_array_metadata[array_name];
+            bool is_float_array = (local_metadata.type == "float32" || local_metadata.type == "float64");
+            std::int32_t array_base_offset = it->second;
+
+            if (i >= 2 && func.code.at(i - 1).op == ir_opcode::op_mark_for_array_access && func.code.at(i - 2).op == ir_opcode::op_push) {
+                auto inline_idx = extract_uint_operand(func.code.at(i - 2).operand);
+
+                if (inline_idx.has_value()) {
+                    auto idx_reg = reg_alloc.pop<grp>();
+                    reg_alloc.release<grp>(idx_reg);
+
+                    std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_idx.value());
+
+                    if (is_float_array) {
+                        auto simd_reg = reg_alloc.allocate<simd128>();
+                        w->emit_movsd(simd_reg, mem{rbp, element_offset});
+                        if (local_metadata.type == "float32") w->emit_cvtsd2ss(simd_reg, simd_reg);
+                        reg_alloc.push<simd128>(simd_reg);
+                    }
+                    else {
+                        auto r = reg_alloc.allocate<grp>();
+                        w->emit_mov(r, mem{rbp, element_offset});
+                        reg_alloc.push<grp>(r);
+                    }
+                    return;
+                }
+            }
+
+            std::vector<grp> indices;
+            for (std::size_t dims = 0; dims < local_metadata.dimensions.size(); dims++) {
+                indices.push_back(reg_alloc.pop<grp>());
+            }
+            std::reverse(indices.begin(), indices.end());
+
+            for (auto& idx : indices) {
+                if (idx == rax || idx == rdx) {
+                    grp tmp = reg_alloc.allocate<grp>({rax, rdx});
+                    w->emit_mov(tmp, idx);
+                    reg_alloc.release<grp>(idx);
+                    idx = tmp;
+                }
+            }
+
+            auto true_index = reg_alloc.allocate<grp>({rax, rdx});
+            w->emit_xor(true_index, true_index);
+
+            for (std::size_t dim = 0; dim < local_metadata.dimensions.size(); dim++) {
+                std::uint64_t stride = 1;
+                for (std::size_t next_dim = dim + 1; next_dim < local_metadata.dimensions.size(); next_dim++) {
+                    stride *= local_metadata.dimensions[next_dim];
+                }
+
+                if (stride == 1) {
+                    w->emit_add(true_index, indices[dim]);
+                }
+                else {
+                    grp idx_src = indices[dim];
+
+                    if (idx_src == rax || idx_src == rdx) {
+                        grp tmp = reg_alloc.allocate<grp>({rax, rdx});
+                        w->emit_mov(tmp, idx_src);
+                        reg_alloc.release<grp>(idx_src);
+                        idx_src = tmp;
+                        indices[dim] = tmp;
+                    }
+
+                    bool true_index_is_rax = (true_index == rax);
+                    if (!true_index_is_rax) {
+                        reg_alloc.force_evict(rax);
+                        reg_alloc.take<grp>(rax);
+                    }
+                    reg_alloc.force_evict(rdx);
+
+                    w->emit_mov(rax, idx_src);
+
+                    if (stride <= 0x7FFFFFFF) {
+                        w->emit_imul(rax, rax, static_cast<std::int32_t>(stride));
+                    }
+                    else {
+                        auto temp = reg_alloc.allocate<grp>();
+                        w->emit_mov(temp, stride);
+                        w->emit_mul(temp);
+                        reg_alloc.release<grp>(temp);
+                    }
+
+                    w->emit_add(true_index, rax);
+
+                    if (!true_index_is_rax) {
+                        reg_alloc.release<grp>(rax);
+                    }
+                }
+
+                reg_alloc.release<grp>(indices[dim]);
+            }
+
+            auto addr_reg = reg_alloc.allocate<grp>();
+            w->emit_lea(addr_reg, mem{rbp, array_base_offset});
+            w->emit_shl(true_index, 3);
+            w->emit_add(addr_reg, true_index);
+
+            if (is_float_array) {
+                auto simd_reg = reg_alloc.allocate<simd128>();
+                w->emit_movsd(simd_reg, mem{addr_reg});
+                if (local_metadata.type == "float32") w->emit_cvtsd2ss(simd_reg, simd_reg);
+                reg_alloc.release<grp>(addr_reg);
+                reg_alloc.release<grp>(true_index);
+                reg_alloc.push<simd128>(simd_reg);
+            }
+            else {
+                w->emit_mov(true_index, mem{addr_reg});
+                reg_alloc.release<grp>(addr_reg);
+                reg_alloc.push<grp>(true_index);
+            }
+        }
+
+        void handle_struct_store(register_allocator& reg_alloc, ir_instr& instr,
+                                  std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                                  std::unordered_map<std::string, std::string>& local_variable_map_types,
+                                  std::unordered_map<std::string, std::string>& local_struct_var_types,
+                                  std::string& pending_struct_type,
+                                  std::int32_t& totalsizes) {
+            auto var_name = std::get<std::string>(instr.operand);
+
+            bool is_struct_ptr = false;
+            const std::string ptr_suffix = kStructPtrSuffix;
+            if (pending_struct_type.ends_with(ptr_suffix)) {
+                is_struct_ptr = true;
+            }
+
+            auto it = local_variable_map.find(var_name);
+            if (it == local_variable_map.end()) {
+                if (is_struct_ptr) {
+                    totalsizes += 8;
+                    if (!reg_alloc.empty()) {
+                        auto r = reg_alloc.pop<grp>();
+                        w->emit_mov(mem{rbp, -totalsizes}, r);
+                        reg_alloc.release<grp>(r);
+                    }
+                    local_variable_map.insert({var_name, totalsizes});
+                    local_variable_map_types.insert({var_name, pending_struct_type});
+                }
+                else {
+                    auto layout_it = struct_layouts.find(pending_struct_type);
+                    if (layout_it == struct_layouts.end()) {
+                        totalsizes += 8;
+                        if (!reg_alloc.empty()) {
+                            auto r = reg_alloc.pop<grp>();
+                            w->emit_mov(mem{rbp, -totalsizes}, r);
+                            reg_alloc.release<grp>(r);
+                        }
+                        local_variable_map.insert({var_name, totalsizes});
+                        local_variable_map_types.insert({var_name, pending_struct_type});
+                    }
+                    else {
+                        std::int32_t struct_size = layout_it->second.total_size;
+                        struct_size = ((struct_size + 15) / 16) * 16;
+                        totalsizes += struct_size;
+
+                        if (!reg_alloc.empty()) {
+                            auto src = reg_alloc.pop<grp>();
+                            auto tmp = reg_alloc.allocate<grp>();
+                            std::int32_t actual_size = layout_it->second.total_size;
+                            for (std::int32_t off = 0; off < actual_size; off += 8) {
+                                w->emit_mov(tmp, mem{src, off});
+                                w->emit_mov(mem{rbp, -totalsizes + off}, tmp);
+                            }
+                            reg_alloc.release<grp>(tmp);
+                            reg_alloc.release<grp>(src);
+                        }
+
+                        local_variable_map.insert({var_name, totalsizes});
+                        local_variable_map_types.insert({var_name, pending_struct_type});
+                        local_struct_var_types.insert({var_name, pending_struct_type});
+                    }
+                }
+            }
+            else {
+                if (!reg_alloc.empty()) {
+                    auto r = reg_alloc.pop<grp>();
+                    std::int32_t offset = -it->second;
+                    w->emit_mov(mem{rbp, offset}, r);
+                    reg_alloc.release<grp>(r);
+                }
+            }
+        }
+
+        void handle_member_access(register_allocator& reg_alloc, ir_instr& instr) {
+            auto member_name = std::get<std::string>(instr.operand);
+            auto base = reg_alloc.pop<grp>();
+
+            std::int32_t member_offset = -1;
+            std::string member_type_name;
+            for (const auto& [sname, slayout] : struct_layouts) {
+                auto off = slayout.get_member_offset(member_name);
+                if (off >= 0) {
+                    member_offset = off;
+                    for (const auto& m : slayout.members) {
+                        if (m.name == member_name) { member_type_name = m.type; break; }
+                    }
+                    break;
+                }
+            }
+
+            if (member_offset < 0) {
+                throw std::runtime_error("Member \"" + member_name + "\" not found in any struct");
+            }
+
+            bool member_is_nested_struct = struct_layouts.contains(member_type_name);
+
+            if (member_is_nested_struct) {
+                w->emit_lea(base, mem{base, member_offset});
+                reg_alloc.push<grp>(base);
+            }
+            else if (member_type_name == "float32" || member_type_name == "float64") {
+                auto simd_reg = reg_alloc.allocate<simd128>();
+                w->emit_movsd(simd_reg, mem{base, member_offset});
+                if (member_type_name == "float32") w->emit_cvtsd2ss(simd_reg, simd_reg);
+                reg_alloc.push<simd128>(simd_reg);
+                reg_alloc.release<grp>(base);
+            }
+            else {
+                w->emit_mov(base, mem{base, member_offset});
+                reg_alloc.push<grp>(base);
+            }
+        }
+
+        void handle_member_store(register_allocator& reg_alloc, ir_instr& instr) {
+            auto member_name = std::get<std::string>(instr.operand);
+            auto member_type = instr.type;
+
+            std::int32_t member_offset = -1;
+            for (const auto& [sname, slayout] : struct_layouts) {
+                auto off = slayout.get_member_offset(member_name);
+                if (off >= 0) { member_offset = off; break; }
+            }
+
+            if (member_offset < 0) {
+                throw std::runtime_error("Member \"" + member_name + "\" not found in any struct for store");
+            }
+
+            if (member_type == "float32" || member_type == "float64") {
+                auto fval = reg_alloc.pop<simd128>();
+                auto base = reg_alloc.pop<grp>();
+
+                if (member_type == "float32") w->emit_cvtss2sd(fval, fval);
+                w->emit_movsd(mem{base, member_offset}, fval);
+
+                reg_alloc.release<simd128>(fval);
+                reg_alloc.release<grp>(base);
+            }
+            else {
+                auto val = reg_alloc.pop<grp>();
+                auto base = reg_alloc.pop<grp>();
+
+                w->emit_mov(mem{base, member_offset}, val);
+
+                reg_alloc.release<grp>(val);
+                reg_alloc.release<grp>(base);
+            }
+        }
+
+        bool reconcile_stack(register_allocator& reg_alloc, const std::vector<register_allocator::entry_view>& target) {
+            auto cur = reg_alloc.state();
+            if (cur.size() != target.size()) {
+                if (debug) {
+                    std::cout << YELLOW << "[CODEGEN] value stack depth mismatch at join (" << cur.size() << " vs " << target.size() << ")" << RESET << "\n";
+                }
+                return false;
+            }
+
+            std::vector<std::size_t> moves;
+            for (std::size_t k = 0; k < cur.size(); k++) {
+                if (!register_allocator::same_location(cur[k], target[k])) {
+                    moves.push_back(k);
+                }
+            }
+
+            for (auto k : moves) {
+                const auto& c = cur[k];
+                if (c.is_spilled) {
+                    w->emit_push(mem{rbp, c.offset});
+                }
+                else if (std::holds_alternative<grp>(c.reg)) {
+                    w->emit_push(std::get<grp>(c.reg));
+                }
+                else {
+                    w->emit_lea(rsp, mem{rsp, -8});
+                    w->emit_movsd(mem{rsp, 0}, std::get<simd128>(c.reg));
+                }
+            }
+
+            for (auto it = moves.rbegin(); it != moves.rend(); ++it) {
+                const auto& t = target[*it];
+                if (t.is_spilled) {
+                    w->emit_pop(mem{rbp, t.offset});
+                }
+                else if (std::holds_alternative<grp>(t.reg)) {
+                    w->emit_pop(std::get<grp>(t.reg));
+                }
+                else {
+                    w->emit_movsd(std::get<simd128>(t.reg), mem{rsp, 0});
+                    w->emit_lea(rsp, mem{rsp, 8});
+                }
+            }
+
+            reg_alloc.restore(target);
+            return true;
+        }
+
+        std::int32_t generate_code(ir_function& func) {
+            register_allocator reg_alloc;
+
+            std::unordered_map<std::string, std::int64_t> local_variable_map;
+            std::unordered_map<std::string, std::string> local_variable_map_types;
+            std::unordered_map<std::string, array_metadata> local_array_metadata;
+            std::unordered_map<std::string, std::string> local_struct_var_types;
+            std::string pending_struct_type;
+            std::uint64_t index_to_push = (std::numeric_limits<std::uint64_t>::max)();
+            std::int32_t totalsizes = 0;
+
+            reg_alloc.configure(w.get(), &totalsizes, abi);
 
             std::unordered_map<std::string, std::size_t> label_map;
             std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
 
-            std::unordered_map<std::string, std::int64_t> local_variable_map;
-            std::unordered_map<std::string, std::string> local_variable_map_types;
+            std::unordered_map<std::string, std::vector<register_allocator::entry_view>> label_states;
+            bool reachable = true;
 
-            std::unordered_map<std::string, array_metadata> local_array_metadata;
-
-            // struct tracking: variable name -> struct type name
-            std::unordered_map<std::string, std::string> local_struct_var_types;
-            std::string pending_struct_type; // set by op_struct_decl, consumed by
-                                             // op_struct_store
+            auto sync_to_label = [&](const std::string& label) {
+                if (auto it = label_states.find(label); it != label_states.end()) {
+                    reconcile_stack(reg_alloc, it->second);
+                }
+                else {
+                    label_states[label] = reg_alloc.state();
+                }
+            };
 
             bool is_reference_next = false;
             bool is_dereference_next = false;
             bool is_dereference_assign_next = false;
+
             std::size_t deref_count_normal = 0;
             std::size_t deref_count_assign = 0;
 
-            const bool save_callee_saved = !func.uses_shellcode && !func.uses_assembly;
-            const std::int32_t callee_saved_space = save_callee_saved ? 8 * 5 : 0;
+            push_mode push_mode = normal;
 
-            std::int32_t totalsizes = callee_saved_space;
+            handle_prologue_args(func, local_variable_map, local_variable_map_types, local_array_metadata, totalsizes);
 
-            pool.set_stack_size_tracker(&totalsizes); // register spilling
-            simd_pool.set_stack_size_tracker(&totalsizes);
-
-            // reserve placeholder for stack allocation right after prologue
-            // we'll patch this later with the actual totalsizes value
-            std::size_t stack_alloc_placeholder_location = 0;
-            if (!func.uses_shellcode && !func.uses_assembly) {
-                stack_alloc_placeholder_location = w->get_code().size();
-                w->emit_sub(rsp, callee_saved_space);
-
-                if (save_callee_saved) {
-                    // save callee-saved registers r12-r15
-                    w->emit_mov(mem{rbp, -8}, rbx);
-                    w->emit_mov(mem{rbp, -16}, r12);
-                    w->emit_mov(mem{rbp, -24}, r13);
-                    w->emit_mov(mem{rbp, -32}, r14);
-                    w->emit_mov(mem{rbp, -40}, r15);
-                }
-            }
-
-            constexpr grp sysv_regs[] = {rdi, rsi, rdx, rcx, r8, r9};
-            constexpr simd128 sysv_regs_simd[] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
-
-            if (!func.uses_shellcode && !func.uses_assembly) {
-                std::size_t gp_arg_idx = 0;
-                std::size_t fp_arg_idx = 0;
-                std::size_t stack_arg_offset = 16; // start after return address and saved rbp
-
-                for (std::size_t i = 0; i < func.args.size(); ++i) {
-                    const auto& arg_type = func.args[i].type;
-                    bool is_fp = (arg_type == "float32" || arg_type == "float64");
-
-                    totalsizes += 8;
-
-                    if (is_systemv) {
-                        if (is_fp) {
-                            // sysv floating point args (xmm)
-                            if (fp_arg_idx < 8) {
-                                auto simd_tmp = simd_pool.alloc();
-                                w->emit_movsd(simd_tmp, sysv_regs_simd[fp_arg_idx]);
-                                w->emit_movsd(mem{rbp, -static_cast<std::int32_t>(totalsizes)}, simd_tmp);
-                                simd_pool.free(simd_tmp);
-                                fp_arg_idx++;
-                            }
-                            else { // stack
-                                auto simd_tmp = simd_pool.alloc();
-                                w->emit_movsd(simd_tmp, mem{rbp, static_cast<std::int32_t>(stack_arg_offset)});
-                                w->emit_movsd(mem{rbp, -static_cast<std::int32_t>(totalsizes)}, simd_tmp);
-                                simd_pool.free(simd_tmp);
-                                stack_arg_offset += 8;
-                            }
-                        }
-                        else { // gpr for integers
-                            if (gp_arg_idx < 6) {
-                                auto r = pool.alloc();
-                                w->emit_mov(r, sysv_regs[gp_arg_idx]);
-                                w->emit_mov(mem{rbp, -static_cast<std::int32_t>(totalsizes)}, r);
-                                pool.free(r);
-                                gp_arg_idx++;
-                            }
-                            else { // stack
-                                auto r = pool.alloc();
-                                w->emit_mov(r, mem{rbp, static_cast<std::int32_t>(stack_arg_offset)});
-                                w->emit_mov(mem{rbp, -static_cast<std::int32_t>(totalsizes)}, r);
-                                pool.free(r);
-                                stack_arg_offset += 8;
-                            }
-                        }
-                    }
-                    else { // windows (yuck)
-                        constexpr grp win_regs[] = {rcx, rdx, r8, r9};
-                        constexpr simd128 win_regs_simd[] = {xmm0, xmm1, xmm2, xmm3};
-
-                        if (is_fp) {
-                            if (i < 4) {
-                                auto simd_tmp = simd_pool.alloc();
-                                w->emit_movsd(simd_tmp, win_regs_simd[i]);
-                                w->emit_movsd(mem{rbp, -static_cast<std::int32_t>(totalsizes)}, simd_tmp);
-                                simd_pool.free(simd_tmp);
-                            }
-                            else { // stack
-                                auto simd_tmp = simd_pool.alloc();
-                                w->emit_movsd(simd_tmp, mem{rbp, static_cast<std::int32_t>(32 + (i - 4) * 8 + 16)});
-                                w->emit_movsd(mem{rbp, -static_cast<std::int32_t>(totalsizes)}, simd_tmp);
-                                simd_pool.free(simd_tmp);
-                            }
-                        }
-                        else {
-                            if (i < 4) {
-                                auto r = pool.alloc();
-                                w->emit_mov(r, win_regs[i]);
-                                w->emit_mov(mem{rbp, -static_cast<std::int32_t>(totalsizes)}, r);
-                                pool.free(r);
-                            }
-                            else {
-                                auto r = pool.alloc();
-                                w->emit_mov(r, mem{rbp, static_cast<std::int32_t>(32 + (i - 4) * 8 + 16)});
-                                w->emit_mov(mem{rbp, -static_cast<std::int32_t>(totalsizes)}, r);
-                                pool.free(r);
-                            }
-                        }
-                    }
-
-                    local_variable_map.insert({func.args[i].name, totalsizes});
-                    local_variable_map_types.insert({func.args[i].name, arg_type});
-                }
-            }
-
-            // for variadic functions, create a __varargs array from the __va* args
-            if (func.is_variadic && (!func.uses_shellcode && !func.uses_assembly)) {
-                std::vector<std::string> va_arg_names;
-                for (const auto& arg : func.args) {
-                    if (arg.name.size() >= 4 && arg.name.substr(0, 4) == "__va") {
-                        va_arg_names.push_back(arg.name);
-                    }
-                }
-
-                if (!va_arg_names.empty()) {
-                    std::size_t va_count = va_arg_names.size();
-                    std::int32_t total_mem = static_cast<std::int32_t>(va_count * 8);
-                    total_mem = ((total_mem + 15) / 16) * 16; // 16-byte alignment
-
-                    std::int32_t base_offset = -totalsizes - total_mem;
-                    totalsizes += total_mem;
-
-                    // copy each __va arg value into the contiguous array
-                    for (std::size_t j = 0; j < va_count; j++) {
-                        auto va_offset = local_variable_map[va_arg_names[j]];
-                        auto r = pool.alloc();
-                        w->emit_mov(r, mem{rbp, -static_cast<std::int32_t>(va_offset)});
-                        std::int32_t element_offset = base_offset + static_cast<std::int32_t>(j * 8);
-                        w->emit_mov(mem{rbp, element_offset}, r);
-                        pool.free(r);
-                    }
-
-                    local_variable_map["__varargs"] = base_offset;
-                    local_variable_map_types["__varargs"] = "int64";
-                    local_array_metadata["__varargs"] = {"int64", {va_count}, total_mem};
-                }
-            }
-
-            bool pushing_for_ret = false;
-            bool push_single = false;
-            std::uint64_t index_to_push = (std::numeric_limits<std::uint64_t>::max)();
             for (std::size_t i = 0; i < func.code.size(); i++) {
-                auto& code = func.code.at(i);
+                auto& instr = func.code.at(i);
 
-                switch (code.op) {
-                case ir_opcode::op_push_shellcode:
+                switch(instr.op) {
+                    case ir_opcode::op_push_shellcode:
                     {
-                        if (std::holds_alternative<std::uint8_t>(code.operand)) {
-                            std::uint8_t val = std::get<std::uint8_t>(code.operand);
+                        if (std::holds_alternative<std::uint8_t>(instr.operand)) {
+                            std::uint8_t val = std::get<std::uint8_t>(instr.operand);
                             w->push_byte(val);
                         }
 
                         break;
                     }
-                case ir_opcode::op_asm_code:
+                    case ir_opcode::op_asm_code:
                     {
-                        if (std::holds_alternative<std::string>(code.operand)) {
-                            std::string val = std::get<std::string>(code.operand);
+                        if (std::holds_alternative<std::string>(instr.operand)) {
+                            std::string val = std::get<std::string>(instr.operand);
 
                             assembler a(val);
                             w->push_bytes(a.assemble());
@@ -595,2326 +2148,308 @@ namespace occult::x86_64 {
 
                         break;
                     }
-                case ir_opcode::op_push:
-                    {
-                        if (std::holds_alternative<std::int64_t>(code.operand)) {
-                            std::int64_t val = std::get<std::int64_t>(code.operand);
-                            grp r = pool.alloc();
-                            w->emit_mov(r, val);
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<std::uint64_t>(code.operand)) {
-                            std::uint64_t val = std::get<std::uint64_t>(code.operand);
-                            grp r = pool.alloc();
-                            w->emit_mov(r, val);
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<std::int32_t>(code.operand)) {
-                            std::int32_t val = std::get<std::int32_t>(code.operand);
-                            grp r = pool.alloc();
-                            w->emit_mov(r, val);
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<std::uint32_t>(code.operand)) {
-                            std::uint32_t val = std::get<std::uint32_t>(code.operand);
-                            grp r = pool.alloc();
-                            w->emit_mov(r, val);
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<std::int16_t>(code.operand)) {
-                            std::int16_t val = std::get<std::int16_t>(code.operand);
-                            grp r = pool.alloc();
-                            w->emit_mov(r, static_cast<std::int64_t>(val));
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<std::uint16_t>(code.operand)) {
-                            std::uint16_t val = std::get<std::uint16_t>(code.operand);
-                            grp r = pool.alloc();
-                            w->emit_mov(r, static_cast<std::uint64_t>(val));
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<std::int8_t>(code.operand)) {
-                            std::int8_t val = std::get<std::int8_t>(code.operand);
-                            grp r = pool.alloc();
-                            w->emit_mov(r, static_cast<std::int64_t>(val));
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<std::uint8_t>(code.operand)) {
-                            std::uint8_t val = std::get<std::uint8_t>(code.operand);
-                            grp r = pool.alloc();
-                            w->emit_mov(r, static_cast<std::uint64_t>(val));
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<std::string>(code.operand)) {
-                            const std::string& str = std::get<std::string>(code.operand);
-                            constexpr std::size_t header_size = 8;
-                            // pad an extra 7 bytes after the null terminator so 64-bit
-                            const std::size_t storage_size = header_size + str.size() + 8;
-
-                            auto buf = std::make_unique<std::uint8_t[]>(storage_size);
-                            std::memset(buf.get(), 0, storage_size);
-                            *reinterpret_cast<std::uint64_t*>(buf.get()) = str.size();
-                            std::memcpy(buf.get() + header_size, str.data(), str.size());
-
-                            auto literal_ptr = buf.get() + header_size;
-                            std::uint64_t host_addr = reinterpret_cast<std::uint64_t>(literal_ptr);
-
-                            string_literals[host_addr] = str;
-
-                            literal_pool.push_back(std::move(buf));
-
-                            grp r = pool.alloc();
-                            w->emit_mov(r, reinterpret_cast<std::int64_t>(literal_ptr));
-                            pool.push(r);
-                        }
-                        else if (std::holds_alternative<double>(code.operand)) {
-                            const double& lf = std::get<double>(code.operand);
-                            simd128 xmm = simd_pool.alloc();
-                            grp r = pool.alloc();
-
-                            w->emit_mov(r, double_to_bits(lf));
-                            w->emit_movq(xmm, r);
-
-                            pool.free(r);
-                            simd_pool.push(xmm);
-                        }
-                        else if (std::holds_alternative<float>(code.operand)) {
-                            const float& f = std::get<float>(code.operand);
-
-                            simd128 xmm = simd_pool.alloc();
-                            grp r = pool.alloc();
-
-                            w->emit_mov(as_32(r), float_to_bits(f));
-                            w->emit_movd(xmm, as_32(r));
-
-                            pool.free(r);
-                            simd_pool.push(xmm);
-                        }
-
-                        break;
-                    }
-                case ir_opcode::op_push_for_ret:
-                    {
-                        if (std::holds_alternative<std::int64_t>(code.operand)) {
-                            std::int64_t val = std::get<std::int64_t>(code.operand);
+                    case ir_opcode::op_push_for_ret: {
+                        if (std::holds_alternative<std::int64_t>(instr.operand)) {
+                            std::int64_t val = std::get<std::int64_t>(instr.operand);
+                            
                             w->emit_mov(rax, val);
 
-                            pushing_for_ret = true;
+                            push_mode = ret;
                         }
 
                         break;
                     }
-                case ir_opcode::op_push_single:
-                    {
-                        if (std::holds_alternative<std::int64_t>(code.operand)) {
-                            std::int64_t val = std::get<std::int64_t>(code.operand);
-                            grp r = (push_single) ? pool.top() : pool.alloc(); // have to check this
-
+                    case ir_opcode::op_push_single: {
+                        if (std::holds_alternative<std::int64_t>(instr.operand)) {
+                            std::int64_t val = std::get<std::int64_t>(instr.operand);
+                            grp r = reg_alloc.allocate<grp>();
                             w->emit_mov(r, val);
-
-                            if (!push_single) {
-                                pool.push(r);
-                            }
-
-                            push_single = true;
+                            reg_alloc.push<grp>(r);
                         }
 
                         break;
                     }
-                case ir_opcode::op_store:
-                    {
-                        auto var_name = std::get<std::string>(code.operand);
-                        auto var_type = code.type;
-                        auto it = local_variable_map.find(var_name);
-
-                        // Determine if this is a float store: either the IR type says so,
-                        // or the variable was previously declared as float, or the SIMD
-                        // pool has the value (heuristic fallback).
-                        bool is_float_store = (var_type == "float32" || var_type == "float64");
-                        if (!is_float_store && it != local_variable_map.end()) {
-                            auto type_it = local_variable_map_types.find(var_name);
-                            if (type_it != local_variable_map_types.end()) {
-                                is_float_store = (type_it->second == "float32" || type_it->second == "float64");
-                                if (is_float_store) {
-                                    var_type = type_it->second;
-                                }
-                            }
-                        }
-                        if (!is_float_store && pool.empty() && !simd_pool.empty()) {
-                            is_float_store = true;
-                        }
-
-                        if (is_float_store && !simd_pool.empty()) {
-                            auto simd_reg = simd_pool.pop();
-                            if (debug) {
-                                std::cout << BLUE << "[CODEGEN INFO] Floating point store" << RESET << std::endl;
-                            }
-
-                            if (it == local_variable_map.end()) {
-                                // variable doesn't exist yet
-                                if (debug) {
-                                    std::cout << BLUE << "[CODEGEN INFO] Emitting variable: " << RESET << var_name << std::endl;
-                                    std::cout << "\tSize: " << typename_sizes[var_type] << std::endl;
-                                }
-
-                                totalsizes += 8;
-
-                                if (var_type == "float32") {
-                                    w->emit_movss(mem{rbp, -totalsizes}, simd_reg);
-                                }
-                                else if (var_type == "float64") {
-                                    w->emit_movsd(mem{rbp, -totalsizes}, simd_reg);
-                                }
-
-                                simd_pool.free(simd_reg);
-
-                                local_variable_map.insert({var_name, totalsizes});
-                                local_variable_map_types.insert({var_name, var_type});
-
-                                break;
-                            }
-                            else {
-                                // re-assignment of existing float variable
-                                std::int32_t offset = -it->second;
-                                if (var_type == "float32") {
-                                    w->emit_movss(mem{rbp, offset}, simd_reg);
-                                }
-                                else {
-                                    w->emit_movsd(mem{rbp, offset}, simd_reg);
-                                }
-                                simd_pool.free(simd_reg);
-                                break;
-                            }
-                        }
-
-                        grp r = (push_single) ? pool.top() : pool.pop();
-                        push_single = false;
-
-                        if (it == local_variable_map.end()) {
-                            // variable doesn't exist yet
-                            if (debug) {
-                                std::cout << BLUE << "[CODEGEN INFO] Emitting variable: " << RESET << var_name << std::endl;
-                                std::cout << "\tSize: " << typename_sizes[var_type] << std::endl;
-                            }
-
-                            totalsizes += 8;
-
-                            if (is_reference_next) {
-                                std::cout << RED << "[CODEGEN ERROR] Cannot have reference in store." << RESET << std::endl;
-                            }
-
-                            if (var_type == "int8" || var_type == "uint8" || var_type == "bool") {
-                                w->emit_mov(mem{bpl, -totalsizes}, as_8(r));
-                            }
-                            else if (var_type == "int16" || var_type == "uint16") {
-                                w->emit_mov(mem{bp, -totalsizes}, as_16(r));
-                            }
-                            else if (var_type == "int32" || var_type == "uint32") {
-                                w->emit_mov(mem{ebp, -totalsizes}, as_32(r));
-                            }
-                            else {
-                                w->emit_mov(mem{rbp, -totalsizes}, r);
-                            }
-
-                            pool.free(r);
-
-                            local_variable_map.insert({var_name, totalsizes});
-                            local_variable_map_types.insert({var_name, var_type});
-                        }
-                        else {
-                            if (debug) {
-                                std::cout << BLUE << "[CODEGEN INFO] Re-emitting variable: " << RESET << var_name << std::endl;
-                            }
-
-                            std::int32_t offset = -it->second;
-
-                            // check if this is a struct reassignment (full struct, not pointer)
-                            if (local_struct_var_types.contains(var_name)) {
-                                auto struct_type = local_struct_var_types[var_name];
-                                auto layout_it = struct_layouts.find(struct_type);
-                                if (layout_it != struct_layouts.end()) {
-                                    // r contains a pointer to source struct data - copy it
-                                    grp tmp = pool.alloc();
-                                    std::int32_t actual_size = layout_it->second.total_size;
-                                    for (std::int32_t off = 0; off < actual_size; off += 8) {
-                                        w->emit_mov(tmp, mem{r, off});
-                                        w->emit_mov(mem{rbp, offset + off}, tmp);
-                                    }
-                                    pool.free(tmp);
-                                    pool.free(r);
-                                }
-                                else {
-                                    w->emit_mov(mem{rbp, offset}, r);
-                                    pool.free(r);
-                                }
-                            }
-                            else if (var_type == "int8" || var_type == "uint8") {
-                                w->emit_mov(mem{bpl, offset}, as_8(r));
-                                pool.free(r);
-                            }
-                            else if (var_type == "int16" || var_type == "uint16") {
-                                w->emit_mov(mem{bp, offset}, as_16(r));
-                                pool.free(r);
-                            }
-                            else if (var_type == "int32" || var_type == "uint32") {
-                                w->emit_mov(mem{ebp, offset}, as_32(r));
-                                pool.free(r);
-                            }
-                            else {
-                                w->emit_mov(mem{rbp, offset}, r);
-                                pool.free(r);
-                            }
-
-                            if (debug) {
-                                std::cout << BLUE << "[CODEGEN INFO] Variable location: " << RESET << offset << std::endl;
-                            }
-                        }
+                    case ir_opcode::op_push: {
+                        std::visit(push_visitor{this, reg_alloc, instr}, instr.operand);
 
                         break;
                     }
-                case ir_opcode::op_load:
-                    {
-                        const auto& var_name = std::get<std::string>(code.operand);
-                        const auto& var_type = local_variable_map_types[var_name];
-                        auto it = local_variable_map.find(var_name);
-
-                        if (it == local_variable_map.end()) {
-                            std::cerr << RED << "[CODEGEN ERROR] Attempted to load undeclared variable: " << RESET << var_name << std::endl;
-                            return;
-                        }
-
-                        std::int32_t offset = -it->second;
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Loading: " << RESET << var_name << "\n\tLocation: " << offset << "\n\tType: " << YELLOW << var_type << RESET << std::endl;
-                        }
-
-                        bool is_float_type = (var_type == "float32" || var_type == "float64");
-                        grp r;
-
-                        if (!is_float_type) {
-                            r = pool.alloc();
-                        }
-
-                        bool loaded = false;
-
-                        if (is_reference_next) {
-                            if (is_float_type) {
-                                // for float types, r was not allocated yet - allocate now
-                                r = pool.alloc();
-                            }
-
-                            // Taking a reference of an already-reference-typed variable should
-                            // forward the underlying address value, not produce
-                            // pointer-to-pointer. This is required for reference forwarding
-                            // across function calls.
-                            const bool is_reference_typed_var = var_type.ends_with("_reference") && !struct_layouts.contains(var_type);
-                            if (is_reference_typed_var) {
-                                w->emit_mov(r, mem{rbp, offset});
-                            }
-                            else {
-                                w->emit_lea(r, mem{rbp, offset});
-                            }
-
-                            is_reference_next = false;
-                            pool.push(r);
-                            break;
-                        }
-
-                        if (is_dereference_next) {
-                            if (!is_float_type) {
-                                for (std::size_t size = 1; size <= deref_count_normal; size++) {
-                                    if (size == 1) {
-                                        w->emit_mov(r, mem{rbp, offset});
-                                        w->emit_mov(r, mem{r});
-                                    }
-                                    else {
-                                        w->emit_mov(r, mem{r});
-                                    }
-                                }
-
-                                is_dereference_next = false;
-                                deref_count_normal = 0;
-                                pool.push(r);
-                            }
-                            break;
-                        }
-
-                        if (is_dereference_assign_next) {
-                            if (!is_float_type) { // FIX 4: Only use r if it was allocated
-                                for (std::size_t size = 1; size <= deref_count_assign; size++) {
-                                    if (size == 1) {
-                                        w->emit_mov(r, mem{rbp, offset});
-                                    }
-                                    else {
-                                        w->emit_mov(r, mem{r});
-                                    }
-                                }
-
-                                deref_count_assign = 0;
-                                is_dereference_assign_next = false;
-                                pool.push(r);
-                            }
-                            break;
-                        }
-
-                        if (var_type == "int8" || var_type == "bool") {
-                            w->emit_movsx(r, mem{rbp, offset});
-                            loaded = true;
-                        }
-                        else if (var_type == "uint8") {
-                            w->emit_movzx(r, mem{rbp, offset});
-                            loaded = true;
-                        }
-                        else if (var_type == "int16") {
-                            w->emit_movsx(r, mem{rbp, offset}, false);
-                            loaded = true;
-                        }
-                        else if (var_type == "uint16") {
-                            w->emit_movzx(r, mem{rbp, offset}, false);
-                            loaded = true;
-                        }
-                        else if (var_type == "int32") {
-                            w->emit_movsxd(r, mem{rbp, offset});
-                            loaded = true;
-                        }
-                        else if (var_type == "uint32") {
-                            w->emit_mov(as_32(r), mem{rbp, offset});
-                            loaded = true;
-                        }
-                        else if (var_type == "int64" || var_type == "uint64") {
-                            w->emit_mov(r, mem{rbp, offset});
-                            loaded = true;
-                        }
-                        else if (var_type == "string") {
-                            w->emit_mov(r, mem{rbp, offset});
-                            loaded = true;
-                        }
-                        else if (var_type == "float64") {
-                            auto simd_reg = simd_pool.alloc();
-                            w->emit_movsd(simd_reg, mem{rbp, offset});
-                            simd_pool.push(simd_reg);
-                            break;
-                        }
-                        else if (var_type == "float32") {
-                            auto simd_reg = simd_pool.alloc();
-                            w->emit_movss(simd_reg, mem{rbp, offset});
-                            simd_pool.push(simd_reg);
-                            break;
-                        }
-
-                        // check if this is a struct variable (not a pointer to struct)
-                        if (!loaded && local_struct_var_types.contains(var_name)) {
-                            // for struct variables load the base address
-                            w->emit_lea(r, mem{rbp, offset});
-                            loaded = true;
-                        }
-
-                        if (!loaded) {
-                            w->emit_mov(r, mem{rbp, offset});
-                        }
-
-                        if (!is_float_type) {
-                            pool.push(r);
-                        }
-
+                    case ir_opcode::op_load: {
+                        handle_load(reg_alloc, instr, local_variable_map, local_variable_map_types, local_struct_var_types,
+                                    is_reference_next, is_dereference_next, deref_count_normal,
+                                    is_dereference_assign_next, deref_count_assign);
                         break;
                     }
-                case ir_opcode::op_reference:
-                    {
+                    case ir_opcode::op_store: {
+                        handle_store(reg_alloc, instr, local_variable_map, local_variable_map_types, local_struct_var_types, totalsizes);
+                        break;
+                    }
+                    case ir_opcode::op_reference: {
                         is_reference_next = true;
-
                         break;
                     }
-                /*case ir_opcode::op_dereference: {
-                    auto operand = std::get<std::int64_t>(code.operand);
-
-                    if (debug) {
-                        std::cout << BLUE << "[CODEGEN INFO] Dereference count: " << RESET
-                << operand << std::endl;
-                    }
-
-                    is_dereference_next = true;
-                    deref_count_normal = operand;
-
-                    break;
-                }*/
-                case ir_opcode::op_dereference:
-                    {
-                        auto operand = std::get<std::int64_t>(code.operand);
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Dereference count: " << RESET << operand << std::endl;
-                        }
-
-                        grp addr = pool.pop(); // consume pointer
-
+                    case ir_opcode::op_dereference: {
+                        auto operand = std::get<std::int64_t>(instr.operand);
+                        auto addr = reg_alloc.pop<grp>();
                         for (std::int64_t count = 0; count < operand; count++) {
                             w->emit_mov(addr, mem{addr});
                         }
-
-                        pool.push(addr);
-
+                        reg_alloc.push<grp>(addr);
                         break;
                     }
-                case ir_opcode::op_dereference_assign:
-                    {
-                        auto operand = std::get<std::int64_t>(code.operand);
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Dereference (assignment) count: " << RESET << operand << std::endl;
-                        }
-
+                    case ir_opcode::op_dereference_assign: {
+                        auto operand = std::get<std::int64_t>(instr.operand);
                         is_dereference_assign_next = true;
-                        deref_count_assign = operand;
-
+                        deref_count_assign = static_cast<std::size_t>(operand);
                         break;
                     }
-                case ir_opcode::op_store_at_addr:
-                    {
-                        auto val = pool.pop();
-                        auto addr = pool.pop();
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Storing value in " << RESET << reg_to_string(val) << BLUE << " at address in " RESET << reg_to_string(addr) << std::endl;
-                        }
-
+                    case ir_opcode::op_store_at_addr: {
+                        auto val = reg_alloc.pop<grp>();
+                        auto addr = reg_alloc.pop<grp>();
                         w->emit_mov(mem{addr}, val);
-
-                        pool.free(val);
-                        pool.free(addr);
-
+                        reg_alloc.release<grp>(val);
+                        reg_alloc.release<grp>(addr);
                         is_dereference_next = false;
+                        break;
+                    }
+                    case ir_opcode::op_call:
+                    case ir_opcode::op_call_indirect: {
+                        handle_call(reg_alloc, instr);
 
                         break;
                     }
-
-                /* arith */
-                case ir_opcode::op_add:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_add(lhs, rhs);
-
-                        pool.free(rhs);
-                        pool.push(lhs);
+                    case ir_opcode::op_cmp:
+                    case ir_opcode::op_cmpf32:
+                    case ir_opcode::op_cmpf64: {
+                        handle_cmp(reg_alloc, instr);
 
                         break;
                     }
-                case ir_opcode::op_sub:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_sub(lhs, rhs);
-
-                        pool.free(rhs);
-                        pool.push(lhs);
+                    case ir_opcode::op_setz:
+                    case ir_opcode::op_setnz:
+                    case ir_opcode::op_setl:
+                    case ir_opcode::op_setle:
+                    case ir_opcode::op_setg:
+                    case ir_opcode::op_setge: {
+                        handle_setcc(reg_alloc, instr);
+                        break;
+                    }
+                    case ir_opcode::op_not: {
+                        handle_not(reg_alloc, instr);
+                        break;
+                    }
+                    case ir_opcode::op_cast:
+                    case ir_opcode::op_bitcast: {
+                        handle_cast(reg_alloc, instr);
+                        break;
+                    }
+                    case ir_opcode::op_add:
+                    case ir_opcode::op_sub:
+                    case ir_opcode::op_mul:
+                    case ir_opcode::op_div:
+                    case ir_opcode::op_mod:
+                    case ir_opcode::op_imul:
+                    case ir_opcode::op_idiv:
+                    case ir_opcode::op_imod:
+                    case ir_opcode::op_negate:
+                    case ir_opcode::op_bitwise_and:
+                    case ir_opcode::op_bitwise_or:
+                    case ir_opcode::op_bitwise_xor:
+                    case ir_opcode::op_bitwise_not:
+                    case ir_opcode::op_bitwise_lshift:
+                    case ir_opcode::op_bitwise_rshift:
+                    case ir_opcode::op_ibitwise_rshift: {
+                        handle_arith(reg_alloc, instr);
 
                         break;
                     }
-                case ir_opcode::op_mod:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_mov(rax, lhs);
-                        w->emit_cqo();     // sign-extend RAX into RDX:RAX
-                        w->emit_idiv(rhs); // signed divide RDX:RAX by rhs
-
-                        w->emit_mov(lhs, rdx);
-
-                        pool.free(rhs);
-                        pool.push(lhs);
-
-                        break;
-                    }
-                case ir_opcode::op_div:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_mov(rax, lhs);
-                        w->emit_cqo();     // sign-extend RAX into RDX:RAX
-                        w->emit_idiv(rhs); // signed divide RDX:RAX by rhs
-
-                        w->emit_mov(lhs, rax);
-
-                        pool.free(rhs);
-                        pool.push(lhs);
+                    case ir_opcode::op_addf32:
+                    case ir_opcode::op_addf64:
+                    case ir_opcode::op_subf32:
+                    case ir_opcode::op_subf64:
+                    case ir_opcode::op_mulf32:
+                    case ir_opcode::op_mulf64:
+                    case ir_opcode::op_divf32:
+                    case ir_opcode::op_divf64:
+                    case ir_opcode::op_modf32:
+                    case ir_opcode::op_modf64:
+                    case ir_opcode::op_negatef32:
+                    case ir_opcode::op_negatef64: {
+                        handle_arith_float(reg_alloc, instr);
 
                         break;
                     }
-                case ir_opcode::op_mul:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_mov(rax, lhs);
-                        w->emit_mul(rhs);
-
-                        w->emit_mov(lhs, rax);
-
-                        pool.free(rhs);
-                        pool.push(lhs);
+                    case ir_opcode::op_array_decl: {
+                        handle_array_decl(func, i, instr, local_variable_map, local_array_metadata, totalsizes);
+                        break;
+                    }
+                    case ir_opcode::op_declare_where_to_store: {
+                        index_to_push = std::get<std::uint64_t>(instr.operand);
+                        break;
+                    }
+                    case ir_opcode::op_array_store_element: {
+                        handle_array_store_element(reg_alloc, func, i, local_variable_map, local_array_metadata, index_to_push);
+                        break;
+                    }
+                    case ir_opcode::op_array_access_element: {
+                        handle_array_access_element(reg_alloc, func, i, instr, local_variable_map, local_array_metadata);
+                        break;
+                    }
+                    case ir_opcode::op_struct_decl: {
+                        pending_struct_type = std::get<std::string>(instr.operand);
+                        break;
+                    }
+                    case ir_opcode::op_struct_store: {
+                        handle_struct_store(reg_alloc, instr, local_variable_map, local_variable_map_types,
+                                             local_struct_var_types, pending_struct_type, totalsizes);
+                        break;
+                    }
+                    case ir_opcode::op_member_access: {
+                        handle_member_access(reg_alloc, instr);
+                        break;
+                    }
+                    case ir_opcode::op_member_store: {
+                        handle_member_store(reg_alloc, instr);
+                        break;
+                    }
+                    case ir_opcode::op_ret: {
+                        handle_return(func, reg_alloc, push_mode);
+                        push_mode = normal;
+                        reachable = false;
 
                         break;
                     }
-                case ir_opcode::op_imod:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
+                    case ir_opcode::label: {
+                        auto label_name = std::get<std::string>(instr.operand);
 
-                        w->emit_mov(rax, lhs);
-                        w->emit_cqo(); // sign-extend RAX into RDX:RAX
-                        w->emit_idiv(rhs);
-
-                        w->emit_mov(lhs, rdx);
-
-                        pool.free(rhs);
-                        pool.push(lhs);
-
-                        break;
-                    }
-                case ir_opcode::op_idiv:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_mov(rax, lhs);
-                        w->emit_cqo(); // sign-extend RAX into RDX:RAX
-                        w->emit_idiv(rhs);
-
-                        w->emit_mov(lhs, rax);
-
-                        pool.free(rhs);
-                        pool.push(lhs);
-
-                        break;
-                    }
-                case ir_opcode::op_imul:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_mov(rax, lhs);
-                        w->emit_imul(rhs);
-
-                        w->emit_mov(lhs, rax);
-
-                        pool.free(rhs);
-                        pool.push(lhs);
-
-                        break;
-                    }
-                case ir_opcode::op_negate:
-                    {
-                        auto r = pool.pop();
-
-                        w->emit_neg(r);
-
-                        pool.push(r);
-
-                        break;
-                    }
-                case ir_opcode::op_negatef32:
-                    {
-                        // negate float32: 0.0 - value
-                        auto val = simd_pool.pop();
-                        auto zero = simd_pool.alloc();
-                        // Use XORPS to zero (safe even if register contained NaN/Inf)
-                        w->emit_xorps(zero, zero);
-                        w->emit_subss(zero, val); // zero - val = -val
-                        simd_pool.free(val);
-                        simd_pool.push(zero);
-                        break;
-                    }
-                case ir_opcode::op_negatef64:
-                    {
-                        // negate float64: 0.0 - value
-                        auto val = simd_pool.pop();
-                        auto zero = simd_pool.alloc();
-                        w->emit_xorps(zero, zero);
-                        w->emit_subsd(zero, val); // zero - val = -val
-                        simd_pool.free(val);
-                        simd_pool.push(zero);
-                        break;
-                    }
-
-                case ir_opcode::op_cast:
-                    {
-                        const auto& raw_target = std::get<std::string>(code.operand);
-                        auto norm_it = cast_keyword_to_typename.find(raw_target);
-                        const std::string& target_type = (norm_it != cast_keyword_to_typename.end()) ? norm_it->second : raw_target;
-                        const bool target_is_float32 = (target_type == "float32");
-                        const bool target_is_float64 = (target_type == "float64");
-                        const bool target_is_float = target_is_float32 || target_is_float64;
-
-                        // Determine source float type from IR type annotation (may be empty for
-                        // unknown)
-                        auto src_norm_it = cast_keyword_to_typename.find(code.type);
-                        const std::string& src_type = (src_norm_it != cast_keyword_to_typename.end()) ? src_norm_it->second : code.type;
-                        const bool source_is_f64 = (src_type == "float64");
-                        const bool source_is_f32 = (src_type == "float32");
-                        // Use the IR type annotation when available; fall back to pool
-                        // heuristic
-                        const bool source_is_float = (src_type.empty()) ? (pool.empty() && !simd_pool.empty()) : (source_is_f32 || source_is_f64);
-
-                        if (source_is_float && target_is_float) {
-                            // float <-> float conversion
-                            auto src = simd_pool.pop();
-                            auto dst = simd_pool.alloc();
-                            if (target_is_float64) {
-                                w->emit_cvtss2sd(dst, src); // float32 -> float64
-                            }
-                            else {
-                                w->emit_cvtsd2ss(dst, src); // float64 -> float32
-                            }
-                            simd_pool.free(src);
-                            simd_pool.push(dst);
-                        }
-                        else if (source_is_float && !target_is_float) {
-                            // float -> int: use float64 path if source is f64, else float32
-                            auto src = simd_pool.pop();
-                            auto dst = pool.alloc();
-                            if (source_is_f64) {
-                                w->emit_cvttsd2si(dst, src);
-                            }
-                            else {
-                                w->emit_cvttss2si(dst, src); // float32 -> int (default)
-                            }
-                            simd_pool.free(src);
-                            pool.push(dst);
-                        }
-                        else if (!source_is_float && target_is_float) {
-                            // int -> float conversion
-                            auto src = pool.pop();
-                            auto dst = simd_pool.alloc();
-                            if (target_is_float32) {
-                                w->emit_cvtsi2ss(dst, src);
-                            }
-                            else {
-                                w->emit_cvtsi2sd(dst, src);
-                            }
-                            pool.free(src);
-                            simd_pool.push(dst);
+                        if (auto it = label_states.find(label_name); it != label_states.end()) {
+                            if (!reachable) reg_alloc.restore(it->second);
+                            else            reconcile_stack(reg_alloc, it->second);
                         }
                         else {
-                            // int -> int conversion: sign/zero extend to proper width
-                            auto r = pool.pop();
-                            if (target_type == "int8") {
-                                w->emit_movsx(r, r, true); // sign-extend 8->64
-                            }
-                            else if (target_type == "uint8") {
-                                w->emit_movzx(r, r, true); // zero-extend 8->64
-                            }
-                            else if (target_type == "int16") {
-                                w->emit_movsx(r, r, false); // sign-extend 16->64
-                            }
-                            else if (target_type == "uint16") {
-                                w->emit_movzx(r, r, false); // zero-extend 16->64
-                            }
-                            else if (target_type == "int32") {
-                                w->emit_movsxd(r, r); // sign-extend 32->64
-                            }
-                            else if (target_type == "uint32") {
-                                w->emit_mov(as_32(r), as_32(r)); // zero-extend 32->64
-                            }
-                            // int64/uint64: no-op
-                            pool.push(r);
+                            if (!reachable) reg_alloc.restore({});
+                            label_states[label_name] = reg_alloc.state();
                         }
+                        reachable = true;
+
+                        label_map[label_name] = w->get_code().size();
 
                         break;
                     }
-
-                case ir_opcode::op_bitcast:
-                    {
-                        const auto& target_type = std::get<std::string>(code.operand);
-                        const auto& source_type = code.type;
-
-                        const bool target_is_float = (target_type == "float32" || target_type == "float64");
-                        const bool source_is_float = (source_type == "float32" || source_type == "float64");
-
-                        if (source_is_float && !target_is_float) {
-                            // float -> int: movq gp_reg, xmm_reg (bit-preserving)
-                            auto src = simd_pool.pop();
-                            auto dst = pool.alloc();
-                            w->emit_movq(dst, src);
-                            simd_pool.free(src);
-                            pool.push(dst);
-                        }
-                        else if (!source_is_float && target_is_float) {
-                            // int -> float: movq xmm_reg, gp_reg (bit-preserving)
-                            auto src = pool.pop();
-                            auto dst = simd_pool.alloc();
-                            w->emit_movq(dst, src);
-                            pool.free(src);
-                            simd_pool.push(dst);
-                        }
-                        // same-type bitcast is a no-op (value already in correct pool)
-
-                        break;
-                    }
-
-                /* floating point arith */
-                case ir_opcode::op_addf32:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_addss(lhs, rhs);
-
-                        simd_pool.push(lhs);
-                        simd_pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_addf64:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_addsd(lhs, rhs);
-
-                        simd_pool.push(lhs);
-                        simd_pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_subf32:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_subss(lhs, rhs);
-
-                        simd_pool.push(lhs);
-                        simd_pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_subf64:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_subsd(lhs, rhs);
-
-                        simd_pool.push(lhs);
-                        simd_pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_divf32:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_divss(lhs, rhs);
-
-                        simd_pool.push(lhs);
-                        simd_pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_divf64:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_divsd(lhs, rhs);
-
-                        simd_pool.push(lhs);
-                        simd_pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_mulf32:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_mulss(lhs, rhs);
-
-                        simd_pool.push(lhs);
-                        simd_pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_mulf64:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_mulsd(lhs, rhs);
-
-                        simd_pool.push(lhs);
-                        simd_pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_modf32:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        auto tmp1 = simd_pool.alloc();
-                        auto tmp2 = simd_pool.alloc();
-                        auto tmp_gpr1 = pool.alloc();
-
-                        w->emit_fmod_float(rhs, rhs, lhs, tmp1, tmp2, tmp_gpr1);
-
-                        simd_pool.push(rhs);
-
-                        simd_pool.free(lhs);
-                        simd_pool.free(tmp1);
-                        simd_pool.free(tmp2);
-                        pool.free(tmp_gpr1);
-
-                        break;
-                    }
-                case ir_opcode::op_modf64:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        auto tmp1 = simd_pool.alloc();
-                        auto tmp2 = simd_pool.alloc();
-                        auto tmp_gpr1 = pool.alloc();
-
-                        w->emit_fmod_double(rhs, rhs, lhs, tmp1, tmp2, tmp_gpr1);
-
-                        simd_pool.push(rhs);
-
-                        simd_pool.free(lhs);
-                        simd_pool.free(tmp1);
-                        simd_pool.free(tmp2);
-                        pool.free(tmp_gpr1);
-
-                        break;
-                    }
-
-                /* bitwise */
-                case ir_opcode::op_bitwise_and:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_and(lhs, rhs);
-
-                        pool.push(lhs);
-                        pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_bitwise_or:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_or(lhs, rhs);
-
-                        pool.push(lhs);
-                        pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_bitwise_xor:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_xor(lhs, rhs);
-
-                        pool.push(lhs);
-                        pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_bitwise_not:
-                    {
-                        auto r = pool.pop();
-
-                        w->emit_not(r);
-
-                        pool.push(r);
-
-                        break;
-                    }
-                case ir_opcode::op_bitwise_lshift:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_mov(rcx, rhs);
-                        w->emit_shl(lhs);
-
-                        pool.push(lhs);
-                        pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_bitwise_rshift:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_mov(rcx, rhs);
-                        w->emit_shr(lhs);
-
-                        pool.push(lhs);
-                        pool.free(rhs);
-
-                        break;
-                    }
-                case ir_opcode::op_ibitwise_rshift:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_mov(rcx, rhs);
-                        w->emit_sar(lhs);
-
-                        pool.push(lhs);
-                        pool.free(rhs);
-
-                        break;
-                    }
-
-                case ir_opcode::op_ret:
-                    {
-                        bool is_float_return = (func.type == "float32" || func.type == "float64");
-
-                        if (!pushing_for_ret) {
-                            if (is_float_return) {
-                                if (!simd_pool.empty()) {
-                                    auto result = simd_pool.pop();
-                                    if (func.type == "float64") {
-                                        w->emit_movsd(xmm0, result);
-                                    }
-                                    else if (func.type == "float32") {
-                                        w->emit_movss(xmm0, result);
-                                    }
-                                    simd_pool.free(result);
-                                }
-                            }
-                            else {
-                                if (!pool.empty()) {
-                                    auto result = pool.pop();
-                                    w->emit_mov(rax, result);
-                                    pool.free(result);
-                                }
-                            }
-                        }
-
-                        if (save_callee_saved) {
-                            w->emit_mov(rbx, mem{rbp, -8});
-                            w->emit_mov(r12, mem{rbp, -16});
-                            w->emit_mov(r13, mem{rbp, -24});
-                            w->emit_mov(r14, mem{rbp, -32});
-                            w->emit_mov(r15, mem{rbp, -40});
-                        }
-
-                        if (!func.uses_shellcode && !func.uses_assembly) {
-                            if (!use_jit && is_main) {
-                                w->emit_function_epilogue();
-                                w->emit_mov(rdi, rax);
-                                w->emit_mov(rax, int64_t(60));
-                                w->emit_syscall();
-                            }
-                            else {
-                                w->emit_function_epilogue();
-                                w->emit_ret();
-                            }
-                        }
-                        else {
-                            w->emit_ret();
-                        }
-
-                        break;
-                    }
-
-                /* logical */
-                case ir_opcode::label:
-                    {
-                        // we realloc the label location in here
-                        auto current_location = w->get_code().size();
-                        auto label_name = std::get<std::string>(code.operand);
-
-                        label_map[label_name] = current_location; // update label location
-
-                        break;
-                    }
-                case ir_opcode::op_jmp:
-                    {
-                        auto jump_instr = code;
-                        jump_instr.operand = std::get<std::string>(code.operand);
+                    case ir_opcode::op_jmp: {
+                        auto jump_instr = instr;
+                        sync_to_label(std::get<std::string>(instr.operand));
 
                         w->push_bytes({opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP});
-
                         jump_instructions.emplace_back(jump_instr, w->get_code().size() - 5);
+                        reachable = false;
 
                         break;
                     }
-                case ir_opcode::op_jle:
-                case ir_opcode::op_jl:
-                case ir_opcode::op_jg:
-                case ir_opcode::op_jz:
-                case ir_opcode::op_jge:
-                case ir_opcode::op_jnz:
-                case ir_opcode::op_jb:
-                case ir_opcode::op_jbe:
-                case ir_opcode::op_ja:
-                case ir_opcode::op_jae:
-                    {
-                        auto jump_instr = code;
-                        jump_instr.operand = std::get<std::string>(code.operand);
+                    case ir_opcode::op_jle:
+                    case ir_opcode::op_jl:
+                    case ir_opcode::op_jg:
+                    case ir_opcode::op_jz:
+                    case ir_opcode::op_jge:
+                    case ir_opcode::op_jnz:
+                    case ir_opcode::op_jb:
+                    case ir_opcode::op_jbe:
+                    case ir_opcode::op_ja:
+                    case ir_opcode::op_jae: {
+                        auto jump_instr = instr;
+                        sync_to_label(std::get<std::string>(instr.operand));
 
                         w->push_bytes({opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP});
-
                         jump_instructions.emplace_back(jump_instr, w->get_code().size() - 6);
 
                         break;
                     }
-                case ir_opcode::op_cmpf64:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_comisd(lhs, rhs);
-
-                        simd_pool.free(rhs);
-                        simd_pool.free(lhs);
-
-                        break;
-                    }
-                case ir_opcode::op_cmpf32:
-                    {
-                        auto rhs = simd_pool.pop();
-                        auto lhs = simd_pool.pop();
-
-                        w->emit_comiss(lhs, rhs);
-
-                        simd_pool.free(rhs);
-                        simd_pool.free(lhs);
-
-                        break;
-                    }
-                case ir_opcode::op_cmp:
-                    {
-                        auto rhs = pool.pop();
-                        auto lhs = pool.pop();
-
-                        w->emit_cmp(lhs, rhs);
-
-                        pool.free(rhs);
-                        pool.free(lhs);
-
-                        break;
-                    }
-                case ir_opcode::op_setz:
-                    {
-                        auto target = pool.alloc();
-
-                        w->emit_setz(target);
-                        w->emit_mov(target, target);
-
-                        pool.push(target);
-
-                        break;
-                    }
-                case ir_opcode::op_setnz:
-                    {
-                        auto target = pool.alloc();
-
-                        w->emit_setnz(target);
-                        w->emit_mov(target, target);
-
-                        pool.push(target);
-
-                        break;
-                    }
-                case ir_opcode::op_setl:
-                    {
-                        auto target = pool.alloc();
-
-                        w->emit_setl(target);
-                        w->emit_mov(target, target);
-
-                        pool.push(target);
-
-                        break;
-                    }
-                case ir_opcode::op_setle:
-                    {
-                        auto target = pool.alloc();
-
-                        w->emit_setle(target);
-                        w->emit_mov(target, target);
-
-                        pool.push(target);
-
-                        break;
-                    }
-                case ir_opcode::op_setg:
-                    {
-                        auto target = pool.alloc();
-
-                        w->emit_setnle(target);
-                        w->emit_mov(target, target);
-
-                        pool.push(target);
-
-                        break;
-                    }
-                case ir_opcode::op_setge:
-                    {
-                        auto target = pool.alloc();
-
-                        w->emit_setnl(target);
-                        w->emit_mov(target, target);
-
-                        pool.push(target);
-
-                        break;
-                    }
-                case ir_opcode::op_not:
-                    {
-                        auto r = pool.pop();
-
-                        w->emit_cmp(r, 0);
-                        w->emit_setz(r); // set r to 1 if equal (i.e., was 0), else 0
-                        pool.push(r);
-
-                        break;
-                    }
-
-                /* function calls */
-                case ir_opcode::op_call:
-                    {
-                        std::string func_name = std::get<std::string>(code.operand);
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Calling: " << YELLOW << "\"" << func_name << "\"\n" << RESET;
-                        }
-
-                        auto it = std::ranges::find_if(ir_funcs, [&](const ir_function& f) { return f.name == func_name; });
-
-                        if (it != ir_funcs.end()) {
-                            compile_function(*it, use_jit);
-                        }
-
-                        if (!function_map.contains(func_name)) {
-                            std::cout << RED << "[CODEGEN ERROR] Function \"" << func_name << "\" not found." << RESET << std::endl;
-                            return;
-                        }
-
-                        // arg_count now guarded: only read `it`'s fields when it actually resolved.
-                        // A callee absent from ir_funcs (pure external/builtin) falls back to the
-                        // explicit count ir_gen put in code.type.
-                        int arg_count = 0;
-                        if (it != ir_funcs.end()) {
-                            arg_count = static_cast<int>(it->args.size());
-                            bool is_variadic_call = it->is_variadic && !code.type.empty();
-                            bool is_external_call = it->is_external && !code.type.empty();
-                            if (is_variadic_call || is_external_call) {
-                                arg_count = std::stoi(code.type);
-                            }
-                        }
-                        else if (!code.type.empty()) {
-                            arg_count = std::stoi(code.type);
-                        }
-                        else {
-                            std::cout << RED << "[CODEGEN ERROR] Call to \"" << func_name << "\" has unknown arity." << RESET << std::endl;
-                            return;
-                        }
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Argument count: " << RESET << arg_count << std::endl;
-                        }
-
-                        // collect arguments with their types
-                        std::vector<std::pair<std::variant<grp, simd128>, bool>> args; // pair<reg, is_fp>
-                        struct spilled_arg {
-                            std::int32_t offset;
-                            bool is_fp;
-                        };
-                        std::vector<std::optional<spilled_arg>> arg_spill_info;
-
-                        for (int i1 = arg_count - 1; i1 >= 0; i1--) {
-                            bool is_fp = false;
-                            if (it != ir_funcs.end() && static_cast<std::size_t>(i1) < it->args.size()) {
-                                const auto& arg_type = it->args[i1].type;
-                                is_fp = (arg_type == "float32" || arg_type == "float64");
-                            }
-
-                            auto spill_collected_args = [&]() {
-                                for (std::size_t k = 0; k < args.size(); k++) {
-                                    if (!args[k].second && !arg_spill_info[k].has_value()) {
-                                        grp r = std::get<grp>(args[k].first);
-                                        totalsizes += 8;
-                                        std::int32_t sp_off = -totalsizes;
-                                        w->emit_mov(mem{rbp, sp_off}, r);
-                                        pool.free(r);
-                                        arg_spill_info[k] = spilled_arg{sp_off, false};
-                                        return true;
-                                    }
-                                }
-                                for (std::size_t k = 0; k < args.size(); k++) {
-                                    if (args[k].second && !arg_spill_info[k].has_value()) {
-                                        simd128 r = std::get<simd128>(args[k].first);
-                                        totalsizes += 16;
-                                        std::int32_t sp_off = -totalsizes;
-                                        w->emit_movsd(mem{rbp, sp_off}, r);
-                                        simd_pool.free(r);
-                                        arg_spill_info[k] = spilled_arg{sp_off, true};
-                                        return true;
-                                    }
-                                }
-                                return false;
-                            };
-
-                            if (is_fp) {
-                                if (simd_pool.empty()) {
-                                    if (!spill_collected_args()) {
-                                        std::cout << RED
-                                                << "[CODEGEN ERROR] Not enough FP arguments on stack "
-                                                    "for function call: "
-                                                << func_name << RESET << std::endl;
-                                        for (auto& [reg_var, is_arg_fp] : args) {
-                                            if (is_arg_fp)
-                                                simd_pool.free(std::get<simd128>(reg_var));
-                                            else
-                                                pool.free(std::get<grp>(reg_var));
-                                        }
-                                        return;
-                                    }
-                                }
-                                args.emplace_back(simd_pool.pop(), true);
-                            }
-                            else {
-                                if (pool.empty()) {
-                                    if (!spill_collected_args()) {
-                                        std::cout << RED
-                                                << "[CODEGEN ERROR] Not enough GP arguments on stack "
-                                                    "for function call: "
-                                                << func_name << RESET << std::endl;
-                                        for (auto& [reg_var, is_arg_fp] : args) {
-                                            if (is_arg_fp)
-                                                simd_pool.free(std::get<simd128>(reg_var));
-                                            else
-                                                pool.free(std::get<grp>(reg_var));
-                                        }
-                                        return;
-                                    }
-                                }
-                                args.emplace_back(pool.pop(), false);
-                            }
-                            arg_spill_info.emplace_back(std::nullopt);
-                        }
-
-                        for (std::size_t k = 0; k < args.size(); k++) {
-                            if (arg_spill_info[k].has_value()) {
-                                auto& sp = arg_spill_info[k].value();
-                                if (sp.is_fp) {
-                                    simd128 r = simd_pool.alloc();
-                                    w->emit_movsd(r, mem{rbp, sp.offset});
-                                    args[k].first = r;
-                                }
-                                else {
-                                    grp r = pool.alloc();
-                                    w->emit_mov(r, mem{rbp, sp.offset});
-                                    args[k].first = r;
-                                }
-                            }
-                        }
-
-                        std::reverse(args.begin(), args.end());
-
-                        std::vector<grp> caller_saved_gp;
-                        std::vector<simd128> caller_saved_simd;
-
-                        if (is_systemv) {
-                            constexpr grp caller_saved[] = {r10, r11, r12, r13, r14, r15};
-                            for (auto reg : caller_saved) {
-                                auto active = pool.get_active_registers();
-                                if (std::find(active.begin(), active.end(), reg) != active.end()) {
-                                    w->emit_push(reg);
-                                    caller_saved_gp.push_back(reg);
-                                }
-                            }
-
-                            auto active_simd = simd_pool.get_active_registers();
-                            for (auto xmm : active_simd) {
-                                w->emit_sub(rsp, 16);
-                                w->emit_movsd(mem{rsp, 0}, xmm);
-                                caller_saved_simd.push_back(xmm);
-                            }
-                        }
-                        else {
-                            constexpr simd128 win_caller_saved[] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5};
-                            auto active_simd = simd_pool.get_active_registers();
-                            for (auto xmm : win_caller_saved) {
-                                if (std::find(active_simd.begin(), active_simd.end(), xmm) != active_simd.end()) {
-                                    w->emit_sub(rsp, 16);
-                                    w->emit_movsd(mem{rsp, 0}, xmm);
-                                    caller_saved_simd.push_back(xmm);
-                                }
-                            }
-                        }
-
-                        std::size_t gp_reg_idx = 0;
-                        std::size_t fp_reg_idx = 0;
-                        std::vector<std::pair<std::variant<grp, simd128>, bool>> stack_args;
-
-                        for (std::size_t arg_idx = 0; arg_idx < args.size(); arg_idx++) {
-                            auto [reg_var, is_fp] = args[arg_idx];
-
-                            if (is_systemv) {
-                                if (is_fp) {
-                                    if (fp_reg_idx < 8) {
-                                        simd128 arg_reg = std::get<simd128>(reg_var);
-                                        w->emit_movsd(sysv_regs_simd[fp_reg_idx], arg_reg);
-                                        simd_pool.free(arg_reg);
-                                        fp_reg_idx++;
-                                    }
-                                    else {
-                                        stack_args.emplace_back(reg_var, is_fp);
-                                    }
-                                }
-                                else {
-                                    if (gp_reg_idx < 6) {
-                                        grp arg_reg = std::get<grp>(reg_var);
-                                        w->emit_mov(sysv_regs[gp_reg_idx], arg_reg);
-                                        pool.free(arg_reg);
-                                        gp_reg_idx++;
-                                    }
-                                    else {
-                                        stack_args.emplace_back(reg_var, is_fp);
-                                    }
-                                }
-                            }
-                            else {
-                                constexpr grp win_regs[] = {rcx, rdx, r8, r9};
-                                constexpr simd128 win_regs_simd[] = {xmm0, xmm1, xmm2, xmm3};
-
-                                if (arg_idx < 4) {
-                                    if (is_fp) {
-                                        simd128 arg_reg = std::get<simd128>(reg_var);
-                                        w->emit_movsd(win_regs_simd[arg_idx], arg_reg);
-                                        simd_pool.free(arg_reg);
-                                    }
-                                    else {
-                                        grp arg_reg = std::get<grp>(reg_var);
-                                        w->emit_mov(win_regs[arg_idx], arg_reg);
-                                        pool.free(arg_reg);
-                                    }
-                                }
-                                else {
-                                    stack_args.emplace_back(reg_var, is_fp);
-                                }
-                            }
-                        }
-
-                        const std::size_t stack_args_bytes = stack_args.size() * 8;
-                        const std::size_t caller_saved_bytes = caller_saved_gp.size() * 8 + caller_saved_simd.size() * 16;
-
-                        const std::size_t current_mod = (totalsizes + caller_saved_bytes + stack_args_bytes) % 16;
-                        const std::size_t alignment_padding = (8 + 16 - current_mod) % 16;
-                        if (alignment_padding != 0) {
-                            w->emit_sub(rsp, static_cast<std::int32_t>(alignment_padding));
-                        }
-
-                        for (auto it_stack = stack_args.rbegin(); it_stack != stack_args.rend(); ++it_stack) {
-                            auto [reg_var, is_fp] = *it_stack;
-                            if (is_fp) {
-                                simd128 arg_reg = std::get<simd128>(reg_var);
-                                w->emit_sub(rsp, 8);
-                                w->emit_movsd(mem{rsp, 0}, arg_reg);
-                                simd_pool.free(arg_reg);
-                            }
-                            else {
-                                grp arg_reg = std::get<grp>(reg_var);
-                                w->emit_push(arg_reg);
-                                pool.free(arg_reg);
-                            }
-                        }
-
-                        if (!is_systemv) {
-                            w->emit_sub(rsp, 32);
-                        }
-
-                        auto target_fn = function_map[func_name];
-                        if (target_fn == nullptr) {
-                            std::cout << RED << "[CODEGEN ERROR] Function \"" << func_name << "\" unresolved (null target)." << RESET << std::endl;
-                            return;
-                        }
-                        w->emit_mov(rax, reinterpret_cast<std::int64_t>(target_fn));
-                        w->emit_call(rax);
-
-                        if (!is_systemv) {
-                            w->emit_add(rsp, 32);
-                        }
-
-                        if (!stack_args.empty()) {
-                            w->emit_add(rsp, static_cast<std::int32_t>(stack_args_bytes));
-                        }
-
-                        if (alignment_padding != 0) {
-                            w->emit_add(rsp, static_cast<std::int32_t>(alignment_padding));
-                        }
-
-                        for (auto it_simd = caller_saved_simd.rbegin(); it_simd != caller_saved_simd.rend(); ++it_simd) {
-                            w->emit_movsd(*it_simd, mem{rsp, 0});
-                            w->emit_add(rsp, 16);
-                        }
-
-                        // restore caller-saved GP registers
-                        if (is_systemv) {
-                            for (auto it_gp = caller_saved_gp.rbegin(); it_gp != caller_saved_gp.rend(); ++it_gp) {
-                                w->emit_pop(*it_gp);
-                            }
-                        }
-
-                        auto ret_it = function_return_types.find(func_name);
-                        const std::string ret_type = (ret_it != function_return_types.end()) ? ret_it->second : "";
-                        bool ret_is_fp = (ret_type == "float32" || ret_type == "float64");
-
-                        if (code.result_used && !ret_type.empty()) {
-                            if (ret_is_fp) {
-                                auto ret_reg = simd_pool.alloc();
-                                w->emit_movsd(ret_reg, xmm0);
-                                simd_pool.push(ret_reg);
-                            }
-                            else {
-                                auto ret_reg = pool.alloc();
-                                w->emit_mov(ret_reg, rax);
-                                pool.push(ret_reg);
-                            }
-                        }
-
-                        break;
-                    }
-                /* arrays */
-                case ir_opcode::op_array_decl:
-                    {
-                        auto name = std::get<std::string>(code.operand);
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Got name of array: " << RESET << name << std::endl;
-                        }
-
-                        auto type = std::get<std::string>(func.code.at(++i).operand);
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Array type: " << RESET << type << std::endl;
-                        }
-
-                        auto dimensions = std::get<std::uint64_t>(func.code.at(++i).operand);
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Dimensions count: " << RESET << dimensions << std::endl;
-                        }
-
-                        std::vector<std::uint64_t> dimensions_vec;
-                        for (std::size_t j = 0; j < dimensions; j++) {
-                            dimensions_vec.emplace_back(std::get<std::uint64_t>(func.code.at(++i).operand));
-                        }
-
-                        if (debug) {
-                            int j = 0;
-                            for (const auto& e : dimensions_vec) {
-                                std::cout << BLUE << "[CODEGEN INFO] Size in dimension (" << ++j << "): " << RESET << e << std::endl;
-                            }
-                        }
-
-                        std::size_t element_size = 8;
-                        // tmp to align with what we got until i can figure out diff byte sizes
-                        std::size_t element_count = 1;
-                        for (const auto& dim : dimensions_vec) {
-                            element_count *= dim;
-                        }
-
-                        std::int32_t total_mem = element_count * element_size;
-                        total_mem = ((total_mem + 15) / 16) * 16; // 16 byte alignment
-                        // don't emit sub rsp here - stack space is pre-allocated via
-                        // placeholder patching
-                        std::int32_t base_offset = -totalsizes - total_mem;
-                        totalsizes += total_mem;
-
-                        local_array_metadata[name] = {type, dimensions_vec, total_mem};
-                        local_variable_map[name] = base_offset; // store base address as negative offset from rbp
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Allocated array: " << RESET << name << "\n"
-                                      << BLUE << "               totalsizes before: " << RESET << (totalsizes - total_mem) << "\n"
-                                      << BLUE << "               total_mem: " << RESET << total_mem << "\n"
-                                      << BLUE << "               base_offset: " << RESET << base_offset << "\n"
-                                      << BLUE << "               totalsizes after: " << RESET << totalsizes << std::endl;
-                        }
-
-                        break;
-                    }
-                case ir_opcode::op_declare_where_to_store:
-                    {
-                        auto index = std::get<std::uint64_t>(code.operand);
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Declaring store index: " << RESET << index << std::endl;
-                        }
-
-                        index_to_push = index;
-
-                        break;
-                    }
-                case ir_opcode::op_array_store_element:
-                    {
-                        auto array_name = std::get<std::string>(func.code.at(i).operand);
-                        auto it = local_variable_map.find(array_name);
-
-                        if (it == local_variable_map.end()) {
-                            std::cerr << RED << "[CODEGEN ERROR] Array " << array_name << " not found" << RESET << std::endl;
-                            // FIX 10: Clean up any values that might be on the stack
-                            if (!pool.empty()) {
-                                pool.pop(); // value
-                                if (!pool.empty()) {
-                                    pool.free(pool.pop()); // potential index
-                                }
-                            }
-                            return;
-                        }
-
-                        std::int32_t array_base_offset = it->second; // negative offset from rbp where array starts
-
-                        auto& store_meta = local_array_metadata[array_name];
-                        bool is_float_array = (store_meta.type == "float32" || store_meta.type == "float64");
-
-                        // scan backwards to determine if we have a constant index from
-                        // op_declare_where_to_store if we find op_mark_for_array_access first,
-                        // then it's a dynamic index
-                        bool has_constant_index = false;
-                        for (std::size_t j = 1; j <= 50 && i >= j; j++) { // 50 instr lookback for larger right hand side expr
-                            auto prev_op = func.code.at(i - j).op;
-                            if (prev_op == ir_opcode::op_declare_where_to_store) {
-                                has_constant_index = true;
-                                break;
-                            }
-                            if (prev_op == ir_opcode::op_mark_for_array_access) {
-                                has_constant_index = false;
-                                break;
-                            }
-                        }
-
-                        // treat it as a constant index even if op_declare_where_to_store wasn't
-                        // emitted for pattern push constant, mark_for_array_access,
-                        // array_store_element
-                        std::optional<std::uint64_t> inline_const_index;
-                        if (!has_constant_index && i >= 2 && func.code.at(i - 1).op == ir_opcode::op_mark_for_array_access && func.code.at(i - 2).op == ir_opcode::op_push) {
-                            const auto& opnd = func.code.at(i - 2).operand;
-                            if (std::holds_alternative<std::int64_t>(opnd)) {
-                                inline_const_index = static_cast<std::uint64_t>(std::get<std::int64_t>(opnd));
-                            }
-                            else if (std::holds_alternative<std::uint64_t>(opnd)) {
-                                inline_const_index = std::get<std::uint64_t>(opnd);
-                            }
-                            else if (std::holds_alternative<std::int32_t>(opnd)) {
-                                inline_const_index = static_cast<std::uint64_t>(std::get<std::int32_t>(opnd));
-                            }
-                            else if (std::holds_alternative<std::uint32_t>(opnd)) {
-                                inline_const_index = std::get<std::uint32_t>(opnd);
-                            }
-                            else if (std::holds_alternative<std::int16_t>(opnd)) {
-                                inline_const_index = static_cast<std::uint64_t>(std::get<std::int16_t>(opnd));
-                            }
-                            else if (std::holds_alternative<std::uint16_t>(opnd)) {
-                                inline_const_index = std::get<std::uint16_t>(opnd);
-                            }
-                            else if (std::holds_alternative<std::int8_t>(opnd)) {
-                                inline_const_index = static_cast<std::uint64_t>(std::get<std::int8_t>(opnd));
-                            }
-                            else if (std::holds_alternative<std::uint8_t>(opnd)) {
-                                inline_const_index = std::get<std::uint8_t>(opnd);
-                            }
-                        }
-
-                        if (has_constant_index) {
-                            std::uint64_t index = index_to_push;
-                            std::int32_t element_offset = array_base_offset + 8 * index;
-
-                            if (debug) {
-                                std::cout << BLUE << "[CODEGEN INFO] Array store (constant) to " << array_name << "[" << index << "]" << RESET << std::endl;
-                                std::cout << "\tBase offset: " << array_base_offset << std::endl;
-                                std::cout << "\tElement offset: " << element_offset << std::endl;
-                            }
-
-                            if (is_float_array) {
-                                auto simd_reg = simd_pool.pop();
-                                if (store_meta.type == "float32") {
-                                    w->emit_cvtss2sd(simd_reg, simd_reg);
-                                }
-                                w->emit_movsd(mem{rbp, element_offset}, simd_reg);
-                                simd_pool.free(simd_reg);
-                            }
-                            else {
-                                auto content = pool.pop();
-                                w->emit_mov(mem{rbp, element_offset}, content);
-                                pool.free(content);
-                            }
-                            index_to_push = (std::numeric_limits<std::uint64_t>::max)();
-                        }
-                        else {
-                            if (inline_const_index.has_value()) {
-                                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_const_index.value());
-
-                                if (debug) {
-                                    std::cout << BLUE << "[CODEGEN INFO] Array store (inline constant) to " << array_name << "[" << inline_const_index.value() << "]" << RESET << std::endl;
-                                    std::cout << "\tBase offset: " << array_base_offset << std::endl;
-                                    std::cout << "\tElement offset: " << element_offset << std::endl;
-                                }
-
-                                if (is_float_array) {
-                                    auto simd_reg = simd_pool.pop();
-                                    // discard the pushed index register
-                                    auto idx_reg = pool.pop();
-                                    pool.free(idx_reg);
-
-                                    if (store_meta.type == "float32") {
-                                        w->emit_cvtss2sd(simd_reg, simd_reg);
-                                    }
-                                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
-                                    simd_pool.free(simd_reg);
-                                }
-                                else {
-                                    auto content = pool.pop();
-                                    // discard the pushed index register
-                                    auto idx_reg = pool.pop();
-                                    pool.free(idx_reg);
-
-                                    w->emit_mov(mem{rbp, element_offset}, content);
-                                    pool.free(content);
-                                }
-                                break;
-                            }
-                            if (index_to_push != (std::numeric_limits<std::uint64_t>::max)()) {
-                                std::uint64_t index = index_to_push;
-                                std::int32_t element_offset = array_base_offset + 8 * index;
-
-                                if (debug) {
-                                    std::cout << BLUE << "[CODEGEN INFO] Array store (pending constant) to " << array_name << "[" << index << "]" << RESET << std::endl;
-                                    std::cout << "\tBase offset: " << array_base_offset << std::endl;
-                                    std::cout << "\tElement offset: " << element_offset << std::endl;
-                                }
-
-                                if (is_float_array) {
-                                    auto simd_reg = simd_pool.pop();
-                                    if (store_meta.type == "float32") {
-                                        w->emit_cvtss2sd(simd_reg, simd_reg);
-                                    }
-                                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
-                                    simd_pool.free(simd_reg);
-                                }
-                                else {
-                                    auto content = pool.pop();
-                                    w->emit_mov(mem{rbp, element_offset}, content);
-                                    pool.free(content);
-                                }
-                                index_to_push = (std::numeric_limits<std::uint64_t>::max)();
-                                break;
-                            }
-
-                            if (is_float_array) {
-                                auto simd_reg = simd_pool.pop();
-                                auto index_reg = pool.pop();
-
-                                if (debug) {
-                                    std::cout << BLUE << "[CODEGEN INFO] Array store (dynamic) to " << array_name << "[index_reg]" << RESET << std::endl;
-                                    std::cout << "\tBase offset: " << array_base_offset << std::endl;
-                                }
-
-                                auto addr_reg = pool.alloc();
-                                w->emit_lea(addr_reg, mem{rbp, array_base_offset});
-                                w->emit_shl(index_reg, 3);
-                                w->emit_add(addr_reg, index_reg);
-
-                                if (store_meta.type == "float32") {
-                                    w->emit_cvtss2sd(simd_reg, simd_reg);
-                                }
-                                w->emit_movsd(mem{addr_reg}, simd_reg);
-
-                                pool.free(addr_reg);
-                                pool.free(index_reg);
-                                simd_pool.free(simd_reg);
-                            }
-                            else {
-                                auto content = pool.pop();
-                                auto index_reg = pool.pop();
-
-                                if (debug) {
-                                    std::cout << BLUE << "[CODEGEN INFO] Array store (dynamic) to " << array_name << "[index_reg]" << RESET << std::endl;
-                                    std::cout << "\tBase offset: " << array_base_offset << std::endl;
-                                }
-
-                                auto addr_reg = pool.alloc();
-                                w->emit_lea(addr_reg, mem{rbp, array_base_offset});
-                                w->emit_shl(index_reg, 3);
-                                w->emit_add(addr_reg, index_reg);
-
-                                w->emit_mov(mem{addr_reg}, content);
-
-                                pool.free(addr_reg);
-                                pool.free(index_reg);
-                                pool.free(content);
-                            }
-                        }
-
-                        break;
-                    }
-                case ir_opcode::op_array_access_element:
-                    {
-                        auto array_name = std::get<std::string>(code.operand);
-
-                        auto it = local_variable_map.find(array_name);
-                        if (it == local_variable_map.end()) {
-                            std::cerr << RED << "[CODEGEN ERROR] Array " << array_name << " not found" << RESET << std::endl;
-                            return;
-                        }
-
-                        auto& local_metadata = local_array_metadata[array_name];
-                        bool is_float_array = (local_metadata.type == "float32" || local_metadata.type == "float64");
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Array access: " << RESET << array_name << std::endl;
-                            std::cout << BLUE << "[CODEGEN INFO] Array access total dims: " << RESET << local_metadata.dimensions.size() << std::endl;
-                        }
-
-                        std::int32_t array_base_offset = it->second; // negative offset from rbp where array starts
-
-                        // inline constant index push constant, mark_for_array_access,
-                        // array_access_element
-                        if (i >= 2 && func.code.at(i - 1).op == ir_opcode::op_mark_for_array_access && func.code.at(i - 2).op == ir_opcode::op_push) {
-                            const auto& opnd = func.code.at(i - 2).operand;
-                            std::optional<std::uint64_t> inline_idx;
-                            if (std::holds_alternative<std::int64_t>(opnd)) {
-                                inline_idx = static_cast<std::uint64_t>(std::get<std::int64_t>(opnd));
-                            }
-                            else if (std::holds_alternative<std::uint64_t>(opnd)) {
-                                inline_idx = std::get<std::uint64_t>(opnd);
-                            }
-                            else if (std::holds_alternative<std::int32_t>(opnd)) {
-                                inline_idx = static_cast<std::uint64_t>(std::get<std::int32_t>(opnd));
-                            }
-                            else if (std::holds_alternative<std::uint32_t>(opnd)) {
-                                inline_idx = std::get<std::uint32_t>(opnd);
-                            }
-                            else if (std::holds_alternative<std::int16_t>(opnd)) {
-                                inline_idx = static_cast<std::uint64_t>(std::get<std::int16_t>(opnd));
-                            }
-                            else if (std::holds_alternative<std::uint16_t>(opnd)) {
-                                inline_idx = std::get<std::uint16_t>(opnd);
-                            }
-                            else if (std::holds_alternative<std::int8_t>(opnd)) {
-                                inline_idx = static_cast<std::uint64_t>(std::get<std::int8_t>(opnd));
-                            }
-                            else if (std::holds_alternative<std::uint8_t>(opnd)) {
-                                inline_idx = std::get<std::uint8_t>(opnd);
-                            }
-
-                            if (inline_idx.has_value()) {
-                                // drop the pushed index register from the pool
-                                auto idx_reg = pool.pop();
-                                pool.free(idx_reg);
-
-                                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_idx.value());
-
-                                if (is_float_array) {
-                                    auto simd_reg = simd_pool.alloc();
-                                    w->emit_movsd(simd_reg, mem{rbp, element_offset});
-                                    if (local_metadata.type == "float32") {
-                                        w->emit_cvtsd2ss(simd_reg, simd_reg);
-                                    }
-                                    simd_pool.push(simd_reg);
-                                }
-                                else {
-                                    auto true_index = pool.alloc();
-                                    w->emit_mov(true_index, mem{rbp, element_offset});
-                                    pool.push(true_index);
-                                }
-                                break;
-                            }
-                        }
-
-                        // pop all indices from the stack (they're in reverse order, last
-                        // dimension first)
-                        std::vector<grp> indices;
-                        for (std::size_t dims = 0; dims < local_metadata.dimensions.size(); dims++) {
-                            indices.push_back(pool.pop());
-                        }
-
-                        // reverse to get them in correct order
-                        std::reverse(indices.begin(), indices.end());
-
-                        auto true_index = pool.alloc();
-                        w->emit_xor(true_index, true_index); // zero out
-
-                        for (std::size_t dim = 0; dim < local_metadata.dimensions.size(); dim++) {
-                            std::uint64_t stride = 1;
-                            for (std::size_t next_dim = dim + 1; next_dim < local_metadata.dimensions.size(); next_dim++) {
-                                stride *= local_metadata.dimensions[next_dim];
-                            }
-
-                            if (debug) {
-                                std::cout << BLUE << "[CODEGEN INFO] Dimension " << dim << " stride: " << RESET << stride << std::endl;
-                            }
-
-                            if (stride == 1) {
-                                w->emit_add(true_index, indices[dim]);
-                            }
-                            else {
-                                bool rax_in_use = (true_index == rax);
-                                bool rdx_in_use = false;
-
-                                for (const auto& active_reg : pool.get_active_registers()) {
-                                    if (active_reg == rdx) {
-                                        rdx_in_use = true;
-
-                                        break;
-                                    }
-                                }
-
-                                if (rax_in_use) {
-                                    w->emit_push(rax);
-                                }
-                                if (rdx_in_use) {
-                                    w->emit_push(rdx);
-                                }
-
-                                w->emit_mov(rax, indices[dim]);
-
-                                if (stride <= 0x7FFFFFFF) {
-                                    w->emit_imul(rax, rax, static_cast<std::int32_t>(stride));
-                                }
-                                else {
-                                    auto temp = pool.alloc();
-                                    w->emit_mov(temp, stride);
-                                    w->emit_mul(temp);
-                                    pool.free(temp);
-                                }
-
-                                w->emit_add(true_index, rax);
-
-                                if (rdx_in_use) {
-                                    w->emit_pop(rdx);
-                                }
-                                if (rax_in_use) {
-                                    w->emit_pop(rax);
-                                }
-                            }
-
-                            pool.free(indices[dim]);
-                        }
-
-                        // calculate element offset base + true_index * 8
-                        // for multi-dimensional arrays, true_index already contains the
-                        // linearized index
-
-                        // we need to compute [rbp + base + index*8]
-                        // since we can't do this directly with scaled indexed addressing when
-                        // base is not 0, we'll compute base + index*8 into a register first
-                        auto addr_reg = pool.alloc();
-                        w->emit_lea(addr_reg, mem{rbp, array_base_offset});
-                        w->emit_shl(true_index, 3); // true_index = index * 8
-                        w->emit_add(addr_reg, true_index);
-
-                        if (is_float_array) {
-                            auto simd_reg = simd_pool.alloc();
-                            w->emit_movsd(simd_reg, mem{addr_reg});
-                            if (local_metadata.type == "float32") {
-                                w->emit_cvtsd2ss(simd_reg, simd_reg);
-                            }
-                            pool.free(addr_reg);
-                            pool.free(true_index);
-                            simd_pool.push(simd_reg);
-                        }
-                        else {
-                            w->emit_mov(true_index, mem{addr_reg}); // load from computed address
-                            pool.free(addr_reg);
-                            pool.push(true_index);
-                        }
-
-                        break;
-                    }
-                /* structures */
-                case ir_opcode::op_struct_decl:
-                    {
-                        pending_struct_type = std::get<std::string>(code.operand);
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Struct declaration of type: " << RESET << pending_struct_type << std::endl;
-                        }
-
-                        break;
-                    }
-                case ir_opcode::op_struct_store:
-                    {
-                        auto var_name = std::get<std::string>(code.operand);
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Struct store variable: " << RESET << var_name << " of type: " << pending_struct_type << std::endl;
-                        }
-
-                        // check if this is a pointer to struct type
-                        bool is_struct_ptr = false;
-                        std::string base_struct_type = pending_struct_type;
-                        const std::string ptr_suffix = kStructPtrSuffix;
-                        if (pending_struct_type.ends_with(ptr_suffix)) {
-                            is_struct_ptr = true;
-                            base_struct_type = pending_struct_type.substr(0, pending_struct_type.size() - ptr_suffix.size());
-                        }
-
-                        auto it = local_variable_map.find(var_name);
-                        if (it == local_variable_map.end()) {
-                            if (is_struct_ptr) {
-                                // if pointer to struct type, just allocate 8 bytes like a regular
-                                // var
-                                totalsizes += 8;
-
-                                if (!pool.empty()) {
-                                    grp r = pool.pop();
-                                    w->emit_mov(mem{rbp, -totalsizes}, r);
-                                    pool.free(r);
-                                }
-
-                                local_variable_map.insert({var_name, totalsizes});
-                                local_variable_map_types.insert({var_name, pending_struct_type});
-                            }
-                            else {
-                                // allocate space
-                                auto layout_it = struct_layouts.find(pending_struct_type);
-                                if (layout_it == struct_layouts.end()) {
-                                    // ukn, just allocate 8 bytes like a regular var
-                                    totalsizes += 8;
-
-                                    if (!pool.empty()) {
-                                        grp r = pool.pop();
-                                        w->emit_mov(mem{rbp, -totalsizes}, r);
-                                        pool.free(r);
-                                    }
-
-                                    local_variable_map.insert({var_name, totalsizes});
-                                    local_variable_map_types.insert({var_name, pending_struct_type});
-                                }
-                                else {
-                                    // full struct, allocate space for all members
-                                    std::int32_t struct_size = layout_it->second.total_size;
-                                    // Align to 16 bytes
-                                    struct_size = ((struct_size + 15) / 16) * 16;
-                                    totalsizes += struct_size;
-
-                                    // if there's a value on the register pool from
-                                    // an assignment or whatever it's a pointer to a source
-                                    // struct. then copy data
-                                    if (!pool.empty()) {
-                                        grp src = pool.pop();
-                                        grp tmp = pool.alloc();
-
-                                        // copy entire struct 8 bytes at a time
-                                        std::int32_t actual_size = layout_it->second.total_size;
-                                        for (std::int32_t off = 0; off < actual_size; off += 8) {
-                                            w->emit_mov(tmp, mem{src, off});
-                                            w->emit_mov(mem{rbp, -totalsizes + off}, tmp);
-                                        }
-
-                                        pool.free(tmp);
-                                        pool.free(src);
-                                    }
-
-                                    local_variable_map.insert({var_name, totalsizes});
-                                    local_variable_map_types.insert({var_name, pending_struct_type});
-                                    local_struct_var_types.insert({var_name, pending_struct_type});
-                                }
-                            }
-                        }
-                        else {
-                            // bariable already exists, just update its value
-                            if (!pool.empty()) {
-                                grp r = pool.pop();
-                                std::int32_t offset = -it->second;
-                                w->emit_mov(mem{rbp, offset}, r);
-                                pool.free(r);
-                            }
-                        }
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Struct variable " << RESET << var_name << " at offset -" << local_variable_map[var_name] << std::endl;
-                        }
-
-                        break;
-                    }
-
-                case ir_opcode::op_member_access:
-                    {
-                        auto member_name = std::get<std::string>(code.operand);
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Member access: " << RESET << member_name << std::endl;
-                        }
-
-                        // the base address of the struct should be on the register pool
-                        grp base = pool.pop();
-
-                        // we need to figure out which struct type this variable is ^^^
-                        // look through all struct layouts to find which one has this member.
-                        std::int32_t member_offset = -1;
-                        std::string member_struct_type;
-                        std::string member_type_name;
-                        for (const auto& [sname, slayout] : struct_layouts) {
-                            auto off = slayout.get_member_offset(member_name);
-                            if (off >= 0) {
-                                member_offset = off;
-                                member_struct_type = sname;
-                                // Find the member's type
-                                for (const auto& m : slayout.members) {
-                                    if (m.name == member_name) {
-                                        member_type_name = m.type;
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-
-                        if (member_offset < 0) {
-                            std::cerr << RED << "[CODEGEN ERROR] Member " << member_name << " not found in any struct" << RESET << std::endl;
-                            pool.push(base);
-                            break;
-                        }
-
-                        // determine if this member is itself a struct type (not a pointer)
-                        // if it is, we emit lea to compute its address
-                        // if it's a scalar or pointer, we emit mov to load its value
-                        bool member_is_nested_struct = struct_layouts.contains(member_type_name);
-
-                        if (member_is_nested_struct) {
-                            // nested struct by value, compute address via LEA
-                            w->emit_lea(base, mem{base, member_offset});
-                            pool.push(base);
-                        }
-                        else if (member_type_name == "float32" || member_type_name == "float64") {
-                            // float member: load into SIMD register
-                            // member_store promoted f32 to f64 and stored with movsd,
-                            // so always load as f64 via movsd, then convert back to f32 if needed
-                            auto simd_reg = simd_pool.alloc();
-                            w->emit_movsd(simd_reg, mem{base, member_offset});
-                            if (member_type_name == "float32") {
-                                w->emit_cvtsd2ss(simd_reg, simd_reg);
-                            }
-                            simd_pool.push(simd_reg);
-                            pool.free(base);
-                        }
-                        else {
-                            // scalar or pointer, load the actual value
-                            w->emit_mov(base, mem{base, member_offset});
-                            pool.push(base);
-                        }
-
-                        break;
-                    }
-
-                case ir_opcode::op_member_store:
-                    {
-                        auto member_name = std::get<std::string>(code.operand);
-                        auto member_type = code.type;
-
-                        if (debug) {
-                            std::cout << BLUE << "[CODEGEN INFO] Member store: " << RESET << member_name << std::endl;
-                        }
-
-                        // find the member offset
-                        std::int32_t member_offset = -1;
-                        for (const auto& [sname, slayout] : struct_layouts) {
-                            auto off = slayout.get_member_offset(member_name);
-                            if (off >= 0) {
-                                member_offset = off;
-                                break;
-                            }
-                        }
-
-                        if (member_offset < 0) {
-                            std::cerr << RED << "[CODEGEN ERROR] Member " << member_name << " not found in any struct for store" << RESET << std::endl;
-                            break;
-                        }
-
-                        if (!simd_pool.empty() && (member_type == "float32" || member_type == "float64")) {
-                            simd128 fval = simd_pool.pop();
-                            grp base = pool.pop();
-
-                            // Promote f32 to f64: struct member slots are 8 bytes wide, and
-                            // the printf/bitcast path expects double-width IEEE 754 bits.
-                            if (member_type == "float32") {
-                                w->emit_cvtss2sd(fval, fval);
-                            }
-                            w->emit_movsd(mem{base, member_offset}, fval);
-
-                            simd_pool.free(fval);
-                            pool.free(base);
-                        }
-                        else {
-                            // value on top, then base address
-                            grp val = pool.pop();
-                            grp base = pool.pop();
-
-                            w->emit_mov(mem{base, member_offset}, val);
-
-                            pool.free(val);
-                            pool.free(base);
-                        }
-
-                        break;
-                    }
-                default:
-                    {
+                    default: {
                         break;
                     }
                 }
             }
 
-            if (debug) {
-                std::cout << BLUE << "[CODEGEN INFO] Total jump instructions to backpatch: " << RESET << jump_instructions.size() << std::endl;
+            for (auto& [jinstr, loc] : jump_instructions) {
+                auto label_name = std::get<std::string>(jinstr.operand);
+                auto lit = label_map.find(label_name);
+
+                if (lit == label_map.end()) {
+                    throw std::runtime_error("Label \"" + label_name + "\" not found");
+                }
+
+                backpatch_jump(jinstr.op, loc, lit->second, w.get());
             }
 
-            for (auto& [fst, snd] : jump_instructions) {
-                if (debug) {
-                    std::cout << BLUE << "[CODEGEN INFO] Jump Backpatching:\n" << RESET;
-                }
-
-                auto& instr = fst;
-                auto jump_type = instr.op;
-                auto label_name = std::get<std::string>(instr.operand);
-
-                if (debug) {
-                    std::cout << "\tOpcode: " << opcode_to_string(jump_type) << std::endl;
-                    std::cout << "\tLabel: " << label_name << std::endl;
-
-                    if (label_map.contains(label_name)) {
-                        std::cout << "\tLabel location: " << label_map[label_name] << std::endl;
-                        std::cout << "\tJump location: " << snd << std::endl;
-                        std::cout << "\tOffset will be: " << (label_map[label_name] - (snd + ((jump_type == ir_opcode::op_jmp) ? 5 : 6))) << RESET << std::endl;
-                    }
-                    else {
-                        std::cout << RED << "\tERROR: Label not found!" << RESET << std::endl;
-                    }
-                }
-
-                if (label_map.contains(label_name)) {
-                    backpatch_jump(jump_type, snd, label_map[label_name], w);
-                }
-                else {
-                    std::cout << RED << "[CODEGEN ERROR] Label \"" << label_name << "\" not found." << RESET << std::endl;
-                    return;
-                }
-            }
-
-            // patch the stack allocation placeholder with actual totalsizes
-            if ((!func.uses_shellcode && !func.uses_assembly) && stack_alloc_placeholder_location > 0) {
-                auto& code = w->get_code();
-                // the sub rsp, imm32 instruction format is: 48 81 EC [imm32]
-                // we need to patch the imm32 value (4 bytes starting at offset +3)
-                std::int32_t alloc_size = totalsizes;
-                for (int i = 0; i < 4; ++i) {
-                    code[stack_alloc_placeholder_location + 3 + i] = static_cast<std::uint8_t>((alloc_size >> (i * 8)) & 0xFF);
-                }
-
-                if (debug) {
-                    std::cout << BLUE << "[CODEGEN INFO] Patched stack allocation: sub rsp, " << totalsizes << RESET << std::endl;
-                }
-            }
-
-            // patch the initial stack allocation (sub rsp, imm32) to the final
-            // totalsizes value
-            if ((!func.uses_shellcode || !func.uses_assembly) && stack_alloc_placeholder_location > 0) {
-                // ensure stack is 16-byte aligned for function calls per System V ABI
-                // after call + push rbp, rsp is 16-byte aligned, so keep the frame size a
-                // multiple of 16
-                if (totalsizes % 16 != 0) {
-                    std::int32_t alignment_padding = 16 - (totalsizes % 16);
-                    totalsizes += alignment_padding;
-                    if (debug && alignment_padding > 0) {
-                        std::cout << BLUE << "[CODEGEN INFO] Added " << alignment_padding << " bytes stack alignment padding (totalsizes was " << (totalsizes - alignment_padding) << ")" << RESET << std::endl;
-                    }
-                }
-
-                auto& code = w->get_code();
-                std::int32_t alloc_size = totalsizes;
-                for (int i = 0; i < 4; ++i) {
-                    code[stack_alloc_placeholder_location + 3 + i] = static_cast<std::uint8_t>((alloc_size >> (i * 8)) & 0xFF);
-                }
-                if (debug) {
-                    std::cout << BLUE << "[CODEGEN INFO] Patched stack alloc to " << alloc_size << " bytes" << RESET << std::endl;
-                }
-            }
+            return totalsizes;
         }
 
-        void compile_function(ir_function& func, const bool use_jit) {
-            static std::unordered_set<std::string> compiling_functions;
-
-            if (!func.type.empty()) {
-                function_return_types[func.name] = func.type;
-            }
-
-            if (function_map.contains(func.name)) {
+        void compile_function(ir_function& func) {
+            if (function_locs.contains(func.name) || func.is_external) {
                 if (debug) {
-                    std::cout << BLUE << "[CODEGEN SKIP] Already registered: " << YELLOW << func.name << RESET << "\n";
+                    std::cout << BLUE << "[CODEGEN] Already registered (skipping): " << YELLOW << func.name << RESET << "\n";
                 }
-
                 return;
             }
 
-            if (func.is_external) {
-                return;
-            }
-
-            if (compiling_functions.contains(func.name)) {
-                return;
-            }
-
-            compiling_functions.insert(func.name);
-
-            // fresh compilation
             if (debug) {
                 std::cout << BLUE << "[CODEGEN] Compiling: " << YELLOW << func.name << RESET << "\n";
             }
 
-            auto w = std::make_unique<x86_64_writer>(debug);
-            function_map.insert({func.name, reinterpret_cast<jit_function>(w->memory)});
+            auto loc = w->get_code().size();
+            function_locs.insert({func.name, loc});
+
+            std::size_t stack_alloc_placeholder_location = 0;
+            bool has_stack_alloc = false;
 
             if (!func.uses_shellcode && !func.uses_assembly) {
                 w->emit_function_prologue();
+
+                stack_alloc_placeholder_location = w->get_code().size();
+                w->emit_sub(rsp, 0);
+                has_stack_alloc = true;
             }
 
-            bool is_main = (func.name == "main");
-            generate_code(func, w.get(), is_main, use_jit);
+            std::int32_t totalsizes = generate_code(func);
 
-            // grab raw pointer BEFORE the move
-            x86_64_writer* w_raw = w.get();
+            if (has_stack_alloc) {
+                if (totalsizes % 16 != 0) {
+                    totalsizes += 16 - (totalsizes % 16);
+                }
 
-            function_raw_code_map.insert({func.name, w->get_code()});
+                auto& code = w->get_code();
+                for (int i = 0; i < 4; ++i) {
+                    code[stack_alloc_placeholder_location + 3 + i] = static_cast<std::uint8_t>((totalsizes >> (i * 8)) & 0xFF);
+                }
 
-            w->setup_function();
-            writers.push_back(std::move(w));
+                if (debug) {
+                    std::cout << BLUE << "[CODEGEN] Patched stack allocation: sub rsp, " << totalsizes << RESET << std::endl;
+                }
+            }
 
             if (debug) {
-                std::cout << GREEN << "[CODEGEN SUCCESS] " << func.name << RESET << "\n";
-                w_raw->print_bytes();
+                std::cout << GREEN << "[CODEGEN] Compiled: " << YELLOW << func.name << GREEN << " (loc: " << loc << ")" RESET << "\n";
             }
-
-            compiling_functions.erase(func.name);
         }
 
-    public:
-        std::unordered_map<std::string, jit_function> function_map;
-        std::map<std::string, std::vector<std::uint8_t>> function_raw_code_map;
-        std::unordered_map<std::uint64_t, std::string> string_literals;
+        public:
 
-        explicit codegen(const std::vector<ir_function>& ir_funcs, const std::vector<ir_struct>& ir_structs, const bool debug = false) : ir_funcs(ir_funcs), ir_structs(ir_structs), debug(debug) {
-            // create all layouts with preliminary sizes first
-            for (const auto& s : ir_structs) {
+        codegen_v2(const std::vector<ir_function>& stack_ir, const std::vector<ir_struct>& ir_structs, const bool debug = false, const call_abi abi = host_abi(),
+                   const std::vector<std::pair<std::string, std::string>>& globals = {})
+            : debug(debug), abi(abi), w(new x86_64_writer{}), stack_ir(stack_ir), ir_structs(ir_structs) {
+            // one 8-byte, zero-initialized slot per global, in a writable host
+            // buffer (the code blob is execute-only). __global_init sets values.
+            if (!globals.empty()) {
+                std::int32_t off = 0;
+                for (const auto& [gname, gtype] : globals) {
+                    global_offsets[gname] = off;
+                    global_types[gname] = gtype;
+                    off += 8;
+                }
+                globals_storage = std::make_unique<std::uint8_t[]>(static_cast<std::size_t>(off));
+                std::memset(globals_storage.get(), 0, static_cast<std::size_t>(off));
+            }
+            for (const auto& s : this->ir_structs) {
                 struct_layout layout;
                 layout.name = s.datatype;
                 layout.total_size = 0;
@@ -2924,7 +2459,6 @@ namespace occult::x86_64 {
                 struct_layouts[s.datatype] = layout;
             }
 
-            // resolve sizes (nested structs get their actual size) 2nd
             constexpr int kMaxStructLayoutPasses = 10;
             bool changed = true;
             for (int pass = 0; pass < kMaxStructLayoutPasses && changed; ++pass) {
@@ -2938,7 +2472,7 @@ namespace occult::x86_64 {
                             offset += nested_it->second.total_size;
                         }
                         else {
-                            offset += 8; // scalar types are 8-byte aligned
+                            offset += 8;
                         }
                     }
                     if (offset != layout.total_size) {
@@ -2948,20 +2482,57 @@ namespace occult::x86_64 {
                 }
             }
 
-            // ensure minimum size
             for (auto& [name, layout] : struct_layouts) {
                 if (layout.total_size == 0) {
                     layout.total_size = 8;
                 }
             }
+
+            for (const auto& func : this->stack_ir) {
+                if (!func.type.empty()) {
+                    function_return_types[func.name] = func.type;
+                }
+
+                std::vector<std::string> arg_types;
+                std::vector<std::string> arg_names;
+                arg_types.reserve(func.args.size());
+                arg_names.reserve(func.args.size());
+                for (auto& a : func.args) {
+                    arg_types.push_back(a.type);
+                    arg_names.push_back(a.name);
+                }
+                function_arg_types[func.name] = std::move(arg_types);
+                function_arg_names[func.name] = std::move(arg_names);
+
+                if (func.is_variadic || func.is_external) {
+                    variable_arity_functions.insert(func.name);
+                }
+            }
         }
 
-        ~codegen() { writers.clear(); }
+        template<typename FuncT>
+        FuncT get_function(const std::string& name) const {
+            auto it = function_locs.find(name);
+            if (it == function_locs.end()) {
+                throw std::runtime_error("Function \"" + name + "\" was never compiled");
+            }
+ 
+            return reinterpret_cast<FuncT>(w->setup_function(it->second));
+        }
+
+        const std::vector<std::uint8_t>& get_code() const { return w->get_code(); }
 
         void compile(const bool use_jit = true) {
-            for (auto& func : ir_funcs) {
-                compile_function(func, use_jit);
+            for (auto& func : stack_ir) {
+                compile_function(func);
+            }
+
+            backpatch_calls();
+
+            if (debug) {
+                std::cout << GREEN << "[CODEGEN] Blob: " << RESET << "\n";
+                w->print_bytes();
             }
         }
     };
-} // namespace occult::x86_64
+}

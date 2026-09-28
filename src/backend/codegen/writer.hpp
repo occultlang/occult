@@ -74,12 +74,14 @@ namespace occult {
 
         std::size_t push_string(const std::string& str);
 
-        jit_function setup_function();
+        jit_function setup_function(std::uint32_t offset_for_func = 0);
 
         std::vector<std::uint8_t>& get_code();
 
         void print_bytes() const;
 
         const std::size_t& get_string_location(const std::string& str);
+
+        void* get_memory() const; 
     };
 } // namespace occult

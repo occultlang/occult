@@ -115,6 +115,7 @@ namespace occult {
         case_keyword_tt,    // case
         default_keyword_tt, // default
         const_keyword_tt,   // const
+        global_keyword_tt,  // global
         module_keyword_tt,  // module
         import_keyword_tt,  // import
         asm_keyword_tt,

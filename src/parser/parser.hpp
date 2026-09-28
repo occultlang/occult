@@ -86,6 +86,8 @@ namespace occult {
         std::unique_ptr<cst> parse_compound_assignment_identifier(std::unique_ptr<cst_identifier> to_assign);
 
         std::unique_ptr<cst> parse_keyword(bool nested_function = false);
+        std::unique_ptr<cst> parse_fnptr_type();  // fn(<types>) [ret] [name]
+        std::unique_ptr<cst> parse_fnptr_decl();  // fn(<types>) [ret] name [= expr];
 
         std::unique_ptr<cst_struct> parse_custom_type();
 

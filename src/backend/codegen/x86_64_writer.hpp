@@ -268,78 +268,59 @@ namespace occult::x86_64 {
             std::cout << std::bitset<3>(rm_field) << " = 0x" << std::hex << std::uppercase << +modrm_byte << std::dec << "\n";
         }
 
-        void emit_simd128_to_mem(const opcode& op, const simd128& base, const mem& dest, const std::vector<std::uint8_t>& prefix) {
-            bool is_2bOPC = true;
-            bool simd_ext = static_cast<std::uint8_t>(base) >= 8;
+        // Encodes `prefix 0F op /r` with an xmm register in ModRM.reg and a
+        // memory operand in ModRM.rm. Handles every base (including
+        // rsp/r12 which need a SIB byte and rbp/r13 which can't use mod=00),
+        // xmm8-15 / r8-r15 via REX.R/REX.B/REX.X, [base + index*scale + disp]
+        // and rip-relative. The REX byte is emitted *after* the mandatory
+        // F2/F3/66 prefix, as required (a REX before it is ignored by the CPU).
+        void emit_simd128_to_mem(const opcode& op, const simd128& xmm, const mem& m, const std::vector<std::uint8_t>& prefix) {
+            const std::uint8_t reg = static_cast<std::uint8_t>(xmm) & 0xF;
+            push_bytes(prefix);
 
-            if (debug)
-                std::cout << "dest reg: " << reg_to_string(dest.reg) << std::endl;
+            if (m.reg == rip) {
+                if (reg >= 8) push_byte(0x40 | rex_bits::r);
+                push_bytes({k2ByteOpcodePrefix, static_cast<std::uint8_t>(op)});
+                push_byte(static_cast<std::uint8_t>(((reg & 7) << 3) | 0b101));
+                emit_imm32(m.disp);
+                return;
+            }
 
-            if (dest.reg == rip) { // rip relative
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
-                push_byte(modrm(mod_field::indirect, rm_field::rip_relative, base));
-                emit_imm32(dest.disp);
-            }
-            else if (NOT_STACK_PTR(dest.reg) && NOT_STACK_BASE_PTR(dest.reg) && dest.mode == mem_mode::reg) {
-                // [reg] (this was broken, i had to change to disp8???)
-                // std::cout << "Emitting register based addressing for memory\n\tDest: "
-                // << reg_to_string(base) << "\n\tSource: [" << reg_to_string(dest.reg) <<
-                // "]\n\tMode = mem_mode::reg;\n";
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
-                // std::cout << "Rebased (Source): " <<
-                // reg_to_string(rebase_register(base)) << std::endl; std::cout <<
-                // "Rebased (Dest): " << reg_to_string(rebase_register(dest.reg)) <<
-                // std::endl;
-                push_byte(modrm(mod_field::disp8, rebase_register(dest.reg), base));
-                push_byte(0);
-            }
-            else if (IS_STACK_BASE_PTR(dest.reg) && NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) {
-                // [rbp]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
-                push_byte(modrm(mod_field::disp8, rebase_register(dest.reg), base));
-                emit_imm8(0);
-            }
-            else if (NOT_STACK_BASE_PTR(dest.reg) && IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::reg) {
-                // [rsp]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
-                push_byte(modrm(mod_field::indirect, rm_field::indexed, base));
-                push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
-            }
-            else if (NOT_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) {
-                // [reg + disp32] (we are always going to do disp32)
-                if (debug)
-                    printf("disp32 debug simd128\n");
+            const auto full = [](grp g) -> std::uint8_t {
+                const auto v = static_cast<std::uint8_t>(g);
+                if (v >= static_cast<std::uint8_t>(r8) && v <= static_cast<std::uint8_t>(r15)) return 8 + (v - static_cast<std::uint8_t>(r8));
+                return v & 7;
+            };
 
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
-                uint8_t reg_field = static_cast<uint8_t>(base) & 7;
+            const std::uint8_t base = full(m.reg);
+            const bool has_index = (m.mode == mem_mode::scaled_index);
+            const std::uint8_t index = has_index ? full(m.index) : 0b100;
+            const std::int32_t disp = (m.mode == mem_mode::disp || m.second_mode == mem_mode::disp) ? m.disp : 0;
 
-                uint8_t rm_field = rebase_register(dest.reg);
-                uint8_t modrm_byte = (0b10 << 6) | (reg_field << 3) | rm_field;
+            std::uint8_t rex = 0;
+            if (reg >= 8) rex |= rex_bits::r;
+            if (has_index && index >= 8) rex |= rex_bits::x;
+            if (base >= 8) rex |= rex_bits::b;
+            if (rex) push_byte(0x40 | rex);
 
-                if (debug)
-                    print_modrm_debug(modrm_byte, reg_field, rm_field, 0b10);
+            push_bytes({k2ByteOpcodePrefix, static_cast<std::uint8_t>(op)});
 
-                push_byte(modrm_byte);
-                emit_imm32(dest.disp);
+            std::uint8_t mod;
+            if (disp == 0 && (base & 7) != 0b101) mod = 0b00;
+            else if (disp >= -128 && disp <= 127) mod = 0b01;
+            else mod = 0b10;
+
+            const bool need_sib = has_index || (base & 7) == 0b100;
+            push_byte(static_cast<std::uint8_t>((mod << 6) | ((reg & 7) << 3) | (need_sib ? 0b100 : (base & 7))));
+
+            if (need_sib) {
+                // mem::scale holds the raw SIB.ss bits, same as the GP encoder's sib()
+                const std::uint8_t ss = has_index ? static_cast<std::uint8_t>(m.scale & 3) : 0;
+                push_byte(static_cast<std::uint8_t>((ss << 6) | ((index & 7) << 3) | (base & 7)));
             }
-            else if (IS_STACK_PTR(dest.reg) && dest.mode == mem_mode::disp) { // [rsp + disp32]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
-                push_byte(modrm(mod_field::disp32, rm_field::indexed, base));
-                push_byte(sib(0, kSpecialSIBIndex, rebase_register(dest.reg)));
-                emit_imm32(dest.disp);
-            }
-            else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::none) { // [reg + SIB]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
-                push_byte(modrm(mod_field::indirect, rm_field::indexed, base));
-                push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
-            }
-            else if (dest.mode == mem_mode::scaled_index && dest.second_mode == mem_mode::disp) {
-                // [reg + SIB + disp]
-                check_reg_r2m_simd(op, op, dest, static_cast<grp>(base), is_2bOPC, prefix, simd_ext);
-                push_byte(modrm(mod_field::disp32, rm_field::indexed, base));
-                push_byte(sib(dest.scale, dest.index, rebase_register(dest.reg)));
-                emit_imm32(dest.disp);
-            }
+
+            if (mod == 0b01) emit_imm8(static_cast<std::int8_t>(disp));
+            else if (mod == 0b10) emit_imm32(disp);
         }
 
         void check_reg_r2m_simd(const opcode& op8, const opcode& op, const mem& dest, const grp& base, const bool is_2bOPC = false, const std::vector<std::uint8_t>& prefix = {}, bool simd_extended = false) {
@@ -1137,9 +1118,25 @@ namespace occult::x86_64 {
             }
         }
 
+        // imul r64, r/m64, imm (register form): 48+R+B 6B /r ib | 69 /r id
+        void emit_imul_r64_imm(const grp& dest, const grp& base, const std::int64_t imm) {
+            const auto full = [](grp g) -> std::uint8_t {
+                const auto v = static_cast<std::uint8_t>(g);
+                if (v >= static_cast<std::uint8_t>(r8) && v <= static_cast<std::uint8_t>(r15)) return 8 + (v - static_cast<std::uint8_t>(r8));
+                return v & 7;
+            };
+            const std::uint8_t d = full(dest), b = full(base);
+            push_byte(static_cast<std::uint8_t>(0x48 | (d >= 8 ? rex_bits::r : 0) | (b >= 8 ? rex_bits::b : 0)));
+            const bool is_8 = imm >= -128 && imm <= 127;
+            push_byte(is_8 ? 0x6B : 0x69);
+            push_byte(static_cast<std::uint8_t>(0xC0 | ((d & 7) << 3) | (b & 7)));
+            if (is_8) emit_imm8(static_cast<std::int8_t>(imm));
+            else emit_imm32(static_cast<std::int32_t>(imm));
+        }
+
         void emit_imul(const IsGrp auto& dest, const IsGrp auto& base, const IsSignedImm auto& imm) {
             assert_imm_size<std::int64_t>(imm);
-            emit_reg_imm(opcode::IMUL_r16_to_64_rm16_to_64_imm8, opcode::IMUL_r16_to_64_rm16_to_64_imm16_to_32, base, imm, static_cast<rm_field>(dest), true, imm_mode::no_64);
+            emit_imul_r64_imm(dest, base, static_cast<std::int64_t>(imm));
         }
 
         void emit_imul(const IsGrp auto& dest, const IsMem auto& base, const IsSignedImm auto& imm) {
@@ -1149,7 +1146,7 @@ namespace occult::x86_64 {
 
         void emit_imul(const IsGrp auto& dest, const IsGrp auto& base, const IsUnsignedImm auto& imm) {
             assert_imm_size<std::uint64_t>(imm);
-            emit_reg_imm(opcode::IMUL_r16_to_64_rm16_to_64_imm8, opcode::IMUL_r16_to_64_rm16_to_64_imm16_to_32, base, imm, static_cast<rm_field>(dest), false, imm_mode::no_64);
+            emit_imul_r64_imm(dest, base, static_cast<std::int64_t>(imm));
         }
 
         void emit_imul(const IsGrp auto& dest, const IsMem auto& base, const IsUnsignedImm auto& imm) {

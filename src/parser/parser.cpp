@@ -622,7 +622,115 @@ namespace occult {
         return expr_cst;
     }
 
+    // canonical type name of a parsed type node, as used in fn-pointer signatures
+    static std::string fnptr_type_name(cst* n) {
+        if (!n->fnptr_sig.empty()) {
+            return n->fnptr_sig;
+        }
+        std::string t;
+        if (n->get_type() == cst_type::structure || n->get_type() == cst_type::generic_type) {
+            t = n->content;
+        }
+        else {
+            t = n->to_string().substr(4);
+        }
+        for (std::size_t i = 0; i < n->num_pointers; i++) {
+            t += "_ptr";
+        }
+        return t;
+    }
+
+    std::unique_ptr<cst> parser::parse_fnptr_type() {
+        consume(); // fn
+        if (!match(peek(), left_paren_tt)) {
+            throw parsing_error("( in function pointer type", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+
+        std::string sig = "fn(";
+        bool first = true;
+        while (!match(peek(), right_paren_tt)) {
+            auto param = parse_datatype(); // an optional parameter name is allowed and ignored
+            if (!param) {
+                throw parsing_error("parameter type in function pointer type", peek(), pos, std::source_location::current().function_name());
+            }
+            if (!first) {
+                sig += ",";
+            }
+            first = false;
+            sig += fnptr_type_name(param.get());
+
+            if (match(peek(), comma_tt)) {
+                consume();
+            }
+            else if (!match(peek(), right_paren_tt)) {
+                throw parsing_error(", or ) in function pointer type", peek(), pos, std::source_location::current().function_name());
+            }
+        }
+        consume(); // )
+        sig += ")";
+
+        auto node = cst::new_node<cst_int64>(); // an fn pointer is an 8-byte code address
+        node->content = "fnptr";
+
+        // optional return type; parse_datatype absorbs a following name, which
+        // then belongs to this declaration rather than to the return type
+        if (auto ret = parse_datatype(); ret) {
+            std::unique_ptr<cst> absorbed;
+            if (!ret->get_children().empty() && ret->get_children().front()->get_type() == cst_type::identifier) {
+                absorbed = std::move(ret->get_children().front());
+                ret->get_children().erase(ret->get_children().begin());
+            }
+            sig += fnptr_type_name(ret.get());
+            if (absorbed) {
+                node->add_child(std::move(absorbed));
+            }
+        }
+        else {
+            sig += "int64"; // functions without a return type return i64
+        }
+
+        node->fnptr_sig = sig;
+
+        if (node->get_children().empty() && match(peek(), identifier_tt)) {
+            node->add_child(parse_identifier());
+        }
+
+        return node;
+    }
+
+    std::unique_ptr<cst> parser::parse_fnptr_decl() {
+        auto node = parse_fnptr_type();
+
+        if (node->get_children().empty()) {
+            throw parsing_error("<identifier> after function pointer type", peek(), pos, std::source_location::current().function_name());
+        }
+
+        if (match(peek(), assignment_tt)) {
+            node->add_child(parse_assignment());
+
+            if (match(peek(), semicolon_tt)) {
+                throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
+            }
+
+            parse_expression_until(node->get_children().at(1).get(), semicolon_tt);
+        }
+
+        if (match(peek(), semicolon_tt)) {
+            consume();
+        }
+        else {
+            throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+        }
+
+        return node;
+    }
+
     std::unique_ptr<cst> parser::parse_datatype() {
+        if (match(peek(), function_keyword_tt) && match(peek(1), left_paren_tt)) {
+            return parse_fnptr_type();
+        }
+
         if (const auto it = datatype_map.find(peek().tt); it != datatype_map.end()) {
             consume();
             auto node = it->second();
@@ -668,6 +776,11 @@ namespace occult {
 
                 auto node = cst::new_node<cst_struct>();
                 node->content = struct_name;
+
+                if (match(peek(), reference_operator_tt)) {
+                    consume();
+                    node->is_reference = true;
+                }
 
                 if (match(peek(), multiply_operator_tt)) {
                     while (match(peek(), multiply_operator_tt)) {
@@ -727,6 +840,11 @@ namespace occult {
             auto node = cst::new_node<cst_struct>();
             node->content = struct_name;
 
+            if (match(peek(), reference_operator_tt)) {
+                consume();
+                node->is_reference = true;
+            }
+
             if (match(peek(), multiply_operator_tt)) {
                 while (match(peek(), multiply_operator_tt)) {
                     consume();
@@ -783,6 +901,11 @@ namespace occult {
         if (match(peek(), identifier_tt) && cst_generic_type_cache.contains(peek().lexeme)) {
             auto node = cst::new_node<cst_generic_type>(peek().lexeme);
             consume();
+
+            if (match(peek(), reference_operator_tt)) {
+                consume();
+                node->is_reference = true;
+            }
 
             if (match(peek(), multiply_operator_tt)) {
                 while (match(peek(), multiply_operator_tt)) {
@@ -1382,6 +1505,11 @@ namespace occult {
         if (!(match(peek(), int8_keyword_tt) || match(peek(), int16_keyword_tt) || match(peek(), int32_keyword_tt) || match(peek(), int64_keyword_tt) || match(peek(), uint8_keyword_tt) || match(peek(), uint16_keyword_tt) ||
               match(peek(), uint32_keyword_tt) || match(peek(), uint64_keyword_tt) || match(peek(), float32_keyword_tt) || match(peek(), float64_keyword_tt) || match(peek(), string_keyword_tt) || match(peek(), boolean_keyword_tt) ||
               match(peek(), char_keyword_tt))) {
+            if (match(peek(), identifier_tt)) {
+                // by design: arrays hold primitive types only; use a pointer
+                // from std::malloc (with a manual stride) for struct sequences
+                throw parsing_error("primitive <datatype> (arrays only hold primitive types; for structs use a pointer, e.g. " + peek().lexeme + "* xs = std::malloc(n * size))", peek(), pos, std::source_location::current().function_name());
+            }
             throw parsing_error("valid <datatype>", peek(), pos, std::source_location::current().function_name());
         }
 
@@ -2182,6 +2310,10 @@ namespace occult {
             }
         }
 
+        if (match(peek(), function_keyword_tt) && match(peek(1), left_paren_tt)) {
+            return parse_fnptr_decl(); // fn(<types>) [ret] name [= expr];
+        }
+
         if (nested_function) {
             if (match(peek(), function_keyword_tt)) {
                 return parse_function();
@@ -2226,11 +2358,19 @@ namespace occult {
 
             throw parsing_error("string literal", peek(), pos, std::source_location::current().function_name());
         }
-        if (match(peek(), const_keyword_tt)) {
-            consume(); // consume 'const'
+        if (match(peek(), const_keyword_tt) || match(peek(), global_keyword_tt)) {
+            // any order of 'const' / 'global' before a declaration
+            bool is_const = false;
+            while (match(peek(), const_keyword_tt) || match(peek(), global_keyword_tt)) {
+                if (match(peek(), global_keyword_tt) && !nested_function) {
+                    throw parsing_error("declaration at top level ('global' is not allowed inside a function)", peek(), pos, std::source_location::current().function_name());
+                }
+                is_const |= match(peek(), const_keyword_tt);
+                consume();
+            }
 
             auto node = parse_keyword(false);
-            if (node) {
+            if (node && is_const) {
                 node->is_const = true;
             }
             return node;
@@ -3574,11 +3714,15 @@ namespace occult {
             bool is_generic_pattern = (expr[check_idx].tt == identifier_tt && check_idx + 1 < expr.size() && expr[check_idx + 1].tt == less_than_operator_tt);
 
             if (is_generic_pattern) {
+                // `@name<T>` takes the address of an instantiation (no call parens)
+                const bool address_of_generic = j > 0 && expr[j - 1].tt == reference_operator_tt && generic_func_templates.contains(expr[check_idx].lexeme);
+
                 // scan ahead to find > followed by (
                 std::size_t scan = check_idx + 2;
                 bool looks_like_generic_call = false;
                 while (scan < expr.size()) {
-                    if ((expr[scan].tt == greater_than_operator_tt || expr[scan].tt == bitwise_rshift_tt) && scan + 1 < expr.size() && expr[scan + 1].tt == left_paren_tt) {
+                    if ((expr[scan].tt == greater_than_operator_tt || expr[scan].tt == bitwise_rshift_tt) &&
+                        (address_of_generic || (scan + 1 < expr.size() && expr[scan + 1].tt == left_paren_tt))) {
                         looks_like_generic_call = true;
                         break;
                     }

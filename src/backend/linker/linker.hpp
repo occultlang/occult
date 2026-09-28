@@ -11,8 +11,10 @@ namespace occult {
 
     class linker {
     public:
-        static void link_and_create_binary(const std::string& binary_name, std::unordered_map<std::string, jit_function>& function_map, const std::map<std::string, std::vector<std::uint8_t>>& function_raw_code_map,
-                                           const std::unordered_map<std::uint64_t, std::string>& string_literals, bool debug = false, bool showtime = false);
+        static void link_blob(const std::string& binary_name, const std::vector<std::uint8_t>& code, const std::unordered_map<std::string, std::uint32_t>& function_locs,
+                              const std::vector<std::pair<std::size_t, std::uint64_t>>& string_relocs, const std::unordered_map<std::uint64_t, std::string>& string_literals,
+                              const std::vector<std::pair<std::size_t, std::int32_t>>& global_relocs = {}, std::int32_t globals_size = 0,
+                              bool debug = false, bool showtime = false);
     };
 
 } // namespace occult
