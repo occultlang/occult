@@ -7,7 +7,7 @@
 - [PE Header](https://wiki.osdev.org/PE) (Tysm Nisan)
 - [Microsoft Image File Machine Constants](https://learn.microsoft.com/en-us/windows/win32/sysinfo/image-file-machine-constants)
 - [PE Format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#file-headers)
-- [Logic for some parts of IR generation](https://github.com/JGN1722/RoverOs)
+- [Initial Logic for Parts of the IR](https://github.com/JGN1722/RoverOs)
 <br/>
 
 I started this project on 05/31/2023. It wouldn't have been possible without my friends, who helped me write it and kept me motivated, and without AI tools that I used to learn and write along the way.
