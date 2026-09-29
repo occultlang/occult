@@ -9,4 +9,5 @@
 - [PE Format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#file-headers)
 - [Logic for some parts of IR generation](https://github.com/JGN1722/RoverOs)
 <br/>
-I started this project on 05/31/2023, and it would also not be possible without generative artificial intelligence and my friends for helping me write, and learn along the way for this long project!
+
+I started this project on 05/31/2023. It wouldn't have been possible without my friends, who helped me write it and kept me motivated, and without AI tools that I used to learn and write along the way.
