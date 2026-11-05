@@ -1,0 +1,11 @@
+// EXIT: 0
+// A placeholder — `for <T> x in <iter>` used to segfault the compiler.
+// It now produces a clean error. This test just confirms the regular
+// for-form still works alongside the new rejection.
+fn main() i64 {
+    i64 sum = 0;
+    for i64 i = 0 when i < 5 do i += 1 {
+        sum += i;
+    }
+    return sum - 10;
+}

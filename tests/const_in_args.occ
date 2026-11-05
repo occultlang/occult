@@ -1,0 +1,22 @@
+// EXIT: 7
+// `const` is accepted as a prefix on function parameters, extern params,
+// and struct fields. Parsed and discarded for now: the keyword's
+// local-variable enforcement check still applies to assignments to the
+// named slot, but the parser no longer rejects it at these positions.
+extern fn printf(const i64 fmt, ...) i32;
+
+struct Cfg {
+    const i64 max;
+    i64 count;
+}
+
+fn add(const i64 a, const i64 b) i64 {
+    return a + b;
+}
+
+fn main() i64 {
+    Cfg c;
+    c.max = 10;
+    c.count = 0;
+    return add(3, 4);
+}

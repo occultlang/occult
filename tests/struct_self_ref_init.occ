@@ -1,0 +1,19 @@
+// EXIT: 42
+// `T a = a.method(...)` — a declaration whose initializer references the
+// named local. The struct slot is pre-allocated before the RHS is walked,
+// so the self-pass by value works on an uninitialized slot. On return,
+// the hidden-slot temporary is copied into `a` through the backend's
+// struct-copy-on-second-write path.
+generic<T>
+struct Adder { T result; }
+
+generic<T>
+fn Adder::construct(Adder<T> self, T t1, T t2) Adder<T> {
+    self.result = t1 + t2;
+    return self;
+}
+
+fn main() i64 {
+    Adder<i64> a = a.construct<i64>(10, 32);
+    return a.result;
+}

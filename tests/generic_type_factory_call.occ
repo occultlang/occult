@@ -1,0 +1,24 @@
+// EXIT: 42
+// `Type<T>::method(args)` — a single-line factory-style call that spells
+// the instantiated struct up front and skips the `a; a = a.method(...)`
+// dance. The preprocessor sees `Adder<i64>::construct(10, 32)`,
+// instantiates `Adder<i64>` as `Adder_int64`, instantiates every
+// `Adder::*` method template as `Adder_int64::*`, and rewrites the call
+// site to `Adder_int64::construct(10, 32)` so the ordinary call path
+// takes over.
+generic<T>
+struct Adder {
+    T result;
+}
+
+generic<T>
+fn Adder::construct(T t1, T t2) Adder<T> {
+    Adder<T> r;
+    r.result = t1 + t2;
+    return r;
+}
+
+fn main() i64 {
+    Adder<i64> a = Adder<i64>::construct(10, 32);
+    return a.result;
+}

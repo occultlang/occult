@@ -1,0 +1,26 @@
+// EXIT: 42
+// `fn Name::method(...)` on a `generic<T> struct Name { ... }`: when the
+// struct instantiates (e.g. `Adder<i64>`), every `Name::*` method
+// template is instantiated too, so `a.method<T>()` resolves through the
+// usual method-dispatch path.
+generic<T>
+struct Adder {
+    T result;
+}
+
+generic<T>
+fn Adder::construct(Adder<T> self, T t1, T t2) Adder<T> {
+    self.result = t1 + t2;
+    return self;
+}
+
+generic<T>
+fn Adder::get_result(Adder<T> self) T {
+    return self.result;
+}
+
+fn main() i64 {
+    Adder<i64> a;
+    a = a.construct<i64>(10, 32);
+    return a.get_result<i64>();
+}
