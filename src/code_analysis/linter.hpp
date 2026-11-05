@@ -31,6 +31,8 @@ namespace occult {
         std::unordered_map<std::string, std::string> fnptr_vars; // variable -> fn-pointer signature
         std::unordered_map<std::string, std::string> function_return_types;
         std::unordered_map<std::string, int> function_param_counts;     // -1 = variadic minimum count stored separately
+        std::unordered_map<std::string, std::vector<std::string>> function_param_types;
+        std::string current_return_type;
         std::unordered_map<std::string, int> function_min_param_counts; // minimum required args for variadic functions
         std::vector<lint_error> errors;
         std::unordered_set<std::string> known_enum_types;
@@ -39,8 +41,6 @@ namespace occult {
         void push_scope();
         void pop_scope();
 
-        // declare a variable in the innermost scope. emits an error and returns
-        // false if the name is already declared in the same scope
         bool declare_var(const std::string& name, const std::string& type);
 
         // Returns true if name is visible in any active scope frame
@@ -54,12 +54,10 @@ namespace occult {
         void lint_block(cst_block* block_node);
         void lint_function(cst_function* func_node);
 
-        // evaluates a flat RPN expression on a type stack and returns the result
-        // type. Emits errors for type mismatches in comparison operators
-        // tags: "<number>", "<float>", "<str>", "" (unknown)
         std::string infer_type_rpn(const std::vector<cst*>& nodes);
 
         bool types_compatible(const std::string& a, const std::string& b) const;
+        bool assignable(const std::string& to, const std::string& from) const;
 
         static std::string type_name_of(cst* node);
         static std::string keyword_to_type_name(const std::string& kw);

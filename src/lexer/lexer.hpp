@@ -119,9 +119,22 @@ namespace occult {
         module_keyword_tt,  // module
         import_keyword_tt,  // import
         asm_keyword_tt,
+        sizeof_keyword_tt,
+        asm_body_tt,
 
         scope_resolution_tt, // ::
         colon_tt,            // :
+        goto_keyword_tt,     // goto
+        extern_keyword_tt,   // extern
+        try_keyword_tt,      // try
+        defer_keyword_tt,    // defer
+        catch_keyword_tt,    // catch
+        finally_keyword_tt,  // finally
+        error_keyword_tt,    // error
+        errno_keyword_tt,    // errno
+        union_keyword_tt,    // union
+        type_keyword_tt,     // type
+        export_keyword_tt,   // export
 
         is_linux64, // tmp
         is_win64,   // tmp

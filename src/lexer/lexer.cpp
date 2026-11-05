@@ -9,7 +9,7 @@ namespace occult {
             return token_typename_map[tt];
         }
 
-        throw std::runtime_error("Can't find token typename");
+        return "unknown";
     }
 
     void lexer::increment(const std::uintptr_t& _line, const std::uintptr_t& _pos, const std::uintptr_t& _column) {
@@ -334,7 +334,7 @@ namespace occult {
             }
         }
 
-        return token_t(line, column, asm_body, shellcode_denoter_tt);
+        return token_t(line, column, asm_body, asm_body_tt);
     }
 
     token_t lexer::get_next_token() {
@@ -468,28 +468,60 @@ namespace occult {
                 token_stream.push_back(token);
                 previous_token_type = token.tt;
 
-                if (token.tt == asm_keyword_tt) {
-                    token_t ret_type = get_next_token();
-                    while (ret_type.tt == unkown_tt && ret_type.tt != end_of_file_tt) {
-                        ret_type = get_next_token();
+                // asm(arch) [type] { raw text }      shellcode(arch) [type] { bytes }
+                if (token.tt == asm_keyword_tt || token.tt == shellcode_denoter_tt) {
+                    const bool is_asm = token.tt == asm_keyword_tt;
+
+                    auto next_significant = [&] {
+                        token_t t = get_next_token();
+                        while (t.tt == unkown_tt && t.tt != end_of_file_tt && pos < source.length()) {
+                            t = get_next_token();
+                        }
+                        return t;
+                    };
+
+                    token_t next = next_significant();
+                    if (next.tt != left_paren_tt) { // the parser reports the missing (arch)
+                        token = next;
+                        continue;
                     }
-                    token_stream.push_back(ret_type);
-                    previous_token_type = ret_type.tt;
+                    token_stream.push_back(next);
 
-                    token_t open_brace = get_next_token();
-                    while (open_brace.tt == unkown_tt && open_brace.tt != end_of_file_tt) {
-                        open_brace = get_next_token();
+                    // the architecture name and the closing parenthesis
+                    token_t arch = next_significant();
+                    token_stream.push_back(arch);
+                    if (arch.tt != identifier_tt) {
+                        token = next_significant();
+                        continue;
                     }
-                    token_stream.push_back(open_brace);
-                    previous_token_type = open_brace.tt;
+                    token_t close = next_significant();
+                    token_stream.push_back(close);
+                    previous_token_type = close.tt;
+                    if (close.tt != right_paren_tt) {
+                        token = next_significant();
+                        continue;
+                    }
 
-                    token_t asm_body = handle_asm_block();
-                    token_stream.push_back(asm_body);
-                    previous_token_type = asm_body.tt;
+                    // optional return type, then the opening brace
+                    token_t t = next_significant();
+                    while (t.tt != left_curly_bracket_tt && t.tt != end_of_file_tt && t.tt != semicolon_tt) {
+                        token_stream.push_back(t);
+                        previous_token_type = t.tt;
+                        t = next_significant();
+                    }
+                    if (t.tt != left_curly_bracket_tt) {
+                        token = t;
+                        continue;
+                    }
+                    token_stream.push_back(t);
+                    previous_token_type = t.tt;
 
-                    token_stream.push_back(token_t(line, column, "}",
-                                                   right_curly_bracket_tt)); // already consumed by asm block func
-                    previous_token_type = right_curly_bracket_tt;
+                    if (is_asm) {
+                        token_t body = handle_asm_block();
+                        token_stream.push_back(body);
+                        token_stream.push_back(token_t(line, column, "}", right_curly_bracket_tt)); // consumed by the raw block
+                        previous_token_type = right_curly_bracket_tt;
+                    }
 
                     token = get_next_token();
                     continue;

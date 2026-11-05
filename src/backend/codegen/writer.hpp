@@ -13,7 +13,7 @@
 #include <unistd.h>
 #endif
 #ifdef _WIN64
-#include <Windows.h>
+#include <windows.h>
 #endif
 
 namespace occult {

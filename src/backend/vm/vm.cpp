@@ -287,8 +287,6 @@ namespace occult {
         if (addr < 0 || addr >= static_cast<int>(bytecode.size())) {
             throw std::runtime_error("Invalid call address in CALL opcode");
         }
-        // save the current pc (which points to the next instruction) on the call
-        // stack.
         call_stack.push_back(program_counter);
         // jump to the target address.
         program_counter = addr;

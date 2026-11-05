@@ -1,8 +1,11 @@
 #include "linter.hpp"
+#include <algorithm>
 #include <iostream>
 #include "../util/color_defs.hpp"
 
 namespace occult {
+    static std::vector<cst*> to_raw(const std::vector<std::unique_ptr<cst>>& v);
+
     void linter::push_scope() { scope_stack.emplace_back(); }
 
     void linter::pop_scope() {
@@ -86,13 +89,16 @@ namespace occult {
             base = node->content;
             break;
         }
+        if (node->is_char) {
+            base = "char";
+        }
         base.append(node->num_pointers, '*');
         return base;
     }
 
     std::string linter::keyword_to_type_name(const std::string& kw) {
         static const std::unordered_map<std::string, std::string> map = {
-            {"i8", "int8"},    {"char", "int8"},  {"i16", "int16"},   {"i32", "int32"},   {"i64", "int64"}, {"u8", "uint8"},   {"u16", "uint16"},
+            {"i8", "int8"},    {"char", "char"}, {"i16", "int16"},   {"i32", "int32"},   {"i64", "int64"}, {"u8", "uint8"},   {"u16", "uint16"},
             {"u32", "uint32"}, {"u64", "uint64"}, {"f32", "float32"}, {"f64", "float64"}, {"bool", "bool"}, {"string", "str"},
         };
         auto it = map.find(kw);
@@ -120,22 +126,28 @@ namespace occult {
     }
 
     bool linter::types_compatible(const std::string& a, const std::string& b) const {
-        if (a.empty() || b.empty())
-            return true;
-        if (a == b)
+        if (a.empty() || b.empty() || a == b)
             return true;
 
         static const std::unordered_set<std::string> all_numeric = {"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool"};
         static const std::unordered_set<std::string> float_types = {"float32", "float64"};
         static const std::unordered_set<std::string> int_types = {"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"};
+        auto is_ptr = [](const std::string& s) { return !s.empty() && s.back() == '*'; };
+
+        // a lone literal 0 is the null pointer, otherwise it is a plain number
+        if (a == "<null>")
+            return is_ptr(b) || types_compatible("<number>", b);
+        if (b == "<null>")
+            return is_ptr(a) || types_compatible(a, "<number>");
+
+        if (is_ptr(a) || is_ptr(b))
+            return a == "uint64" || b == "uint64";
+        if (a == "char" || b == "char")
+            return false;
 
         if (a == "<number>" && all_numeric.count(b))
             return true;
         if (b == "<number>" && all_numeric.count(a))
-            return true;
-        if (a == "<number>" && !b.empty() && b.back() == '*')
-            return true;
-        if (b == "<number>" && !a.empty() && a.back() == '*')
             return true;
 
         if (a == "<float>" && float_types.count(b))
@@ -146,11 +158,6 @@ namespace occult {
         if (a == "<str>" && (b == "str" || int_types.count(b)))
             return true;
         if (b == "<str>" && (a == "str" || int_types.count(a)))
-            return true;
-
-        if (a == "bool" && int_types.count(b))
-            return true;
-        if (b == "bool" && int_types.count(a))
             return true;
 
         if (a == "str" && int_types.count(b))
@@ -165,26 +172,8 @@ namespace occult {
         if (known_enum_types.count(a) && known_enum_types.count(b))
             return true;
 
-        // In Occult's low-level memory model, 64-bit integer values are compatible
-        // with pointer types (pointers are 64-bit addresses). This allows patterns
-        // like reading a raw pointer from an i64* array slot and storing it in a
-        // typed struct pointer variable (e.g. HashEntry* p = $raw_slot).
-        auto ends_with_ptr = [](const std::string& s) { return !s.empty() && s.back() == '*'; };
-        if ((a == "int64" || a == "uint64") && ends_with_ptr(b))
-            return true;
-        if ((b == "int64" || b == "uint64") && ends_with_ptr(a))
-            return true;
-
-        if (ends_with_ptr(a) && ends_with_ptr(b))
-            return true;
-
-        // All integer types are mutually compatible (implicit widening/narrowing).
-        // This is natural in a low-level language where the underlying storage is
-        // always 64-bit and the programmer controls the bit width explicitly.
-        if (int_types.count(a) && int_types.count(b))
-            return true;
-
-        return false;
+        // integer types stay mutually compatible (implicit widening/narrowing)
+        return int_types.count(a) && int_types.count(b);
     }
 
     std::string linter::infer_type_rpn(const std::vector<cst*>& nodes) {
@@ -219,7 +208,7 @@ namespace occult {
                 is_zero.push_back(false);
                 break;
             case cst_type::charliteral:
-                stk.push_back("<number>");
+                stk.push_back("char");
                 is_zero.push_back(false);
                 break;
 
@@ -280,9 +269,20 @@ namespace occult {
                     break;
                 }
 
-            case cst_type::cast_to_datatype:
-                stk.push_back(keyword_to_type_name(node->content));
+            case cst_type::sizeof_expr:
+                stk.push_back("uint64");
                 is_zero.push_back(false);
+                break;
+
+            case cst_type::cast_to_datatype:
+                {
+                    std::string t = keyword_to_type_name(node->content);
+                    for (std::size_t p = 0; p < node->num_pointers; p++) {
+                        t += "*";
+                    }
+                    stk.push_back(t);
+                    is_zero.push_back(false);
+                }
                 break;
 
             case cst_type::functioncall:
@@ -377,10 +377,16 @@ namespace occult {
                     if (stk.size() >= 2) {
                         std::string rhs = stk.back();
                         stk.pop_back();
+                        const bool rhs_null = is_zero.back();
                         is_zero.pop_back();
                         std::string lhs = stk.back();
                         stk.pop_back();
+                        const bool lhs_null = is_zero.back();
                         is_zero.pop_back();
+                        if (rhs_null && lhs.ends_with('*'))
+                            rhs = "<null>";
+                        if (lhs_null && rhs.ends_with('*'))
+                            lhs = "<null>";
                         if (!types_compatible(lhs, rhs)) {
                             errors.emplace_back("Type mismatch in comparison: cannot compare '" + lhs + "' with '" + rhs + "'");
                         }
@@ -425,13 +431,23 @@ namespace occult {
                 break;
             }
         }
+        std::size_t real = 0;
+        cst* only = nullptr;
+        for (cst* n : nodes) {
+            if (n && n->get_type() != cst_type::expr_start && n->get_type() != cst_type::expr_end) {
+                ++real;
+                only = n;
+            }
+        }
+        if (real == 1 && only->get_type() == cst_type::number_literal && only->content == "0")
+            return "<null>";
         return stk.empty() ? "" : stk.back();
     }
 
     void linter::collect_functions() {
         // register compiler built-in functions
         static const char* builtins[] = {
-            "print_string", "print_integer", "print_newline", "print_char", "alloc", "del", "__bitcast_f64", "__bitcast_i64",
+            "print_string", "print_integer", "print_newline", "print_char", "alloc", "del", "__bitcast_f64", "__bitcast_i64", "__bitcast_f32", "__bitcast_i32",
         };
         for (const auto* name : builtins) {
             known_functions.insert(name);
@@ -440,6 +456,8 @@ namespace occult {
         // built-in return types (alloc/del have context-dependent return types)
         function_return_types["__bitcast_f64"] = "float64";
         function_return_types["__bitcast_i64"] = "int64";
+        function_return_types["__bitcast_f32"] = "float32";
+        function_return_types["__bitcast_i32"] = "int32";
 
         // built-in parameter counts
         function_param_counts["print_string"] = 1;
@@ -450,6 +468,8 @@ namespace occult {
         function_param_counts["del"] = 1;
         function_param_counts["__bitcast_f64"] = 1;
         function_param_counts["__bitcast_i64"] = 1;
+        function_param_counts["__bitcast_f32"] = 1;
+        function_param_counts["__bitcast_i32"] = 1;
 
         for (const auto& c : root->get_children()) {
             if (c->get_type() == cst_type::enumeration) {
@@ -493,6 +513,7 @@ namespace occult {
                                 break;
                             }
                             real_param_count++;
+                            function_param_types[func_name].push_back(arg->is_reference ? "" : type_name_of(arg.get()));
                         }
                         if (is_variadic) {
                             function_param_counts[func_name] = -1;
@@ -590,6 +611,18 @@ namespace occult {
                                 else if (actual_args != expected) {
                                     errors.emplace_back("Function '" + first->content + "' expects " + std::to_string(expected) + " arguments, but " + std::to_string(actual_args) + " were provided");
                                 }
+                                else if (auto pt = function_param_types.find(first->content); pt != function_param_types.end() && pt->second.size() == static_cast<std::size_t>(actual_args)) {
+                                    for (std::size_t i = 0; i < pt->second.size(); ++i) {
+                                        const auto& arg = node->get_children().at(i + 1);
+                                        if (arg->get_type() != cst_type::functionargument)
+                                            continue;
+                                        // `@x` explicitly passes by reference, the parameter type is the pointee
+                                        if (std::any_of(arg->get_children().begin(), arg->get_children().end(), [](const auto& n) { return n->get_type() == cst_type::reference; }))
+                                            continue;
+                                        if (const auto t = infer_type_rpn(to_raw(arg->get_children())); !assignable(pt->second[i], t))
+                                            errors.emplace_back("Type mismatch: cannot pass '" + t + "' as argument " + std::to_string(i + 1) + " of '" + first->content + "' (expects '" + pt->second[i] + "')");
+                                    }
+                                }
                             }
                         }
                     }
@@ -657,8 +690,14 @@ namespace occult {
         return r;
     }
 
+    // directional: char widens to any integer, nothing else converts to char
+    bool linter::assignable(const std::string& to, const std::string& from) const {
+        static const std::unordered_set<std::string> ints = {"int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"};
+        return types_compatible(to, from) || (from == "char" && ints.count(to));
+    }
+
     void linter::check_assignment_type(const std::string& decl_type, const std::string& rhs_type) {
-        if (!types_compatible(decl_type, rhs_type)) {
+        if (!assignable(decl_type, rhs_type)) {
             errors.emplace_back("Type mismatch: cannot assign '" + rhs_type + "' to variable of type '" + decl_type + "'");
         }
     }
@@ -776,6 +815,12 @@ namespace occult {
                     for (const auto& child : c->get_children()) {
                         lint_expr(child.get());
                     }
+                    if (const auto& kids = c->get_children(); kids.size() > 1 && kids.front()->get_type() == cst_type::assignment && !fnptr_vars.count(c->content)) {
+                        std::vector<cst*> rhs;
+                        for (std::size_t i = 1; i < kids.size(); ++i)
+                            rhs.push_back(kids[i].get());
+                        check_assignment_type(lookup_type(c->content), infer_type_rpn(rhs));
+                    }
                     break;
                 }
 
@@ -785,6 +830,10 @@ namespace occult {
 
             case cst_type::returnstmt:
                 lint_expr(c.get());
+                if (!current_return_type.empty() && !c->get_children().empty()) {
+                    if (const auto t = infer_type_rpn(to_raw(c->get_children())); !assignable(current_return_type, t))
+                        errors.emplace_back("Type mismatch: cannot return '" + t + "' from function returning '" + current_return_type + "'");
+                }
                 break;
 
             case cst_type::ifstmt:
@@ -1041,6 +1090,11 @@ namespace occult {
 
     void linter::lint_function(cst_function* func_node) {
         push_scope();
+        current_return_type.clear();
+        if (!func_node->get_children().empty() && func_node->get_children().front()->get_type() == cst_type::identifier) {
+            if (auto r = function_return_types.find(func_node->get_children().front()->content); r != function_return_types.end())
+                current_return_type = r->second;
+        }
 
         for (const auto& c : func_node->get_children()) {
             switch (c->get_type()) {
@@ -1081,8 +1135,6 @@ namespace occult {
 
         push_scope();
 
-        // declare every global first so functions may use globals declared
-        // later in the file
         for (const auto& c : root->get_children()) {
             const bool is_struct_var = c->get_type() == cst_type::structure && !c->get_children().empty() &&
                                        c->get_children().front()->get_type() == cst_type::identifier &&

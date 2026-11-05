@@ -268,12 +268,6 @@ namespace occult::x86_64 {
             std::cout << std::bitset<3>(rm_field) << " = 0x" << std::hex << std::uppercase << +modrm_byte << std::dec << "\n";
         }
 
-        // Encodes `prefix 0F op /r` with an xmm register in ModRM.reg and a
-        // memory operand in ModRM.rm. Handles every base (including
-        // rsp/r12 which need a SIB byte and rbp/r13 which can't use mod=00),
-        // xmm8-15 / r8-r15 via REX.R/REX.B/REX.X, [base + index*scale + disp]
-        // and rip-relative. The REX byte is emitted *after* the mandatory
-        // F2/F3/66 prefix, as required (a REX before it is ignored by the CPU).
         void emit_simd128_to_mem(const opcode& op, const simd128& xmm, const mem& m, const std::vector<std::uint8_t>& prefix) {
             const std::uint8_t reg = static_cast<std::uint8_t>(xmm) & 0xF;
             push_bytes(prefix);
@@ -354,7 +348,7 @@ namespace occult::x86_64 {
             const bool index_r8q = dest.mode == mem_mode::scaled_index && REG_RANGE(dest.index, r8, r15);
             const bool index_64 = dest.mode == mem_mode::scaled_index && REG_RANGE(dest.index, rax, rdi);
 
-            std::uint8_t rex = rex::rex;
+            std::uint8_t rex = rex::rex_base;
 
             if (dest_r8b || dest_8 || base_r8b || base_8) {
                 bool needs_rex = false;
@@ -369,7 +363,7 @@ namespace occult::x86_64 {
                 if (dest.reg == spl || dest.reg == bpl || dest.reg == sil || dest.reg == dil || base == spl || base == bpl || base == sil || base == dil) {
                     needs_rex = true;
                 }
-                if (needs_rex || rex != rex::rex)
+                if (needs_rex || rex != rex::rex_base)
                     push_byte(rex);
 
                 emit_2b();
@@ -388,7 +382,7 @@ namespace occult::x86_64 {
                     rex |= rex_bits::r;
                 if (index_r8q)
                     rex |= rex_bits::x;
-                if (rex != rex::rex)
+                if (rex != rex::rex_base)
                     push_byte(rex);
 
                 emit_2b();
@@ -406,7 +400,7 @@ namespace occult::x86_64 {
                     rex |= rex_bits::r;
                 if (index_r8q)
                     rex |= rex_bits::x;
-                if (rex != rex::rex)
+                if (rex != rex::rex_base)
                     push_byte(rex);
 
                 emit_2b();
@@ -451,7 +445,7 @@ namespace occult::x86_64 {
             }
 
             if (simd_extended) {
-                push_byte(static_cast<std::uint8_t>(static_cast<std::uint8_t>(rex::rex) | rex_bits::r));
+                push_byte(static_cast<std::uint8_t>(static_cast<std::uint8_t>(rex::rex_base) | rex_bits::r));
             }
             emit_2b();
             push_byte(op);
@@ -484,7 +478,7 @@ namespace occult::x86_64 {
             const bool index_r8q = dest.mode == mem_mode::scaled_index && REG_RANGE(dest.index, r8, r15);
             const bool index_64 = dest.mode == mem_mode::scaled_index && REG_RANGE(dest.index, rax, rdi);
 
-            std::uint8_t rex = rex::rex;
+            std::uint8_t rex = rex::rex_base;
 
             if (dest_r8b || dest_8 || base_r8b || base_8) {
                 bool needs_rex = false;
@@ -497,7 +491,8 @@ namespace occult::x86_64 {
                 if (dest.reg == spl || dest.reg == bpl || dest.reg == sil || dest.reg == dil || base == spl || base == bpl || base == sil || base == dil) {
                     needs_rex = true;
                 }
-                if (needs_rex)
+                // an extended register needs the prefix as much as sil/dil do
+                if (needs_rex || rex != rex::rex_base)
                     push_byte(rex);
 
                 emit_2b();
@@ -514,7 +509,7 @@ namespace occult::x86_64 {
                     rex |= rex_bits::r;
                 if (index_r8q)
                     rex |= rex_bits::x;
-                if (rex != rex::rex)
+                if (rex != rex::rex_base)
                     push_byte(rex);
 
                 emit_2b();
@@ -530,7 +525,7 @@ namespace occult::x86_64 {
                     rex |= rex_bits::r;
                 if (index_r8q)
                     rex |= rex_bits::x;
-                if (rex != rex::rex)
+                if (rex != rex::rex_base)
                     push_byte(rex);
 
                 emit_2b();
@@ -642,10 +637,6 @@ namespace occult::x86_64 {
             }
         }
 
-        // rm field indicates which operation is used for things such as (ADD, OR,
-        // etc. ) (opcodes are 0x80 for 8bit and 0x81 for higher than 8bit) this can
-        // also be used for 0xC7 and 0xC6 this is for the opcodes which require
-        // "different modes?"
         template <std::integral T>
         void emit_reg_imm(const opcode& op8, const opcode& op, const grp& dest, const T& imm, const rm_field& rm, const bool is_signed = true, const imm_mode im_m = imm_mode::normal) {
             if (REG_RANGE(dest, r8b, r15b) || REG_RANGE(dest, al, dil)) {
@@ -817,8 +808,6 @@ namespace occult::x86_64 {
             }
         }
 
-        // believe this is finished, too tired to document, will get to it in the
-        // future i guess lmao
         template <std::integral T>
         void emit_mem_imm(const opcode& op8, const opcode& op, const mem& dest, const T& imm, const rm_field& rm, const bool is_signed = true, const imm_mode im_m = imm_mode::normal) {
             if (dest.reg == rip) { // rip relative
@@ -1228,8 +1217,6 @@ namespace occult::x86_64 {
         }
 
         void emit_adc(SIGNED_IMM_TO_REG_ARG) {
-            // not gonna lie, the opcode numbers are the same, i cba to change them
-            // right now, will do them later
             assert_imm_size<std::int64_t>(imm);
             emit_reg_imm(opcode::OR_rm8_imm8, opcode::OR_rm8_to_64_imm16_or_32, dest, imm, static_cast<rm_field>(2), true, imm_mode::no_64);
         }
@@ -1366,23 +1353,6 @@ namespace occult::x86_64 {
 
         void emit_mov(MEM_TO_REG_ARG) { emit_reg_to_mem(opcode::MOV_r8_rm8, opcode::MOV_r16_to_64_rm16_to_64, base, dest); }
 
-        /*
-            quick note, this library does not support direct memory addresses, you
-           have to load it into a register first then use `operation operand,
-           [register]` for example
-
-            instead of:
-
-            `operation operand, [0xDEADBEEF]` <- won't work
-
-            use:
-
-            `mov register, 0xDEADBEEF`
-            `operation operand, [register]`
-
-            from what i know, this is specific with LEA and perhaps CALL, but its fine
-           i guess, we can't really call with 64 bit addresses anyways?
-        */
         void emit_lea(MEM_TO_REG_ARG) { emit_reg_to_mem(opcode::LEA_r16_to_64_mem, opcode::LEA_r16_to_64_mem, base, dest); }
 
         void emit_pop(MEM_ARG) { emit_reg_to_mem(opcode::POP_rm16_to_64, opcode::POP_rm16_to_64, m, static_cast<grp>(0)); }
@@ -1524,8 +1494,6 @@ namespace occult::x86_64 {
             push_byte(static_cast<std::uint8_t>(opcode::CWD));
         }
 
-        // XORPS: bitwise XOR packed single-precision (0F 57 /r)
-        // Used to zero XMM registers reliably (even if they contain NaN/Inf)
         void emit_xorps(SIMD128_TO_SIMD128_ARG) {
             auto rex = simd_rex(dest, base);
             if (rex)

@@ -24,6 +24,8 @@ namespace occult {
         std::size_t pos = 0;
         state parser_state = state::neutral;
         std::unordered_map<std::string, cst*> custom_type_map; // used for structures
+        std::unordered_map<std::string, std::vector<token_t>> type_aliases;
+        std::size_t type_alias_depth = 0;
         std::string source_file_path;
         std::unordered_map<std::string, std::unique_ptr<cst_generic_type>> cst_generic_type_cache;
 
@@ -53,9 +55,10 @@ namespace occult {
 
         void parse_function_call_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, const std::vector<token_t>& expr_ref, const token_t& curr_tok_ref, std::size_t& i_ref);
 
-        void parse_array_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, const std::vector<token_t>& expr_ref, const token_t& curr_tok_ref, std::size_t& i_ref);
+        void parse_access_chain_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, const std::vector<token_t>& expr_ref, const token_t& curr_tok_ref, std::size_t& i_ref);
 
-        void parse_struct_member_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, const std::vector<token_t>& expr_ref, const token_t& curr_tok_ref, std::size_t& i_ref) const;
+        std::unique_ptr<cst> extend_access_chain_expr(std::unique_ptr<cst> base, const std::vector<token_t>& expr_ref, std::size_t& i_ref);
+
 
         void shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, const token_t& curr_tok_ref) const;
 
@@ -65,7 +68,10 @@ namespace occult {
 
         std::vector<std::unique_ptr<cst>> parse_expression(const std::vector<token_t>& expr);
 
-        std::unique_ptr<cst_function> parse_function();
+        std::unique_ptr<cst_function> parse_function(bool is_external = false);
+        std::string parse_asm_arch();                                       // ( arch ) after asm / shellcode
+        std::unique_ptr<cst> parse_asm_statement();                         // asm(arch) { ... } / shellcode(arch) { ... }
+        std::unique_ptr<cst_shellcode> parse_shellcode_bytes(const std::string& arch); // { 0x90 0xC3 ... }
 
         std::unique_ptr<cst_block> parse_block();
 
@@ -109,11 +115,21 @@ namespace occult {
 
         std::unique_ptr<cst_breakstmt> parse_break();
 
+        std::unique_ptr<cst_gotostmt> parse_goto();
+
+        std::unique_ptr<cst_labelstmt> parse_label();
+
         std::unique_ptr<cst_returnstmt> parse_return();
+        std::unique_ptr<cst> parse_try();
+        std::unique_ptr<cst_errorstmt> parse_error_stmt();
+        std::unique_ptr<cst_deferstmt> parse_defer();
+        std::unique_ptr<cst_struct> parse_error_decl();
 
         std::unique_ptr<cst_array> parse_array();
 
-        std::unique_ptr<cst_struct> parse_struct();
+        std::unique_ptr<cst_struct> parse_struct(bool is_extern = false);
+        std::unique_ptr<cst_struct> parse_union_decl();
+        std::unique_ptr<cst> parse_type_alias();
 
         std::unique_ptr<cst_enum> parse_enum();
 

@@ -44,8 +44,6 @@ namespace occult {
             allocated_size = new_size;
         }
 
-        // may be called more than once (e.g. to look up several entry
-        // points): make the region writable again before refreshing it
         if (mprotect(memory, allocated_size, PROT_READ | PROT_WRITE) != 0) {
             throw std::runtime_error("Failed to set memory writable");
         }

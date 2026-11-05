@@ -60,6 +60,9 @@ namespace occult {
         op_ret,
         op_call,
         op_call_indirect, // operand = fn-pointer signature, type = argc; callee is pushed before the args
+        op_error_jump,    // operand = label. After a compare of the error flag with 0: if an error is in
+                          // flight, drop the expression's temporaries and jump there
+        op_propagate,     // leave the function because an error is in flight
         op_syscall,
         op_addf32,
         op_divf32,
@@ -86,12 +89,17 @@ namespace occult {
         op_mark_for_array_access,
         op_struct_decl,
         op_member_access,
+        // address of a member rather than its value: @s.field
+        op_member_addr,
         op_member_store,
         op_struct_load,
         op_struct_store,
         op_push_shellcode,
         op_cast,
+        op_pointee,
         op_bitcast,
+        op_sizeof,
+        op_declare_local, // reserve a zeroed stack slot for `T x;` (so asm blocks can name it)
         op_asm_code
     };
 
@@ -145,8 +153,14 @@ namespace occult {
             return "not";
         case op_cast:
             return "cast";
+        case op_pointee:
+            return "pointee";
         case op_bitcast:
             return "bitcast";
+        case op_sizeof:
+            return "sizeof";
+        case op_declare_local:
+            return "declare_local";
         case op_bitwise_lshift:
             return "bitwise_lshift";
         case op_bitwise_rshift:
@@ -205,6 +219,10 @@ namespace occult {
             return "call";
         case op_call_indirect:
             return "call_indirect";
+        case op_error_jump:
+            return "error_jump";
+        case op_propagate:
+            return "propagate";
         case op_syscall:
             return "syscall";
         case op_addf32:
@@ -257,6 +275,8 @@ namespace occult {
             return "struct_decl";
         case op_member_access:
             return "member_access";
+        case op_member_addr:
+            return "member_addr";
         case op_member_store:
             return "member_store";
         case op_struct_load:
@@ -290,6 +310,7 @@ namespace occult {
         ir_operand operand;
         std::string type;
         bool result_used = false; // only for calls
+        std::string owner;
 
         ir_instr(const ir_opcode op, ir_operand operand) : op(op), operand(std::move(operand)) {}
 
@@ -308,10 +329,12 @@ namespace occult {
         std::vector<ir_argument> args;
         std::string name;
         std::string type;
+        std::string return_fnptr_sig; // non-empty when the function returns a fn-pointer
         bool uses_shellcode = false;
         bool is_external = false;
         bool is_variadic = false;
         bool uses_assembly = false;
+        std::string library; // an extern fn's, when its module names one
 
         bool operator==(const ir_function& other) const { return name == other.name; }
     };
@@ -323,15 +346,25 @@ namespace occult {
     struct ir_struct_member {
         std::string datatype; // name of the datatype / or structure for custom datatype
         std::string name;     // name of the member variable
+        std::int32_t union_group = 0; // 0 = normal; same non-zero means members share an offset
+        // Array member info. element_count == 0 means "not an array; use
+        // type_size of datatype". Otherwise the member occupies
+        // element_count * sizeof(datatype) bytes, laid out contiguously.
+        std::int32_t element_count = 0;
 
         ir_struct_member() = default;
 
         ir_struct_member(std::string datatype, std::string name) : datatype(std::move(datatype)), name(std::move(name)) {}
+        ir_struct_member(std::string datatype, std::string name, std::int32_t group)
+            : datatype(std::move(datatype)), name(std::move(name)), union_group(group) {}
+        ir_struct_member(std::string datatype, std::string name, std::int32_t group, std::int32_t count)
+            : datatype(std::move(datatype)), name(std::move(name)), union_group(group), element_count(count) {}
     };
 
     struct ir_struct {                         // used for custom data types (structures in the IR)
         std::string datatype;                  // name of the structure / custom data type
         std::vector<ir_struct_member> members; // list of members
+        bool opaque{};                         // extern struct Name; declared, never laid out
 
         ir_struct() = default;
 

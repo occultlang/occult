@@ -12,6 +12,15 @@
 #include <unordered_set>
 #include <variant>
 
+#ifdef __linux__
+// dlsym, for an extern fn under the JIT
+#include <dlfcn.h>
+#endif
+#ifdef _WIN64
+#include <windows.h>
+#include <psapi.h>
+#endif
+
 // a renewed stack codegen, more organized and stable
 
 namespace occult::x86_64 {
@@ -26,12 +35,18 @@ namespace occult::x86_64 {
         std::string name;
         std::string type;
         std::int32_t offset;
+        std::int32_t union_group = 0;
+        std::int32_t element_count = 0;
     };
 
     struct struct_layout {
         std::string name;
         std::vector<struct_member_info> members;
         std::int32_t total_size{};
+        // the widest alignment any member needs, which is the struct's own
+        std::int32_t alignment{1};
+        // declared `extern struct Name;`: C owns the layout and never told us
+        bool opaque{};
 
         std::int32_t get_member_offset(const std::string& member_name) const {
             for (const auto& m : members) {
@@ -46,7 +61,7 @@ namespace occult::x86_64 {
     static const std::unordered_map<std::string, std::string> cast_keyword_to_typename = {
         {"i8", "int8"}, {"i16", "int16"}, {"i32", "int32"}, {"i64", "int64"},
         {"u8", "uint8"}, {"u16", "uint16"}, {"u32", "uint32"}, {"u64", "uint64"},
-        {"f32", "float32"}, {"f64", "float64"},
+        {"f32", "float32"}, {"f64", "float64"}, {"char", "int8"},
     };
 
     enum class call_abi { sysv, win64 };
@@ -222,6 +237,20 @@ namespace occult::x86_64 {
             template<typename RegT>
             void push(RegT reg) { register_stack.push_back(stack_entry{false, reg, 0}); }
 
+            // the two sides of the value stack are not interchangeable; says
+            // which way round, rather than letting std::get report an index
+            template<typename RegT>
+            static std::string wrong_side() {
+                if constexpr (std::is_same_v<RegT, grp>) {
+                    return "an integer operation was given a floating-point operand; "
+                           "cast it to an integer type first";
+                }
+                else {
+                    return "a floating-point operation was given an integer operand; "
+                           "cast it to f32 or f64 first";
+                }
+            }
+
             template<typename RegT>
             RegT pop() {
                 if (register_stack.empty()) {
@@ -229,6 +258,9 @@ namespace occult::x86_64 {
                 }
 
                 auto entry = register_stack.back();
+                if (!std::holds_alternative<RegT>(entry.reg)) {
+                    throw std::runtime_error(wrong_side<RegT>());
+                }
                 register_stack.pop_back();
 
                 if (entry.is_spilled) {
@@ -384,29 +416,108 @@ namespace occult::x86_64 {
         std::unordered_map<std::string, std::vector<std::string>> function_arg_types;
         std::unordered_map<std::string, std::vector<std::string>> function_arg_names;
         std::unordered_set<std::string> variable_arity_functions;
+        // declared with extern fn: the signature is known, the address is not
+        std::unordered_set<std::string> extern_functions;
+        // resolve an extern fn through the loader instead of refusing it (JIT only)
+        bool dynamic_externs = false;
+        // thunk written for each extern reached, by offset into the code buffer
+        std::unordered_map<std::string, std::uint32_t> extern_thunks;
+        // the library a module's `link "..."` names, for each extern fn in it
+        std::unordered_map<std::string, std::string> extern_library;
+        public:
+        struct import_use {
+            std::string library;
+            std::string name;
+            std::size_t field;
+        };
+        bool image_imports = false;
+        std::vector<import_use> import_thunks;
+        // what the JIT opened for each library a module links
+        std::unordered_map<std::string, void*> library_handles;
+        std::vector<std::string> used_libraries;
+        private:
         std::unordered_map<std::string, struct_layout> struct_layouts;
+        // where this function stashed the hidden destination pointer a caller
+        // passes in rdi for a return too big for registers; 0 when there is none
+        std::int32_t sret_offset = 0;
+
+        // C's width and alignment for a type; an unknown name answers eight
+        static std::int32_t primitive_size(const std::string& t) {
+            static const std::unordered_map<std::string, std::int32_t> m = {
+                {"int8", 1}, {"uint8", 1}, {"bool", 1}, {"char", 1},
+                {"int16", 2}, {"uint16", 2},
+                {"int32", 4}, {"uint32", 4}, {"float32", 4},
+                {"int64", 8}, {"uint64", 8}, {"float64", 8}, {"string", 8}};
+            auto it = m.find(t);
+            return it == m.end() ? 0 : it->second;
+        }
+
+        [[noreturn]] static void opaque_struct(const std::string& t) {
+            throw std::runtime_error(
+                "struct \"" + t + "\" is opaque: it was declared `extern struct " + t +
+                ";`, so its size is not known here. Use " + t + "* and let C do the rest, "
+                "or write out the members.");
+        }
+
+        std::int32_t type_size(const std::string& t) const {
+            // a pointer or a reference is a machine word however it is spelled
+            if (t.ends_with('*') || t.ends_with(kStructPtrSuffix) || t.ends_with("_reference")) {
+                return 8;
+            }
+            if (const std::int32_t p = primitive_size(t); p != 0) {
+                return p;
+            }
+            if (auto it = struct_layouts.find(t); it != struct_layouts.end()) {
+                if (it->second.opaque) {
+                    opaque_struct(t);
+                }
+                return it->second.total_size;
+            }
+            return 8;
+        }
+
+        std::int32_t type_align(const std::string& t) const {
+            if (t.ends_with('*') || t.ends_with(kStructPtrSuffix) || t.ends_with("_reference")) {
+                return 8;
+            }
+            if (const std::int32_t p = primitive_size(t); p != 0) {
+                return p; // every scalar here aligns to its own width
+            }
+            if (auto it = struct_layouts.find(t); it != struct_layouts.end()) {
+                if (it->second.opaque) {
+                    opaque_struct(t);
+                }
+                return it->second.alignment;
+            }
+            return 8;
+        }
+
+        static std::int32_t align_up(std::int32_t v, std::int32_t a) {
+            return a <= 1 ? v : ((v + a - 1) / a) * a;
+        }
         std::vector<std::unique_ptr<std::uint8_t[]>> literal_pool;
         std::vector<std::pair<std::string, std::size_t>> call_patch_list;
-        std::vector<std::pair<std::string, std::size_t>> func_addr_patch_list; // function, offset of lea disp32
+        // function, offset of the lea disp32, and the + n of [rip + function + n]
+        struct func_addr_patch {
+            std::string name;
+            std::size_t at;
+            std::int64_t addend;
+            std::size_t end;
+        };
+        std::vector<func_addr_patch> func_addr_patch_list;
+        std::vector<std::pair<std::string, std::size_t>> asm_jmp_patch_list;   // jmp to an Occult function from an asm block (offset of the E9 opcode)
 
-        // lea dst, [rip + disp32] to a function in this blob; disp backpatched
-        // once every function has a location (position independent)
         void emit_function_addr(grp dst, const std::string& fname) {
             const auto v = static_cast<std::uint8_t>(dst);
             const std::uint8_t idx = (v >= static_cast<std::uint8_t>(r8) && v <= static_cast<std::uint8_t>(r15)) ? static_cast<std::uint8_t>(8 + (v - static_cast<std::uint8_t>(r8))) : static_cast<std::uint8_t>(v & 7);
             w->push_bytes({static_cast<std::uint8_t>(0x48 | (idx >= 8 ? 0x04 : 0)), 0x8D, static_cast<std::uint8_t>(((idx & 7) << 3) | 0x05), 0, 0, 0, 0});
-            func_addr_patch_list.emplace_back(fname, w->get_code().size() - 4);
+            func_addr_patch_list.emplace_back(fname, w->get_code().size() - 4, 0, w->get_code().size());
         }
 
-        // globals, one shared, writable slot each (8 bytes), addressed by
-        // absolute address baked in with movabs same scheme as string
-        // literals, since the JIT code blob itself is mapped execute only.
         std::unordered_map<std::string, std::int32_t> global_offsets;
         std::unordered_map<std::string, std::string> global_types;   
         std::unique_ptr<std::uint8_t[]> globals_storage;
 
-        // loads the absolute address of global name into dst and records
-        // a relocation so the AOT linker can repoint it into the data segment
         void emit_global_addr(register_allocator& reg_alloc, grp dst, const std::string& name) {
             (void)reg_alloc;
             std::int32_t off = global_offsets.at(name);
@@ -420,6 +531,8 @@ namespace occult::x86_64 {
         std::vector<std::pair<std::size_t, std::uint64_t>> string_relocs;
         std::vector<std::pair<std::size_t, std::int32_t>> global_relocs; // (imm64 code offset, global offset)
         std::int32_t globals_size() const { return static_cast<std::int32_t>(global_offsets.size()) * 8; }
+        // where each global sits in the data blob, so an object file can name it
+        const std::unordered_map<std::string, std::int32_t>& globals() const { return global_offsets; }
         private:
 
         template<typename OperandT>
@@ -592,11 +705,7 @@ namespace occult::x86_64 {
                     auto layout_it = struct_layouts.find(struct_it->second);
                     if (layout_it != struct_layouts.end()) {
                         grp tmp = reg_alloc.allocate<grp>();
-                        std::int32_t actual_size = layout_it->second.total_size;
-                        for (std::int32_t off = 0; off < actual_size; off += 8) {
-                            w->emit_mov(tmp, mem{r, off});
-                            w->emit_mov(mem{rbp, offset + off}, tmp);
-                        }
+                        copy_bytes(rbp, offset, r, 0, layout_it->second.total_size, tmp);
                         reg_alloc.release<grp>(tmp);
                         reg_alloc.release<grp>(r);
                         return;
@@ -624,6 +733,7 @@ namespace occult::x86_64 {
                           std::unordered_map<std::string, std::int64_t>& local_variable_map,
                           std::unordered_map<std::string, std::string>& local_variable_map_types,
                           std::unordered_map<std::string, std::string>& local_struct_var_types,
+                          std::unordered_map<std::string, array_metadata>& local_array_metadata,
                           bool& is_reference_next,
                           bool& is_dereference_next, std::size_t& deref_count_normal,
                           bool& is_dereference_assign_next, std::size_t& deref_count_assign) {
@@ -689,7 +799,10 @@ namespace occult::x86_64 {
             }
 
             const auto& var_type = local_variable_map_types[var_name];
-            std::int32_t offset = -it->second;
+            // a scalar records its size and the offset is the negation of it;
+            // an array records the offset already
+            const bool is_array = local_array_metadata.contains(var_name);
+            std::int32_t offset = is_array ? static_cast<std::int32_t>(it->second) : -it->second;
 
             if (is_reference_next) {
                 auto r = reg_alloc.allocate<grp>();
@@ -729,9 +842,13 @@ namespace occult::x86_64 {
             if (is_dereference_assign_next) {
                 auto r = reg_alloc.allocate<grp>();
 
+                // a struct's value is its address, as in the load path below
+                const bool base_is_struct = local_struct_var_types.contains(var_name);
+
                 for (std::size_t size = 1; size <= deref_count_assign; size++) {
                     if (size == 1) {
-                        w->emit_mov(r, mem{rbp, offset});
+                        if (base_is_struct) w->emit_lea(r, mem{rbp, offset});
+                        else                w->emit_mov(r, mem{rbp, offset});
                     }
                     else {
                         w->emit_mov(r, mem{r});
@@ -863,6 +980,10 @@ namespace occult::x86_64 {
                     auto src = reg_alloc.pop<simd128>();
                     auto dst = reg_alloc.allocate<grp>();
                     w->emit_movq(dst, src);
+                    // an f32 is four bytes; the four above it are whatever was there
+                    if (source_type == "float32") {
+                        w->emit_mov(as_32(dst), as_32(dst));
+                    }
                     reg_alloc.release<simd128>(src);
                     reg_alloc.push<grp>(dst);
                 }
@@ -891,6 +1012,10 @@ namespace occult::x86_64 {
             const bool source_is_float = src_type.empty() ? reg_alloc.top_is_simd() : (source_is_f32 || source_is_f64);
 
             if (source_is_float && target_is_float) {
+                if ((target_is_float64 && source_is_f64) ||
+                    (target_is_float32 && source_is_f32)) {
+                    return;
+                }
                 auto src = reg_alloc.pop<simd128>();
                 auto dst = reg_alloc.allocate<simd128>();
                 if (target_is_float64) w->emit_cvtss2sd(dst, src);
@@ -1217,7 +1342,46 @@ namespace occult::x86_64 {
         void handle_return(ir_function& func, register_allocator& reg_alloc, push_mode push_mode) {
             bool is_float_return = (func.type == "float32" || func.type == "float64");
 
-            if (push_mode != ret) {
+            // sixteen bytes or less in registers, one eightbyte each; bigger,
+            // copy into the caller's space and return its address in rax
+            if (push_mode != ret && returns_in_memory(func.type) && sret_offset != 0
+                && !reg_alloc.empty()) {
+                auto src = reg_alloc.pop<grp>();
+                w->emit_mov(r11, src);
+                w->emit_mov(rax, mem{rbp, sret_offset});
+                grp tmp = reg_alloc.allocate<grp>();
+                copy_bytes(rax, 0, r11, 0, type_size(func.type), tmp);
+                reg_alloc.release<grp>(tmp);
+                reg_alloc.release<grp>(src);
+                w->emit_mov(rax, mem{rbp, sret_offset});
+
+                if (!func.uses_shellcode && !func.uses_assembly) {
+                    w->emit_function_epilogue();
+                }
+                w->emit_ret();
+                return;
+            }
+
+            const bool struct_in_registers =
+                abi == call_abi::sysv && push_mode != ret && is_struct_type(func.type)
+                && type_size(func.type) <= 16 && !reg_alloc.empty();
+            if (struct_in_registers) {
+                auto src = reg_alloc.pop<grp>();
+                // through r11, because rax is one of the registers the result goes into
+                w->emit_mov(r11, src);
+                const auto classes = struct_classes(func.type);
+                std::size_t gp_i = 0, fp_i = 0;
+                constexpr grp gpr[] = {rax, rdx};
+                constexpr simd128 fpr[] = {xmm0, xmm1};
+                for (std::size_t e = 0; e < classes.size() && e < 2; e++) {
+                    const auto at = static_cast<std::int32_t>(e * 8);
+                    if (classes[e]) w->emit_movsd(fpr[fp_i++], mem{r11, at});
+                    else            w->emit_mov(gpr[gp_i++], mem{r11, at});
+                }
+                reg_alloc.release<grp>(src);
+            }
+
+            if (push_mode != ret && !struct_in_registers) {
                 if (is_float_return) {
                     if (!reg_alloc.empty()) {
                         auto result = reg_alloc.pop<simd128>();
@@ -1264,14 +1428,61 @@ namespace occult::x86_64 {
             bool in_register;
             std::variant<grp, simd128> reg;
             std::size_t stack_index;
+            // sixteen bytes or less in one or two registers, reg then reg2;
+            // larger goes on the stack and takes stack_slots of it
+            std::int32_t struct_size = 0; // 0: not a struct
+            bool two_parts = false;
+            std::variant<grp, simd128> reg2;
+            std::size_t stack_slots = 1;
         };
+
+        void eightbyte_classes(const std::string& type, std::int32_t base,
+                               std::vector<bool>& sse) const {
+            auto it = struct_layouts.find(type);
+            if (it == struct_layouts.end()) {
+                // a scalar covers SSE only if it is itself a float
+                const bool is_float = (type == "float32" || type == "float64");
+                const std::int32_t size = type_size(type);
+                for (std::int32_t at = base; at < base + size; at++) {
+                    const std::size_t eb = static_cast<std::size_t>(at / 8);
+                    if (eb < sse.size() && !is_float) {
+                        sse[eb] = false;
+                    }
+                }
+                return;
+            }
+            for (const auto& m : it->second.members) {
+                eightbyte_classes(m.type, base + m.offset, sse);
+            }
+        }
+
+        std::vector<bool> struct_classes(const std::string& type) const {
+            const std::int32_t size = type_size(type);
+            std::vector<bool> sse(static_cast<std::size_t>((size + 7) / 8), true);
+            eightbyte_classes(type, 0, sse);
+            return sse;
+        }
+
+        bool is_struct_type(const std::string& t) const {
+            return struct_layouts.count(t) != 0;
+        }
+
+        bool returns_in_memory(const std::string& t) const {
+            return abi == call_abi::sysv && is_struct_type(t) && type_size(t) > 16;
+        }
 
         std::int32_t shadow_space() const { return abi == call_abi::win64 ? 32 : 0; }
 
-        std::vector<arg_location> classify_args(const std::vector<bool>& is_float) const {
+        std::vector<arg_location> classify_args(const std::vector<bool>& is_float,
+                                                const std::vector<std::string>& types = {},
+                                                bool hidden_return_pointer = false) const {
             std::vector<arg_location> out;
             out.reserve(is_float.size());
             std::size_t stack_index = 0;
+
+            auto type_of = [&](std::size_t k) -> std::string {
+                return k < types.size() ? types[k] : std::string();
+            };
 
             if (abi == call_abi::win64) {
                 constexpr grp gp[] = {rcx, rdx, r8, r9};
@@ -1285,8 +1496,45 @@ namespace occult::x86_64 {
 
             constexpr grp gp[] = {rdi, rsi, rdx, rcx, r8, r9};
             constexpr simd128 fp[] = {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
-            std::size_t gp_idx = 0, fp_idx = 0;
-            for (bool f : is_float) {
+            std::size_t gp_idx = hidden_return_pointer ? 1 : 0; // rdi is the destination
+            std::size_t fp_idx = 0;
+
+            for (std::size_t k = 0; k < is_float.size(); k++) {
+                const std::string t = type_of(k);
+
+                if (!t.empty() && is_struct_type(t)) {
+                    arg_location loc{};
+                    loc.struct_size = type_size(t);
+                    const auto classes = struct_classes(t);
+
+                    std::size_t need_gp = 0, need_fp = 0;
+                    for (bool is_sse : classes) {
+                        (is_sse ? need_fp : need_gp)++;
+                    }
+                    const bool fits = loc.struct_size <= 16 && classes.size() <= 2
+                                      && gp_idx + need_gp <= 6 && fp_idx + need_fp <= 8;
+                    if (!fits) {
+                        loc.in_register = false;
+                        loc.stack_index = stack_index;
+                        loc.stack_slots = static_cast<std::size_t>((loc.struct_size + 7) / 8);
+                        stack_index += loc.stack_slots;
+                        out.push_back(loc);
+                        continue;
+                    }
+
+                    loc.in_register = true;
+                    for (std::size_t e = 0; e < classes.size(); e++) {
+                        std::variant<grp, simd128> r =
+                            classes[e] ? std::variant<grp, simd128>(fp[fp_idx++])
+                                       : std::variant<grp, simd128>(gp[gp_idx++]);
+                        if (e == 0) loc.reg = r;
+                        else      { loc.reg2 = r; loc.two_parts = true; }
+                    }
+                    out.push_back(loc);
+                    continue;
+                }
+
+                const bool f = is_float[k];
                 if (f && fp_idx < 8)       out.push_back({true, fp[fp_idx++], 0});
                 else if (!f && gp_idx < 6) out.push_back({true, gp[gp_idx++], 0});
                 else                       out.push_back({false, {}, stack_index++});
@@ -1298,23 +1546,65 @@ namespace occult::x86_64 {
                                    std::unordered_map<std::string, std::int64_t>& local_variable_map,
                                    std::unordered_map<std::string, std::string>& local_variable_map_types,
                                    std::unordered_map<std::string, array_metadata>& local_array_metadata,
+                                   std::unordered_map<std::string, std::string>& local_struct_var_types,
                                    std::int32_t& totalsizes) {
-            if (func.uses_shellcode || func.uses_assembly || func.args.empty()) {
+            if (func.uses_shellcode || func.uses_assembly) {
+                return;
+            }
+
+            const bool sret = returns_in_memory(func.type);
+            if (sret) {
+                totalsizes += 8;
+                sret_offset = -totalsizes;
+                w->emit_mov(mem{rbp, sret_offset}, rdi);
+            }
+
+            if (func.args.empty()) {
                 return;
             }
 
             std::vector<bool> is_float;
+            std::vector<std::string> arg_types;
             for (auto& arg : func.args) {
                 is_float.push_back(arg.type == "float32" || arg.type == "float64");
+                arg_types.push_back(arg.type);
             }
-            const auto locs = classify_args(is_float);
+            const auto locs = classify_args(is_float, arg_types, sret);
 
             for (std::size_t k = 0; k < func.args.size(); k++) {
                 auto& arg = func.args[k];
+                const auto& loc = locs[k];
+
+                if (loc.struct_size != 0) {
+                    const std::int32_t slot = ((loc.struct_size + 7) / 8) * 8;
+                    totalsizes += slot;
+                    const std::int32_t offset = -totalsizes;
+
+                    if (loc.in_register) {
+                        auto put = [&](const std::variant<grp, simd128>& r, std::int32_t at) {
+                            if (std::holds_alternative<simd128>(r)) w->emit_movsd(mem{rbp, offset + at}, std::get<simd128>(r));
+                            else                                    w->emit_mov(mem{rbp, offset + at}, std::get<grp>(r));
+                        };
+                        put(loc.reg, 0);
+                        if (loc.two_parts) put(loc.reg2, 8);
+                    }
+                    else {
+                        const auto src = static_cast<std::int32_t>(16 + shadow_space() + 8 * loc.stack_index);
+                        for (std::size_t e = 0; e < loc.stack_slots; e++) {
+                            const auto at = static_cast<std::int32_t>(e * 8);
+                            w->emit_mov(rax, mem{rbp, src + at});
+                            w->emit_mov(mem{rbp, offset + at}, rax);
+                        }
+                    }
+
+                    local_variable_map.insert({arg.name, totalsizes});
+                    local_variable_map_types.insert({arg.name, arg.type});
+                    local_struct_var_types.insert({arg.name, arg.type});
+                    continue;
+                }
 
                 totalsizes += 8;
                 std::int32_t offset = -totalsizes;
-                const auto& loc = locs[k];
 
                 if (loc.in_register) {
                     if (is_float[k]) w->emit_movsd(mem{rbp, offset}, std::get<simd128>(loc.reg));
@@ -1404,7 +1694,7 @@ namespace occult::x86_64 {
             ret = (i + 1 < sig.size()) ? sig.substr(i + 1) : "int64";
         }
 
-        void handle_call(register_allocator& reg_alloc, ir_instr& instr) {
+        void handle_call(register_allocator& reg_alloc, ir_instr& instr, std::int32_t* totalsizes = nullptr) {
             const bool indirect = (instr.op == ir_opcode::op_call_indirect);
             std::string name;
             std::vector<std::string> ind_params;
@@ -1456,8 +1746,8 @@ namespace occult::x86_64 {
                             w->emit_movsd(xmm0, mem{rbp, a.offset});
                             w->emit_cvttsd2si(rax, xmm0);
                             w->emit_mov(mem{rbp, a.offset}, rax);
+                            arg_is_float = false;
                         }
-                        arg_is_float = false;
                     }
                     else if (!arg_is_float && param_is_float && !is_va_slot) {
                         w->emit_mov(rax, mem{rbp, a.offset});
@@ -1471,30 +1761,95 @@ namespace occult::x86_64 {
                 is_float[k] = arg_is_float;
             }
 
-            const auto locs = classify_args(is_float);
-
-            std::vector<std::size_t> stack_args;
+            // a struct argument's spill slot holds its address, not its bytes
+            std::vector<std::string> arg_type_names(arg_count);
             for (std::size_t k = 0; k < arg_count; k++) {
-                if (!locs[k].in_register) stack_args.push_back(k);
+                if (param_types && k < param_types->size()) {
+                    arg_type_names[k] = (*param_types)[k];
+                }
             }
 
-            const bool padded = (stack_args.size() % 2) != 0;
+            // what the callee returns decides whether rdi is already spoken for
+            std::string call_ret;
+            if (indirect) {
+                call_ret = ind_ret;
+            }
+            else if (auto rt = function_return_types.find(name); rt != function_return_types.end()) {
+                call_ret = rt->second;
+            }
+            const bool sret = returns_in_memory(call_ret) && totalsizes != nullptr;
+            std::int32_t sret_at = 0;
+            if (sret) {
+                const std::int32_t slot = ((type_size(call_ret) + 7) / 8) * 8;
+                *totalsizes += slot;
+                sret_at = -*totalsizes;
+            }
+
+            const auto locs = classify_args(is_float, arg_type_names, sret);
+
+            std::vector<std::size_t> stack_args;
+            std::size_t stack_slots = 0;
+            for (std::size_t k = 0; k < arg_count; k++) {
+                if (!locs[k].in_register) {
+                    stack_args.push_back(k);
+                    stack_slots += locs[k].stack_slots;
+                }
+            }
+
+            const bool padded = (stack_slots % 2) != 0;
             if (padded) {
                 w->emit_sub(rsp, 8);
             }
 
             for (auto it = stack_args.rbegin(); it != stack_args.rend(); ++it) {
-                w->emit_push(mem{rbp, args[*it].offset});
+                const auto& loc = locs[*it];
+                if (loc.struct_size == 0) {
+                    w->emit_push(mem{rbp, args[*it].offset});
+                    continue;
+                }
+                // the bytes themselves, highest eightbyte first
+                w->emit_mov(rax, mem{rbp, args[*it].offset});
+                for (std::size_t e = loc.stack_slots; e-- > 0;) {
+                    w->emit_push(mem{rax, static_cast<std::int32_t>(e * 8)});
+                }
             }
 
             for (std::size_t k = 0; k < arg_count; k++) {
                 if (!locs[k].in_register) continue;
-                if (std::holds_alternative<simd128>(locs[k].reg)) w->emit_movsd(std::get<simd128>(locs[k].reg), mem{rbp, args[k].offset});
-                else                                              w->emit_mov(std::get<grp>(locs[k].reg), mem{rbp, args[k].offset});
+                const auto& loc = locs[k];
+
+                if (loc.struct_size != 0) {
+                    // each eightbyte into the register its class was assigned
+                    w->emit_mov(rax, mem{rbp, args[k].offset});
+                    auto take = [&](const std::variant<grp, simd128>& r, std::int32_t at) {
+                        if (std::holds_alternative<simd128>(r)) w->emit_movsd(std::get<simd128>(r), mem{rax, at});
+                        else                                    w->emit_mov(std::get<grp>(r), mem{rax, at});
+                    };
+                    take(loc.reg, 0);
+                    if (loc.two_parts) take(loc.reg2, 8);
+                    continue;
+                }
+
+                if (std::holds_alternative<simd128>(loc.reg)) w->emit_movsd(std::get<simd128>(loc.reg), mem{rbp, args[k].offset});
+                else                                          w->emit_mov(std::get<grp>(loc.reg), mem{rbp, args[k].offset});
             }
 
             if (shadow_space()) {
                 w->emit_sub(rsp, shadow_space());
+            }
+
+            if (abi == call_abi::sysv && variable_arity_functions.count(name)) {
+                std::int32_t vector_args = 0;
+                for (std::size_t k = 0; k < arg_count; k++) {
+                    if (locs[k].in_register && std::holds_alternative<simd128>(locs[k].reg)) {
+                        ++vector_args;
+                    }
+                }
+                w->emit_mov(eax, vector_args);
+            }
+
+            if (sret) {
+                w->emit_lea(rdi, mem{rbp, sret_at});
             }
 
             if (indirect) {
@@ -1507,7 +1862,7 @@ namespace occult::x86_64 {
                 call_patch_list.emplace_back(name, w->get_code().size() - 5);
             }
 
-            const std::int32_t cleanup = static_cast<std::int32_t>(stack_args.size() * 8) + shadow_space() + (padded ? 8 : 0);
+            const std::int32_t cleanup = static_cast<std::int32_t>(stack_slots * 8) + shadow_space() + (padded ? 8 : 0);
             if (cleanup) {
                 w->emit_add(rsp, cleanup);
             }
@@ -1519,7 +1874,32 @@ namespace occult::x86_64 {
             else if (auto ret_it = function_return_types.find(name); ret_it != function_return_types.end()) {
                 ret_ptr = &ret_it->second;
             }
-            if (ret_ptr && instr.result_used) {
+            if (sret && instr.result_used) {
+                auto r = reg_alloc.allocate<grp>();
+                w->emit_lea(r, mem{rbp, sret_at});
+                reg_alloc.push<grp>(r);
+            }
+            else if (ret_ptr && instr.result_used && abi == call_abi::sysv
+                && is_struct_type(*ret_ptr) && type_size(*ret_ptr) <= 16 && totalsizes != nullptr) {
+                const std::int32_t slot = ((type_size(*ret_ptr) + 7) / 8) * 8;
+                *totalsizes += slot;
+                const std::int32_t at = -*totalsizes;
+
+                const auto classes = struct_classes(*ret_ptr);
+                std::size_t gp_i = 0, fp_i = 0;
+                constexpr grp gpr[] = {rax, rdx};
+                constexpr simd128 fpr[] = {xmm0, xmm1};
+                for (std::size_t e = 0; e < classes.size() && e < 2; e++) {
+                    const auto off = static_cast<std::int32_t>(e * 8);
+                    if (classes[e]) w->emit_movsd(mem{rbp, at + off}, fpr[fp_i++]);
+                    else            w->emit_mov(mem{rbp, at + off}, gpr[gp_i++]);
+                }
+
+                auto r = reg_alloc.allocate<grp>();
+                w->emit_lea(r, mem{rbp, at});
+                reg_alloc.push<grp>(r);
+            }
+            else if (ret_ptr && instr.result_used) {
                 const std::string& ret_type = *ret_ptr;
                 if (ret_type == "float32" || ret_type == "float64") {
                     auto r = reg_alloc.allocate<simd128>();
@@ -1534,27 +1914,206 @@ namespace occult::x86_64 {
             }
         }
 
+        public:
+        enum class reloc_kind { pc32, plt32, abs64 };
+        enum class reloc_against { text, rodata, data };
+        struct obj_reloc {
+            // The symbol to resolve against, or empty for a section.
+            std::string symbol;
+            reloc_against section;
+            std::size_t at;        // offset in .text of the field
+            reloc_kind kind;
+            std::int64_t addend;
+        };
+        std::vector<obj_reloc> object_relocs;
+        std::vector<std::string> undefined_symbols;
+
+        void relocate_for_object() {
+            auto& code = w->get_code();
+            auto undef = [&](const std::string& n) -> std::string {
+                if (function_locs.count(n)) {
+                    return n;
+                }
+                if (!extern_functions.count(n)) {
+                    throw std::runtime_error("\"" + n + "\" is neither defined here nor declared `extern fn`");
+                }
+                const std::string sym = link_name(n);
+                note_library(n);
+                if (std::find(undefined_symbols.begin(), undefined_symbols.end(), sym)
+                    == undefined_symbols.end()) {
+                    undefined_symbols.push_back(sym);
+                }
+                return sym;
+            };
+            auto clear32 = [&](std::size_t at) {
+                for (int i = 0; i < 4; ++i) {
+                    code[at + static_cast<std::size_t>(i)] = 0;
+                }
+            };
+
+            for (auto& [name, at, addend, insn_end] : func_addr_patch_list) {
+                const std::string sym = undef(name);
+                clear32(at);
+                object_relocs.push_back({sym, reloc_against::text, at, reloc_kind::pc32,
+                                         addend - static_cast<std::int64_t>(insn_end - at)});
+            }
+            for (auto& [name, loc] : asm_jmp_patch_list) {
+                const std::string sym = undef(name);
+                code[loc] = 0xE9;
+                clear32(loc + 1);
+                object_relocs.push_back({sym, reloc_against::text, loc + 1, reloc_kind::plt32, -4});
+            }
+            for (auto& [name, loc] : call_patch_list) {
+                const std::string sym = undef(name);
+                code[loc] = opcode::CALL_rel32;
+                clear32(loc + 1);
+                object_relocs.push_back({sym, reloc_against::text, loc + 1, reloc_kind::plt32, -4});
+            }
+        }
+        private:
+
+        // an extern fn has no address until a linker gives it one
+        std::string extern_undefined(const std::string& name, const char* what) const {
+            if (extern_functions.count(name)) {
+                return std::string(what) + " \"" + name + "\" is extern; build an object file (-c) and link it";
+            }
+            return std::string(what) + " \"" + name + "\" which was never compiled";
+        }
+
+        static std::string link_name(const std::string& name) {
+            const auto at = name.rfind("::");
+            return at == std::string::npos ? name : name.substr(at + 2);
+        }
+
+        void note_library(const std::string& name) {
+            if (auto lib = extern_library.find(name); lib != extern_library.end() &&
+                std::find(used_libraries.begin(), used_libraries.end(), lib->second) == used_libraries.end()) {
+                used_libraries.push_back(lib->second);
+            }
+        }
+
+        // a name in one library the JIT opened, or null
+        static void* find_in(void* handle, const std::string& name) {
+#ifdef __linux__
+            return dlsym(handle, name.c_str());
+#elif defined(_WIN64)
+            return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(handle), name.c_str()));
+#else
+            (void)handle;
+            (void)name;
+            return nullptr;
+#endif
+        }
+
+        static void* find_extern(const std::string& name) {
+#ifdef __linux__
+            return dlsym(RTLD_DEFAULT, name.c_str());
+#elif defined(_WIN64)
+            HMODULE mods[512];
+            DWORD needed = 0;
+            if (EnumProcessModules(GetCurrentProcess(), mods, sizeof(mods), &needed)) {
+                const DWORD n = std::min<DWORD>(needed / sizeof(HMODULE), 512);
+                for (DWORD i = 0; i < n; ++i) {
+                    if (FARPROC p = GetProcAddress(mods[i], name.c_str())) {
+                        return reinterpret_cast<void*>(p);
+                    }
+                }
+            }
+            return nullptr;
+#else
+            (void)name;
+            return nullptr;
+#endif
+        }
+
+        std::uint32_t extern_thunk(const std::string& name) {
+            if (auto it = extern_thunks.find(name); it != extern_thunks.end()) {
+                return it->second;
+            }
+            if (auto lib = extern_library.find(name); lib != extern_library.end()) {
+                auto handle = library_handles.find(lib->second);
+                void* in_lib = handle == library_handles.end() ? nullptr : find_in(handle->second, link_name(name));
+                if (in_lib == nullptr) {
+                    throw std::runtime_error("extern \"" + link_name(name) + "\" is not in \"" + lib->second +
+                                             "\", the library its module links");
+                }
+                return write_extern_thunk(name, in_lib);
+            }
+            void* addr = find_extern(link_name(name));
+            if (addr == nullptr) {
+                throw std::runtime_error(
+                    "extern \"" + link_name(name) + "\" is not in this process; load the "
+                    "library that defines it with -l, or build an object file "
+                    "(-c) and link it");
+            }
+
+            return write_extern_thunk(name, addr);
+        }
+
+        std::uint32_t write_extern_thunk(const std::string& name, void* addr) {
+            auto& code = w->get_code();
+            const auto off = static_cast<std::uint32_t>(code.size());
+            const std::uint8_t stub[6] = {0xFF, 0x25, 0x00, 0x00, 0x00, 0x00};
+            code.insert(code.end(), std::begin(stub), std::end(stub));
+            const auto target = reinterpret_cast<std::uint64_t>(addr);
+            for (int i = 0; i < 8; ++i) {
+                code.push_back(static_cast<std::uint8_t>((target >> (i * 8)) & 0xFF));
+            }
+            extern_thunks.emplace(name, off);
+            return off;
+        }
+
+        std::uint32_t import_thunk(const std::string& name) {
+            if (auto it = extern_thunks.find(name); it != extern_thunks.end()) {
+                return it->second;
+            }
+            auto& code = w->get_code();
+            const auto off = static_cast<std::uint32_t>(code.size());
+            const std::uint8_t stub[6] = {0xFF, 0x25, 0x00, 0x00, 0x00, 0x00};
+            code.insert(code.end(), std::begin(stub), std::end(stub));
+            auto lib = extern_library.find(name);
+            import_thunks.push_back({lib == extern_library.end() ? std::string() : lib->second, link_name(name), off + 2});
+            note_library(name);
+            extern_thunks.emplace(name, off);
+            return off;
+        }
+
         void backpatch_calls() {
+            auto resolve = [this](const std::string& name, const char* what) -> std::uint32_t {
+                if (auto it = function_locs.find(name); it != function_locs.end()) {
+                    return it->second;
+                }
+                if (dynamic_externs && extern_functions.count(name)) {
+                    return extern_thunk(name);
+                }
+                if (image_imports && extern_functions.count(name)) {
+                    return import_thunk(name);
+                }
+                throw std::runtime_error(extern_undefined(name, what));
+            };
             auto& code = w->get_code();
 
-            for (auto& [name, disp_loc] : func_addr_patch_list) {
-                auto it = function_locs.find(name);
-                if (it == function_locs.end()) {
-                    throw std::runtime_error("Address taken of function \"" + name + "\" which was never compiled");
-                }
-                const std::int32_t disp = static_cast<std::int32_t>(it->second) - static_cast<std::int32_t>(disp_loc + 4);
+            for (auto& [name, disp_loc, addend, insn_end] : func_addr_patch_list) {
+                const std::uint32_t at = resolve(name, "Address taken of function");
+                const std::int32_t disp = static_cast<std::int32_t>(static_cast<std::int64_t>(at) + addend)
+                                          - static_cast<std::int32_t>(insn_end);
                 for (int i = 0; i < 4; ++i) {
                     code[disp_loc + i] = static_cast<std::uint8_t>((disp >> (i * 8)) & 0xFF);
                 }
             }
 
-            for (auto& [name, loc] : call_patch_list) {
-                auto it = function_locs.find(name);
-                if (it == function_locs.end()) {
-                    throw std::runtime_error("Call target \"" + name + "\" was never compiled");
+            for (auto& [name, loc] : asm_jmp_patch_list) {
+                const std::uint32_t at = resolve(name, "asm block jumps to");
+                const std::int32_t offset = static_cast<std::int32_t>(at) - static_cast<std::int32_t>(loc + 5);
+                code[loc] = 0xE9;
+                for (int i = 0; i < 4; ++i) {
+                    code[loc + 1 + i] = static_cast<std::uint8_t>((offset >> (i * 8)) & 0xFF);
                 }
+            }
 
-                std::int32_t offset = static_cast<std::int32_t>(it->second) - static_cast<std::int32_t>(loc + 5);
+            for (auto& [name, loc] : call_patch_list) {
+                const std::uint32_t at = resolve(name, "Call target");
+                std::int32_t offset = static_cast<std::int32_t>(at) - static_cast<std::int32_t>(loc + 5);
 
                 code[loc] = opcode::CALL_rel32;
                 for (int i = 0; i < 4; ++i) {
@@ -1634,7 +2193,8 @@ namespace occult::x86_64 {
                 dimensions_vec.emplace_back(std::get<std::uint64_t>(func.code.at(++i).operand));
             }
 
-            std::size_t element_size = 8;
+            std::size_t element_size = static_cast<std::size_t>(type_size(type));
+            if (element_size == 0) element_size = 8;
             std::size_t element_count = 1;
             for (const auto& dim : dimensions_vec) {
                 element_count *= dim;
@@ -1664,6 +2224,11 @@ namespace occult::x86_64 {
             std::int32_t array_base_offset = it->second;
             auto& store_meta = local_array_metadata[array_name];
             bool is_float_array = (store_meta.type == "float32" || store_meta.type == "float64");
+            std::int32_t elem_size = type_size(store_meta.type);
+            if (elem_size == 0) elem_size = 8;
+            auto layout_it = struct_layouts.find(store_meta.type);
+            const bool is_struct_elem = layout_it != struct_layouts.end()
+                                     && !layout_it->second.opaque;
 
             bool has_constant_index = false;
             for (std::size_t j = 1; j <= 50 && i >= j; j++) {
@@ -1677,74 +2242,112 @@ namespace occult::x86_64 {
                 inline_const_index = extract_uint_operand(func.code.at(i - 2).operand);
             }
 
-            if (has_constant_index) {
-                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * index_to_push);
+            auto store_struct_at_offset = [&](std::int32_t element_offset) {
+                auto src = reg_alloc.pop<grp>();
+                auto tmp = reg_alloc.allocate<grp>();
+                copy_bytes(rbp, element_offset, src, 0, layout_it->second.total_size, tmp);
+                reg_alloc.release<grp>(tmp);
+                reg_alloc.release<grp>(src);
+            };
 
+            auto store_at_offset = [&](std::int32_t element_offset) {
+                if (is_struct_elem) {
+                    store_struct_at_offset(element_offset);
+                    return;
+                }
                 if (is_float_array) {
                     auto simd_reg = reg_alloc.pop<simd128>();
-                    if (store_meta.type == "float32") w->emit_cvtss2sd(simd_reg, simd_reg);
-                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
+                    if (store_meta.type == "float32") w->emit_movss(mem{rbp, element_offset}, simd_reg);
+                    else                              w->emit_movsd(mem{rbp, element_offset}, simd_reg);
                     reg_alloc.release<simd128>(simd_reg);
                 }
                 else {
                     auto content = reg_alloc.pop<grp>();
-                    w->emit_mov(mem{rbp, element_offset}, content);
+                    store_scalar(mem{rbp, element_offset}, content, store_meta.type);
                     reg_alloc.release<grp>(content);
                 }
+            };
+
+            if (has_constant_index) {
+                store_at_offset(array_base_offset + static_cast<std::int32_t>(elem_size * index_to_push));
                 index_to_push = (std::numeric_limits<std::uint64_t>::max)();
                 return;
             }
 
             if (inline_const_index.has_value()) {
-                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_const_index.value());
+                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(elem_size * inline_const_index.value());
 
+                if (is_struct_elem) {
+                    auto src = reg_alloc.pop<grp>();
+                    auto idx_reg = reg_alloc.pop<grp>();
+                    reg_alloc.release<grp>(idx_reg);
+                    auto tmp = reg_alloc.allocate<grp>();
+                    copy_bytes(rbp, element_offset, src, 0, layout_it->second.total_size, tmp);
+                    reg_alloc.release<grp>(tmp);
+                    reg_alloc.release<grp>(src);
+                    return;
+                }
                 if (is_float_array) {
                     auto simd_reg = reg_alloc.pop<simd128>();
                     auto idx_reg = reg_alloc.pop<grp>();
                     reg_alloc.release<grp>(idx_reg);
-                    if (store_meta.type == "float32") w->emit_cvtss2sd(simd_reg, simd_reg);
-                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
+                    if (store_meta.type == "float32") w->emit_movss(mem{rbp, element_offset}, simd_reg);
+                    else                              w->emit_movsd(mem{rbp, element_offset}, simd_reg);
                     reg_alloc.release<simd128>(simd_reg);
                 }
                 else {
                     auto content = reg_alloc.pop<grp>();
                     auto idx_reg = reg_alloc.pop<grp>();
                     reg_alloc.release<grp>(idx_reg);
-                    w->emit_mov(mem{rbp, element_offset}, content);
+                    store_scalar(mem{rbp, element_offset}, content, store_meta.type);
                     reg_alloc.release<grp>(content);
                 }
                 return;
             }
 
             if (index_to_push != (std::numeric_limits<std::uint64_t>::max)()) {
-                std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * index_to_push);
-
-                if (is_float_array) {
-                    auto simd_reg = reg_alloc.pop<simd128>();
-                    if (store_meta.type == "float32") w->emit_cvtss2sd(simd_reg, simd_reg);
-                    w->emit_movsd(mem{rbp, element_offset}, simd_reg);
-                    reg_alloc.release<simd128>(simd_reg);
-                }
-                else {
-                    auto content = reg_alloc.pop<grp>();
-                    w->emit_mov(mem{rbp, element_offset}, content);
-                    reg_alloc.release<grp>(content);
-                }
+                store_at_offset(array_base_offset + static_cast<std::int32_t>(elem_size * index_to_push));
                 index_to_push = (std::numeric_limits<std::uint64_t>::max)();
                 return;
             }
 
-            if (is_float_array) {
+            auto scale_index = [&](grp index_reg) {
+                switch (elem_size) {
+                case 1: break;
+                case 2: w->emit_shl(index_reg, 1); break;
+                case 4: w->emit_shl(index_reg, 2); break;
+                case 8: w->emit_shl(index_reg, 3); break;
+                default: w->emit_imul(index_reg, index_reg, elem_size); break;
+                }
+            };
+
+            if (is_struct_elem) {
+                auto src = reg_alloc.pop<grp>();
+                auto index_reg = reg_alloc.pop<grp>();
+
+                auto addr_reg = reg_alloc.allocate<grp>();
+                w->emit_lea(addr_reg, mem{rbp, array_base_offset});
+                scale_index(index_reg);
+                w->emit_add(addr_reg, index_reg);
+
+                auto tmp = reg_alloc.allocate<grp>();
+                copy_bytes(addr_reg, 0, src, 0, layout_it->second.total_size, tmp);
+                reg_alloc.release<grp>(tmp);
+                reg_alloc.release<grp>(addr_reg);
+                reg_alloc.release<grp>(index_reg);
+                reg_alloc.release<grp>(src);
+            }
+            else if (is_float_array) {
                 auto simd_reg = reg_alloc.pop<simd128>();
                 auto index_reg = reg_alloc.pop<grp>();
 
                 auto addr_reg = reg_alloc.allocate<grp>();
                 w->emit_lea(addr_reg, mem{rbp, array_base_offset});
-                w->emit_shl(index_reg, 3);
+                scale_index(index_reg);
                 w->emit_add(addr_reg, index_reg);
 
-                if (store_meta.type == "float32") w->emit_cvtss2sd(simd_reg, simd_reg);
-                w->emit_movsd(mem{addr_reg}, simd_reg);
+                if (store_meta.type == "float32") w->emit_movss(mem{addr_reg}, simd_reg);
+                else                              w->emit_movsd(mem{addr_reg}, simd_reg);
 
                 reg_alloc.release<grp>(addr_reg);
                 reg_alloc.release<grp>(index_reg);
@@ -1756,10 +2359,10 @@ namespace occult::x86_64 {
 
                 auto addr_reg = reg_alloc.allocate<grp>();
                 w->emit_lea(addr_reg, mem{rbp, array_base_offset});
-                w->emit_shl(index_reg, 3);
+                scale_index(index_reg);
                 w->emit_add(addr_reg, index_reg);
 
-                w->emit_mov(mem{addr_reg}, content);
+                store_scalar(mem{addr_reg}, content, store_meta.type);
 
                 reg_alloc.release<grp>(addr_reg);
                 reg_alloc.release<grp>(index_reg);
@@ -1769,7 +2372,8 @@ namespace occult::x86_64 {
 
         void handle_array_access_element(register_allocator& reg_alloc, ir_function& func, std::size_t i, ir_instr& instr,
                                           std::unordered_map<std::string, std::int64_t>& local_variable_map,
-                                          std::unordered_map<std::string, array_metadata>& local_array_metadata) {
+                                          std::unordered_map<std::string, array_metadata>& local_array_metadata,
+                                          bool& is_reference_next) {
             auto array_name = std::get<std::string>(instr.operand);
             auto it = local_variable_map.find(array_name);
             if (it == local_variable_map.end()) {
@@ -1779,6 +2383,11 @@ namespace occult::x86_64 {
             auto& local_metadata = local_array_metadata[array_name];
             bool is_float_array = (local_metadata.type == "float32" || local_metadata.type == "float64");
             std::int32_t array_base_offset = it->second;
+            std::int32_t elem_size = type_size(local_metadata.type);
+            if (elem_size == 0) elem_size = 8;
+            auto layout_it = struct_layouts.find(local_metadata.type);
+            const bool is_struct_elem = layout_it != struct_layouts.end()
+                                     && !layout_it->second.opaque;
 
             if (i >= 2 && func.code.at(i - 1).op == ir_opcode::op_mark_for_array_access && func.code.at(i - 2).op == ir_opcode::op_push) {
                 auto inline_idx = extract_uint_operand(func.code.at(i - 2).operand);
@@ -1787,17 +2396,25 @@ namespace occult::x86_64 {
                     auto idx_reg = reg_alloc.pop<grp>();
                     reg_alloc.release<grp>(idx_reg);
 
-                    std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(8 * inline_idx.value());
+                    std::int32_t element_offset = array_base_offset + static_cast<std::int32_t>(elem_size * inline_idx.value());
+
+                    if (is_reference_next || is_struct_elem) {
+                        is_reference_next = false;
+                        auto r = reg_alloc.allocate<grp>();
+                        w->emit_lea(r, mem{rbp, element_offset});
+                        reg_alloc.push<grp>(r);
+                        return;
+                    }
 
                     if (is_float_array) {
                         auto simd_reg = reg_alloc.allocate<simd128>();
-                        w->emit_movsd(simd_reg, mem{rbp, element_offset});
-                        if (local_metadata.type == "float32") w->emit_cvtsd2ss(simd_reg, simd_reg);
+                        if (local_metadata.type == "float32") w->emit_movss(simd_reg, mem{rbp, element_offset});
+                        else                                   w->emit_movsd(simd_reg, mem{rbp, element_offset});
                         reg_alloc.push<simd128>(simd_reg);
                     }
                     else {
                         auto r = reg_alloc.allocate<grp>();
-                        w->emit_mov(r, mem{rbp, element_offset});
+                        load_scalar(r, mem{rbp, element_offset}, local_metadata.type);
                         reg_alloc.push<grp>(r);
                     }
                     return;
@@ -1873,19 +2490,33 @@ namespace occult::x86_64 {
 
             auto addr_reg = reg_alloc.allocate<grp>();
             w->emit_lea(addr_reg, mem{rbp, array_base_offset});
-            w->emit_shl(true_index, 3);
+            switch (elem_size) {
+            case 1: break;
+            case 2: w->emit_shl(true_index, 1); break;
+            case 4: w->emit_shl(true_index, 2); break;
+            case 8: w->emit_shl(true_index, 3); break;
+            default: w->emit_imul(true_index, true_index, elem_size); break;
+            }
             w->emit_add(addr_reg, true_index);
+
+            if (is_reference_next || is_struct_elem) {
+                is_reference_next = false;
+                w->emit_mov(true_index, addr_reg);
+                reg_alloc.release<grp>(addr_reg);
+                reg_alloc.push<grp>(true_index);
+                return;
+            }
 
             if (is_float_array) {
                 auto simd_reg = reg_alloc.allocate<simd128>();
-                w->emit_movsd(simd_reg, mem{addr_reg});
-                if (local_metadata.type == "float32") w->emit_cvtsd2ss(simd_reg, simd_reg);
+                if (local_metadata.type == "float32") w->emit_movss(simd_reg, mem{addr_reg});
+                else                                   w->emit_movsd(simd_reg, mem{addr_reg});
                 reg_alloc.release<grp>(addr_reg);
                 reg_alloc.release<grp>(true_index);
                 reg_alloc.push<simd128>(simd_reg);
             }
             else {
-                w->emit_mov(true_index, mem{addr_reg});
+                load_scalar(true_index, mem{addr_reg}, local_metadata.type);
                 reg_alloc.release<grp>(addr_reg);
                 reg_alloc.push<grp>(true_index);
             }
@@ -1930,6 +2561,9 @@ namespace occult::x86_64 {
                         local_variable_map_types.insert({var_name, pending_struct_type});
                     }
                     else {
+                        if (layout_it->second.opaque) {
+                            opaque_struct(pending_struct_type);
+                        }
                         std::int32_t struct_size = layout_it->second.total_size;
                         struct_size = ((struct_size + 15) / 16) * 16;
                         totalsizes += struct_size;
@@ -1937,11 +2571,7 @@ namespace occult::x86_64 {
                         if (!reg_alloc.empty()) {
                             auto src = reg_alloc.pop<grp>();
                             auto tmp = reg_alloc.allocate<grp>();
-                            std::int32_t actual_size = layout_it->second.total_size;
-                            for (std::int32_t off = 0; off < actual_size; off += 8) {
-                                w->emit_mov(tmp, mem{src, off});
-                                w->emit_mov(mem{rbp, -totalsizes + off}, tmp);
-                            }
+                            copy_bytes(rbp, -totalsizes, src, 0, layout_it->second.total_size, tmp);
                             reg_alloc.release<grp>(tmp);
                             reg_alloc.release<grp>(src);
                         }
@@ -1962,42 +2592,116 @@ namespace occult::x86_64 {
             }
         }
 
-        void handle_member_access(register_allocator& reg_alloc, ir_instr& instr) {
+        void copy_bytes(grp dst_base, std::int32_t dst_off,
+                        grp src_base, std::int32_t src_off,
+                        std::int32_t size, grp tmp) {
+            std::int32_t at = 0;
+            for (; at + 8 <= size; at += 8) {
+                w->emit_mov(tmp, mem{src_base, src_off + at});
+                w->emit_mov(mem{dst_base, dst_off + at}, tmp);
+            }
+            for (std::int32_t step = 4; step >= 1; step /= 2) {
+                while (at + step <= size) {
+                    switch (step) {
+                    case 4:
+                        w->emit_mov(as_32(tmp), mem{as_32(src_base), src_off + at});
+                        w->emit_mov(mem{as_32(dst_base), dst_off + at}, as_32(tmp));
+                        break;
+                    case 2:
+                        w->emit_movzx(tmp, mem{src_base, src_off + at}, false);
+                        w->emit_mov(mem{as_16(dst_base), dst_off + at}, as_16(tmp));
+                        break;
+                    default:
+                        w->emit_movzx(tmp, mem{src_base, src_off + at});
+                        w->emit_mov(mem{as_8(dst_base), dst_off + at}, as_8(tmp));
+                        break;
+                    }
+                    at += step;
+                }
+            }
+        }
+
+        static bool type_is_signed(const std::string& t) {
+            return t == "int8" || t == "int16" || t == "int32" || t == "int64" || t == "char";
+        }
+
+        void load_scalar(grp dst, const mem& at, const std::string& type) {
+            const bool sign = type_is_signed(type);
+            switch (type_size(type)) {
+            case 1: sign ? w->emit_movsx(dst, at) : w->emit_movzx(dst, at); break;
+            case 2: sign ? w->emit_movsx(dst, at, false) : w->emit_movzx(dst, at, false); break;
+            case 4:
+                if (sign) {
+                    w->emit_movsxd(dst, at);
+                }
+                else {
+                    // a 32-bit destination zeroes the top half
+                    w->emit_mov(as_32(dst), mem{as_32(at.reg), at.disp});
+                }
+                break;
+            default: w->emit_mov(dst, at); break;
+            }
+        }
+
+        void store_scalar(const mem& at, grp val, const std::string& type) {
+            switch (type_size(type)) {
+            case 1: w->emit_mov(mem{as_8(at.reg), at.disp}, as_8(val)); break;
+            case 2: w->emit_mov(mem{as_16(at.reg), at.disp}, as_16(val)); break;
+            case 4: w->emit_mov(mem{as_32(at.reg), at.disp}, as_32(val)); break;
+            default: w->emit_mov(at, val); break;
+            }
+        }
+
+        const struct_member_info* find_member(const std::string& owner,
+                                              const std::string& member_name) const {
+            if (!owner.empty()) {
+                if (auto it = struct_layouts.find(owner); it != struct_layouts.end()) {
+                    for (const auto& m : it->second.members) {
+                        if (m.name == member_name) {
+                            return &m;
+                        }
+                    }
+                }
+            }
+            for (const auto& [sname, slayout] : struct_layouts) {
+                for (const auto& m : slayout.members) {
+                    if (m.name == member_name) {
+                        return &m;
+                    }
+                }
+            }
+            return nullptr;
+        }
+
+        void handle_member_access(register_allocator& reg_alloc, ir_instr& instr,
+                                  bool address_only = false) {
             auto member_name = std::get<std::string>(instr.operand);
             auto base = reg_alloc.pop<grp>();
 
-            std::int32_t member_offset = -1;
-            std::string member_type_name;
-            for (const auto& [sname, slayout] : struct_layouts) {
-                auto off = slayout.get_member_offset(member_name);
-                if (off >= 0) {
-                    member_offset = off;
-                    for (const auto& m : slayout.members) {
-                        if (m.name == member_name) { member_type_name = m.type; break; }
-                    }
-                    break;
-                }
-            }
-
-            if (member_offset < 0) {
+            const struct_member_info* found = find_member(instr.owner, member_name);
+            if (found == nullptr) {
                 throw std::runtime_error("Member \"" + member_name + "\" not found in any struct");
             }
+            const std::int32_t member_offset = found->offset;
+            const std::string member_type_name = found->type;
 
             bool member_is_nested_struct = struct_layouts.contains(member_type_name);
 
-            if (member_is_nested_struct) {
+            // a nested struct is only ever an address, so the two cases are one
+            if (member_is_nested_struct || address_only) {
                 w->emit_lea(base, mem{base, member_offset});
                 reg_alloc.push<grp>(base);
             }
             else if (member_type_name == "float32" || member_type_name == "float64") {
                 auto simd_reg = reg_alloc.allocate<simd128>();
-                w->emit_movsd(simd_reg, mem{base, member_offset});
-                if (member_type_name == "float32") w->emit_cvtsd2ss(simd_reg, simd_reg);
+                // an f32 member is four bytes of float, not a double to narrow
+                if (member_type_name == "float32") w->emit_movss(simd_reg, mem{base, member_offset});
+                else                               w->emit_movsd(simd_reg, mem{base, member_offset});
                 reg_alloc.push<simd128>(simd_reg);
                 reg_alloc.release<grp>(base);
             }
             else {
-                w->emit_mov(base, mem{base, member_offset});
+                load_scalar(base, mem{base, member_offset}, member_type_name);
                 reg_alloc.push<grp>(base);
             }
         }
@@ -2006,22 +2710,23 @@ namespace occult::x86_64 {
             auto member_name = std::get<std::string>(instr.operand);
             auto member_type = instr.type;
 
-            std::int32_t member_offset = -1;
-            for (const auto& [sname, slayout] : struct_layouts) {
-                auto off = slayout.get_member_offset(member_name);
-                if (off >= 0) { member_offset = off; break; }
-            }
-
-            if (member_offset < 0) {
+            const struct_member_info* found = find_member(instr.owner, member_name);
+            if (found == nullptr) {
                 throw std::runtime_error("Member \"" + member_name + "\" not found in any struct for store");
+            }
+            const std::int32_t member_offset = found->offset;
+
+            if (member_type.empty()) {
+                member_type = found->type;
             }
 
             if (member_type == "float32" || member_type == "float64") {
                 auto fval = reg_alloc.pop<simd128>();
                 auto base = reg_alloc.pop<grp>();
 
-                if (member_type == "float32") w->emit_cvtss2sd(fval, fval);
-                w->emit_movsd(mem{base, member_offset}, fval);
+                // four bytes for an f32, and no widening to double on the way
+                if (member_type == "float32") w->emit_movss(mem{base, member_offset}, fval);
+                else                          w->emit_movsd(mem{base, member_offset}, fval);
 
                 reg_alloc.release<simd128>(fval);
                 reg_alloc.release<grp>(base);
@@ -2030,7 +2735,7 @@ namespace occult::x86_64 {
                 auto val = reg_alloc.pop<grp>();
                 auto base = reg_alloc.pop<grp>();
 
-                w->emit_mov(mem{base, member_offset}, val);
+                store_scalar(mem{base, member_offset}, val, member_type);
 
                 reg_alloc.release<grp>(val);
                 reg_alloc.release<grp>(base);
@@ -2085,6 +2790,88 @@ namespace occult::x86_64 {
             return true;
         }
 
+        // asm(x86_64) { ... }: either the whole body of a naked function, or inline in a function
+        void handle_asm(register_allocator& reg_alloc, ir_function& func, ir_instr& instr, std::unordered_map<std::string, std::int64_t>& local_variable_map,
+                        std::unordered_map<std::string, std::string>& local_variable_map_types, std::unordered_map<std::string, array_metadata>& local_array_metadata,
+                        std::unordered_map<std::string, std::string>& local_struct_var_types, std::int32_t& totalsizes, std::int32_t& save_slots) {
+            if (instr.type != "x86_64") {
+                throw std::runtime_error("asm(" + instr.type + ") is not supported: this compiler targets x86_64");
+            }
+
+            const bool naked = func.uses_assembly;
+
+            assembler::variable_lookup vars;
+            if (!naked) {
+                vars = [&](const std::string& name) -> std::optional<asm_variable> {
+                    if (global_offsets.contains(name) && !local_variable_map.contains(name)) {
+                        throw std::runtime_error("{" + name + "} is a global; use &" + name + " to get its address");
+                    }
+                    auto it = local_variable_map.find(name);
+                    if (it == local_variable_map.end()) {
+                        return std::nullopt;
+                    }
+                    if (local_array_metadata.contains(name) || local_struct_var_types.contains(name)) {
+                        throw std::runtime_error("{" + name + "} is an array or struct; take its address in Occult and use that");
+                    }
+                    const auto type_it = local_variable_map_types.find(name);
+                    const std::string type = type_it == local_variable_map_types.end() ? "int64" : type_it->second;
+                    int bits = 64;
+                    if (type == "int8" || type == "uint8" || type == "bool") bits = 8;
+                    else if (type == "int16" || type == "uint16") bits = 16;
+                    else if (type == "int32" || type == "uint32" || type == "float32") bits = 32;
+                    return asm_variable{static_cast<std::int32_t>(-it->second), bits};
+                };
+            }
+
+            assembler a(std::get<std::string>(instr.operand), vars,
+                        [this](const std::string& name) { return function_arg_types.contains(name); },
+                        [this](const std::string& name) { return global_offsets.contains(name); });
+
+            asm_output res;
+            try {
+                res = a.assemble();
+            }
+            catch (const std::runtime_error& e) {
+                throw std::runtime_error("in function '" + func.name + "': " + e.what());
+            }
+
+            static const grp saved[] = {rbx, r12, r13, r14, r15};
+            if (!naked) {
+                reg_alloc.spill_all();
+                if (save_slots == 0) {
+                    totalsizes += 40;
+                    save_slots = totalsizes;
+                }
+                for (int i = 0; i < 5; ++i) {
+                    w->emit_mov(mem{rbp, -save_slots + 8 * i}, saved[i]);
+                }
+            }
+
+            const std::size_t base = w->get_code().size();
+            w->push_bytes(res.bytes);
+            for (const auto& use : res.calls) {
+                (use.is_jump ? asm_jmp_patch_list : call_patch_list).emplace_back(use.name, base + use.at);
+            }
+            for (const auto& use : res.addresses) {
+                func_addr_patch_list.emplace_back(use.name, base + use.at, use.addend, base + use.end);
+            }
+            for (const auto& use : res.globals) {
+                const std::int32_t off = global_offsets.at(use.name);
+                const std::int64_t abs = reinterpret_cast<std::int64_t>(globals_storage.get() + off);
+                auto& code = w->get_code();
+                for (int i = 0; i < 8; ++i) {
+                    code[base + use.at + i] = static_cast<std::uint8_t>((abs >> (i * 8)) & 0xFF);
+                }
+                global_relocs.emplace_back(base + use.at, off);
+            }
+
+            if (!naked) {
+                for (int i = 0; i < 5; ++i) {
+                    w->emit_mov(saved[i], mem{rbp, -save_slots + 8 * i});
+                }
+            }
+        }
+
         std::int32_t generate_code(ir_function& func) {
             register_allocator reg_alloc;
 
@@ -2095,11 +2882,16 @@ namespace occult::x86_64 {
             std::string pending_struct_type;
             std::uint64_t index_to_push = (std::numeric_limits<std::uint64_t>::max)();
             std::int32_t totalsizes = 0;
+            std::int32_t asm_save_slots = 0; // frame offset of the callee-saved register save area (0 = not allocated)
 
             reg_alloc.configure(w.get(), &totalsizes, abi);
 
             std::unordered_map<std::string, std::size_t> label_map;
             std::vector<std::pair<ir_instr, std::size_t>> jump_instructions;
+
+            auto source_label = [](const std::string& name) {
+                return name.starts_with("user_") ? name.substr(5) : name;
+            };
 
             std::unordered_map<std::string, std::vector<register_allocator::entry_view>> label_states;
             bool reachable = true;
@@ -2114,6 +2906,26 @@ namespace occult::x86_64 {
             };
 
             bool is_reference_next = false;
+            std::string pointee;
+            std::size_t pointee_at = static_cast<std::size_t>(-1);
+            auto pointee_bytes = [](const std::string& t) -> int {
+                if (t == "int8" || t == "uint8" || t == "bool" || t == "char"
+                    || t == "i8" || t == "u8") return 1;
+                if (t == "int16" || t == "uint16" || t == "i16" || t == "u16") return 2;
+                if (t == "int32" || t == "uint32" || t == "i32" || t == "u32"
+                    || t == "float32" || t == "f32") return 4;
+                return 8;
+            };
+            auto pointee_signed = [](const std::string& t) {
+                return t == "int8" || t == "int16" || t == "int32" || t == "char"
+                    || t == "i8" || t == "i16" || t == "i32";
+            };
+            auto pointee_float = [](const std::string& t) {
+                return t == "float32" || t == "float64" || t == "f32" || t == "f64";
+            };
+            auto pointee_double = [](const std::string& t) {
+                return t == "float64" || t == "f64";
+            };
             bool is_dereference_next = false;
             bool is_dereference_assign_next = false;
 
@@ -2122,7 +2934,7 @@ namespace occult::x86_64 {
 
             push_mode push_mode = normal;
 
-            handle_prologue_args(func, local_variable_map, local_variable_map_types, local_array_metadata, totalsizes);
+            handle_prologue_args(func, local_variable_map, local_variable_map_types, local_array_metadata, local_struct_var_types, totalsizes);
 
             for (std::size_t i = 0; i < func.code.size(); i++) {
                 auto& instr = func.code.at(i);
@@ -2140,10 +2952,23 @@ namespace occult::x86_64 {
                     case ir_opcode::op_asm_code:
                     {
                         if (std::holds_alternative<std::string>(instr.operand)) {
-                            std::string val = std::get<std::string>(instr.operand);
+                            handle_asm(reg_alloc, func, instr, local_variable_map, local_variable_map_types, local_array_metadata, local_struct_var_types, totalsizes, asm_save_slots);
+                        }
 
-                            assembler a(val);
-                            w->push_bytes(a.assemble());
+                        break;
+                    }
+                    case ir_opcode::op_declare_local:
+                    {
+                        const auto& decl_name = std::get<std::string>(instr.operand);
+                        if (!local_variable_map.contains(decl_name) && !global_offsets.contains(decl_name)) {
+                            totalsizes += 8;
+                            local_variable_map.insert({decl_name, totalsizes});
+                            local_variable_map_types.insert({decl_name, instr.type});
+
+                            grp zero = reg_alloc.allocate<grp>();
+                            w->emit_mov(zero, std::int64_t(0));
+                            w->emit_mov(mem{rbp, -totalsizes}, zero);
+                            reg_alloc.release<grp>(zero);
                         }
 
                         break;
@@ -2157,6 +2982,51 @@ namespace occult::x86_64 {
                             push_mode = ret;
                         }
 
+                        break;
+                    }
+                    case ir_opcode::op_sizeof: {
+                        const auto& tname = std::get<std::string>(instr.operand);
+                        std::int64_t size = 8; // pointers
+                        if (!tname.ends_with('*')) {
+                            if (primitive_size(tname) != 0 || struct_layouts.count(tname)) {
+                                size = type_size(tname);
+                            }
+                            else {
+                                if (auto m_it = local_array_metadata.find(tname);
+                                    m_it != local_array_metadata.end()) {
+                                    std::int64_t n = 1;
+                                    for (auto d : m_it->second.dimensions) {
+                                        n *= static_cast<std::int64_t>(d);
+                                    }
+                                    grp ar = reg_alloc.allocate<grp>();
+                                    w->emit_mov(ar, n * type_size(m_it->second.type));
+                                    reg_alloc.push<grp>(ar);
+                                    break;
+                                }
+
+                                std::string of;
+                                if (auto l_it = local_variable_map_types.find(tname);
+                                    l_it != local_variable_map_types.end()) {
+                                    of = l_it->second;
+                                }
+                                else if (auto a_it = local_struct_var_types.find(tname);
+                                         a_it != local_struct_var_types.end()) {
+                                    of = a_it->second;
+                                }
+                                else if (auto g_it = global_types.find(tname);
+                                         g_it != global_types.end()) {
+                                    of = g_it->second;
+                                }
+                                if (of.empty()) {
+                                    throw std::runtime_error(
+                                        "sizeof: '" + tname + "' is neither a type nor a variable in scope");
+                                }
+                                size = type_size(of);
+                            }
+                        }
+                        grp r = reg_alloc.allocate<grp>();
+                        w->emit_mov(r, size);
+                        reg_alloc.push<grp>(r);
                         break;
                     }
                     case ir_opcode::op_push_single: {
@@ -2176,7 +3046,7 @@ namespace occult::x86_64 {
                     }
                     case ir_opcode::op_load: {
                         handle_load(reg_alloc, instr, local_variable_map, local_variable_map_types, local_struct_var_types,
-                                    is_reference_next, is_dereference_next, deref_count_normal,
+                                    local_array_metadata, is_reference_next, is_dereference_next, deref_count_normal,
                                     is_dereference_assign_next, deref_count_assign);
                         break;
                     }
@@ -2188,11 +3058,48 @@ namespace occult::x86_64 {
                         is_reference_next = true;
                         break;
                     }
+                    case ir_opcode::op_pointee: {
+                        pointee = std::get<std::string>(instr.operand);
+                        pointee_at = i;
+                        break;
+                    }
                     case ir_opcode::op_dereference: {
                         auto operand = std::get<std::int64_t>(instr.operand);
                         auto addr = reg_alloc.pop<grp>();
+                        // every step but the last walks a pointer, a machine word
+                        const std::string t = (pointee_at + 1 == i) ? pointee : std::string();
+                        if (pointee_float(t)) {
+                            // walk the pointer, then read the last step as a float
+                            for (std::int64_t count = 0; count + 1 < operand; count++) {
+                                w->emit_mov(addr, mem{addr});
+                            }
+                            auto dst = reg_alloc.allocate<simd128>();
+                            if (pointee_double(t)) w->emit_movsd(dst, mem{addr});
+                            else                   w->emit_movss(dst, mem{addr});
+                            reg_alloc.release<grp>(addr);
+                            reg_alloc.push<simd128>(dst);
+                            break;
+                        }
+                        const int width = pointee_bytes(t);
+                        const bool sign = pointee_signed(t);
                         for (std::int64_t count = 0; count < operand; count++) {
-                            w->emit_mov(addr, mem{addr});
+                            const bool last = count + 1 == operand;
+                            if (!last || width == 8) {
+                                w->emit_mov(addr, mem{addr});
+                            }
+                            else if (width == 1) {
+                                if (sign) w->emit_movsx(addr, mem{addr});
+                                else      w->emit_movzx(addr, mem{addr});
+                            }
+                            else if (width == 2) {
+                                if (sign) w->emit_movsx(addr, mem{addr}, false);
+                                else      w->emit_movzx(addr, mem{addr}, false);
+                            }
+                            else {
+                                if (sign) w->emit_movsxd(addr, mem{addr});
+                                // a 32-bit destination zeroes the top half
+                                else      w->emit_mov(as_32(addr), mem{as_32(addr)});
+                            }
                         }
                         reg_alloc.push<grp>(addr);
                         break;
@@ -2204,9 +3111,29 @@ namespace occult::x86_64 {
                         break;
                     }
                     case ir_opcode::op_store_at_addr: {
+                        {
+                            const std::string t = (pointee_at + 1 == i) ? pointee : std::string();
+                            if (pointee_float(t)) {
+                                auto fval = reg_alloc.pop<simd128>();
+                                auto faddr = reg_alloc.pop<grp>();
+                                if (pointee_double(t)) w->emit_movsd(mem{faddr}, fval);
+                                else                   w->emit_movss(mem{faddr}, fval);
+                                reg_alloc.release<simd128>(fval);
+                                reg_alloc.release<grp>(faddr);
+                                is_dereference_next = false;
+                                break;
+                            }
+                        }
                         auto val = reg_alloc.pop<grp>();
                         auto addr = reg_alloc.pop<grp>();
-                        w->emit_mov(mem{addr}, val);
+                        // as narrow as the pointer said
+                        const std::string t = (pointee_at + 1 == i) ? pointee : std::string();
+                        switch (pointee_bytes(t)) {
+                        case 1: w->emit_mov(mem{as_8(addr)}, as_8(val)); break;
+                        case 2: w->emit_mov(mem{as_16(addr)}, as_16(val)); break;
+                        case 4: w->emit_mov(mem{as_32(addr)}, as_32(val)); break;
+                        default: w->emit_mov(mem{addr}, val); break;
+                        }
                         reg_alloc.release<grp>(val);
                         reg_alloc.release<grp>(addr);
                         is_dereference_next = false;
@@ -2214,7 +3141,7 @@ namespace occult::x86_64 {
                     }
                     case ir_opcode::op_call:
                     case ir_opcode::op_call_indirect: {
-                        handle_call(reg_alloc, instr);
+                        handle_call(reg_alloc, instr, &totalsizes);
 
                         break;
                     }
@@ -2292,7 +3219,7 @@ namespace occult::x86_64 {
                         break;
                     }
                     case ir_opcode::op_array_access_element: {
-                        handle_array_access_element(reg_alloc, func, i, instr, local_variable_map, local_array_metadata);
+                        handle_array_access_element(reg_alloc, func, i, instr, local_variable_map, local_array_metadata, is_reference_next);
                         break;
                     }
                     case ir_opcode::op_struct_decl: {
@@ -2306,6 +3233,10 @@ namespace occult::x86_64 {
                     }
                     case ir_opcode::op_member_access: {
                         handle_member_access(reg_alloc, instr);
+                        break;
+                    }
+                    case ir_opcode::op_member_addr: {
+                        handle_member_access(reg_alloc, instr, true);
                         break;
                     }
                     case ir_opcode::op_member_store: {
@@ -2332,7 +3263,38 @@ namespace occult::x86_64 {
                         }
                         reachable = true;
 
+                        // two labels with one name would silently make the second win
+                        if (label_map.contains(label_name)) {
+                            throw std::runtime_error("Label \"" + source_label(label_name) + "\" appears twice in one function");
+                        }
+
                         label_map[label_name] = w->get_code().size();
+
+                        break;
+                    }
+                    case ir_opcode::op_error_jump: {
+                        const auto label = std::get<std::string>(instr.operand);
+                        const auto carried = reg_alloc.state();
+                        w->push_bytes({0x74, 0x05}); // jz past the jmp: nothing in flight
+                        reg_alloc.restore({});
+                        sync_to_label(label);
+                        w->push_bytes({opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP, opcode::NOP});
+                        jump_instructions.emplace_back(ir_instr(ir_opcode::op_jmp, label), w->get_code().size() - 5);
+                        reg_alloc.restore(carried);
+
+                        break;
+                    }
+                    // an error is leaving the function: return whatever is in rax,
+                    // except that a caller copying a big struct out reads the
+                    // address it passed, so that goes back as usual
+                    case ir_opcode::op_propagate: {
+                        reg_alloc.restore({});
+                        if (returns_in_memory(func.type) && sret_offset != 0) {
+                            w->emit_mov(rax, mem{rbp, sret_offset});
+                        }
+                        handle_return(func, reg_alloc, push_mode);
+                        push_mode = normal;
+                        reachable = false;
 
                         break;
                     }
@@ -2375,7 +3337,7 @@ namespace occult::x86_64 {
                 auto lit = label_map.find(label_name);
 
                 if (lit == label_map.end()) {
-                    throw std::runtime_error("Label \"" + label_name + "\" not found");
+                    throw std::runtime_error("Label \"" + source_label(label_name) + "\" not found");
                 }
 
                 backpatch_jump(jinstr.op, loc, lit->second, w.get());
@@ -2396,8 +3358,13 @@ namespace occult::x86_64 {
                 std::cout << BLUE << "[CODEGEN] Compiling: " << YELLOW << func.name << RESET << "\n";
             }
 
+            while (w->get_code().size() % 16 != 0) {
+                w->get_code().push_back(0xCC); // int3: never reached, loud if it is
+            }
+
             auto loc = w->get_code().size();
             function_locs.insert({func.name, loc});
+            sret_offset = 0; // per function, set by the prologue if needed
 
             std::size_t stack_alloc_placeholder_location = 0;
             bool has_stack_alloc = false;
@@ -2437,8 +3404,6 @@ namespace occult::x86_64 {
         codegen_v2(const std::vector<ir_function>& stack_ir, const std::vector<ir_struct>& ir_structs, const bool debug = false, const call_abi abi = host_abi(),
                    const std::vector<std::pair<std::string, std::string>>& globals = {})
             : debug(debug), abi(abi), w(new x86_64_writer{}), stack_ir(stack_ir), ir_structs(ir_structs) {
-            // one 8-byte, zero-initialized slot per global, in a writable host
-            // buffer (the code blob is execute-only). __global_init sets values.
             if (!globals.empty()) {
                 std::int32_t off = 0;
                 for (const auto& [gname, gtype] : globals) {
@@ -2453,38 +3418,72 @@ namespace occult::x86_64 {
                 struct_layout layout;
                 layout.name = s.datatype;
                 layout.total_size = 0;
+                layout.opaque = s.opaque;
                 for (const auto& m : s.members) {
-                    layout.members.push_back({m.name, m.datatype, 0});
+                    layout.members.push_back({m.name, m.datatype, 0, m.union_group, m.element_count});
                 }
                 struct_layouts[s.datatype] = layout;
             }
 
-            constexpr int kMaxStructLayoutPasses = 10;
+            constexpr int kMaxStructLayoutPasses = 16;
             bool changed = true;
             for (int pass = 0; pass < kMaxStructLayoutPasses && changed; ++pass) {
                 changed = false;
                 for (auto& [name, layout] : struct_layouts) {
-                    std::int32_t offset = 0;
-                    for (auto& member : layout.members) {
-                        member.offset = offset;
-                        auto nested_it = struct_layouts.find(member.type);
-                        if (nested_it != struct_layouts.end() && nested_it->second.total_size > 0) {
-                            offset += nested_it->second.total_size;
-                        }
-                        else {
-                            offset += 8;
-                        }
+                    if (layout.opaque) {
+                        continue;
                     }
-                    if (offset != layout.total_size) {
-                        layout.total_size = offset;
+                    auto member_bytes = [this](const struct_member_info& m) -> std::int32_t {
+                        const std::int32_t elem = type_size(m.type);
+                        return m.element_count > 0 ? elem * m.element_count : elem;
+                    };
+                    std::int32_t offset = 0;
+                    std::int32_t worst = 1;
+                    for (std::size_t i = 0; i < layout.members.size();) {
+                        const auto group = layout.members[i].union_group;
+                        if (group == 0) {
+                            // one plain member
+                            auto& m = layout.members[i];
+                            const std::int32_t a = type_align(m.type);
+                            offset = align_up(offset, a);
+                            m.offset = offset;
+                            offset += member_bytes(m);
+                            worst = std::max(worst, a);
+                            ++i;
+                            continue;
+                        }
+                        std::int32_t group_align = 1;
+                        std::int32_t group_size = 0;
+                        std::size_t j = i;
+                        while (j < layout.members.size() && layout.members[j].union_group == group) {
+                            group_align = std::max(group_align, type_align(layout.members[j].type));
+                            group_size = std::max(group_size, member_bytes(layout.members[j]));
+                            ++j;
+                        }
+                        offset = align_up(offset, group_align);
+                        for (std::size_t k = i; k < j; ++k) {
+                            layout.members[k].offset = offset;
+                        }
+                        offset += group_size;
+                        worst = std::max(worst, group_align);
+                        i = j;
+                    }
+                    const std::int32_t size = std::max(align_up(offset, worst), 1);
+                    if (size != layout.total_size || worst != layout.alignment) {
+                        layout.total_size = size;
+                        layout.alignment = worst;
                         changed = true;
                     }
                 }
             }
 
-            for (auto& [name, layout] : struct_layouts) {
-                if (layout.total_size == 0) {
-                    layout.total_size = 8;
+            if (debug) {
+                for (const auto& [name, layout] : struct_layouts) {
+                    std::cout << BLUE << "[CODEGEN] struct " << RESET << name << " size "
+                              << layout.total_size << " align " << layout.alignment << "\n";
+                    for (const auto& m : layout.members) {
+                        std::cout << "    +" << m.offset << "  " << m.type << " " << m.name << "\n";
+                    }
                 }
             }
 
@@ -2507,6 +3506,12 @@ namespace occult::x86_64 {
                 if (func.is_variadic || func.is_external) {
                     variable_arity_functions.insert(func.name);
                 }
+                if (func.is_external) {
+                    extern_functions.insert(func.name);
+                    if (!func.library.empty()) {
+                        extern_library[func.name] = func.library;
+                    }
+                }
             }
         }
 
@@ -2522,12 +3527,24 @@ namespace occult::x86_64 {
 
         const std::vector<std::uint8_t>& get_code() const { return w->get_code(); }
 
-        void compile(const bool use_jit = true) {
+        std::size_t function_arity(const std::string& name) const {
+            auto it = function_arg_types.find(name);
+            return it == function_arg_types.end() ? 0 : it->second.size();
+        }
+
+        void compile(const bool use_jit = true, const bool for_object = false) {
+            dynamic_externs = use_jit && !for_object;
+
             for (auto& func : stack_ir) {
                 compile_function(func);
             }
 
-            backpatch_calls();
+            if (for_object) {
+                relocate_for_object();
+            }
+            else {
+                backpatch_calls();
+            }
 
             if (debug) {
                 std::cout << GREEN << "[CODEGEN] Blob: " << RESET << "\n";

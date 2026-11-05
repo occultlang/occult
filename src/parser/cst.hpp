@@ -18,6 +18,8 @@ namespace occult {
         forstmt,
         continuestmt,
         breakstmt,
+        gotostmt,
+        labelstmt,
         returnstmt,
         functionarguments,
         functioncall,
@@ -87,6 +89,7 @@ namespace occult {
         func_uses_shellcode,
         shellcode,
         cast_to_datatype,
+        sizeof_expr,
         variadic,
         generic_type,
         enumeration,
@@ -97,7 +100,19 @@ namespace occult {
         moduledecl,
         importdecl,
         func_uses_asm,
-        asm_code
+        func_is_external,
+        struct_is_opaque,
+        struct_is_error,
+        union_group,
+        asm_code,
+        trystmt,
+        catchclause,
+        finallyblock,
+        errorstmt,
+        deferstmt,
+        type_alias,
+        func_is_exported,
+        global_is_exported
     };
 
     class cst {
@@ -113,7 +128,12 @@ namespace occult {
         bool do_not = false;
         bool is_reference = false;
         bool is_const = false;
+        bool is_char = false; // i8-backed node declared with the distinct `char` type
         std::string fnptr_sig; // non-empty => this i64 slot is a function pointer, e.g. "fn(int64,int64)int64"
+        std::string origin;    // file:line of a call to error(), for the report it makes
+        std::string library;   // an extern fn's, from the `link "..."` on its module
+        std::string handler;   // a call's: the label an error it raises goes to
+        std::int64_t type_id = -1; // an error type's or a catch's: -1 means no type attached
 
         template <typename BaseCst = cst>
         static std::unique_ptr<BaseCst> new_node() {
@@ -201,7 +221,12 @@ namespace occult {
             copy->do_not = do_not;                                                                                                                                                                                                             \
             copy->is_reference = is_reference;                                                                                                                                                                                                 \
             copy->is_const = is_const;                                                                                                                                                                                                         \
+            copy->is_char = is_char;                                                                                                                                                                                                         \
             copy->fnptr_sig = fnptr_sig;                                                                                                                                                                                                       \
+            copy->origin = origin;                                                                                                                                                                                                             \
+            copy->library = library;                                                                                                                                                                                                           \
+            copy->handler = handler;                                                                                                                                                                                                           \
+            copy->type_id = type_id;                                                                                                                                                                                                           \
             for (const auto& child : get_children_const()) {                                                                                                                                                                                   \
                 copy->add_child(child->clone());                                                                                                                                                                                               \
             }                                                                                                                                                                                                                                  \
@@ -244,6 +269,10 @@ namespace occult {
     NODE(continuestmt, cst_continuestmt)
 
     NODE(breakstmt, cst_breakstmt)
+
+    NODE(gotostmt, cst_gotostmt)
+
+    NODE(labelstmt, cst_labelstmt)
 
     NODE(returnstmt, cst_returnstmt)
 
@@ -360,10 +389,19 @@ namespace occult {
 
     NODE(func_uses_shellcode, cst_func_uses_shellcode)
     NODE(func_uses_asm, cst_func_uses_asm)
+    NODE(func_is_external, cst_func_is_external)
+
+    NODE(struct_is_opaque, cst_struct_is_opaque)
+    NODE(struct_is_error, cst_struct_is_error)
+    NODE(union_group, cst_union_group)
+    NODE(type_alias, cst_typealias)
+    NODE(func_is_exported, cst_func_is_exported)
+    NODE(global_is_exported, cst_global_is_exported)
     NODE(shellcode, cst_shellcode)
     NODE(asm_code, cst_asm_code)
 
     NODE(cast_to_datatype, cst_cast_to_datatype)
+    NODE(sizeof_expr, cst_sizeof_expr)
     NODE(variadic, cst_variadic)
 
     NODE(generic_type, cst_generic_type)
@@ -381,4 +419,9 @@ namespace occult {
     NODE(moduledecl, cst_moduledecl)
 
     NODE(importdecl, cst_importdecl)
+    NODE(trystmt, cst_trystmt)
+    NODE(catchclause, cst_catchclause)
+    NODE(finallyblock, cst_finallyblock)
+    NODE(errorstmt, cst_errorstmt)
+    NODE(deferstmt, cst_deferstmt)
 } // namespace occult

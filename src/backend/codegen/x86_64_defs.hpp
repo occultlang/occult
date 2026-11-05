@@ -22,24 +22,26 @@ namespace occult::x86_64 {
        SIB byte (+8 to index register) b is extending the rm or base field in ModR/M
        or SIB byte (+8 to the base register)
     */
+    // the enumerator cannot be called rex as well: an unscoped enum puts both
+    // names in this namespace, and MSVC then reads rex::rex as a constructor
     enum rex : std::uint8_t {
-        rex = 0x40,                    // access to extended registers in 64-bit mode
-        rex_b = rex | b,               // access to extended base register
-        rex_x = rex | x,               // access to extended SIB index
-        rex_xb = rex | x | b,          // access to extended SIB index and extended base register
-        rex_r = rex | r,               // access to extended modrm reg
-        rex_rb = rex | r | b,          // access to extended modrm reg and extended base register
-        rex_rx = rex | r | x,          // access to extended modrm reg and extended SIB index
-        rex_rxb = rex | r | x | b,     // access to extended modrm reg, extended SIB index
+        rex_base = 0x40,                    // access to extended registers in 64-bit mode
+        rex_b = rex_base | b,               // access to extended base register
+        rex_x = rex_base | x,               // access to extended SIB index
+        rex_xb = rex_base | x | b,          // access to extended SIB index and extended base register
+        rex_r = rex_base | r,               // access to extended modrm reg
+        rex_rb = rex_base | r | b,          // access to extended modrm reg and extended base register
+        rex_rx = rex_base | r | x,          // access to extended modrm reg and extended SIB index
+        rex_rxb = rex_base | r | x | b,     // access to extended modrm reg, extended SIB index
                                        // and extended base register
-        rex_w = rex | w,               // 64-bit operand size
-        rex_wb = rex | w | b,          // 64-bit operand size and extended base register
-        rex_wx = rex | w | x,          // 64-bit operand size and extended SIB index
-        rex_wxb = rex | w | x | b,     // 64-bit operand size, extended SIB index and extended base register
-        rex_wr = rex | w | r,          // 64-bit operand size and extended modrm reg
-        rex_wrb = rex | w | r | b,     // 64-bit operand size, extended modrm reg and extended base register
-        rex_wrx = rex | w | r | x,     // 64-bit operand size, extended modrm reg and extended SIB index
-        rex_wrxb = rex | w | r | x | b // 64-bit operand size, extended modrm reg, extended
+        rex_w = rex_base | w,               // 64-bit operand size
+        rex_wb = rex_base | w | b,          // 64-bit operand size and extended base register
+        rex_wx = rex_base | w | x,          // 64-bit operand size and extended SIB index
+        rex_wxb = rex_base | w | x | b,     // 64-bit operand size, extended SIB index and extended base register
+        rex_wr = rex_base | w | r,          // 64-bit operand size and extended modrm reg
+        rex_wrb = rex_base | w | r | b,     // 64-bit operand size, extended modrm reg and extended base register
+        rex_wrx = rex_base | w | r | x,     // 64-bit operand size, extended modrm reg and extended SIB index
+        rex_wrxb = rex_base | w | r | x | b // 64-bit operand size, extended modrm reg, extended
                                        // SIB index and extended base register
     };
 
@@ -490,8 +492,6 @@ namespace occult::x86_64 {
         }
     };
 
-    // SIB byte
-    // Scale, Index, Base
     struct sib {
         std::uint8_t scale; // scaling factor (1, 2, 4 etc.)
         grp index;          // index register
@@ -504,8 +504,6 @@ namespace occult::x86_64 {
         explicit sib(const std::uint8_t& scale, const std::uint8_t& index, const std::uint8_t& base) : scale(scale), index(static_cast<grp>(index)), base(static_cast<grp>(base)) {}
 
         operator std::uint8_t() const {
-            // Mask base/index down to the low 3 bits; high bits are carried by
-            // REX.X/REX.B
             const std::uint8_t idx = static_cast<std::uint8_t>(rebase_register(index));
             const std::uint8_t bas = static_cast<std::uint8_t>(rebase_register(base));
             return static_cast<std::uint8_t>((scale << 6) | (idx << 3) | bas);
@@ -899,11 +897,6 @@ namespace occult::x86_64 {
         DECLARE_OPCODE(MOVSX_r16_to_64_rm16, 0xBF) // MOV r16_to_64, r/m16
     };
 
-    // these require the k2ByteOpcodePrefix (0x0F), naming is the same
-    // - packed single FP values don't need any prefix (only the k2ByteOpcodePrefix)
-    // - packed double FP values need 0x66 (operand size override) prior to 0x0F
-    // - scalar packed single FP values need 0xF3 (kREP_Prefix / REP prefix)
-    // - scalar packed double FP values need 0xF2 (kREPNE_Prefix / REPNE prefix)
     enum float_opcode_2b : std::uint8_t {
         DECLARE_OPCODE(ANDPS_xmm_to_xmm_or_m128,
                        0x54) // Bitwise Logical AND of Packed Single-FP Values, xmm xmm/m128

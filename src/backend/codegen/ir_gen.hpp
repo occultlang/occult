@@ -40,6 +40,7 @@ namespace occult {
         std::unordered_map<std::string, int> label_map;
         bool debug;
         std::unordered_map<std::string, cst*> custom_type_map;
+        std::int32_t hidden_slot_count = 0; // for __fn_result_<n> temps
         std::unordered_map<std::string, ir_function> func_map;
         std::unordered_map<ir_function, std::unordered_map<std::string, std::string>,
                            ir_function_hasher> local_variable_map; // function -> variable name -> type
@@ -64,8 +65,13 @@ namespace occult {
         void generate_arith_and_bitwise_operators(ir_function& function, cst* c, std::optional<std::string> type = std::nullopt);
 
         void emit_comparison(ir_function& function, std::optional<std::string> type);
+        // declared type of the last member in a.b.c
+        std::optional<std::string> member_access_type(ir_function& function, cst* node);
 
         void generate_boolean_value(ir_function& function, cst* node, type_of_push type_push = type_of_push::normal);
+
+        template <typename IntType>
+        void generate_cast(ir_function& function, cst* c);
 
         template <typename IntType>
         void generate_common_generic(ir_function& function, cst* assignment_node, std::optional<std::string> type = std::nullopt, type_of_push type_push = type_of_push::normal);
@@ -75,6 +81,24 @@ namespace occult {
         void generate_common(ir_function& function, cst* c, std::string type, type_of_push type_push = type_of_push::normal);
 
         void generate_function_call(ir_function& function, cst* c, bool result_used = true);
+        void generate_call_itself(ir_function& function, cst* c, bool result_used);
+        void generate_try(ir_function& function, cst* try_node, std::string current_break_label, std::string current_loop_start);
+        void emit_defers(ir_function& function);
+        void emit_defers_above(ir_function& function, std::size_t from_depth);
+        // Set when a check in the function being generated propagates.
+        bool propagates = false;
+        std::vector<std::string> try_dispatch_stack;
+        struct try_finally_context {
+            std::string exit_var;
+            std::string ret_var;
+            std::string finally_label;
+            std::string outer_break_label;
+            std::string outer_loop_start;
+            std::unordered_map<std::string, std::int64_t>* goto_codes; // name to dispatch code (4+)
+        };
+        std::vector<try_finally_context> try_finally_stack;
+        std::vector<std::vector<cst*>> defer_bodies;
+        std::vector<std::size_t> loop_defer_depths;
 
         void generate_return(ir_function& function, cst_returnstmt* return_node);
 
@@ -106,9 +130,22 @@ namespace occult {
 
         void generate_member_access(ir_function& function, cst_memberaccess* member_access_node);
 
+        std::string generate_lvalue_addr(ir_function& function, cst* node);
+
+        static bool is_composite_access(cst* node);
+
+        void emit_load_through_addr(ir_function& function, const std::string& type);
+
+        void emit_store_through_addr(ir_function& function, cst* assignment_node, const std::string& type);
+
+        static std::string member_cst_type_name(cst* member);
+
         void generate_block(ir_function& function, cst_block* block_node, std::string current_break_label = "", std::string current_loop_start = "");
 
         std::string create_label();
+
+        // IR name of a label the source wrote, kept apart from label_<n>
+        static std::string user_label(const std::string& name);
 
         void place_label(ir_function& function, std::string label_name);
 

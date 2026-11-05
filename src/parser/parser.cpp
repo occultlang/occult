@@ -54,6 +54,9 @@ namespace occult {
         auto start_node = cst_map[function_call_parser_tt]("start_call"); // start call
 
         start_node->add_child(cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme)); // function name
+        if (curr_tok_ref.lexeme == "error") {
+            start_node->origin = source_file_path + ":" + std::to_string(curr_tok_ref.line);
+        }
 
         auto paren_depth = 1;
         std::vector<token_t> current_args;
@@ -121,78 +124,128 @@ namespace occult {
         expr_cst_ref.push_back(std::move(start_node));
     }
 
-    void parser::parse_array_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, const std::vector<token_t>& expr_ref, const token_t& curr_tok_ref, std::size_t& i_ref) {
-        std::unique_ptr<cst> base = cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme);
+    std::unique_ptr<cst> parser::extend_access_chain_expr(std::unique_ptr<cst> base, const std::vector<token_t>& expr_ref, std::size_t& i_ref) {
+        std::unique_ptr<cst> current = std::move(base);
 
-        while (i_ref + 1 < expr_ref.size() && expr_ref[i_ref + 1].tt == left_bracket_tt) {
-            i_ref++;
-            i_ref++;
-
-            int bracket_depth = 1;
-            std::vector<token_t> index_tokens;
-
-            while (i_ref < expr_ref.size() && bracket_depth > 0) {
-                if (auto& tok = expr_ref.at(i_ref); tok.tt == left_bracket_tt) {
-                    bracket_depth++;
-                    index_tokens.push_back(tok);
-                }
-                else if (tok.tt == right_bracket_tt) {
-                    bracket_depth--;
-
-                    if (bracket_depth == 0) {
-                        break;
+        while (i_ref < expr_ref.size()
+               && (expr_ref[i_ref].tt == left_bracket_tt
+                   || expr_ref[i_ref].tt == period_tt
+                   || expr_ref[i_ref].tt == left_paren_tt)) {
+            if (expr_ref[i_ref].tt == left_paren_tt) {
+                i_ref++; // consume '('
+                int paren_depth = 1;
+                std::vector<token_t> current_args;
+                auto call = cst_map[function_call_parser_tt]("start_call");
+                call->add_child(std::move(current));
+                while (i_ref < expr_ref.size() && paren_depth > 0) {
+                    const auto& tok = expr_ref.at(i_ref);
+                    if (tok.tt == left_paren_tt) {
+                        paren_depth++;
+                        current_args.push_back(tok);
                     }
+                    else if (tok.tt == right_paren_tt) {
+                        paren_depth--;
+                        if (paren_depth == 0) {
+                            if (!current_args.empty()) {
+                                auto arg_node = cst::new_node<cst_functionarg>();
+                                auto parsed = parse_expression(current_args);
+                                for (auto& c : parsed) {
+                                    arg_node->add_child(std::move(c));
+                                }
+                                call->add_child(std::move(arg_node));
+                                current_args.clear();
+                            }
+                            break;
+                        }
+                        current_args.push_back(tok);
+                    }
+                    else if (tok.tt == comma_tt && paren_depth == 1) {
+                        auto arg_node = cst::new_node<cst_functionarg>();
+                        auto parsed = parse_expression(current_args);
+                        for (auto& c : parsed) {
+                            arg_node->add_child(std::move(c));
+                        }
+                        call->add_child(std::move(arg_node));
+                        current_args.clear();
+                    }
+                    else {
+                        current_args.push_back(tok);
+                    }
+                    i_ref++;
+                }
+                call->add_child(cst_map[function_call_parser_tt]("end_call"));
+                current = std::move(call);
+                i_ref++; // past the matching ')'
+                continue;
+            }
+            if (expr_ref[i_ref].tt == left_bracket_tt) {
+                i_ref++; // consume '['
 
-                    index_tokens.push_back(tok);
+                int bracket_depth = 1;
+                std::vector<token_t> index_tokens;
+
+                while (i_ref < expr_ref.size() && bracket_depth > 0) {
+                    if (auto& tok = expr_ref.at(i_ref); tok.tt == left_bracket_tt) {
+                        bracket_depth++;
+                        index_tokens.push_back(tok);
+                    }
+                    else if (tok.tt == right_bracket_tt) {
+                        bracket_depth--;
+                        if (bracket_depth == 0) {
+                            break;
+                        }
+                        index_tokens.push_back(tok);
+                    }
+                    else {
+                        index_tokens.push_back(tok);
+                    }
+                    i_ref++;
+                }
+
+                if (bracket_depth != 0) {
+                    throw parsing_error("unmatched [ in array access", expr_ref.at(i_ref), pos, std::source_location::current().function_name());
+                }
+
+                auto arr = cst::new_node<cst_arrayaccess>();
+                arr->add_child(std::move(current));
+                if (!index_tokens.empty()) {
+                    for (auto index_nodes = parse_expression(index_tokens); auto& n : index_nodes) {
+                        arr->add_child(std::move(n));
+                    }
+                }
+                current = std::move(arr);
+
+                i_ref++; // past ']'
+            }
+            else { // period
+                i_ref++; // consume '.'
+                if (i_ref >= expr_ref.size() || expr_ref[i_ref].tt != identifier_tt) {
+                    throw parsing_error("identifier after period", i_ref < expr_ref.size() ? expr_ref[i_ref] : expr_ref.back(), pos, std::source_location::current().function_name());
+                }
+                auto field = cst_map[identifier_tt](expr_ref[i_ref].lexeme);
+                if (current->get_type() == cst_type::memberaccess
+                    && current->get_children().front()->get_type() == cst_type::identifier) {
+                    current->add_child(std::move(field));
                 }
                 else {
-                    index_tokens.push_back(tok);
+                    auto mem = cst::new_node<cst_memberaccess>();
+                    mem->add_child(std::move(current));
+                    mem->add_child(std::move(field));
+                    current = std::move(mem);
                 }
-
-                i_ref++;
+                i_ref++; // past the field identifier
             }
-
-            if (bracket_depth != 0) {
-                throw parsing_error("unmatched [ in array access", expr_ref.at(i_ref), pos, std::source_location::current().function_name());
-            }
-
-            auto array_access_node = cst::new_node<cst_arrayaccess>();
-            array_access_node->add_child(std::move(base));
-
-            if (!index_tokens.empty()) {
-                for (auto index_nodes = parse_expression(index_tokens); auto& n : index_nodes) {
-                    array_access_node->add_child(std::move(n));
-                }
-            }
-
-            base = std::move(array_access_node);
         }
 
-        expr_cst_ref.push_back(std::move(base));
+        // dispatcher's for-loop does i++, so land on the last token of the chain.
+        if (i_ref > 0) i_ref--;
+        return current;
     }
 
-    void parser::parse_struct_member_access_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, const std::vector<token_t>& expr_ref, const token_t& curr_tok_ref, std::size_t& i_ref) const {
-        auto member_access_node = cst::new_node<cst_memberaccess>();
-        member_access_node->add_child(cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme));
-
-        i_ref++; // next tok
-
-        while (i_ref < expr_ref.size() && expr_ref[i_ref].tt == period_tt) {
-            i_ref++; // consume period
-
-            if (i_ref >= expr_ref.size() || expr_ref[i_ref].tt != identifier_tt) {
-                throw parsing_error("identifier after period", i_ref < expr_ref.size() ? expr_ref[i_ref] : expr_ref.back(), pos, std::source_location::current().function_name());
-            }
-
-            member_access_node->add_child(cst_map[identifier_tt](expr_ref[i_ref].lexeme));
-            i_ref++; // next tok
-        }
-
-        if (i_ref > 0 && expr_ref[i_ref - 1].tt == identifier_tt) { // backtrack if identifier
-            i_ref--;
-        }
-
-        expr_cst_ref.push_back(std::move(member_access_node));
+    void parser::parse_access_chain_expr(std::vector<std::unique_ptr<cst>>& expr_cst_ref, const std::vector<token_t>& expr_ref, const token_t& curr_tok_ref, std::size_t& i_ref) {
+        std::unique_ptr<cst> current = cst_map[curr_tok_ref.tt](curr_tok_ref.lexeme);
+        i_ref++; // past the identifier
+        expr_cst_ref.push_back(extend_access_chain_expr(std::move(current), expr_ref, i_ref));
     }
 
     void parser::shunting_yard(std::stack<token_t>& stack_ref, std::vector<std::unique_ptr<cst>>& expr_cst_ref, const token_t& curr_tok_ref) const {
@@ -314,6 +367,7 @@ namespace occult {
         case uint8_keyword_tt:
         case float32_keyword_tt:
         case float64_keyword_tt:
+        case char_keyword_tt:
             {
                 return true;
             }
@@ -324,25 +378,54 @@ namespace occult {
         }
     }
 
-    /*
-      after careful consideration, for now, occult will only support binary
-      comparisons for now. no singular comparisons. (e.g !X instead use X == false)
-      although, we can NOT expressions in parenthesis still. but they can NOT be
-      singular.
-
-      if you think about it, more verbosity is a double edged sword. its a weird
-      language thing for now... until i actually add singular comparisons
-    */
     std::vector<std::unique_ptr<cst>> parser::parse_expression(const std::vector<token_t>& raw_expr) {
-        const auto expr = preprocess_generic_calls(raw_expr);
+        auto expr = preprocess_generic_calls(raw_expr);
         std::vector<std::unique_ptr<cst>> expr_cst;
         std::stack<token_t> operator_stack;
 
         for (std::size_t i = 0; i < expr.size(); i++) {
             const auto& t = expr.at(i);
 
+            if (t.tt == identifier_tt && type_aliases.contains(t.lexeme)) {
+                std::size_t look = i + 1;
+                while (look < expr.size() && expr.at(look).tt == multiply_operator_tt) ++look;
+                if (look < expr.size() && expr.at(look).tt == left_paren_tt) {
+                    const auto tokens = type_aliases[t.lexeme];
+                    expr.erase(expr.begin() + i);
+                    expr.insert(expr.begin() + i, tokens.begin(), tokens.end());
+                    --i;
+                    continue;
+                }
+            }
+
             if (t.tt == semicolon_tt || t.tt == left_curly_bracket_tt || t.tt == comma_tt) {
                 break; // end of expr
+            }
+
+            if (t.tt == left_paren_tt) {
+                // skip empty parens -- those are a call, not a group
+                int depth = 1;
+                std::size_t close = i + 1;
+                while (close < expr.size() && depth > 0) {
+                    if (expr.at(close).tt == left_paren_tt) depth++;
+                    else if (expr.at(close).tt == right_paren_tt) depth--;
+                    if (depth == 0) break;
+                    close++;
+                }
+                if (close < expr.size() && depth == 0
+                    && close + 1 < expr.size()
+                    && (expr.at(close + 1).tt == period_tt || expr.at(close + 1).tt == left_bracket_tt)
+                    && close > i + 1 /* non-empty */) {
+                    std::vector<token_t> inner(expr.begin() + i + 1, expr.begin() + close);
+                    auto inner_nodes = parse_expression(inner);
+                    if (inner_nodes.size() == 1) {
+                        std::size_t ci = close + 1;
+                        auto chained = extend_access_chain_expr(std::move(inner_nodes.front()), expr, ci);
+                        expr_cst.push_back(std::move(chained));
+                        i = ci; // land on the last token of the chain; loop i++ moves past it
+                        continue;
+                    }
+                }
             }
 
             if (t.tt == reference_operator_tt) {
@@ -480,6 +563,15 @@ namespace occult {
                             token_t qualified_tok = t;
                             qualified_tok.lexeme = resolved_for_use;
                             parse_function_call_expr(expr_cst, expr, qualified_tok, i);
+                            if (i + 1 < expr.size()
+                                && (expr.at(i + 1).tt == period_tt
+                                    || expr.at(i + 1).tt == left_bracket_tt
+                                    || expr.at(i + 1).tt == left_paren_tt)) {
+                                std::unique_ptr<cst> call_node = std::move(expr_cst.back());
+                                expr_cst.pop_back();
+                                i++;
+                                expr_cst.push_back(extend_access_chain_expr(std::move(call_node), expr, i));
+                            }
                         }
                         else {
                             expr_cst.push_back(cst::new_node<cst_identifier>(resolved_for_use));
@@ -488,6 +580,15 @@ namespace occult {
                 }
                 else if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) {
                     parse_function_call_expr(expr_cst, expr, t, i);
+                    if (i + 1 < expr.size()
+                        && (expr.at(i + 1).tt == period_tt
+                            || expr.at(i + 1).tt == left_bracket_tt
+                            || expr.at(i + 1).tt == left_paren_tt)) {
+                        std::unique_ptr<cst> call_node = std::move(expr_cst.back());
+                        expr_cst.pop_back();
+                        i++;
+                        expr_cst.push_back(extend_access_chain_expr(std::move(call_node), expr, i));
+                    }
                 }
                 else if (i + 3 < expr.size() && expr.at(i + 1).tt == period_tt && expr.at(i + 2).tt == identifier_tt && expr.at(i + 3).tt == left_paren_tt) {
                     auto start_node = cst_map[function_call_parser_tt]("start_call");
@@ -553,22 +654,69 @@ namespace occult {
 
                     start_node->add_child(cst_map[function_call_parser_tt]("end_call"));
                     expr_cst.push_back(std::move(start_node));
+                    if (i + 1 < expr.size()
+                        && (expr.at(i + 1).tt == period_tt
+                            || expr.at(i + 1).tt == left_bracket_tt
+                            || expr.at(i + 1).tt == left_paren_tt)) {
+                        std::unique_ptr<cst> call_node = std::move(expr_cst.back());
+                        expr_cst.pop_back();
+                        i++;
+                        expr_cst.push_back(extend_access_chain_expr(std::move(call_node), expr, i));
+                    }
                 }
-                else if (i + 1 < expr.size() && expr.at(i + 1).tt == left_bracket_tt) {
-                    parse_array_access_expr(expr_cst, expr, t, i);
-                }
-                else if (i + 1 < expr.size() && expr.at(i + 1).tt == period_tt) {
-                    parse_struct_member_access_expr(expr_cst, expr, t, i);
+                else if (i + 1 < expr.size() && (expr.at(i + 1).tt == left_bracket_tt || expr.at(i + 1).tt == period_tt)) {
+                    parse_access_chain_expr(expr_cst, expr, t, i);
                 }
                 else {
                     expr_cst.push_back(cst_map[t.tt](t.lexeme));
                 }
             }
-            else if (is_castable(t)) {
-                if (i + 1 < expr.size() && expr.at(i + 1).tt == left_paren_tt) {
+            else if (t.tt == sizeof_keyword_tt) {
+                if (i + 1 >= expr.size() || expr.at(i + 1).tt != left_paren_tt) {
+                    throw parsing_error("'(' after sizeof", t, pos, std::source_location::current().function_name());
+                }
 
-                    std::size_t type_i = i; // remember where the type keyword is
-                    i += 2;                 // skip past type keyword + '('
+                static const std::unordered_map<token_type, std::string> prim = {
+                    {int8_keyword_tt, "int8"},   {int16_keyword_tt, "int16"},   {int32_keyword_tt, "int32"},     {int64_keyword_tt, "int64"}, {uint8_keyword_tt, "uint8"},
+                    {uint16_keyword_tt, "uint16"}, {uint32_keyword_tt, "uint32"}, {uint64_keyword_tt, "uint64"}, {float32_keyword_tt, "float32"}, {float64_keyword_tt, "float64"},
+                    {boolean_keyword_tt, "bool"}, {char_keyword_tt, "int8"},    {string_keyword_tt, "string"}};
+
+                std::string type_name;
+                i += 2; // skip 'sizeof' and '('
+                for (; i < expr.size() && expr.at(i).tt != right_paren_tt; ++i) {
+                    const auto& tok = expr.at(i);
+                    if (auto p_it = prim.find(tok.tt); p_it != prim.end()) {
+                        type_name += p_it->second;
+                    }
+                    else if (tok.tt == identifier_tt || tok.tt == scope_resolution_tt) {
+                        type_name += tok.lexeme;
+                    }
+                    else if (tok.tt == multiply_operator_tt) {
+                        type_name += '*';
+                    }
+                    else {
+                        throw parsing_error("<datatype> inside sizeof", tok, pos, std::source_location::current().function_name());
+                    }
+                }
+                if (i >= expr.size() || type_name.empty()) {
+                    throw parsing_error("sizeof(<datatype>)", t, pos, std::source_location::current().function_name());
+                }
+
+                expr_cst.push_back(cst::new_node<cst_sizeof_expr>(type_name));
+            }
+            else if (is_castable(t)) {
+                std::size_t type_i = i; // remember where the type keyword is
+
+                // a pointer cast: i64*(x), i64**(x), and so on
+                std::size_t stars = 0;
+                std::size_t after_type = i + 1;
+                while (after_type < expr.size() && expr.at(after_type).tt == multiply_operator_tt) {
+                    stars++;
+                    after_type++;
+                }
+
+                if (after_type < expr.size() && expr.at(after_type).tt == left_paren_tt) {
+                    i = after_type + 1; // skip past the type, any '*' and '('
 
                     std::vector<token_t> arg_tokens;
                     int paren_depth = 1;
@@ -605,11 +753,15 @@ namespace occult {
                     }
 
                     auto cast_node = cst::new_node<cst_cast_to_datatype>(expr.at(type_i).lexeme);
+                    cast_node->num_pointers = stars;
                     for (auto& child : inner_expr) {
                         cast_node->add_child(std::move(child));
                     }
 
                     expr_cst.push_back(std::move(cast_node));
+                }
+                else {
+                    throw parsing_error("a cast needs parentheses, as in i64(x) or i64*(x)", t, pos, std::source_location::current().function_name());
                 }
             }
             else {
@@ -727,6 +879,21 @@ namespace occult {
     }
 
     std::unique_ptr<cst> parser::parse_datatype() {
+        if (match(peek(), identifier_tt)) {
+            if (auto it = type_aliases.find(peek().lexeme); it != type_aliases.end()) {
+                if (type_alias_depth > 32) {
+                    throw parsing_error("non-cyclic type alias", peek(), pos, std::source_location::current().function_name());
+                }
+                const auto tokens = it->second;
+                stream.erase(stream.begin() + pos);
+                stream.insert(stream.begin() + pos, tokens.begin(), tokens.end());
+                ++type_alias_depth;
+                auto r = parse_datatype();
+                --type_alias_depth;
+                return r;
+            }
+        }
+
         if (match(peek(), function_keyword_tt) && match(peek(1), left_paren_tt)) {
             return parse_fnptr_type();
         }
@@ -859,9 +1026,6 @@ namespace occult {
             return node;
         }
 
-        // Forward-referenced generic struct inside a template context:
-        // e.g. child_entry<T>* inside generic<T> struct tree_node { ... }
-        // where child_entry hasn't been defined yet.
         {
             std::unique_ptr<cst> fwd_node;
             if (try_parse_forward_generic_struct_type(fwd_node)) {
@@ -940,12 +1104,26 @@ namespace occult {
         return node;
     }
 
-    std::unique_ptr<cst_function> parser::parse_function() {
+    std::unique_ptr<cst_function> parser::parse_function(bool is_external) {
         auto func_node = cst::new_node<cst_function>();
 
         consume(); // consume function keyword
 
         auto name = parse_identifier();
+        // `fn Type::method(...)` -- a method declaration qualified by its
+        // owning struct name. parse_function_call_expr already builds the
+        // same "Type::method" lookup key for obj.method(obj) calls, so a
+        // qualified decl here puts the function in func_map under the key
+        // the call site asks for. multi-segment paths are allowed too:
+        // `fn Mod::Type::method(...)` builds "Mod::Type::method".
+        while (match(peek(), scope_resolution_tt)) {
+            consume();
+            if (!match(peek(), identifier_tt)) {
+                throw parsing_error("identifier after '::' in function name", peek(), pos, std::source_location::current().function_name());
+            }
+            auto next = parse_identifier();
+            name->content += "::" + next->content;
+        }
 
         func_node->add_child(std::move(name));
 
@@ -959,8 +1137,6 @@ namespace occult {
                 if (match(peek(), variadic_tt)) {
                     consume();
 
-                    // generate synthetic i64 args so variadic values are accessible
-                    // as __varargs[i] in the body (both register and stack args)
                     int existing_args = static_cast<int>(func_args_node->get_children().size());
                     int max_total_args = existing_args + 16; // support up to 16 variadic args
                     int synthetic_count = max_total_args - existing_args;
@@ -1008,8 +1184,11 @@ namespace occult {
         bool uses_shellcode = false;
         bool uses_assembly = false;
 
+        std::string body_arch = "x86_64";
+
         if (match(peek(), asm_keyword_tt)) {
             consume();
+            body_arch = parse_asm_arch();
 
             func_node->add_child(cst::new_node<cst_func_uses_asm>());
             uses_assembly = true;
@@ -1017,6 +1196,7 @@ namespace occult {
 
         if (match(peek(), shellcode_denoter_tt)) {
             consume();
+            body_arch = parse_asm_arch();
 
             func_node->add_child(cst::new_node<cst_func_uses_shellcode>());
             uses_shellcode = true;
@@ -1029,64 +1209,46 @@ namespace occult {
             func_node->add_child(cst::new_node<cst_int64>());
         }
 
+        if (is_external) {
+            if (uses_assembly || uses_shellcode) {
+                throw parsing_error("no body on an extern declaration", peek(), pos, std::source_location::current().function_name());
+            }
+            func_node->add_child(cst::new_node<cst_func_is_external>());
+
+            if (!match(peek(), semicolon_tt)) {
+                throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+            }
+            consume();
+
+            return func_node;
+        }
+
         if (uses_shellcode) {
-            auto shellcode_node = cst::new_node<cst_shellcode>();
-
-            if (match(peek(), left_curly_bracket_tt)) {
-                consume();
-
-                while (!match(peek(), right_curly_bracket_tt)) {
-                    if (!match(peek(), number_literal_tt)) {
-                        throw parsing_error("<number literal>", peek(), pos, std::source_location::current().function_name());
-                    }
-
-                    auto number_token = peek();
-                    consume();
-                    shellcode_node->add_child(cst::new_node<cst_numberliteral>(number_token.lexeme));
-                }
-
-                if (!match(peek(), right_curly_bracket_tt)) {
-                    throw parsing_error("}", peek(), pos, std::source_location::current().function_name());
-                }
-
-                consume();
-
-                func_node->add_child(std::move(shellcode_node));
-            }
-            else {
-                throw parsing_error("{", peek(), pos, std::source_location::current().function_name());
-            }
+            func_node->add_child(parse_shellcode_bytes(body_arch));
 
             return func_node;
         }
 
         if (uses_assembly) {
-            auto asm_node = cst::new_node<cst_asm_code>();
+            auto asm_node = cst::new_node<cst_asm_code>(body_arch);
 
-            if (match(peek(), left_curly_bracket_tt)) {
-                consume();
-
-                auto tok = peek(); // should be shellcode_denoter type
-
-                if (tok.tt != shellcode_denoter_tt) { // lets just check anyways can't hurt
-                    throw parsing_error("assembly code", peek(), pos, std::source_location::current().function_name());
-                }
-
-                consume();
-
-                asm_node->add_child(cst::new_node<cst_stringliteral>(tok.lexeme)); // src
-
-                if (!match(peek(), right_curly_bracket_tt)) {
-                    throw parsing_error("}", peek(), pos, std::source_location::current().function_name());
-                }
-
-                consume();
-
-                func_node->add_child(std::move(asm_node));
-            }
-            else {
+            if (!match(peek(), left_curly_bracket_tt)) {
                 throw parsing_error("{", peek(), pos, std::source_location::current().function_name());
             }
+            consume();
+
+            if (!match(peek(), asm_body_tt)) {
+                throw parsing_error("assembly code", peek(), pos, std::source_location::current().function_name());
+            }
+            asm_node->add_child(cst::new_node<cst_stringliteral>(peek().lexeme)); // src
+            consume();
+
+            if (!match(peek(), right_curly_bracket_tt)) {
+                throw parsing_error("}", peek(), pos, std::source_location::current().function_name());
+            }
+            consume();
+
+            func_node->add_child(std::move(asm_node));
 
             return func_node;
         }
@@ -1328,6 +1490,39 @@ namespace occult {
         return break_node;
     }
 
+    std::unique_ptr<cst_gotostmt> parser::parse_goto() {
+        consume();
+
+        auto goto_node = cst::new_node<cst_gotostmt>();
+
+        if (match(peek(), identifier_tt)) {
+            goto_node->content = peek().lexeme;
+            consume();
+        }
+        else {
+            throw parsing_error("<identifier>", peek(), pos, std::source_location::current().function_name());
+        }
+
+        if (match(peek(), semicolon_tt)) {
+            consume();
+        }
+        else {
+            throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+        }
+
+        return goto_node;
+    }
+
+    // somewhere: a label. the colon tells it from an assignment or a call.
+    std::unique_ptr<cst_labelstmt> parser::parse_label() {
+        auto label_node = cst::new_node<cst_labelstmt>();
+        label_node->content = peek().lexeme;
+        consume(); // the name
+        consume(); // the colon
+
+        return label_node;
+    }
+
     std::unique_ptr<cst_continuestmt> parser::parse_continue() {
         consume();
 
@@ -1501,14 +1696,18 @@ namespace occult {
             consume();                       // consume ]
         }
 
-        // check if the next token is valid datatype
-        if (!(match(peek(), int8_keyword_tt) || match(peek(), int16_keyword_tt) || match(peek(), int32_keyword_tt) || match(peek(), int64_keyword_tt) || match(peek(), uint8_keyword_tt) || match(peek(), uint16_keyword_tt) ||
-              match(peek(), uint32_keyword_tt) || match(peek(), uint64_keyword_tt) || match(peek(), float32_keyword_tt) || match(peek(), float64_keyword_tt) || match(peek(), string_keyword_tt) || match(peek(), boolean_keyword_tt) ||
-              match(peek(), char_keyword_tt))) {
+        const bool is_primitive =
+            match(peek(), int8_keyword_tt) || match(peek(), int16_keyword_tt) ||
+            match(peek(), int32_keyword_tt) || match(peek(), int64_keyword_tt) ||
+            match(peek(), uint8_keyword_tt) || match(peek(), uint16_keyword_tt) ||
+            match(peek(), uint32_keyword_tt) || match(peek(), uint64_keyword_tt) ||
+            match(peek(), float32_keyword_tt) || match(peek(), float64_keyword_tt) ||
+            match(peek(), string_keyword_tt) || match(peek(), boolean_keyword_tt) ||
+            match(peek(), char_keyword_tt);
+        const bool is_custom = match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme);
+        if (!is_primitive && !is_custom) {
             if (match(peek(), identifier_tt)) {
-                // by design: arrays hold primitive types only; use a pointer
-                // from std::malloc (with a manual stride) for struct sequences
-                throw parsing_error("primitive <datatype> (arrays only hold primitive types; for structs use a pointer, e.g. " + peek().lexeme + "* xs = std::malloc(n * size))", peek(), pos, std::source_location::current().function_name());
+                throw parsing_error("primitive datatype or a declared custom type (saw unknown identifier '" + peek().lexeme + "')", peek(), pos, std::source_location::current().function_name());
             }
             throw parsing_error("valid <datatype>", peek(), pos, std::source_location::current().function_name());
         }
@@ -1593,7 +1792,7 @@ namespace occult {
         return node;
     }
 
-    std::unique_ptr<cst_struct> parser::parse_struct() {
+    std::unique_ptr<cst_struct> parser::parse_struct(bool is_extern) {
         consume(); // consume struct
 
         auto struct_node = cst::new_node<cst_struct>();
@@ -1604,10 +1803,47 @@ namespace occult {
 
         struct_node->add_child(std::move(identifier_node));
 
+        if (is_extern && match(peek(), semicolon_tt)) {
+            consume();
+            struct_node->add_child(cst::new_node<cst_struct_is_opaque>());
+
+            return struct_node;
+        }
+
         if (match(peek(), left_curly_bracket_tt)) {
             consume();
 
             while (!match(peek(), right_curly_bracket_tt)) {
+                if (match(peek(), union_keyword_tt)) {
+                    // union { fields }: every field shares the same offset.
+                    consume();
+                    if (!match(peek(), left_curly_bracket_tt)) {
+                        throw parsing_error("{ after union", peek(), pos, std::source_location::current().function_name());
+                    }
+                    consume();
+                    auto group = cst::new_node<cst_union_group>();
+                    while (!match(peek(), right_curly_bracket_tt)) {
+                        if (match(peek(), array_keyword_tt)) {
+                            // parse_array consumes its own trailing semicolon.
+                            group->add_child(parse_array());
+                            continue;
+                        }
+                        group->add_child(parse_datatype());
+                        if (!match(peek(), semicolon_tt)) {
+                            throw parsing_error("; after union field", peek(), pos, std::source_location::current().function_name());
+                        }
+                        consume();
+                    }
+                    consume(); // }
+                    if (match(peek(), semicolon_tt)) consume();
+                    struct_node->add_child(std::move(group));
+                    continue;
+                }
+                if (match(peek(), array_keyword_tt)) {
+                    // parse_array consumes its own trailing semicolon.
+                    struct_node->add_child(parse_array());
+                    continue;
+                }
                 struct_node->add_child(parse_datatype());
 
                 if (match(peek(), semicolon_tt)) {
@@ -1629,6 +1865,83 @@ namespace occult {
         }
 
         throw parsing_error("{ in struct declaration", peek(), pos, std::source_location::current().function_name());
+    }
+
+    // Parse `type Name = <datatype>;`. The right-hand side is stored as a
+    // raw token sequence. parse_datatype splices it in whenever Name is
+    // used as a type later on.
+    std::unique_ptr<cst> parser::parse_type_alias() {
+        consume(); // 'type'
+        auto name = parse_identifier();
+        if (!match(peek(), assignment_tt)) {
+            throw parsing_error("= in type alias", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+        const std::size_t rhs_start = pos;
+        std::size_t depth_angle = 0;
+        std::size_t depth_paren = 0;
+        std::size_t end = pos;
+        while (end < stream.size()) {
+            const auto& tok = stream[end];
+            if (tok.tt == less_than_operator_tt) ++depth_angle;
+            else if (tok.tt == greater_than_operator_tt && depth_angle > 0) --depth_angle;
+            else if (tok.tt == left_paren_tt) ++depth_paren;
+            else if (tok.tt == right_paren_tt && depth_paren > 0) --depth_paren;
+            else if (tok.tt == semicolon_tt && depth_angle == 0 && depth_paren == 0) break;
+            ++end;
+        }
+        if (end == stream.size()) {
+            throw parsing_error("; after type alias", peek(), pos, std::source_location::current().function_name());
+        }
+        if (end == rhs_start) {
+            throw parsing_error("type after = in type alias", peek(), pos, std::source_location::current().function_name());
+        }
+        type_aliases[name->content] = std::vector<token_t>(stream.begin() + rhs_start, stream.begin() + end);
+        pos = end;
+        consume(); // ';'
+        auto node = cst::new_node<cst_typealias>();
+        node->content = name->content;
+        return node;
+    }
+
+    std::unique_ptr<cst_struct> parser::parse_union_decl() {
+        consume(); // consume 'union'
+
+        auto struct_node = cst::new_node<cst_struct>();
+
+        auto identifier_node = parse_identifier();
+        struct_node->content = identifier_node->content;
+        custom_type_map.insert({identifier_node->content, struct_node.get()});
+
+        struct_node->add_child(std::move(identifier_node));
+
+        if (!match(peek(), left_curly_bracket_tt)) {
+            throw parsing_error("{ in union declaration", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+
+        auto group = cst::new_node<cst_union_group>();
+        while (!match(peek(), right_curly_bracket_tt)) {
+            if (match(peek(), array_keyword_tt)) {
+                group->add_child(parse_array());
+                continue;
+            }
+            group->add_child(parse_datatype());
+
+            if (!match(peek(), semicolon_tt)) {
+                throw parsing_error("; after union field", peek(), pos, std::source_location::current().function_name());
+            }
+            consume();
+        }
+
+        consume(); // }
+
+        if (match(peek(), semicolon_tt)) {
+            consume();
+        }
+
+        struct_node->add_child(std::move(group));
+        return struct_node;
     }
 
     std::unique_ptr<cst_enum> parser::parse_enum() {
@@ -1693,6 +2006,183 @@ namespace occult {
         custom_type_map.insert({enum_name, enum_node.get()});
 
         return enum_node;
+    }
+
+    std::unique_ptr<cst_struct> parser::parse_error_decl() {
+        consume(); // error
+        if (!match(peek(), identifier_tt)) {
+            throw parsing_error("name after error", peek(), pos, std::source_location::current().function_name());
+        }
+        auto node = cst::new_node<cst_struct>();
+        auto id = parse_identifier();
+        node->content = id->content;
+        custom_type_map.insert({id->content, node.get()});
+        node->add_child(std::move(id));
+        node->add_child(cst::new_node<cst_struct_is_error>());
+
+        if (match(peek(), semicolon_tt)) {
+            consume();
+            return node;
+        }
+        if (!match(peek(), left_curly_bracket_tt)) {
+            throw parsing_error("{ or ; after error type name", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+        while (!match(peek(), right_curly_bracket_tt)) {
+            auto field = parse_datatype();
+            if (field->get_type() != cst_type::int64_datatype &&
+                field->get_type() != cst_type::string_datatype) {
+                throw parsing_error("error type fields are i64 or string in this release", peek(), pos, std::source_location::current().function_name());
+            }
+            if (!match(peek(), semicolon_tt)) {
+                throw parsing_error("; after error type field", peek(), pos, std::source_location::current().function_name());
+            }
+            consume();
+            node->add_child(std::move(field));
+        }
+        consume(); // }
+        if (match(peek(), semicolon_tt)) consume();
+        return node;
+    }
+
+    std::unique_ptr<cst_deferstmt> parser::parse_defer() {
+        auto node = cst::new_node<cst_deferstmt>();
+        const auto tok = peek();
+        node->origin = source_file_path + ":" + std::to_string(tok.line);
+        consume(); // defer
+
+        if (match(peek(), left_curly_bracket_tt)) {
+            node->add_child(parse_block());
+        }
+        else {
+            // one statement; wrap it in a block so lowering has a single shape
+            auto block = cst::new_node<cst_block>();
+            block->add_child(parse_keyword(true));
+            node->add_child(std::move(block));
+        }
+        return node;
+    }
+
+    std::unique_ptr<cst> parser::parse_try() {
+        auto try_node = cst::new_node<cst_trystmt>();
+        const auto try_tok = peek();
+        try_node->origin = source_file_path + ":" + std::to_string(try_tok.line);
+        consume(); // try
+
+        if (!match(peek(), left_curly_bracket_tt)) {
+            throw parsing_error("{ after try", peek(), pos, std::source_location::current().function_name());
+        }
+        try_node->add_child(parse_block());
+
+        bool saw_untyped = false;
+        while (match(peek(), catch_keyword_tt)) {
+            consume();
+            auto clause = cst::new_node<cst_catchclause>();
+            if (!match(peek(), identifier_tt)) {
+                throw parsing_error("name or type for the caught error", peek(), pos, std::source_location::current().function_name());
+            }
+            // catch TypeName e { ... }  OR  catch e { ... }
+            if (peek(1).tt == identifier_tt) {
+                if (saw_untyped) {
+                    throw parsing_error("a catch after the untyped `catch e` is unreachable", peek(), pos, std::source_location::current().function_name());
+                }
+                clause->library = peek().lexeme;   // reuse library to carry the type name
+                consume();
+                clause->content = peek().lexeme;
+                consume();
+            }
+            else {
+                clause->content = peek().lexeme;
+                saw_untyped = true;
+                consume();
+            }
+            if (!match(peek(), left_curly_bracket_tt)) {
+                throw parsing_error("{ after catch", peek(), pos, std::source_location::current().function_name());
+            }
+            clause->add_child(parse_block());
+            try_node->add_child(std::move(clause));
+        }
+        if (try_node->get_children().size() == 1 && !match(peek(), finally_keyword_tt)) {
+            throw parsing_error("catch or finally after a try block", peek(), pos, std::source_location::current().function_name());
+        }
+
+        if (match(peek(), finally_keyword_tt)) {
+            consume();
+            auto finally_node = cst::new_node<cst_finallyblock>();
+            if (!match(peek(), left_curly_bracket_tt)) {
+                throw parsing_error("{ after finally", peek(), pos, std::source_location::current().function_name());
+            }
+            finally_node->add_child(parse_block());
+            try_node->add_child(std::move(finally_node));
+        }
+
+        return try_node;
+    }
+
+    std::unique_ptr<cst_errorstmt> parser::parse_error_stmt() {
+        auto node = cst::new_node<cst_errorstmt>();
+        const auto tok = peek();
+        node->origin = source_file_path + ":" + std::to_string(tok.line);
+        consume(); // error
+
+        const bool typed_form = match(peek(), identifier_tt) &&
+                                (peek(1).tt == semicolon_tt || peek(1).tt == left_curly_bracket_tt);
+        if (typed_form) {
+            // the type name is the first child, as a bare identifier
+            node->content = peek().lexeme;
+            auto name = parse_identifier();
+            node->add_child(std::move(name));
+            if (match(peek(), left_curly_bracket_tt)) {
+                consume();
+                // each field: ident = <expr> ; or , between fields
+                while (!match(peek(), right_curly_bracket_tt)) {
+                    if (!match(peek(), identifier_tt)) {
+                        throw parsing_error("field name in error initializer", peek(), pos, std::source_location::current().function_name());
+                    }
+                    auto farg = cst::new_node<cst_functionarg>();
+                    auto field = parse_identifier();
+                    farg->add_child(std::move(field));
+                    if (!match(peek(), assignment_tt)) {
+                        throw parsing_error("= after field name", peek(), pos, std::source_location::current().function_name());
+                    }
+                    consume();
+                    // parse expression until , or }
+                    const auto start = pos;
+                    int depth = 0;
+                    while (pos < stream.size()) {
+                        const auto t = peek().tt;
+                        if (depth == 0 && (t == comma_tt || t == right_curly_bracket_tt)) break;
+                        if (t == left_paren_tt || t == left_curly_bracket_tt || t == left_bracket_tt) depth++;
+                        else if (t == right_paren_tt || t == right_bracket_tt ||
+                                 (t == right_curly_bracket_tt && depth > 0)) depth--;
+                        consume();
+                    }
+                    std::vector<token_t> sub(stream.begin() + start, stream.begin() + pos);
+                    sub.push_back(token_t(0, 0, ";", semicolon_tt));
+                    for (auto& c : parse_expression(sub)) {
+                        farg->add_child(std::move(c));
+                    }
+                    node->add_child(std::move(farg));
+                    if (match(peek(), comma_tt)) consume();
+                }
+                consume(); // }
+            }
+            if (!match(peek(), semicolon_tt)) {
+                throw parsing_error("; after error raise", peek(), pos, std::source_location::current().function_name());
+            }
+            consume();
+            return node;
+        }
+
+        parse_expression_until(node.get(), semicolon_tt);
+        if (!match(peek(), semicolon_tt)) {
+            throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+        if (node->get_children().empty()) {
+            throw parsing_error("the message after error", tok, pos, std::source_location::current().function_name());
+        }
+        return node;
     }
 
     std::unique_ptr<cst_switchstmt> parser::parse_switch() {
@@ -1829,6 +2319,26 @@ namespace occult {
         std::string module_name = peek().lexeme;
         consume(); // consume module name
 
+        std::string library;
+        if (match(peek(), identifier_tt) && peek().lexeme == "link") {
+            consume();
+            if (!match(peek(), string_literal_tt)) {
+                throw parsing_error("library name in quotes after link", peek(), pos, std::source_location::current().function_name());
+            }
+            library = peek().lexeme;
+            if (library.empty()) {
+                throw parsing_error("a library name, not an empty string", peek(), pos, std::source_location::current().function_name());
+            }
+            consume();
+        }
+
+        // module graphics export { ... }: mark every fn in the block exported.
+        bool module_exports = false;
+        if (match(peek(), export_keyword_tt)) {
+            consume();
+            module_exports = true;
+        }
+
         if (!match(peek(), left_curly_bracket_tt)) {
             throw parsing_error("{ after module name", peek(), pos, std::source_location::current().function_name());
         }
@@ -1855,6 +2365,9 @@ namespace occult {
                         if (name_node->get_type() == cst_type::identifier) {
                             name_node->content = prefix + name_node->content;
                         }
+                    }
+                    if (module_exports) {
+                        node->add_child(cst::new_node<cst_func_is_exported>());
                     }
                 }
                 else if (ntype == cst_type::structure) {
@@ -1934,6 +2447,20 @@ namespace occult {
             for (auto& child : container->get_children()) {
                 if (child->get_type() == cst_type::function) {
                     prefix_module_references(child.get(), prefix, module_func_names);
+                }
+            }
+        }
+
+        if (!library.empty()) {
+            for (auto& child : container->get_children()) {
+                if (child->get_type() != cst_type::function || !child->library.empty()) {
+                    continue;
+                }
+                for (auto& part : child->get_children()) {
+                    if (part->get_type() == cst_type::func_is_external) {
+                        child->library = library;
+                        break;
+                    }
                 }
             }
         }
@@ -2222,6 +2749,97 @@ namespace occult {
         return to_assign;
     }
 
+    std::string parser::parse_asm_arch() {
+        if (!match(peek(), left_paren_tt)) {
+            throw parsing_error("'(' and an architecture, e.g. asm(x86_64)", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+
+        if (!match(peek(), identifier_tt)) {
+            throw parsing_error("architecture name, e.g. x86_64", peek(), pos, std::source_location::current().function_name());
+        }
+        std::string arch = peek().lexeme;
+        const auto arch_token = peek();
+        consume();
+
+        if (!match(peek(), right_paren_tt)) {
+            throw parsing_error(")", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+
+        for (auto& ch : arch) {
+            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        }
+
+        if (arch == "x86_64" || arch == "amd64" || arch == "x64") {
+            return "x86_64";
+        }
+
+        static const std::unordered_set<std::string> known_unsupported = {"x86", "i386", "i686", "arm", "arm64", "aarch64", "riscv32", "riscv64", "wasm32", "wasm64", "ppc64", "mips", "mips64"};
+        if (known_unsupported.contains(arch)) {
+            throw parsing_error("a supported architecture (only x86_64 is implemented; '" + arch + "' is not yet)", arch_token, pos, std::source_location::current().function_name());
+        }
+
+        throw parsing_error("a known architecture (x86_64)", arch_token, pos, std::source_location::current().function_name());
+    }
+
+    std::unique_ptr<cst_shellcode> parser::parse_shellcode_bytes(const std::string& arch) {
+        auto shellcode_node = cst::new_node<cst_shellcode>(arch);
+
+        if (!match(peek(), left_curly_bracket_tt)) {
+            throw parsing_error("{", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+
+        while (!match(peek(), right_curly_bracket_tt)) {
+            if (match(peek(), comma_tt)) { // bytes may be comma separated
+                consume();
+                continue;
+            }
+            if (!match(peek(), number_literal_tt)) {
+                throw parsing_error("<number literal>", peek(), pos, std::source_location::current().function_name());
+            }
+
+            auto number_token = peek();
+            consume();
+            shellcode_node->add_child(cst::new_node<cst_numberliteral>(number_token.lexeme));
+        }
+
+        consume(); // }
+
+        return shellcode_node;
+    }
+
+    std::unique_ptr<cst> parser::parse_asm_statement() {
+        if (match(peek(), shellcode_denoter_tt)) {
+            consume();
+            const std::string arch = parse_asm_arch();
+            return parse_shellcode_bytes(arch);
+        }
+
+        consume(); // asm
+        const std::string arch = parse_asm_arch();
+        auto asm_node = cst::new_node<cst_asm_code>(arch);
+
+        if (!match(peek(), left_curly_bracket_tt)) {
+            throw parsing_error("{", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+
+        if (!match(peek(), asm_body_tt)) {
+            throw parsing_error("assembly code", peek(), pos, std::source_location::current().function_name());
+        }
+        asm_node->add_child(cst::new_node<cst_stringliteral>(peek().lexeme));
+        consume();
+
+        if (!match(peek(), right_curly_bracket_tt)) {
+            throw parsing_error("}", peek(), pos, std::source_location::current().function_name());
+        }
+        consume();
+
+        return asm_node;
+    }
+
     std::unique_ptr<cst> parser::parse_keyword(bool nested_function) {
         ++recursion_depth;
 
@@ -2233,6 +2851,10 @@ namespace occult {
 
         if (recursion_depth > max_recursion_depth) {
             throw parsing_error("expression (recursion depth exceeded)", peek(), pos, std::source_location::current().function_name());
+        }
+
+        if (match(peek(), asm_keyword_tt) || match(peek(), shellcode_denoter_tt)) {
+            return parse_asm_statement();
         }
 
         if (match(peek(), generic_keyword_tt)) {
@@ -2312,6 +2934,20 @@ namespace occult {
 
         if (match(peek(), function_keyword_tt) && match(peek(1), left_paren_tt)) {
             return parse_fnptr_decl(); // fn(<types>) [ret] name [= expr];
+        }
+
+        if (match(peek(), extern_keyword_tt)) {
+            consume();
+
+            if (match(peek(), struct_keyword_tt)) {
+                return parse_struct(true);
+            }
+
+            if (!match(peek(), function_keyword_tt)) {
+                throw parsing_error("fn or struct", peek(), pos, std::source_location::current().function_name());
+            }
+
+            return parse_function(true);
         }
 
         if (nested_function) {
@@ -2409,7 +3045,9 @@ namespace occult {
             return parse_string();
         }
         if (match(peek(), char_keyword_tt)) {
-            return parse_integer_type<cst_int8>();
+            auto node = parse_integer_type<cst_int8>();
+            node->is_char = true;
+            return node;
         }
         if (match(peek(), boolean_keyword_tt)) {
             return parse_integer_type<cst_bool>();
@@ -2567,8 +3205,6 @@ namespace occult {
 
             return node;
         }
-        // Forward-referenced generic struct in template context (inside function
-        // body)
         {
             std::unique_ptr<cst> fwd_node;
             if (try_parse_forward_generic_struct_type(fwd_node)) {
@@ -2597,6 +3233,20 @@ namespace occult {
                 }
 
                 return fwd_node;
+            }
+        }
+        if (match(peek(), identifier_tt)) {
+            if (auto it = type_aliases.find(peek().lexeme); it != type_aliases.end()) {
+                if (type_alias_depth > 32) {
+                    throw parsing_error("non-cyclic type alias", peek(), pos, std::source_location::current().function_name());
+                }
+                const auto tokens = it->second;
+                stream.erase(stream.begin() + pos);
+                stream.insert(stream.begin() + pos, tokens.begin(), tokens.end());
+                ++type_alias_depth;
+                auto r = parse_keyword(nested_function);
+                --type_alias_depth;
+                return r;
             }
         }
         if (match(peek(), identifier_tt) && custom_type_map.contains(peek().lexeme)) {
@@ -2797,8 +3447,6 @@ namespace occult {
                 // Handle $var.member[.member...] [= value]; (dereference + member access)
                 auto member_access_node = cst::new_node<cst_memberaccess>();
 
-                // Add the dereferenced variable as the base
-                // We create a special identifier that wraps the dereference info
                 auto base_ident = cst::new_node<cst_identifier>();
                 base_ident->content = deref_expr->get_children().front()->content;
                 base_ident->num_pointers = deref_count; // store deref count for codegen
@@ -2974,6 +3622,19 @@ namespace occult {
         if (match(peek(), if_keyword_tt)) {
             return parse_if();
         }
+        if (match(peek(), try_keyword_tt)) {
+            return parse_try();
+        }
+        if (match(peek(), defer_keyword_tt)) {
+            return parse_defer();
+        }
+        if (match(peek(), error_keyword_tt)) {
+            if (nested_function && peek(1).tt == identifier_tt &&
+                (peek(2).tt == semicolon_tt || peek(2).tt == left_curly_bracket_tt)) {
+                return parse_error_decl();
+            }
+            return parse_error_stmt();
+        }
         if (match(peek(), loop_keyword_tt)) {
             return parse_loop();
         }
@@ -2982,6 +3643,13 @@ namespace occult {
         }
         if (match(peek(), continue_keyword_tt)) {
             return parse_continue();
+        }
+        if (match(peek(), goto_keyword_tt)) {
+            return parse_goto();
+        }
+        // a label. name :: is scope resolution, so rule it out first.
+        if (match(peek(), identifier_tt) && peek(1).tt == colon_tt) {
+            return parse_label();
         }
         if (match(peek(), while_keyword_tt)) {
             return parse_while();
@@ -2997,6 +3665,39 @@ namespace occult {
         }
         if (match(peek(), struct_keyword_tt)) {
             return parse_struct();
+        }
+        if (match(peek(), union_keyword_tt) && match(peek(1), identifier_tt)) {
+            return parse_union_decl();
+        }
+        if (match(peek(), type_keyword_tt) && match(peek(1), identifier_tt)) {
+            return parse_type_alias();
+        }
+        if (match(peek(), export_keyword_tt)) {
+            consume();
+            if (match(peek(), function_keyword_tt)) {
+                auto f = parse_function();
+                f->add_child(cst::new_node<cst_func_is_exported>());
+                return f;
+            }
+            if (match(peek(), module_keyword_tt)) {
+                auto m = parse_module();
+                // mark every top-level fn inside the module as exported
+                for (auto& c : m->get_children()) {
+                    if (c->get_type() == cst_type::function) {
+                        c->add_child(cst::new_node<cst_func_is_exported>());
+                    }
+                }
+                return m;
+            }
+            auto node = parse_keyword(nested_function);
+            if (node) {
+                if (node->get_type() == cst_type::function) {
+                    node->add_child(cst::new_node<cst_func_is_exported>());
+                } else {
+                    node->add_child(cst::new_node<cst_global_is_exported>());
+                }
+            }
+            return node;
         }
         if (match(peek(), enum_keyword_tt)) {
             return parse_enum();
@@ -3078,6 +3779,67 @@ namespace occult {
             }
             return wrapper;
         }
+        if (match(peek(), left_paren_tt)) {
+            auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
+            if (first_semicolon_pos == -1) {
+                throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+            }
+            std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
+            auto find_assign = [](const std::vector<token_t>& toks) -> std::ptrdiff_t {
+                int depth = 0;
+                for (std::size_t k = 0; k < toks.size(); k++) {
+                    switch (toks[k].tt) {
+                    case left_paren_tt:
+                    case left_bracket_tt:
+                    case left_curly_bracket_tt: depth++; break;
+                    case right_paren_tt:
+                    case right_bracket_tt:
+                    case right_curly_bracket_tt: depth--; break;
+                    case assignment_tt:
+                        if (depth == 0) return static_cast<std::ptrdiff_t>(k);
+                        break;
+                    default: break;
+                    }
+                }
+                return -1;
+            };
+            const std::ptrdiff_t ap = find_assign(sub_stream);
+            std::vector<std::unique_ptr<cst>> converted_rpn;
+            std::vector<std::unique_ptr<cst>> rhs_rpn;
+            if (ap < 0) {
+                converted_rpn = parse_expression(sub_stream);
+            }
+            else {
+                std::vector<token_t> lhs_tokens(sub_stream.begin(), sub_stream.begin() + ap);
+                std::vector<token_t> rhs_tokens(sub_stream.begin() + ap + 1, sub_stream.end());
+                converted_rpn = parse_expression(lhs_tokens);
+                rhs_rpn = parse_expression(rhs_tokens);
+            }
+            pos += first_semicolon_pos;
+            if (match(peek(), semicolon_tt)) {
+                consume();
+            }
+            else {
+                throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+            }
+            auto is_access_root3 = [](cst* n) {
+                return n && (n->get_type() == cst_type::memberaccess
+                             || n->get_type() == cst_type::arrayaccess);
+            };
+            if (converted_rpn.size() == 1 && is_access_root3(converted_rpn.front().get())) {
+                if (rhs_rpn.empty()) {
+                    return std::move(converted_rpn.front());
+                }
+                auto lhs = std::move(converted_rpn.front());
+                auto assign = cst::new_node<cst_assignment>();
+                for (auto& n : rhs_rpn) {
+                    assign->add_child(std::move(n));
+                }
+                lhs->add_child(std::move(assign));
+                return lhs;
+            }
+            throw parsing_error("a valid access or call statement", peek(), pos, std::source_location::current().function_name());
+        }
         if (match(peek(), identifier_tt) && peek(1).tt == left_paren_tt) { // fn call
             auto first_semicolon_pos = find_first_token(stream.begin() + pos, stream.end(), semicolon_tt);
 
@@ -3092,8 +3854,38 @@ namespace occult {
                 throw parsing_error(";", err_tok, pos, std::source_location::current().function_name());
             }
             std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
+            auto find_top_level_assign = [](const std::vector<token_t>& toks) -> std::ptrdiff_t {
+                int depth = 0;
+                for (std::size_t k = 0; k < toks.size(); k++) {
+                    switch (toks[k].tt) {
+                    case left_paren_tt:
+                    case left_bracket_tt:
+                    case left_curly_bracket_tt: depth++; break;
+                    case right_paren_tt:
+                    case right_bracket_tt:
+                    case right_curly_bracket_tt: depth--; break;
+                    case assignment_tt:
+                        if (depth == 0) return static_cast<std::ptrdiff_t>(k);
+                        break;
+                    default: break;
+                    }
+                }
+                return -1;
+            };
+
+            const std::ptrdiff_t assign_pos = find_top_level_assign(sub_stream);
+            std::vector<std::unique_ptr<cst>> converted_rpn;
+            std::vector<std::unique_ptr<cst>> rhs_rpn;
+            if (assign_pos < 0) {
+                converted_rpn = parse_expression(sub_stream);
+            }
+            else {
+                std::vector<token_t> lhs_tokens(sub_stream.begin(), sub_stream.begin() + assign_pos);
+                std::vector<token_t> rhs_tokens(sub_stream.begin() + assign_pos + 1, sub_stream.end());
+                converted_rpn = parse_expression(lhs_tokens);
+                rhs_rpn = parse_expression(rhs_tokens);
+            }
             pos += first_semicolon_pos;
-            auto converted_rpn = parse_expression(sub_stream);
 
             if (converted_rpn.size() == 1 && converted_rpn.at(0)->content == "start_call") {
                 if (match(peek(), semicolon_tt)) {
@@ -3106,6 +3898,31 @@ namespace occult {
                 return std::move(converted_rpn.at(0));
             }
 
+            auto is_access_root = [](cst* n) {
+                return n && (n->get_type() == cst_type::memberaccess
+                             || n->get_type() == cst_type::arrayaccess);
+            };
+            if (converted_rpn.size() == 1 && is_access_root(converted_rpn.front().get())) {
+                if (match(peek(), semicolon_tt)) {
+                    consume();
+                }
+                else {
+                    throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
+                }
+
+                if (rhs_rpn.empty()) {
+                    return std::move(converted_rpn.front());
+                }
+
+                auto lhs = std::move(converted_rpn.front());
+                auto assign = cst::new_node<cst_assignment>();
+                for (auto& n : rhs_rpn) {
+                    assign->add_child(std::move(n));
+                }
+                lhs->add_child(std::move(assign));
+                return lhs;
+            }
+
             throw parsing_error("a valid function call statement", peek(), pos, std::source_location::current().function_name());
         }
         if (match(peek(), identifier_tt) && peek(1).tt == period_tt && peek(2).tt == identifier_tt && peek(3).tt == left_paren_tt) {
@@ -3115,8 +3932,42 @@ namespace occult {
             }
 
             std::vector<token_t> sub_stream = {stream.begin() + pos, stream.begin() + pos + first_semicolon_pos + 1};
+
+            // `obj.method().field = v;`: same split-at-`=` dance as the
+            // bare-function-call case above. assignment stays out of
+            // shunting_yard, so parse the two halves separately.
+            auto find_top_level_assign2 = [](const std::vector<token_t>& toks) -> std::ptrdiff_t {
+                int depth = 0;
+                for (std::size_t k = 0; k < toks.size(); k++) {
+                    switch (toks[k].tt) {
+                    case left_paren_tt:
+                    case left_bracket_tt:
+                    case left_curly_bracket_tt: depth++; break;
+                    case right_paren_tt:
+                    case right_bracket_tt:
+                    case right_curly_bracket_tt: depth--; break;
+                    case assignment_tt:
+                        if (depth == 0) return static_cast<std::ptrdiff_t>(k);
+                        break;
+                    default: break;
+                    }
+                }
+                return -1;
+            };
+
+            const std::ptrdiff_t assign_pos = find_top_level_assign2(sub_stream);
+            std::vector<std::unique_ptr<cst>> converted_rpn;
+            std::vector<std::unique_ptr<cst>> rhs_rpn;
+            if (assign_pos < 0) {
+                converted_rpn = parse_expression(sub_stream);
+            }
+            else {
+                std::vector<token_t> lhs_tokens(sub_stream.begin(), sub_stream.begin() + assign_pos);
+                std::vector<token_t> rhs_tokens(sub_stream.begin() + assign_pos + 1, sub_stream.end());
+                converted_rpn = parse_expression(lhs_tokens);
+                rhs_rpn = parse_expression(rhs_tokens);
+            }
             pos += first_semicolon_pos;
-            auto converted_rpn = parse_expression(sub_stream);
 
             if (match(peek(), semicolon_tt)) {
                 consume();
@@ -3128,28 +3979,31 @@ namespace occult {
             if (converted_rpn.size() == 1 && converted_rpn.at(0)->content == "start_call") {
                 return std::move(converted_rpn.at(0));
             }
+            auto is_access_root2 = [](cst* n) {
+                return n && (n->get_type() == cst_type::memberaccess
+                             || n->get_type() == cst_type::arrayaccess);
+            };
+            if (converted_rpn.size() == 1 && is_access_root2(converted_rpn.front().get())) {
+                if (rhs_rpn.empty()) {
+                    return std::move(converted_rpn.front());
+                }
+                auto lhs = std::move(converted_rpn.front());
+                auto assign = cst::new_node<cst_assignment>();
+                for (auto& n : rhs_rpn) {
+                    assign->add_child(std::move(n));
+                }
+                lhs->add_child(std::move(assign));
+                return lhs;
+            }
             throw parsing_error("a valid method call statement", peek(), pos, std::source_location::current().function_name());
         }
-        if (match(peek(), identifier_tt) && peek(1).tt == left_bracket_tt) { // array access
+        if (match(peek(), identifier_tt) && (peek(1).tt == left_bracket_tt || peek(1).tt == period_tt)) {
             auto id = parse_identifier();
+            std::unique_ptr<cst> current = std::move(id);
 
-            std::unique_ptr<cst> array_access_node = nullptr;
-            std::unique_ptr<cst_identifier> lcst_id = std::move(id);
-
-            while (match(peek(), left_bracket_tt)) {
-                consume(); // consume '['
-
-                auto new_array_access = cst::new_node<cst_arrayaccess>();
-                if (array_access_node) {
-                    new_array_access->add_child(std::move(array_access_node));
-                }
-                else {
-                    new_array_access->add_child(std::move(lcst_id));
-                }
-
+            auto parse_indices_into = [this](cst* arr_node) {
                 int bracket_depth = 1;
                 std::vector<token_t> index_tokens;
-
                 while (bracket_depth > 0 && !match(peek(), end_of_file_tt)) {
                     if (match(peek(), left_bracket_tt)) {
                         bracket_depth++;
@@ -3163,7 +4017,7 @@ namespace occult {
                         if (bracket_depth == 0) {
                             if (!index_tokens.empty()) {
                                 for (auto index_nodes = parse_expression(index_tokens); auto& n : index_nodes) {
-                                    new_array_access->add_child(std::move(n));
+                                    arr_node->add_child(std::move(n));
                                 }
                                 index_tokens.clear();
                             }
@@ -3176,7 +4030,7 @@ namespace occult {
                     else if (match(peek(), comma_tt) && bracket_depth == 1) {
                         if (!index_tokens.empty()) {
                             for (auto index_nodes = parse_expression(index_tokens); auto& n : index_nodes) {
-                                new_array_access->add_child(std::move(n));
+                                arr_node->add_child(std::move(n));
                             }
                             index_tokens.clear();
                         }
@@ -3187,62 +4041,51 @@ namespace occult {
                         consume();
                     }
                 }
+            };
 
-                array_access_node = std::move(new_array_access);
+            while (match(peek(), left_bracket_tt) || match(peek(), period_tt)) {
+                if (match(peek(), left_bracket_tt)) {
+                    consume();
+                    auto arr = cst::new_node<cst_arrayaccess>();
+                    arr->add_child(std::move(current));
+                    parse_indices_into(arr.get());
+                    current = std::move(arr);
+                }
+                else { // period
+                    consume();
+                    if (!match(peek(), identifier_tt)) {
+                        throw parsing_error("identifier after period operator", peek(), pos, std::source_location::current().function_name());
+                    }
+                    auto field = parse_identifier();
+                    if (current->get_type() == cst_type::memberaccess
+                        && current->get_children().front()->get_type() == cst_type::identifier) {
+                        current->add_child(std::move(field));
+                    }
+                    else {
+                        auto mem = cst::new_node<cst_memberaccess>();
+                        mem->add_child(std::move(current));
+                        mem->add_child(std::move(field));
+                        current = std::move(mem);
+                    }
+                }
             }
+
+            const bool is_member_root = current->get_type() == cst_type::memberaccess;
+            const bool is_array_root  = current->get_type() == cst_type::arrayaccess;
 
             if (match(peek(), assignment_tt)) {
                 auto assignment = parse_assignment();
-
                 if (match(peek(), semicolon_tt)) {
                     throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
                 }
-
                 parse_expression_until(assignment.get(), semicolon_tt);
-
-                array_access_node->add_child(std::move(assignment));
+                current->add_child(std::move(assignment));
             }
-
-            if (match(peek(), semicolon_tt)) {
-                consume();
-            }
-            else {
-                throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
-            }
-
-            return array_access_node;
-        }
-        if (match(peek(), identifier_tt) && peek(1).tt == period_tt) {
-            auto member_access_node = cst::new_node<cst_memberaccess>();
-            member_access_node->add_child(parse_identifier());
-
-            while (match(peek(), period_tt)) {
-                consume();
-
-                if (!match(peek(), identifier_tt)) {
-                    throw parsing_error("identifier after period operator", peek(), pos, std::source_location::current().function_name());
-                }
-
-                member_access_node->add_child(parse_identifier());
-            }
-
-            if (match(peek(), assignment_tt)) {
-                auto assignment = parse_assignment();
-
-                if (match(peek(), semicolon_tt)) {
-                    throw parsing_error("expression (found empty assignment)", peek(), pos, std::source_location::current().function_name());
-                }
-
-                parse_expression_until(assignment.get(), semicolon_tt);
-
-                member_access_node->add_child(std::move(assignment));
-            }
-            else {
+            else if (is_member_root) {
                 auto parse_member_compound_assignment = [&](token_type tt) -> bool {
                     if (!match(peek(), tt)) {
                         return false;
                     }
-
                     consume();
                     auto assignment = cst::new_node<cst_assignment>();
                     if (match(peek(), semicolon_tt)) {
@@ -3256,48 +4099,27 @@ namespace occult {
                     }
                     assignment->get_children().clear();
 
-                    auto lhs_clone = member_access_node->clone();
+                    auto lhs_clone = current->clone();
                     assignment->add_child(std::move(lhs_clone));
                     for (auto& rhs : rhs_nodes) {
                         assignment->add_child(std::move(rhs));
                     }
 
                     switch (tt) {
-                    case add_assign_tt:
-                        assignment->add_child(cst::new_node<cst_add>("+"));
-                        break;
-                    case sub_assign_tt:
-                        assignment->add_child(cst::new_node<cst_subtract>("-"));
-                        break;
-                    case mul_assign_tt:
-                        assignment->add_child(cst::new_node<cst_multiply>("*"));
-                        break;
-                    case div_assign_tt:
-                        assignment->add_child(cst::new_node<cst_divide>("/"));
-                        break;
-                    case mod_assign_tt:
-                        assignment->add_child(cst::new_node<cst_modulo>("%"));
-                        break;
-                    case and_assign_tt:
-                        assignment->add_child(cst::new_node<cst_bitwise_and>("&"));
-                        break;
-                    case or_assign_tt:
-                        assignment->add_child(cst::new_node<cst_bitwise_or>("|"));
-                        break;
-                    case xor_assign_tt:
-                        assignment->add_child(cst::new_node<cst_xor>("^"));
-                        break;
-                    case lshift_assign_tt:
-                        assignment->add_child(cst::new_node<cst_bitwise_lshift>("<<"));
-                        break;
-                    case rshift_assign_tt:
-                        assignment->add_child(cst::new_node<cst_bitwise_rshift>(">>"));
-                        break;
-                    default:
-                        break;
+                    case add_assign_tt:    assignment->add_child(cst::new_node<cst_add>("+")); break;
+                    case sub_assign_tt:    assignment->add_child(cst::new_node<cst_subtract>("-")); break;
+                    case mul_assign_tt:    assignment->add_child(cst::new_node<cst_multiply>("*")); break;
+                    case div_assign_tt:    assignment->add_child(cst::new_node<cst_divide>("/")); break;
+                    case mod_assign_tt:    assignment->add_child(cst::new_node<cst_modulo>("%")); break;
+                    case and_assign_tt:    assignment->add_child(cst::new_node<cst_bitwise_and>("&")); break;
+                    case or_assign_tt:     assignment->add_child(cst::new_node<cst_bitwise_or>("|")); break;
+                    case xor_assign_tt:    assignment->add_child(cst::new_node<cst_xor>("^")); break;
+                    case lshift_assign_tt: assignment->add_child(cst::new_node<cst_bitwise_lshift>("<<")); break;
+                    case rshift_assign_tt: assignment->add_child(cst::new_node<cst_bitwise_rshift>(">>")); break;
+                    default: break;
                     }
 
-                    member_access_node->add_child(std::move(assignment));
+                    current->add_child(std::move(assignment));
                     return true;
                 };
 
@@ -3315,7 +4137,8 @@ namespace occult {
                 throw parsing_error(";", peek(), pos, std::source_location::current().function_name());
             }
 
-            return member_access_node;
+            (void)is_array_root;
+            return current;
         }
         if (match(peek(), identifier_tt)) {
             auto id = parse_identifier();
@@ -3413,7 +4236,7 @@ namespace occult {
     void parser::synchronize(const parsing_error& e) {
         const auto& tk = e.get_token();
 
-        std::cout << RED << "[PARSE ERROR] " << RESET << e.what() << '\n';
+        std::cerr << RED << "[PARSE ERROR] " << RESET << e.what() << '\n';
 
         if (!source_lines.empty() && tk.line > 0 && static_cast<std::size_t>(tk.line) <= source_lines.size()) {
             const std::string& src_line = source_lines[static_cast<std::size_t>(tk.line) - 1];
@@ -3424,7 +4247,7 @@ namespace occult {
             const std::size_t col_offset = (tk.column > 0 ? tk.column - 1 : 0);
             const std::size_t spaces = gutter.size() + col_offset;
             const std::size_t tildes = (tk.lexeme.size() > 1 ? tk.lexeme.size() - 1 : 0);
-            std::cout << YELLOW << std::string(spaces, ' ') << '^' << std::string(tildes, '~') << RESET << '\n';
+            std::cerr << YELLOW << std::string(spaces, ' ') << '^' << std::string(tildes, '~') << RESET << '\n';
         }
 
         while (!match(peek(), end_of_file_tt)) {
@@ -3916,11 +4739,11 @@ namespace occult {
                 parser_state = state::failed;
                 ++error_count;
                 const auto& tk = peek();
-                std::cout << RED << "[PARSE ERROR] " << RESET;
+                std::cerr << RED << "[PARSE ERROR] " << RESET;
                 if (!source_file_path.empty()) {
                     std::cout << source_file_path << ':';
                 }
-                std::cout << tk.line << ':' << tk.column << ": internal parser error — " << e.what() << '\n';
+                std::cout << tk.line << ':' << tk.column << ": internal parser error: " << e.what() << '\n';
                 if (!match(peek(), end_of_file_tt)) {
                     consume();
                 }

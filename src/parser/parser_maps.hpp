@@ -10,6 +10,12 @@
 #define CST_MAP_ENTRY_NO_LEXEME(token, node) {token, []() { return cst::new_node<node>(); }}
 
 namespace occult {
+#ifdef _WIN64
+    inline bool target_win64 = true;
+#else
+    inline bool target_win64 = false;
+#endif
+
     inline std::unordered_map<token_type, int> precedence_map = {{unary_plus_operator_tt, 2},
                                                                  {unary_minus_operator_tt, 2},
                                                                  {unary_bitwise_not_tt, 2},
@@ -63,13 +69,14 @@ namespace occult {
         CST_MAP_ENTRY(number_literal_tt, cst_numberliteral),
         CST_MAP_ENTRY_CUSTOM_LEXEME(false_keyword_tt, cst_numberliteral, "0"),
         CST_MAP_ENTRY_CUSTOM_LEXEME(true_keyword_tt, cst_numberliteral, "1"),
-#ifdef __linux
-        CST_MAP_ENTRY_CUSTOM_LEXEME(is_linux64, cst_numberliteral, "1"),
-        CST_MAP_ENTRY_CUSTOM_LEXEME(is_win64, cst_numberliteral, "0"),
-#elif _WIN64
-        CST_MAP_ENTRY_CUSTOM_LEXEME(is_linux64, cst_numberliteral, "0"),
-        CST_MAP_ENTRY_CUSTOM_LEXEME(is_win64, cst_numberliteral, "1"),
-#endif
+        {is_linux64, [](const std::string&) { return cst::new_node<cst_numberliteral>(target_win64 ? "0" : "1"); }},
+        {is_win64, [](const std::string&) { return cst::new_node<cst_numberliteral>(target_win64 ? "1" : "0"); }},
+        {errno_keyword_tt, [](const std::string&) {
+            auto call = cst::new_node<cst_functioncall>("start_call");
+            call->add_child(cst::new_node<cst_identifier>("__occult_rt::errno"));
+            call->add_child(cst::new_node<cst_functioncall>("end_call"));
+            return call;
+        }},
         CST_MAP_ENTRY(char_literal_tt, cst_charliteral),
         CST_MAP_ENTRY(float_literal_tt, cst_floatliteral),
         CST_MAP_ENTRY(string_literal_tt, cst_stringliteral),
