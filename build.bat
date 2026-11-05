@@ -2,14 +2,23 @@
 setlocal EnableDelayedExpansion
 :: ========================================
 ::  build.bat - Occult Build Script for Windows
-::  Dynamic Visual Studio 2026 / 2022 detection + clang-cl
 :: ========================================
+::
+:: CMake picks the generator. It already chooses the newest Visual Studio it
+:: knows about and finds installed, which is the whole of what the detection
+:: this script used to do was for -- and that detection got it wrong: it read
+:: catalog_productDisplayVersion, which on an Insiders build is a string like
+:: "Insiders [12009...]" with no major version to parse, then fell back to
+:: asking for "Visual Studio 17 2022" on a machine that only had 18. CMake
+:: then reported "could not find any instance of Visual Studio", which reads
+:: like VS is missing rather than like the script asked for the wrong one.
+::
+:: To pick one yourself:  set OCCULT_GENERATOR=Visual Studio 18 2026
 
-:: Enable ANSI colors
-:: BUG FIX 1: Capture the ESC character (0x1B) properly — without it,
-::            color variables were just plain text like "[0;31m" with no effect.
-:: BUG FIX 2: Check that VirtualTerminalLevel is set to 1 (enabled),
-::            not just that the registry key exists.
+set "BUILD_DIR=build"
+
+:: ANSI colours. The ESC character has to be captured rather than typed, and
+:: VirtualTerminalLevel has to be 1 rather than merely present.
 set "RED="
 set "GREEN="
 set "YELLOW="
@@ -28,111 +37,98 @@ echo  Occult Build Script (Windows + clang-cl)
 echo ========================================
 echo.
 
-:: ========================================
-:: Dynamically detect Visual Studio version using vswhere
-:: ========================================
-set "GENERATOR="
-set "VS_PATH="
-
-:: %VSWHERE% is expanded with regular %% syntax so it works correctly at the
-:: top level. for /f backtick calls must NOT be nested inside parenthesized
-:: if/else blocks -- the batch parser matches parentheses across the whole block
-:: at parse time, so (x86) in the expanded path causes "was unexpected at this
-:: time" even inside quotes. Using goto keeps the for /f calls at the top level.
-set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-
-echo Searching for Visual Studio...
-if not exist "%VSWHERE%" goto :vswhere_not_found
-
-for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -prerelease -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%i"
-if not defined VS_PATH goto :vswhere_not_found
-
-echo Detected Visual Studio at: !VS_PATH!
-
-for /f "usebackq tokens=*" %%v in (`"%VSWHERE%" -latest -prerelease -property catalog_productDisplayVersion`) do set "VS_VERSION=%%v"
-for /f "tokens=1 delims=." %%m in ("!VS_VERSION!") do set "MAJOR_VER=%%m"
-
-if "!MAJOR_VER!"=="18" (
-    set "GENERATOR=Visual Studio 18 2026"
-    echo Detected: Visual Studio 2026
-) else if "!MAJOR_VER!"=="17" (
-    set "GENERATOR=Visual Studio 17 2022"
-    echo Detected: Visual Studio 2022
-) else (
-    echo !YELLOW!Warning: Unrecognized VS major version ^(!MAJOR_VER!^). Falling back to VS 2022 generator.!NC!
-    set "GENERATOR=Visual Studio 17 2022"
-)
-goto :vs_detected
-
-:vswhere_not_found
-echo !YELLOW!Warning: vswhere did not detect VS. Falling back to VS 2026 generator...!NC!
-set "GENERATOR=Visual Studio 18 2026"
-
-:vs_detected
-
-if not defined GENERATOR (
-    echo !RED!Error: Could not detect Visual Studio.!NC!
-    exit /b 1
-)
-
-echo Using CMake Generator: !GENERATOR!
-echo.
-
-:: ========================================
-:: Build Configuration
-:: ========================================
-set "BUILD_DIR=build"
-set "ARCH=x64"
-set "TOOLSET=ClangCL"
-
-:: Check for CMake
 where cmake >nul 2>&1
 if %errorlevel% neq 0 (
     echo !RED!Error: CMake not found in PATH.!NC!
-    echo Please install CMake and add it to your PATH.
+    echo Install CMake and add it to your PATH.
     exit /b 1
 )
 
-if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
+:: Only to say what was found. Nothing is parsed out of it. The backtick call
+:: stays at the top level: the parser matches parentheses across a whole
+:: if/else block before running it, so the (x86) in the path breaks it inside
+:: one even when quoted.
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if not exist "%VSWHERE%" goto :no_vswhere
+for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -prerelease -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%i"
+if defined VS_PATH echo Visual Studio: !VS_PATH!
+goto :configure
 
-echo Configuring CMake with clang-cl toolset...
+:no_vswhere
+echo !YELLOW!Note: vswhere not found, so this cannot say which Visual Studio!NC!
+echo !YELLOW!CMake will use. Carrying on; CMake will say if there is none.!NC!
+
+:configure
 echo.
-cmake -S . -B "%BUILD_DIR%" ^
-      -G "!GENERATOR!" ^
-      -A %ARCH% ^
-      -T %TOOLSET% ^
-      -DCMAKE_CXX_STANDARD=23 ^
-      -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
-      -DCMAKE_CXX_EXTENSIONS=OFF
+if defined OCCULT_GENERATOR goto :configure_named
 
+echo Configuring with clang-cl, CMake choosing the generator...
+cmake -S . -B "%BUILD_DIR%" -A x64 -T ClangCL -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_CXX_EXTENSIONS=OFF
+if %errorlevel% equ 0 goto :build
+goto :configure_fresh
+
+:configure_named
+echo Configuring with clang-cl, generator "%OCCULT_GENERATOR%"...
+cmake -S . -B "%BUILD_DIR%" -G "%OCCULT_GENERATOR%" -A x64 -T ClangCL -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_CXX_EXTENSIONS=OFF
+if %errorlevel% equ 0 goto :build
+goto :configure_fresh
+
+:configure_fresh
+:: A cache left by an earlier run with a different generator or platform fails
+:: with "does not match the platform used previously", which is not clang-cl's
+:: fault. Clear it and try clang-cl once more before blaming the toolset.
+if not exist "%BUILD_DIR%\CMakeCache.txt" goto :configure_msvc
+echo.
+echo !YELLOW!Stale CMake cache; clearing it and retrying clang-cl.!NC!
+echo.
+rmdir /s /q "%BUILD_DIR%" 2>nul
+if defined OCCULT_GENERATOR goto :configure_fresh_named
+cmake -S . -B "%BUILD_DIR%" -A x64 -T ClangCL -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_CXX_EXTENSIONS=OFF
+if %errorlevel% equ 0 goto :build
+goto :configure_msvc
+
+:configure_fresh_named
+cmake -S . -B "%BUILD_DIR%" -G "%OCCULT_GENERATOR%" -A x64 -T ClangCL -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_CXX_EXTENSIONS=OFF
+if %errorlevel% equ 0 goto :build
+goto :configure_msvc
+
+:configure_msvc
+echo.
+echo !YELLOW!clang-cl did not configure. Retrying with MSVC.!NC!
+echo !YELLOW!Install "C++ Clang tools for Windows" in the VS Installer for clang-cl.!NC!
+echo.
+rmdir /s /q "%BUILD_DIR%" 2>nul
+cmake -S . -B "%BUILD_DIR%" -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_CXX_EXTENSIONS=OFF
+if %errorlevel% equ 0 goto :build
+
+echo.
+echo !RED!CMake configuration failed.!NC!
+echo.
+echo Things to check:
+echo   1. "Desktop development with C++" is installed in the VS Installer
+echo   2. CMake is new enough for your Visual Studio ^(cmake --version^)
+echo   3. Delete the %BUILD_DIR% folder and try again
+echo   4. Name a generator yourself: set OCCULT_GENERATOR=Visual Studio 18 2026
+echo      ^(cmake --help lists the ones this CMake has^)
+exit /b 1
+
+:build
+echo.
+echo ========================================
+echo  Building (Release)...
+echo ========================================
+echo.
+cmake --build "%BUILD_DIR%" --config Release --parallel
 if %errorlevel% neq 0 (
-    echo.
-    echo !RED!CMake configuration failed.!NC!
-    echo.
-    echo Possible fixes:
-    echo   1. Make sure "C++ Clang tools for Windows" is installed in Visual Studio Installer
-    echo   2. Try running this script from Developer Command Prompt for VS 2026
-    echo   3. Delete the build folder and try again
-    exit /b 1
-)
-
-echo.
-echo ========================================
-echo  Building with clang-cl (Release)...
-echo ========================================
-echo.
-cmake --build "%BUILD_DIR%" --config Release -- /m
-
-if %errorlevel% equ 0 (
-    echo.
-    echo !GREEN!Build succeeded!!NC!
-    echo occultc.exe should be at: %BUILD_DIR%\Release\occultc.exe
-    echo.
-    echo Next: Run validate_tests.bat
-) else (
     echo.
     echo !RED!Build failed.!NC!
     exit /b 1
 )
 
+echo.
+echo !GREEN!Build succeeded.!NC!
+if exist "%BUILD_DIR%\Release\occultc.exe" echo occultc.exe: %BUILD_DIR%\Release\occultc.exe
+if exist "%BUILD_DIR%\occultc.exe" echo occultc.exe: %BUILD_DIR%\occultc.exe
+echo.
+echo Next: run validate_tests.bat
 endlocal

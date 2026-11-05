@@ -30,7 +30,7 @@ fn free_list(i64* head) i64 {
 
     while (current != 0) {
         i64* next_field = current + 8;
-        i64* next_node = $next_field;
+        i64* next_node = u64($next_field);
         std::free(current);
         current = next_node;
     }
@@ -44,7 +44,7 @@ fn print_all_elems(i64* head) i64 {
     while (current != 0) {
         std::print_integer($current);
         i64* next_field = current + 8;
-        current = $next_field;
+        current = u64($next_field);
     }
 
     return 0;
@@ -57,7 +57,7 @@ fn sum_list(i64* head) i64 {
     while (current != 0) {
         sum = sum + $current;
         i64* next_field = current + 8;
-        current = $next_field;
+        current = u64($next_field);
     }
 
     return sum;

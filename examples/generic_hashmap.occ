@@ -93,7 +93,7 @@ fn hashmap_rehash(HashMap<K, V>* map) i64 {
     i64 b = 0;
     while (b < map.bucket_count) {
         i64* bslot = map.buckets + b * 8;
-        HashEntry<K, V>* entry = $bslot;
+        HashEntry<K, V>* entry = u64($bslot);
         while (entry != 0) {
             HashEntry<K, V>* next_entry = entry.next;
             i64 new_idx = 0;
@@ -104,7 +104,7 @@ fn hashmap_rehash(HashMap<K, V>* map) i64 {
                 new_idx = hm_int_hash(entry.key, new_count);
             }
             i64* new_slot = new_buckets + new_idx * 8;
-            HashEntry<K, V>* existing = $new_slot;
+            HashEntry<K, V>* existing = u64($new_slot);
             entry.next = existing;
             $new_slot = entry;
             entry = next_entry;
@@ -130,7 +130,7 @@ fn hashmap_insert(HashMap<K, V>* map, K key, V val) i64 {
         idx = hm_int_hash(key, map.bucket_count);
     }
     i64* bslot = map.buckets + idx * 8;
-    HashEntry<K, V>* entry = $bslot;
+    HashEntry<K, V>* entry = u64($bslot);
     while (entry != 0) {
         if map.key_type == 1 {
             if std::strcmp(entry.key, key) == 0 {
@@ -149,7 +149,7 @@ fn hashmap_insert(HashMap<K, V>* map, K key, V val) i64 {
     HashEntry<K, V>* node = std::malloc(24);
     node.key = key;
     node.value = val;
-    HashEntry<K, V>* head = $bslot;
+    HashEntry<K, V>* head = u64($bslot);
     node.next = head;
     $bslot = node;
     map.length = map.length + 1;
@@ -166,7 +166,7 @@ fn hashmap_get(HashMap<K, V>* map, K key) V {
         idx = hm_int_hash(key, map.bucket_count);
     }
     i64* bslot = map.buckets + idx * 8;
-    HashEntry<K, V>* entry = $bslot;
+    HashEntry<K, V>* entry = u64($bslot);
     while (entry != 0) {
         if map.key_type == 1 {
             if std::strcmp(entry.key, key) == 0 {
@@ -193,7 +193,7 @@ fn hashmap_contains(HashMap<K, V>* map, K key) i64 {
         idx = hm_int_hash(key, map.bucket_count);
     }
     i64* bslot = map.buckets + idx * 8;
-    HashEntry<K, V>* entry = $bslot;
+    HashEntry<K, V>* entry = u64($bslot);
     while (entry != 0) {
         if map.key_type == 1 {
             if std::strcmp(entry.key, key) == 0 {
@@ -220,7 +220,7 @@ fn hashmap_erase(HashMap<K, V>* map, K key) i64 {
         idx = hm_int_hash(key, map.bucket_count);
     }
     i64* bslot = map.buckets + idx * 8;
-    HashEntry<K, V>* entry = $bslot;
+    HashEntry<K, V>* entry = u64($bslot);
     HashEntry<K, V>* prev = 0;
     while (entry != 0) {
         i64 found = 0;
@@ -256,7 +256,7 @@ fn hashmap_free(HashMap<K, V>* map) i64 {
     i64 b = 0;
     while (b < map.bucket_count) {
         i64* bslot = map.buckets + b * 8;
-        HashEntry<K, V>* entry = $bslot;
+        HashEntry<K, V>* entry = u64($bslot);
         while (entry != 0) {
             HashEntry<K, V>* next_entry = entry.next;
             std::free(entry);
