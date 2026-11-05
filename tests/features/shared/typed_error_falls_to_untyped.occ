@@ -1,0 +1,18 @@
+// EXIT: 7
+// A typed error that no typed catch matches is still caught by an
+// untyped `catch e { }`.
+error BadInput;
+error Something;
+
+fn parse() { error BadInput; }
+
+fn main() i64 {
+    try {
+        parse();
+    } catch Something e {
+        return 1;
+    } catch e {
+        return 7;
+    }
+    return 99;
+}

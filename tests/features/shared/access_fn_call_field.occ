@@ -1,0 +1,25 @@
+// EXIT: 7
+// `fn().field` -- a member access on a struct-returning function
+// call. The call is evaluated, its return value is spilled into a
+// hidden local slot in the caller's frame, and the slot's address
+// seeds generate_lvalue_addr like any other struct base.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+fn make() P {
+    P r;
+    r.x = 5;
+    r.y = 7;
+    return r;
+}
+
+fn main() i64 {
+    i32 a = make().x;
+    i32 b = make().y;
+    if a != 5 {
+        return 0;
+    }
+    return b;
+}

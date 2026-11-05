@@ -1,0 +1,47 @@
+// [rip + fn + n] and rel32 under -c: the displacement is the linker's
+// to fill in, and the `+ n` has to survive the trip. In a blob the
+// compiler knows the distance; in an object file it does not.
+
+extern fn puts(i64 s) i32;
+
+fn data() asm(x86_64) i64 {
+    db 1, 2, 3, 4
+    dq 0x4142434445464748
+    ret
+}
+
+fn third_byte() asm(x86_64) i64 {
+    movzx eax, byte ptr [rip + data + 2]
+    ret
+}
+
+fn the_quad() asm(x86_64) i64 {
+    mov rax, qword ptr [rip + data + 4]
+    ret
+}
+
+fn call_through() asm(x86_64) i64 {
+    sub rsp, 8
+    call third_byte
+    add rsp, 8
+    ret
+}
+
+fn main() i64 {
+    if third_byte() != 3 {
+        puts("the + n was dropped");
+        return 1;
+    }
+    if the_quad() != 0x4142434445464748 {
+        puts("the quad read the wrong bytes");
+        return 1;
+    }
+    if call_through() != 3 {
+        puts("a call between asm bodies went wrong");
+        return 1;
+    }
+
+    puts("PASS");
+
+    return 0;
+}

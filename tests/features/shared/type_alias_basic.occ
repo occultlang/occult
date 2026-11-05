@@ -1,0 +1,13 @@
+// EXIT: 42
+// `type Name = T;` aliases are transparent: the alias and T interchange.
+type FileHandle = i64;
+
+fn open_fake(string path) FileHandle {
+    FileHandle fd = 42;
+    return fd;
+}
+
+fn main() i64 {
+    FileHandle fd = open_fake("x");
+    return fd;
+}

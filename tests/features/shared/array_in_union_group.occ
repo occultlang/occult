@@ -1,0 +1,29 @@
+// EXIT: 90
+// An `array[N] T` is also allowed inside an anonymous `union { ... }`
+// group. The group's size becomes the largest of its members (the
+// array included), and taking the address of either member gives the
+// same offset within the enclosing struct.
+struct U {
+    i32 tag;
+    union {
+        i64 asInt;
+        array[8] i8 asBytes;
+    }
+    i32 after;
+}
+
+fn main() i64 {
+    U u;
+    u.tag = 1;
+    u.after = 7;
+    i8* p = @u.asBytes;
+    p[0] = 10;
+    p[7] = 90;
+    if u.tag != 1 {
+        return 0;
+    }
+    if u.after != 7 {
+        return 0;
+    }
+    return p[7];
+}

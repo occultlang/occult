@@ -1,0 +1,24 @@
+// EXIT: 42
+// A fixed-size `array[N] T` is allowed as a struct field. The struct's
+// layout keeps the array inline (N * sizeof(T) bytes), aligned to T's
+// natural alignment, and @struct.field gives a pointer to the first
+// element so plain subscript writes work in place.
+struct Buf {
+    i32 n;
+    array[8] i8 bytes;
+    i32 tail;
+}
+
+fn main() i64 {
+    Buf b;
+    b.n = 42;
+    b.tail = 7;
+    i8* p = @b.bytes;
+    p[0] = 1;
+    p[7] = 9;
+    // tail must still read 7 — the array didn't overrun its 8 bytes.
+    if b.tail != 7 {
+        return 0;
+    }
+    return b.n;
+}

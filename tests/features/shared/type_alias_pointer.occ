@@ -1,0 +1,10 @@
+// EXIT: 99
+// A `type` can alias a pointer form; a declared variable of the alias is
+// the same strict pointer type the alias names.
+type IntPtr = i64*;
+
+fn main() i64 {
+    i64 v = 99;
+    IntPtr p = @v;
+    return $p;
+}

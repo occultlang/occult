@@ -1,0 +1,20 @@
+// The other direction: C's main, Occult's code and Occult's data.
+// occult_add and table are ordinary symbols as far as ld is concerned.
+
+global i64 table = 7;
+
+fn occult_add(i64 a, i64 b) i64 {
+    return a + b + table;
+}
+
+fn occult_sum_to(i64 n) i64 {
+    i64 total = 0;
+    i64 i = 1;
+
+    while i <= n {
+        total = total + i;
+        i = i + 1;
+    }
+
+    return total;
+}

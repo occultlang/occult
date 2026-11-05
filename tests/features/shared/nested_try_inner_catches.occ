@@ -1,0 +1,15 @@
+// EXIT: 3
+// A raise is caught by the innermost try; the outer catch does not run.
+fn main() i64 {
+    i64 outer = 0;
+    try {
+        try {
+            error "x";
+        } catch e {
+            return 3;
+        }
+    } catch e {
+        outer = 99;
+    }
+    return outer;
+}

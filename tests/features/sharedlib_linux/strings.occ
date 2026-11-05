@@ -1,0 +1,12 @@
+// SHAREDLIB
+// EXIT: 0
+// Exercises base relocations (R_X86_64_RELATIVE in .rela.dyn). The
+// returned string pointer has to be adjusted by the loader when the
+// .so is placed at a non-preferred base, as happens under ASLR.
+export fn greet() string {
+    return "Hello from Occult shared library";
+}
+
+export fn get_num() i64 {
+    return 42;
+}

@@ -1,0 +1,28 @@
+// Calling libc from the JIT: an `extern fn` has no address of its own, and
+// libc is too far from the code buffer for a call site's rel32 anyway, so
+// the compiler asks the loader and writes a PLT-style stub. Prints PASS.
+// -o has to refuse the same file: a blob has no loader to ask.
+
+extern fn printf(i64 fmt, ...) i32;
+extern fn strlen(i64 s) i64;
+extern fn memcmp(i64 a, i64 b, i64 n) i32;
+extern fn atoi(i64 s) i32;
+
+fn main() i64 {
+    i64 bad = 0;
+
+    if strlen("twelve chars") != 12 { bad += 1; printf("strlen\n"); }
+    if memcmp("abc", "abc", 3) != 0 { bad += 1; printf("memcmp, equal\n"); }
+    if memcmp("abc", "abd", 3) == 0 { bad += 1; printf("memcmp, differing\n"); }
+    if atoi("4321") != 4321         { bad += 1; printf("atoi\n"); }
+
+    // al carries the vector-register count a variadic callee reads, so
+    // a stub that clobbered it would break this line and nothing else.
+    // That is why the thunk jumps through memory rather than loading
+    // the address into a register first.
+    printf("%s %d %.2f\n", "variadic:", 7, 0.25);
+
+    if bad == 0 { printf("PASS\n"); }
+
+    return bad;
+}

@@ -1,0 +1,9 @@
+// EXIT: 2
+// `error` with a parenthesised expression is still fine; the parens are
+// just grouping the message. The paren-call form `error("x")`, which
+// looked like a function call, is gone. `error` is a statement, not a call.
+fn main() i64 {
+    try { error "a"; } catch e { }
+    try { error ("b"); } catch e { }        // parens group the expression
+    return 2;
+}

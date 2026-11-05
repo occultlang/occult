@@ -1,0 +1,30 @@
+// The object-file side of jit/test_module_link.occ. An ELF object has
+// nowhere to ask for a library, so occultc says what to pass to the
+// linker, and the harness links with exactly that. Prints PASS.
+
+extern fn printf(i64 fmt, ...) i32;
+
+module z link "z" {
+    extern fn compressBound(i64 n) i64;
+
+    module info {
+        extern fn zlibVersion() i64;
+    }
+}
+
+module zlib link "libz" {
+    extern fn compressBound(i64 n) i64;
+}
+
+fn main() i64 {
+    i64 bad = 0;
+
+    // sourceLen + (sourceLen >> 12) + (sourceLen >> 14) + (sourceLen >> 25) + 13
+    if z::compressBound(1000) != 1013 { bad += 1; printf("compressBound\n"); }
+    if $(u8*(z::info::zlibVersion())) != 49 { bad += 1; printf("nested module\n"); }   // '1'
+    if zlib::compressBound(0) != 13 { bad += 1; printf("lib prefix\n"); }
+
+    if bad == 0 { printf("PASS\n"); }
+
+    return bad;
+}

@@ -1,0 +1,30 @@
+// EXIT: 72
+// a union with an i64 and an inline byte array shares the same bytes.
+// writing through one field and reading through the other reinterprets
+// those bytes, the way a C union does. the read goes through a
+// pointer taken over `@u.asBytes` so it exercises the composite
+// walker end to end: @ on a composite leaf (`@u.asBytes`), then a
+// byte-stride `p[i]` through the resulting pointer.
+struct U {
+    i32 tag;
+    union {
+        i64 asInt;
+        array[8] i8 asBytes;
+    }
+    i32 after;
+}
+
+fn main() i64 {
+    U u;
+    u.tag = 1;
+    u.after = 7;
+    u.asInt = 0x4142434445464748;
+    i8* p = @u.asBytes;
+    // little-endian: byte 0 is the low byte of asInt, byte 7 the high.
+    if u.tag != 1 { return 0; }
+    if u.after != 7 { return 0; }
+    if p[0] != 0x48 { return 0; }
+    if p[1] != 0x47 { return 0; }
+    if p[7] != 0x41 { return 0; }
+    return p[0];
+}

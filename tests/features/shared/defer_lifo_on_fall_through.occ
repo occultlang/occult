@@ -1,0 +1,13 @@
+// EXIT: 111
+// Deferred bodies run at the end of the enclosing function, in reverse
+// order of appearance. The function here reaches the end normally.
+i64 r = 0;
+fn work() {
+    defer r = r + 1;              // runs third
+    defer r = r + 10;             // runs second
+    defer r = r + 100;            // runs first
+}
+fn main() i64 {
+    work();
+    return r;
+}

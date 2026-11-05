@@ -1,0 +1,18 @@
+// EXIT: 125
+// `continue` from a try body skips the rest of the iteration, but
+// still runs the finally first.
+i64 steps = 0;
+fn main() i64 {
+    i64 i = 0;
+    i64 sum = 0;
+    while i < 5 {
+        i = i + 1;
+        try {
+            if i == 3 { continue; }
+            sum = sum + i;
+        } finally {
+            steps = steps + 1;
+        }
+    }
+    return sum * 10 + steps;
+}

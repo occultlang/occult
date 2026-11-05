@@ -1,0 +1,28 @@
+// EXIT: 42
+// `goto` into a `try` body -- the label can sit inside a protected
+// block. The release notes listed this as unsupported for a while
+// but it works as drafted: the body runs from the label to its end,
+// and the `finally` fires on the way out through the existing exit
+// dispatcher. No error means the dispatcher's fall-through path
+// matches the implicit end-of-block path, so there is no special
+// case to write for the goto itself.
+i64 ran_finally = 0;
+
+fn main() i64 {
+    i64 result = 0;
+    goto inside;
+
+    try {
+inside:
+        result = 42;
+    } catch e {
+        result = 1;
+    } finally {
+        ran_finally = ran_finally + 1;
+    }
+
+    if ran_finally != 1 {
+        return 0;
+    }
+    return result;
+}

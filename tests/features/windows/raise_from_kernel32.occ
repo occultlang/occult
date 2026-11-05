@@ -1,0 +1,32 @@
+// EXIT: 0
+// kernel32 reports failures through a sentinel return. A wrapper turns
+// those into an Occult error, so Windows programs use try/catch the
+// same way as Linux ones.
+module c link "msvcrt" {
+    extern fn strcmp(i64 a, i64 b) i32;
+}
+module k32 link "kernel32" {
+    extern fn CreateFileA(i64 name, i64 access, i64 share, i64 sa, i64 disp, i64 flags, i64 tmpl) i64;
+    extern fn GetLastError() i64;
+}
+fn invalid_handle_value() i64 { return 0 - 1; }
+fn open_or_raise(string path) i64 {
+    i64 h = k32::CreateFileA(path, 0, 0, 0, 3, 0, 0);
+    if h == invalid_handle_value() {
+        i64 code = k32::GetLastError();
+        // 2 = ERROR_FILE_NOT_FOUND, 3 = ERROR_PATH_NOT_FOUND; both say
+        // the file was not there
+        if code == 2 || code == 3 { error "not found"; }
+        error "could not open";
+    }
+    return h;
+}
+fn main() i64 {
+    try {
+        open_or_raise("Z:\\no\\such\\path\\truly");
+    } catch e {
+        if c::strcmp(e, "not found") != 0 { return 2; }
+        return 0;
+    }
+    return 1;
+}

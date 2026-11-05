@@ -1,0 +1,12 @@
+// EXIT: 5
+// STDOUT: hello from msvcrt
+// An extern fn outside any module that links a library comes from the C
+// runtime, msvcrt.dll, as one on Linux comes from libc. The image then
+// exits through msvcrt's exit, which flushes what printf buffered.
+
+extern fn printf(i64 fmt, ...) i32;
+
+fn main() i64 {
+    printf("hello from msvcrt\n");
+    return 5;
+}

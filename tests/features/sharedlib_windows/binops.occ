@@ -1,0 +1,17 @@
+// SHAREDLIB
+// EXIT: 0
+// Two exported top-level fns, plus a module whose fns are exported too.
+// The C driver LoadLibrary's the .dll and calls each export through
+// GetProcAddress; a mismatch is a non-zero exit.
+export fn add(i64 a, i64 b) i64 {
+    return a + b;
+}
+
+export fn mul(i64 a, i64 b) i64 {
+    return a * b;
+}
+
+module math export {
+    fn neg(i64 x) i64 { return 0 - x; }
+    fn square(i64 x) i64 { return x * x; }
+}

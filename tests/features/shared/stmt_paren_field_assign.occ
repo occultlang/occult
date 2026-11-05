@@ -1,0 +1,22 @@
+// EXIT: 42
+// `(p).field = v;` as a statement: a parenthesised primary used as
+// the lhs of an assignment. parse_keyword gains a `(` dispatch that
+// slices to `;`, splits at a top-level `=`, and parses the two
+// halves separately -- the same mechanism the function-call case
+// uses. For a bare variable in parens the write is a real write;
+// for a parenthesised function call it writes to a hidden slot like
+// `fn().field = v` does.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+fn main() i64 {
+    P p;
+    p.x = 10;
+    (p).x = 42;
+    if p.x != 42 {
+        return 0;
+    }
+    return p.x;
+}

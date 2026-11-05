@@ -1,0 +1,36 @@
+// extern struct Name { ... } for a type C defines and we transcribe, and
+// extern struct Name; for one C keeps to itself -- a pointer and nothing
+// else, the way a header leaves FILE. Linked against extern_struct.c,
+// which holds the C side. Prints PASS.
+
+extern struct c_point {
+    i32 x;
+    i32 y;
+}
+
+extern struct c_handle;
+
+extern fn printf(...) i32;
+extern fn c_sum(...) i32;
+extern fn c_make(...) c_handle*;
+extern fn c_value(...) i32;
+extern fn c_free(...) i64;
+
+fn main() i64 {
+    i64 bad = 0;
+
+    c_point p;
+    p.x = 20;
+    p.y = 22;
+    if c_sum(@p) != 42 { bad += 1; printf("c read the transcribed struct\n"); }
+
+    // C allocated it and C knows how big it is; this side only ever holds
+    // the pointer.
+    c_handle* h = c_make();
+    if c_value(h) != 1234 { bad += 1; printf("opaque handle round trip\n"); }
+    c_free(h);
+
+    if bad == 0 { printf("PASS\n"); }
+
+    return bad;
+}

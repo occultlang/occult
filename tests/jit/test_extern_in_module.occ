@@ -1,0 +1,37 @@
+// An extern fn declared inside a module is called by its qualified name
+// and resolved by the one its library has: c::strlen is strlen to the
+// loader. Nested modules, a call from inside the module without the
+// qualifier, and the same C function declared twice all reach it.
+// Prints PASS.
+
+extern fn printf(i64 fmt, ...) i32;
+extern fn strlen(i64 s) i64;
+
+module c {
+    extern fn strlen(i64 s) i64;
+    extern fn abs(i32 x) i32;
+
+    fn twice(i64 s) i64 {
+        return strlen(s) * 2;
+    }
+}
+
+module outer {
+    module inner {
+        extern fn labs(i64 x) i64;
+    }
+}
+
+fn main() i64 {
+    i64 bad = 0;
+
+    if c::strlen("hello") != 5 { bad += 1; printf("qualified\n"); }
+    if strlen("hello") != 5 { bad += 1; printf("top level\n"); }
+    if i64(c::abs(0 - 3)) != 3 { bad += 1; printf("signature\n"); }
+    if outer::inner::labs(0 - 4) != 4 { bad += 1; printf("nested\n"); }
+    if c::twice("abc") != 6 { bad += 1; printf("unqualified inside\n"); }
+
+    if bad == 0 { printf("PASS\n"); }
+
+    return bad;
+}

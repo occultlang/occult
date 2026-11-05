@@ -1,0 +1,92 @@
+// `sizeof` on a variable, which only ever took a type name, and `@` on a
+// struct member, which returned the field's value rather than its address.
+// Both are routine in C interop.
+
+extern fn printf(...) i32;
+extern fn memset(...) i64;
+extern fn strlen(...) i64;
+
+struct Inner { i32 x; i32 y; }
+struct Outer { i8 tag; Inner mid; i64 tail; }
+
+global i64 a_global = 0;
+global i64 failures = 0;
+
+fn want(i64 got, i64 expect, i64 what) i64 {
+    if got != expect {
+        printf("%s: got %ld, wanted %ld\n", what, got, expect);
+        failures = failures + 1;
+    }
+    return 0;
+}
+
+fn main() i64 {
+    // --- sizeof ---------------------------------------------------------
+    i8 byte_var = 1;
+    i16 short_var = 2;
+    i32 word_var = 3;
+    i64 quad_var = 4;
+    f32 single = 1.0;
+    f64 double_var = 2.0;
+    Outer o;
+    array[7] i32 seven;
+
+    // a type name, which always worked
+    want(sizeof(i8), 1, "sizeof(i8)");
+    want(sizeof(i32), 4, "sizeof(i32)");
+    want(sizeof(f32), 4, "sizeof(f32)");
+    want(sizeof(Inner), 8, "sizeof(Inner)");
+    want(sizeof(Outer), 24, "sizeof(Outer)");
+
+    // a variable, which did not
+    want(sizeof(byte_var), 1, "sizeof(i8 variable)");
+    want(sizeof(short_var), 2, "sizeof(i16 variable)");
+    want(sizeof(word_var), 4, "sizeof(i32 variable)");
+    want(sizeof(quad_var), 8, "sizeof(i64 variable)");
+    want(sizeof(single), 4, "sizeof(f32 variable)");
+    want(sizeof(double_var), 8, "sizeof(f64 variable)");
+    want(sizeof(o), 24, "sizeof(struct variable)");
+    want(sizeof(a_global), 8, "sizeof(global)");
+
+    // an array is its whole extent, the way C has it
+    want(sizeof(seven), 28, "sizeof(array variable)");
+
+    // --- @ on a member --------------------------------------------------
+    o.tag = 1;
+    o.mid.x = 2;
+    o.mid.y = 3;
+    o.tail = 4;
+
+    i64 base = i64(@o);
+    want(i64(@o.tag) - base, 0, "@o.tag");
+    want(i64(@o.mid) - base, 4, "@o.mid");
+    want(i64(@o.mid.x) - base, 4, "@o.mid.x (two links)");
+    want(i64(@o.mid.y) - base, 8, "@o.mid.y (two links)");
+    want(i64(@o.tail) - base, 16, "@o.tail");
+
+    // reading through one
+    want(i64($(i32*(i64(@o.mid.y)))), 3, "read through @o.mid.y");
+
+    // writing through one, without disturbing its neighbour
+    $(i32*(i64(@o.mid.x))) = 99;
+    want(i64(o.mid.x), 99, "wrote through @o.mid.x");
+    want(i64(o.mid.y), 3, "the neighbour survived");
+
+    // handing one to a C function, which is the point of the exercise
+    memset(@o.mid, 0, sizeof(Inner));
+    want(i64(o.mid.x), 0, "memset cleared mid.x");
+    want(i64(o.mid.y), 0, "memset cleared mid.y");
+    want(i64(o.tag), 1, "memset left tag alone");
+    want(o.tail, 4, "memset left tail alone");
+
+    // several in one call, where the marker has to apply to each
+    want(i64(@o.mid) - base + i64(@o.tail) - base, 20, "two in one expression");
+
+    if failures != 0 {
+        return 1;
+    }
+
+    printf("PASS\n");
+
+    return 0;
+}

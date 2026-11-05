@@ -1,0 +1,28 @@
+// EXIT: 42
+// `(expr).field` -- a member access on a parenthesised primary. The
+// parser detects a '(' whose matching ')' is followed by '.' or '[',
+// parses the inner tokens as their own expression, takes the single
+// value they produce, and extends it with the chain. `(fn()).field`
+// goes through the same hidden-slot machinery as `fn().field`.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+fn make() P {
+    P r;
+    r.x = 42;
+    r.y = 99;
+    return r;
+}
+
+fn main() i64 {
+    P p;
+    p.x = 11;
+    i32 bare = (p).x;
+    i32 call = (make()).x;
+    if bare != 11 {
+        return 0;
+    }
+    return call;
+}

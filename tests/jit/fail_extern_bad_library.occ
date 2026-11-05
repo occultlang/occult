@@ -1,0 +1,13 @@
+// OCCULTC: -l liboccult_no_such_library.so.9
+// EXPECT-FAIL
+// -l names a library to pull into the process before the JIT runs. One
+// that is not there is an error up front, rather than the much later
+// confusion of the symbol it was meant to supply going missing.
+
+extern fn printf(i64 fmt, ...) i32;
+
+fn main() i64 {
+    printf("PASS\n");
+
+    return 0;
+}

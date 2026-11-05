@@ -1,0 +1,156 @@
+// OCCULTC: -W
+// Occult's struct layout against C's, member by member. The numbers come
+// from C's own sizeof and offsetof at run time, so the test cannot drift.
+// Layout only: passing one by value is struct_by_value.occ.
+
+extern fn printf(...) i32;
+extern fn malloc(...) i64;
+extern fn free(...) i64;
+
+extern fn c_sizeof_small(...) i64;
+extern fn c_sizeof_mixed(...) i64;
+extern fn c_sizeof_floats(...) i64;
+extern fn c_sizeof_nested(...) i64;
+extern fn c_off_small_b(...) i64;
+extern fn c_off_mixed_b(...) i64;
+extern fn c_off_mixed_c(...) i64;
+extern fn c_off_mixed_d(...) i64;
+extern fn c_off_floats_d(...) i64;
+extern fn c_off_floats_i(...) i64;
+extern fn c_off_nested_inner(...) i64;
+extern fn c_off_nested_trailer(...) i64;
+extern fn c_fill_mixed(...) i64;
+extern fn c_check_mixed(...) i64;
+extern fn c_fill_floats(...) i64;
+extern fn c_check_floats(...) i64;
+extern fn c_fill_nested(...) i64;
+extern fn c_check_nested(...) i64;
+
+struct Small {
+    i8 a;
+    i32 b;
+}
+
+struct Mixed {
+    i8 a;
+    i64 b;
+    i16 c;
+    i8 d;
+}
+
+struct Floats {
+    f32 f;
+    f64 d;
+    i32 i;
+}
+
+struct Nested {
+    i8 tag;
+    Small inner;
+    i8 trailer;
+}
+
+global i64 failures = 0;
+
+fn want(i64 got, i64 expect, i64 what) i64 {
+    if got != expect {
+        printf("%s: Occult says %ld, C says %ld\n", what, got, expect);
+        failures = failures + 1;
+    }
+    return 0;
+}
+
+fn main() i64 {
+    want(sizeof(Small),  c_sizeof_small(),  "sizeof Small");
+    want(sizeof(Mixed),  c_sizeof_mixed(),  "sizeof Mixed");
+    want(sizeof(Floats), c_sizeof_floats(), "sizeof Floats");
+    want(sizeof(Nested), c_sizeof_nested(), "sizeof Nested");
+
+    // offsetof, against C's own, spelled as the address of a member
+    // less the address of the struct.
+    Mixed m;
+    i64 mb = i64(@m);
+    want(i64(@m.b) - mb, c_off_mixed_b(), "offsetof Mixed.b");
+    want(i64(@m.c) - mb, c_off_mixed_c(), "offsetof Mixed.c");
+    want(i64(@m.d) - mb, c_off_mixed_d(), "offsetof Mixed.d");
+
+    Small sm;
+    want(i64(@sm.b) - i64(@sm), c_off_small_b(), "offsetof Small.b");
+
+    Floats fo;
+    want(i64(@fo.d) - i64(@fo), c_off_floats_d(), "offsetof Floats.d");
+    want(i64(@fo.i) - i64(@fo), c_off_floats_i(), "offsetof Floats.i");
+
+    Nested ne;
+    want(i64(@ne.inner) - i64(@ne), c_off_nested_inner(), "offsetof Nested.inner");
+    want(i64(@ne.trailer) - i64(@ne), c_off_nested_trailer(), "offsetof Nested.trailer");
+
+    // The part a size table cannot fake: C writes the bytes at the
+    // offsets its own compiler chose, and Occult reads them back. If a
+    // single offset or width disagrees, one of these is wrong.
+    c_fill_mixed(@m);
+    want(i64(m.a), 0 - 7, "C wrote Mixed.a");
+    want(m.b, 1234567890123, "C wrote Mixed.b");
+    want(i64(m.c), 0 - 300, "C wrote Mixed.c");
+    want(i64(m.d), 42, "C wrote Mixed.d");
+
+    // And back the other way.
+    m.a = 11;
+    m.b = 0 - 99887766554433;
+    m.c = 1000;
+    m.d = 0 - 1;
+    want(c_check_mixed(@m), 1, "C read back what Occult wrote");
+
+    // Floats: an f32 member is four bytes of float, not eight bytes of
+    // double. Both ends have to agree or the double beside it moves.
+    Floats fl;
+    c_fill_floats(@fl);
+    // Read as bits at the offsets C chose, rather than as floats:
+    // comparing an f32 against a literal is broken for reasons that
+    // predate this and have nothing to do with layout, and the bits
+    // are the stronger check anyway -- they fail if the member is at
+    // the wrong offset *or* the wrong width.
+    i64 fb = i64(@fl);
+    want(i64(u32($(u32*(fb)))), 1069547520, "C wrote Floats.f (bits of 1.5f at +0)");
+    want($(i64*(fb + 8)), 4612248968380809216, "C wrote Floats.d (bits of 2.25 at +8)");
+    want(i64($(i32*(fb + 16))), 0 - 9, "C wrote Floats.i (at +16)");
+
+    fl.f = 0.5;
+    fl.d = 0.0 - 4.75;
+    fl.i = 7;
+    want(c_check_floats(@fl), 1, "C read back the floats Occult wrote");
+
+    // A struct inside a struct, where the inner one's alignment decides
+    // where it starts.
+    Nested n;
+    c_fill_nested(@n);
+    want(i64(n.tag), 3, "C wrote Nested.tag");
+    want(i64(n.inner.a), 0 - 2, "C wrote Nested.inner.a");
+    want(i64(n.inner.b), 70000, "C wrote Nested.inner.b");
+    want(i64(n.trailer), 9, "C wrote Nested.trailer");
+
+    n.tag = 5;
+    n.inner.a = 6;
+    n.inner.b = 0 - 70000;
+    n.trailer = 8;
+    want(c_check_nested(@n), 1, "C read back the nested struct Occult wrote");
+
+    // A narrow member must not disturb its neighbours.
+    Mixed g;
+    g.a = 1;
+    g.b = 2;
+    g.c = 3;
+    g.d = 4;
+    g.c = 0 - 1;
+    want(i64(g.a), 1, "a survived a write to c");
+    want(g.b, 2, "b survived a write to c");
+    want(i64(g.d), 4, "d survived a write to c");
+
+    if failures != 0 {
+        return 1;
+    }
+
+    printf("PASS\n");
+
+    return 0;
+}

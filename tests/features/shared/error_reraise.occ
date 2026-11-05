@@ -1,0 +1,44 @@
+// EXIT: 42
+// `error e;` inside a catch re-raises the caught error. It works for
+// both untyped (`catch e`) and typed (`catch Oops e`) catches; the
+// re-raise restores the type id, the message, and every payload
+// field that a typed catch had, and routes it back out through the
+// function's normal propagation path.
+error Oops {
+    i64 code;
+    i64 extra;
+}
+
+fn might_fail(i64 x) i64 {
+    if x < 0 {
+        error Oops { code = 0 - x, extra = x * 6 };
+    }
+    return x;
+}
+
+fn inner() i64 {
+    try {
+        might_fail(-7);
+    } catch Oops e {
+        // restore payloads and raise with the same type id again
+        error e;
+    }
+    return 999;
+}
+
+fn main() i64 {
+    try {
+        inner();
+    } catch Oops final {
+        // 7 (restored code) + 35 (restored extra, 7*(-6) negated for printability... actually -42)
+        // let's just confirm both fields survived the round trip
+        if final.code != 7 {
+            return 0;
+        }
+        if final.extra != 0 - 42 {
+            return 0;
+        }
+        return 42;
+    }
+    return 0;
+}

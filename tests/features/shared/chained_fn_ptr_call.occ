@@ -1,0 +1,26 @@
+// EXIT: 15
+// `pick(1)(10, 5)` -- call the function a function returned, without
+// stashing it in a local first. the parser's chain extender now takes
+// `(args)` as a chain segment the same way it takes `.field` and
+// `[i]`; codegen spills the inner call's result into a hidden slot
+// and calls indirect through it, using the inner function's return-
+// type fnptr signature to split the outer call's arguments.
+fn add(i64 a, i64 b) i64 { return a + b; }
+fn sub(i64 a, i64 b) i64 { return a - b; }
+
+type BinOp = fn(i64, i64) i64;
+
+fn pick(i64 which) BinOp {
+    if which == 1 {
+        return @add;
+    }
+    return @sub;
+}
+
+fn main() i64 {
+    // pick(1) returns @add; the outer call runs add(10, 5) = 15.
+    if pick(0)(10, 5) != 5 {
+        return 0;
+    }
+    return pick(1)(10, 5);
+}

@@ -1,0 +1,28 @@
+// EXIT: 0
+// A finally runs even when the try raises, so the handle is closed on
+// both the success and error paths.
+module k32 link "kernel32" {
+    extern fn GetStdHandle(i64 which) i64;
+    extern fn WriteFile(i64 h, i64 buf, i64 n, i64 wr, i64 ov) i64;
+    extern fn CloseHandle(i64 h) i64;
+}
+i64 closed = 0;
+fn step(i64 h) {
+    try {
+        i64 written = 0;
+        k32::WriteFile(h, "x", 1, @written, 0);
+        error "chaos";
+    } finally {
+        k32::CloseHandle(h);
+        closed = closed + 1;
+    }
+}
+fn main() i64 {
+    i64 h = k32::GetStdHandle(0 - 11);   // STD_OUTPUT_HANDLE
+    try {
+        step(h);
+    } catch e {
+    }
+    if closed != 1 { return 3; }
+    return 0;
+}

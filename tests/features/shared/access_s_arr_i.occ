@@ -1,0 +1,34 @@
+// EXIT: 9
+// `s.arr[i]` -- a subscript applied to a struct field that is itself an
+// array. Both read and write go through the parser's composite-chain
+// path and the ir_gen's generate_lvalue_addr, which walks the whole
+// chain producing a single leaf address.
+struct Buf {
+    i32 n;
+    array[4] i8 bytes;
+    i32 tail;
+}
+
+fn main() i64 {
+    Buf b;
+    b.n = 99;
+    b.tail = 7;
+    b.bytes[0] = 1;
+    b.bytes[1] = 2;
+    b.bytes[3] = 9;
+    // tail must still read 7: the composite stores did not overflow the
+    // 4-byte buffer.
+    if b.tail != 7 {
+        return 0;
+    }
+    if b.n != 99 {
+        return 0;
+    }
+    if b.bytes[0] != 1 {
+        return 0;
+    }
+    if b.bytes[1] != 2 {
+        return 0;
+    }
+    return b.bytes[3];
+}

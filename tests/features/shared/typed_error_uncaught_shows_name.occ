@@ -1,0 +1,9 @@
+// EXIT: 1
+// STDERR: error: ChaosEnsued
+// An uncaught typed error reports its name on stderr.
+error ChaosEnsued;
+
+fn main() i64 {
+    error ChaosEnsued;
+    return 0;
+}

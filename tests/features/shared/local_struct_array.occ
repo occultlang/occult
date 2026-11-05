@@ -1,0 +1,33 @@
+// EXIT: 60
+// Local `array[N] T` where T is a struct packs to T's natural size now
+// and bulk-copies on each `arr[i] = s` write. Pre-patch, a local struct
+// array compiled -- `array[3] P pts;` -- but the first `pts[i] = v`
+// crashed in codegen with "pop() on empty stack" because the write
+// path tried to store a struct through a scalar emit, and the element
+// type was being stashed as the literal word "structure" instead of the
+// struct's name. generate_array_decl now records the struct's own
+// name, and handle_array_store_element / handle_array_access_element
+// bulk-copy through copy_bytes when the element is a struct.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+fn main() i64 {
+    array[3] P pts;
+    P a; a.x = 10; a.y = 20;
+    P b; b.x = 30; b.y = 40;
+    P c; c.x = 50; c.y = 60;
+    pts[0] = a;
+    pts[1] = b;
+    pts[2] = c;
+    P got0 = pts[0];
+    P got1 = pts[1];
+    P got2 = pts[2];
+    if got0.x != 10 { return 0; }
+    if got0.y != 20 { return 0; }
+    if got1.x != 30 { return 0; }
+    if got1.y != 40 { return 0; }
+    if got2.x != 50 { return 0; }
+    return got2.y;
+}

@@ -1,0 +1,21 @@
+// EXIT: 118
+// A `return` from the inner try runs both finallys in order and then
+// takes the return.
+i64 inner_fin = 0;
+i64 outer_fin = 0;
+fn work() i64 {
+    try {
+        try {
+            return 42;
+        } finally {
+            inner_fin = 1;
+        }
+    } finally {
+        outer_fin = 1;
+    }
+    return 99;
+}
+fn main() i64 {
+    i64 r = work();
+    return r + inner_fin * 100 + outer_fin * 1000;
+}

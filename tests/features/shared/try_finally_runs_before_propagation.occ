@@ -1,0 +1,19 @@
+// EXIT: 99
+// A re-raise from the catch runs the inner finally before the outer
+// try sees the error.
+i64 state = 0;
+fn boom() { error "x"; }
+fn main() i64 {
+    try {
+        try {
+            boom();
+        } catch e {
+            error "re";
+        } finally {
+            state = state + 7;
+        }
+    } catch e {
+        return state * 10 + 29;      // 7 * 10 + 29 = 99
+    }
+    return 1;
+}

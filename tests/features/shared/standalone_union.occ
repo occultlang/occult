@@ -1,0 +1,14 @@
+// EXIT: 42
+// A standalone `union Name { ... };` declares a type whose fields all
+// share one offset. Reading the field that was written back gets the
+// value; reading another in the group reinterprets the bits.
+union Pair {
+    i64 n;
+    string s;
+}
+
+fn main() i64 {
+    Pair p;
+    p.n = 42;
+    return p.n;
+}

@@ -1,0 +1,10 @@
+// A module that links a library which is not there is an error before
+// anything runs, naming the library.
+
+module nope link "occult_no_such_library" {
+    extern fn f() i64;
+}
+
+fn main() i64 {
+    return nope::f();
+}

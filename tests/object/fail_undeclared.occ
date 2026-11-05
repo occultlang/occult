@@ -1,0 +1,9 @@
+// An object file is not a licence to leave any name unresolved: a
+// typo'd callee is still a compile error, only `extern fn` is not.
+fn main() asm(x86_64) i64 {
+    sub rsp, 8
+    call not_declared_anywhere
+    add rsp, 8
+    xor eax, eax
+    ret
+}

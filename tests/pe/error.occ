@@ -1,0 +1,8 @@
+// EXIT: 1
+// error() in a PE: the runtime's kernel32 calls go through the image's
+// own import table, beside ExitProcess.
+
+fn main() i64 {
+    error("stop");
+    return 0;
+}

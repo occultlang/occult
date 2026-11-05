@@ -1,0 +1,37 @@
+// EXIT: 10
+// Block-scoped defer: a `defer` runs at the end of its enclosing
+// block, not at the end of the enclosing function. Pre-patch, the
+// defer behaviour was Go-style function-scoped -- a defer inside a
+// loop fired once at function exit. Now the defer fires once per
+// iteration on fall-through, once more on `continue`, and once more
+// on `break` before each of those jumps leaves the scope.
+i64 defer_hits = 0;
+i64 iters      = 0;
+
+fn work() {
+    // defer at the top of the function runs last, at function exit
+    defer defer_hits = defer_hits + 1000;
+
+    for i64 i = 0 when i < 5 do i += 1 {
+        defer defer_hits = defer_hits + 1;  // once per iteration
+
+        iters = iters + 1;
+        if i == 2 { continue; }   // defer still fires
+        if i == 4 { break; }      // and here too
+    }
+}
+
+fn main() i64 {
+    work();
+    // Loop iterates i = 0, 1, 2 (continue), 3, 4 (break)  => 5 iterations
+    // Each iteration fires the loop-body defer once         => +5
+    // Function defer at exit                                 => +1000
+    // Total defer_hits = 1005
+    if iters != 5 {
+        return 0;
+    }
+    if defer_hits != 1005 {
+        return 0;
+    }
+    return iters + 5;
+}

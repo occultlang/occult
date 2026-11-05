@@ -1,0 +1,30 @@
+// EXIT: 40
+// `array[N] T` works for custom types T, not just primitives. The
+// element type is the struct, elements are laid out back-to-back at
+// the struct's natural alignment, and @line.pts gives a Point* that
+// subscripts walk element-by-element.
+struct Point {
+    i32 x;
+    i32 y;
+}
+
+struct Line {
+    i32 n;
+    array[2] Point pts;
+}
+
+fn main() i64 {
+    Line l;
+    l.n = 2;
+    Point* p = @l.pts;
+    Point a;
+    a.x = 10;
+    a.y = 20;
+    p[0] = a;
+    Point b;
+    b.x = 30;
+    b.y = 40;
+    p[1] = b;
+    Point got = p[1];
+    return got.y;
+}

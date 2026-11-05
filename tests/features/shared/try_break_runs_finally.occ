@@ -1,0 +1,15 @@
+// EXIT: 34
+// `break` from a try body inside a loop runs the finally, then breaks out.
+i64 ran = 0;
+fn main() i64 {
+    i64 i = 0;
+    while i < 10 {
+        try {
+            if i == 3 { break; }
+        } finally {
+            ran = ran + 1;
+        }
+        i = i + 1;
+    }
+    return i * 10 + ran;
+}

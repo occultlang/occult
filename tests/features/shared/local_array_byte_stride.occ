@@ -1,0 +1,27 @@
+// EXIT: 70
+// local `array[N] T` packs to the element type's natural width now.
+// pre-patch the layout used eight bytes per element whatever the
+// type, so `@arr[1] - @arr[0]` was 8 for an `i8` array and a byte-
+// stride pointer taken over it stepped through padding. this test
+// checks the stride directly and then round-trips bytes through a
+// pointer the same way a real buffer walk would.
+fn main() i64 {
+    array[8] i8 arr;
+    arr[0] = 10;
+    arr[1] = 20;
+    arr[7] = 70;
+    // the natural stride for i8 is one byte, not eight.
+    i64 base = @arr[0];
+    i64 next = @arr[1];
+    if next - base != 1 {
+        return 0;
+    }
+    // bytes round-trip through an i8* without padding tripping us up.
+    i8* p = @arr[0];
+    if p[0] != 10 { return 0; }
+    if p[1] != 20 { return 0; }
+    // writes through the pointer land where the subscript reads.
+    p[2] = 30;
+    if arr[2] != 30 { return 0; }
+    return p[7];
+}

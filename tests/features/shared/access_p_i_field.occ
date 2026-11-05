@@ -1,0 +1,29 @@
+// EXIT: 42
+// `p[i].field` -- a member access on a subscripted pointer, the C
+// idiom for walking an array of struct through a pointer. Writes and
+// reads both compose through generate_lvalue_addr.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+struct Line {
+    i32 n;
+    array[2] P pts;
+}
+
+fn main() i64 {
+    Line l;
+    P* p = @l.pts;
+    p[0].x = 10;
+    p[0].y = 20;
+    p[1].x = 30;
+    p[1].y = 42;
+    if p[0].x != 10 {
+        return 0;
+    }
+    if p[1].x != 30 {
+        return 0;
+    }
+    return p[1].y;
+}

@@ -1,0 +1,44 @@
+// OCCULTC: -W
+// -W, and what it is for: a `db` block the program writes into cannot live
+// in a read-only section, and a constant read with `movdqa` cannot live at
+// an address that is not a multiple of sixteen.
+
+extern fn puts(i64 s) i32;
+
+fn table() asm(x86_64) i64 {
+    ret
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    // sixteen bytes, at offset 16 of a function the compiler aligns
+    // to sixteen, so a multiple of sixteen wherever it lands
+    db 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+    dq 0
+    ret
+}
+
+fn aligned_read() asm(x86_64) i64 {
+    movdqa xmm0, xmmword ptr [rip + table + 16]
+    movq rax, xmm0
+    ret
+}
+
+fn write_and_read() asm(x86_64) i64 {
+    mov qword ptr [rip + table + 32], 0x1234
+    mov rax, qword ptr [rip + table + 32]
+    ret
+}
+
+fn main() i64 {
+    // 0x0807060504030201, the first eight bytes read as a quad
+    if aligned_read() != 578437695752307201 {
+        puts("movdqa read the wrong bytes, or faulted");
+        return 1;
+    }
+    if write_and_read() != 4660 {
+        puts("a write into a db block did not stick");
+        return 1;
+    }
+
+    puts("PASS");
+
+    return 0;
+}

@@ -1,0 +1,30 @@
+// EXIT: 42
+// `@expr.field` on a composite chain -- take the leaf's address
+// without loading its value. The `@` emits an op_reference marker
+// which the composite walker pops before the final load would run,
+// leaving the computed leaf address on the stack for an assignment
+// into a pointer variable.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+struct Line {
+    i32 n;
+    array[2] P pts;
+}
+
+fn main() i64 {
+    Line l;
+    l.pts[0].x = 11;
+    l.pts[1].y = 42;
+    // leaf addresses survive the chain walk
+    i32* xa = @l.pts[0].x;
+    i32* ya = @l.pts[1].y;
+    i32 x = $xa;
+    i32 y = $ya;
+    if x != 11 {
+        return 0;
+    }
+    return y;
+}

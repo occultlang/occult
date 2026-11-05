@@ -1,0 +1,16 @@
+// EXIT: 71
+// `return` from a try body with a finally runs the finally, then takes
+// the return afterwards with the computed value.
+i64 ran = 0;
+fn work() i64 {
+    try {
+        return 7;
+    } finally {
+        ran = 1;
+    }
+    return 99;
+}
+fn main() i64 {
+    i64 v = work();
+    return v * 10 + ran;
+}

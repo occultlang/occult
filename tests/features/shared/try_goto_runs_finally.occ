@@ -1,0 +1,13 @@
+// EXIT: 7
+// `goto` out of a try body runs the finally first, then takes the jump.
+i64 ran = 0;
+fn main() i64 {
+    try {
+        goto done;
+    } finally {
+        ran = 7;
+    }
+    return 99;
+    done:
+    return ran;
+}

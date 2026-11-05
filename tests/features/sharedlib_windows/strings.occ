@@ -1,0 +1,13 @@
+// SHAREDLIB
+// EXIT: 0
+// Exercises base relocations (IMAGE_REL_BASED_DIR64 in the .reloc
+// section). The returned string pointer has to be adjusted by the
+// Windows loader when the .dll is placed at a non-preferred base,
+// which is the normal case for Windows DLL loading.
+export fn greet() string {
+    return "Hello from Occult shared library";
+}
+
+export fn get_num() i64 {
+    return 42;
+}

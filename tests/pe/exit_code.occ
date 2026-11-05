@@ -1,0 +1,10 @@
+// EXIT: 42
+// A --format coff -o of this has to run on the host and come out
+// with the same exit code it does on Linux: ExitProcess carries
+// whatever main returned.
+
+fn helper(i64 x) i64 { return x * 3; }
+
+fn main() i64 {
+    return helper(14);
+}

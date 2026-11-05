@@ -1,0 +1,17 @@
+// EXIT: 55
+// `AliasName(expr)` casts through a type alias. The parser splices the
+// alias's RHS tokens in front of the `(`, so the normal cast machinery
+// sees `i64(...)` or `i64*(...)` as if the user had written it.
+type FileHandle = i64;
+type IntPtr     = i64*;
+
+fn main() i64 {
+    i64 raw = 10;
+    FileHandle fd = FileHandle(raw);        // alias of i64
+
+    i64 slot = 0;
+    IntPtr p = IntPtr(@slot);               // alias of i64*
+    $p = 45;
+
+    return fd + slot;                       // 10 + 45 = 55
+}

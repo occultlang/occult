@@ -1,0 +1,19 @@
+// EXIT: 2
+// Multiple catches dispatch by type; the raised type picks which arm runs.
+error Timeout;
+error NotFound;
+
+fn fetch() { error NotFound; }
+
+fn main() i64 {
+    try {
+        fetch();
+    } catch Timeout e {
+        return 1;
+    } catch NotFound e {
+        return 2;
+    } catch e {
+        return 3;
+    }
+    return 0;
+}

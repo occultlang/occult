@@ -1,0 +1,19 @@
+// EXIT: 2
+// errno is the C errno at the moment of use. A libc wrapper catches a
+// failed open and raises a typed error carrying errno in a field.
+module c link "c" { extern fn open(i64 path, i32 flags) i32; }
+error OpenFailed { i64 code; }
+
+fn open_or_raise(string p) {
+    i32 fd = c::open(p, 0);
+    if fd < 0 { error OpenFailed { code = errno }; }
+}
+
+fn main() i64 {
+    try {
+        open_or_raise("/no/such/file/really");
+    } catch OpenFailed e {
+        return e.code;        // 2 == ENOENT
+    }
+    return 0;
+}

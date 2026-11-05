@@ -1,0 +1,24 @@
+// An extern reached from asm(x86_64), which is the shape a decompiler
+// writes: a recovered function calls an import by name and the body is
+// machine code, not Occult.
+
+extern fn puts(i64 s) i32;
+extern fn exit(i64 code) i64;
+
+fn say(i64 s) asm(x86_64) i64 {
+    sub rsp, 8
+    call puts
+    add rsp, 8
+    ret
+}
+
+// jmp, not call: a tail call to an import is how a PLT thunk reads.
+fn leave(i64 code) asm(x86_64) i64 {
+    jmp exit
+}
+
+fn main() i64 {
+    say("PASS");
+    leave(0);
+    return 1;
+}

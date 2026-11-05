@@ -1,0 +1,12 @@
+// A module's externs are looked up in the library it links, and in what
+// that library loads -- libpthread's functions live in libc these days,
+// and `link "pthread"` should still find them. A name in neither is an
+// error naming the library.
+
+module z link "z" {
+    extern fn occult_not_in_zlib_or_libc() i64;
+}
+
+fn main() i64 {
+    return z::occult_not_in_zlib_or_libc();
+}

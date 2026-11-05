@@ -1,0 +1,7 @@
+// EXIT: 1
+// argc through __getmainargs. The harness runs this with no extra
+// arguments, so argc is one: the binary itself.
+
+fn main(i64 argc, i64 argv) i64 {
+    return argc;
+}

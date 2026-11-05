@@ -1,0 +1,9 @@
+// EXIT: 1
+// STDERR: error: nothing caught me
+// STDERR: at main (
+// An error with no try above it reaches main's propagate and the uncaught
+// path reports the message and the function it was raised in, then exits.
+fn main() i64 {
+    error "nothing caught me";
+    return 0;
+}

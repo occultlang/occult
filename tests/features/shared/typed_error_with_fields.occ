@@ -1,0 +1,15 @@
+// EXIT: 42
+// A typed error with fields: raise sets each slot from the initializer,
+// catch declares a struct and copies the fields in.
+error NotFound { string path; i64 line; }
+
+fn load(string p) { error NotFound { path = p, line = 42 }; }
+
+fn main() i64 {
+    try {
+        load("/config");
+    } catch NotFound e {
+        return e.line;
+    }
+    return 99;
+}

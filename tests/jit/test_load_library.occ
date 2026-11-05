@@ -1,0 +1,21 @@
+// OCCULTC: -lm -l m -l libm.so.6
+// -l is repeatable, and takes a short name joined or separate or a file
+// name outright. libm is already in the process, so what this checks is
+// that all three spellings resolve: a bare name goes looking for the
+// soname too, libm.so being a linker script rather than an ELF on a split
+// libc. Prints PASS. -o has to refuse it, an extern having no address there.
+
+extern fn printf(...) i32;
+extern fn pow(...) f64;
+
+fn main() i64 {
+    if pow(2.0, 10.0) != 1024.0 {
+        printf("pow\n");
+
+        return 1;
+    }
+
+    printf("PASS\n");
+
+    return 0;
+}

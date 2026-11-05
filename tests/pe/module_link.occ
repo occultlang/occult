@@ -1,0 +1,11 @@
+// EXIT: 42
+// A -o PE imports a linked module's externs from its DLL, beside the
+// runtime's kernel32: StrToIntA comes from shlwapi.dll.
+
+module sh link "shlwapi" {
+    extern fn StrToIntA(i64 s) i32;
+}
+
+fn main() i64 {
+    return i64(sh::StrToIntA("42"));
+}

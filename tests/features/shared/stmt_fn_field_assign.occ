@@ -1,0 +1,24 @@
+// EXIT: 7
+// `fn().field = v;` as a statement. The write lands in a hidden slot
+// that goes out of scope on the next statement, so it is semantically
+// a discard -- but it parses, type-checks, and runs without crashing.
+// The follow-up read of the original call confirms the function's own
+// return value is untouched.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+fn make() P {
+    P r;
+    r.x = 5;
+    r.y = 7;
+    return r;
+}
+
+fn main() i64 {
+    // write to the temp -- discarded
+    make().x = 99;
+    // read -- still the original 7
+    return make().y;
+}

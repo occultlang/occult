@@ -1,0 +1,13 @@
+// EXIT: 42
+// A function that calls into one that raises propagates the error up to
+// the nearest try, two frames away.
+fn innermost() i64 { error "deep"; return 1; }
+fn middle() i64 { return innermost(); }
+fn main() i64 {
+    try {
+        middle();
+    } catch e {
+        return 42;
+    }
+    return 0;
+}

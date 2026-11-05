@@ -1,0 +1,17 @@
+// EXIT: 5
+// A defer runs when an uncaught error propagates out through main's
+// propagate block. The error is caught here so the exit code tells us
+// whether the defer ran.
+i64 ran = 0;
+fn work() {
+    defer ran = ran + 5;
+    error "boom";
+}
+fn main() i64 {
+    try {
+        work();
+    } catch e {
+        return ran;
+    }
+    return 99;
+}

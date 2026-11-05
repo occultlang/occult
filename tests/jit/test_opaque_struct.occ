@@ -1,0 +1,17 @@
+// An opaque extern struct through libc under the JIT: fopen hands back a
+// FILE* and nothing on this side ever needs to know what is behind it.
+// Prints PASS. -o has to refuse it, an extern having no address there.
+
+extern struct FILE;
+
+extern fn fopen(...) FILE*;
+extern fn fputs(...) i32;
+extern fn fclose(...) i32;
+
+fn main() i64 {
+    FILE* f = fopen("/dev/stdout", "w");
+    fputs("PASS\n", f);
+    fclose(f);
+
+    return 0;
+}

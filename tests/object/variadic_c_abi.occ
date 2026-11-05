@@ -1,0 +1,34 @@
+// A real variadic function wants C's convention, not Occult's: a double in
+// an xmm register with al saying how many, rather than a bitcast int64
+// slot. The float went to rdx and al was never set at all.
+
+extern fn printf(...) i32;
+extern fn snprintf(...) i32;
+extern fn strcmp(...) i32;
+extern fn puts(...) i32;
+
+fn main() i64 {
+    array[48] i8 chars;
+    i64 buf = i64(@chars);
+
+    f32 small = 1.5;
+    f64 big = 3.25;
+
+    // five arguments, three of them floats: al must say 3
+    snprintf(buf, 40, "%.2f %.2f %.2f %d %s", small, big, 0.5, 7, "end");
+    if strcmp(buf, "1.50 3.25 0.50 7 end") != 0 {
+        printf("got [%s]\n", buf);
+        return 1;
+    }
+
+    // and none, where al must say 0
+    snprintf(buf, 40, "%d %s", 42, "x");
+    if strcmp(buf, "42 x") != 0 {
+        printf("got [%s]\n", buf);
+        return 1;
+    }
+
+    puts("PASS");
+
+    return 0;
+}

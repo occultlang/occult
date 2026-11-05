@@ -1,0 +1,30 @@
+// EXIT: 42
+// A tagged-union-style Result: one struct carries either an i64 result
+// or a string message, chosen by the tag.
+struct Result {
+    i64 tag;
+    union {
+        i64 ok;
+        string err;
+    }
+}
+
+fn ok(i64 v) Result {
+    Result r;
+    r.tag = 0;
+    r.ok = v;
+    return r;
+}
+
+fn fail(string m) Result {
+    Result r;
+    r.tag = 1;
+    r.err = m;
+    return r;
+}
+
+fn main() i64 {
+    Result r = ok(42);
+    if r.tag == 0 { return r.ok; }
+    return 1;
+}

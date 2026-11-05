@@ -1,0 +1,20 @@
+// EXIT: 119
+// A union { ... } inside a struct puts each listed field at the same
+// offset. Writing to one field overwrites the others, as it does in C.
+struct Result {
+    i64 tag;
+    union {
+        i64 value;
+        string msg;
+    }
+}
+
+fn main() i64 {
+    Result r;
+    r.tag = 1;
+    r.msg = "whoops";
+    if r.tag == 1 {
+        return $(u8*(r.msg));           // 'w' == 119
+    }
+    return 0;
+}

@@ -1,0 +1,26 @@
+// EXIT: 0
+// A failed libc call is turned into an Occult error so callers can
+// handle it with try/catch rather than checking a return value every
+// time.
+module c link "c" {
+    extern fn open(i64 path, i32 flags) i32;
+    extern fn __errno_location() i64;
+    extern fn strcmp(i64 a, i64 b) i32;
+}
+fn open_or_raise(string path) i32 {
+    i32 fd = c::open(path, 0);
+    if fd < 0 { error "could not open"; }
+    return fd;
+}
+fn main() i64 {
+    i32 fd = 0;
+    try {
+        fd = open_or_raise("/no/such/file/really");
+    } catch e {
+        // e is the message pointer; the catch happens because the
+        // extern wrapper raised it
+        if c::strcmp(e, "could not open") != 0 { return 2; }
+        return 0;
+    }
+    return 1;
+}

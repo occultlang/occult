@@ -1,0 +1,11 @@
+// EXIT: 49
+// A defer runs on an early return too, not just on fall-through.
+i64 r = 0;
+fn work(i64 x) i64 {
+    defer r = r + 7;
+    if x > 0 { return x; }
+    return 0;
+}
+fn main() i64 {
+    return work(42) + r;
+}

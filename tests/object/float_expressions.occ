@@ -1,0 +1,76 @@
+// Floating point in an expression where the only thing saying so is a
+// struct member, and a comparison of two floats used as a value.
+// `s.d * 4.0` used to type as integer; `i64(x == 1.5)` took the float path.
+
+extern fn printf(...) i32;
+
+struct Floats { f32 f; f64 d; i32 n; }
+struct Outer { i8 tag; Floats inner; }
+
+global i64 failures = 0;
+
+fn want(i64 got, i64 expect, i64 what) i64 {
+    if got != expect {
+        printf("%s: got %ld, wanted %ld\n", what, got, expect);
+        failures = failures + 1;
+    }
+    return 0;
+}
+
+fn main() i64 {
+    Floats s;
+    s.f = 1.5;
+    s.d = 2.25;
+    s.n = 3;
+
+    // arithmetic, where the member is the only float in sight
+    want(i64(s.d * 4.0), 9, "f64 member * literal");
+    want(i64(s.f * 2.0), 3, "f32 member * literal");
+    want(i64(s.d + 1.75), 4, "f64 member + literal");
+    want(i64(s.d - 0.25), 2, "f64 member - literal");
+    want(i64(s.d / 0.5), 4, "f64 member / literal");
+
+    // and with a local on the other side
+    f64 half = 0.5;
+    want(i64(s.d * half), 1, "f64 member * f64 local");
+
+    // comparison as a value: a boolean, whatever it compares
+    want(i64(s.d == 2.25), 1, "f64 member == literal");
+    want(i64(s.f == 1.5), 1, "f32 member == literal");
+    want(i64(s.d != 2.25), 0, "f64 member != literal");
+    want(i64(s.d > 1.0), 1, "f64 member > literal");
+    want(i64(s.f < 1.0), 0, "f32 member < literal");
+
+    f64 d2 = 2.25;
+    f32 f2 = 1.5;
+    want(i64(d2 == 2.25), 1, "f64 local == literal");
+    want(i64(f2 == 1.5), 1, "f32 local == literal");
+    want(i64(f2 == 1.25), 0, "f32 local == a different literal");
+
+    // through a nested member
+    Outer o;
+    o.inner.d = 8.0;
+    o.inner.f = 0.5;
+    want(i64(o.inner.d * 0.5), 4, "nested f64 member");
+    want(i64(o.inner.f == 0.5), 1, "nested f32 member compared");
+
+    // and in a condition, which goes down its own path
+    if s.d > 2.0 {
+        want(1, 1, "f64 member in a condition");
+    } else {
+        want(0, 1, "f64 member in a condition");
+    }
+    if s.f == 1.5 {
+        want(1, 1, "f32 member in a condition");
+    } else {
+        want(0, 1, "f32 member in a condition");
+    }
+
+    if failures != 0 {
+        return 1;
+    }
+
+    printf("PASS\n");
+
+    return 0;
+}

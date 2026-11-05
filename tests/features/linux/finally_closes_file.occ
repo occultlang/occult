@@ -1,0 +1,28 @@
+// EXIT: 0
+// A finally runs even when an error propagates out of a try, so a file
+// opened in the try can be closed on both the success and error paths.
+module c link "c" {
+    extern fn open(i64 path, i32 flags) i32;
+    extern fn close(i32 fd) i32;
+    extern fn write(i32 fd, i64 buf, i64 n) i64;
+}
+i64 closed = 0;
+fn step(i32 fd) {
+    try {
+        c::write(fd, "x", 1);
+        error "chaos";
+    } finally {
+        c::close(fd);
+        closed = closed + 1;
+    }
+}
+fn main() i64 {
+    i32 fd = c::open("/dev/null", 1);
+    if fd < 0 { return 2; }
+    try {
+        step(fd);
+    } catch e {
+    }
+    if closed != 1 { return 3; }
+    return 0;
+}

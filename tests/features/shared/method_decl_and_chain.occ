@@ -1,0 +1,33 @@
+// EXIT: 42
+// `fn Type::method(...)` -- a method declaration qualified by its
+// owning type, matching the "Type::method" key the call-site sugar
+// already builds for `obj.method()`. 0059 made the plain method call
+// work (`P got = source.incr();`); this closes the chain so a method
+// call result can be the base of further `.field` or `[i]` steps,
+// through the same hidden-slot path that `fn().field` uses.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+fn P::incr(P self) P {
+    P r;
+    r.x = self.x + 100;
+    r.y = self.y + 100;
+    return r;
+}
+
+fn main() i64 {
+    P source;
+    source.x = -58;
+    source.y = -59;
+    i32 vx = source.incr().x;
+    i32 vy = source.incr().y;
+    if vx != 42 {
+        return 0;
+    }
+    if vy != 41 {
+        return 0;
+    }
+    return vx;
+}

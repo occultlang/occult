@@ -1,0 +1,13 @@
+// EXIT: 7
+// A raise inside the try block is caught, the catch runs, and e holds
+// the raised message so a program can report what went wrong.
+extern fn printf(i64 fmt, ...) i32;
+fn main() i64 {
+    try {
+        error "configuration file is empty";
+    } catch e {
+        printf("caught: %s\n", e);
+        return 7;
+    }
+    return 99;
+}

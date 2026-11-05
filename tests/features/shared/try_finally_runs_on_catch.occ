@@ -1,0 +1,13 @@
+// EXIT: 10
+// A finally runs after the catch does.
+i64 state = 0;
+fn main() i64 {
+    try {
+        error "boom";
+    } catch e {
+        state = 0;
+    } finally {
+        state = state + 10;
+    }
+    return state;
+}

@@ -1,0 +1,98 @@
+// Passing and returning a struct by value, against C's own convention:
+// sixteen bytes or less in one or two registers, each eightbyte classed
+// SSE or INTEGER, anything larger on the stack. A return follows the same
+// rule, with a destination pointer in rdi when it does not fit.
+
+extern fn printf(...) i32;
+
+struct TwoInt    { i64 a; i64 b; }
+struct TwoDbl    { f64 x; f64 y; }
+struct Mixed     { i64 n; f64 d; }
+struct Packed    { i8 a; i16 b; i32 c; }
+struct FloatPair { f32 u; f32 v; }
+struct Big       { i64 a; i64 b; i64 c; i64 d; }
+
+extern fn c_two_int(TwoInt s) i64;
+extern fn c_two_dbl(TwoDbl s) i64;
+extern fn c_mixed(Mixed s) i64;
+extern fn c_packed(Packed s) i64;
+extern fn c_float_pair(FloatPair s) i64;
+extern fn c_big(Big s) i64;
+extern fn c_around(i64 lead, Mixed s, i64 tail, f64 fp) i64;
+extern fn c_two_structs(TwoInt a, TwoDbl b) i64;
+extern fn c_ret_two_int() TwoInt;
+extern fn c_ret_two_dbl() TwoDbl;
+extern fn c_ret_mixed() Mixed;
+extern fn c_ret_big(i64 s) Big;
+extern fn c_calls_occult() i64;
+
+global i64 failures = 0;
+
+fn want(i64 got, i64 expect, i64 what) i64 {
+    if got != expect {
+        printf("%s: got %ld, wanted %ld\n", what, got, expect);
+        failures = failures + 1;
+    }
+    return 0;
+}
+
+// what C calls back into
+fn occ_sum_two_int(TwoInt s) i64 { return s.a + s.b; }
+fn occ_sum_big(Big s) i64 { return s.a + s.b + s.c + s.d; }
+fn occ_make_two_int(i64 a, i64 b) TwoInt { TwoInt s; s.a = a; s.b = b; return s; }
+fn occ_make_big(i64 seed) Big {
+    Big b;
+    b.a = seed; b.b = seed + 1; b.c = seed + 2; b.d = seed + 3;
+    return b;
+}
+
+// and Occult calling itself, which has to keep agreeing with itself
+fn occ_roundtrip(i64 seed) i64 {
+    TwoInt t = occ_make_two_int(seed, seed + 1);
+    Big b = occ_make_big(seed);
+    return occ_sum_two_int(t) + occ_sum_big(b);
+}
+
+fn main() i64 {
+    TwoInt ti; ti.a = 11; ti.b = 22;
+    TwoDbl td; td.x = 1.5; td.y = 2.5;
+    Mixed mx; mx.n = 7; mx.d = 3.25;
+    Packed pk; pk.a = 1; pk.b = 2; pk.c = 3;
+    FloatPair fp; fp.u = 0.5; fp.v = 0.25;
+    Big bg; bg.a = 1; bg.b = 2; bg.c = 3; bg.d = 4;
+
+    // arguments, one class each
+    want(c_two_int(ti), 1, "two INTEGER eightbytes");
+    want(c_two_dbl(td), 1, "two SSE eightbytes");
+    want(c_mixed(mx), 1, "INTEGER then SSE");
+    want(c_packed(pk), 1, "three fields in one eightbyte");
+    want(c_float_pair(fp), 1, "two floats in one SSE eightbyte");
+    want(c_big(bg), 1, "over sixteen bytes, on the stack");
+    want(c_around(100, mx, 200, 9.5), 1, "a struct among other arguments");
+    want(c_two_structs(ti, td), 1, "two structs in a row");
+
+    // returns
+    TwoInt r1 = c_ret_two_int();
+    want(r1.a + r1.b, 33, "returned two INTEGER eightbytes");
+    TwoDbl r2 = c_ret_two_dbl();
+    want(i64(r2.x == 1.5) + i64(r2.y == 2.5), 2, "returned two SSE eightbytes");
+    Mixed r3 = c_ret_mixed();
+    want(r3.n, 7, "returned INTEGER then SSE (the integer half)");
+    want(i64(r3.d == 3.25), 1, "returned INTEGER then SSE (the float half)");
+    Big r4 = c_ret_big(20);
+    want(r4.a + r4.b + r4.c + r4.d, 86, "returned over sixteen bytes");
+
+    // C calling back into Occult, both ways
+    want(c_calls_occult(), 1, "C passing and receiving Occult's structs");
+
+    // and Occult agreeing with itself
+    want(occ_roundtrip(10), 21 + 46, "Occult to Occult");
+
+    if failures != 0 {
+        return 1;
+    }
+
+    printf("PASS\n");
+
+    return 0;
+}

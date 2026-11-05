@@ -1,0 +1,47 @@
+// -c: an object file, linked against the real libc.
+//
+// Nothing here is in the file the compiler writes -- puts, printf,
+// strlen and the allocator all arrive from ld.
+
+extern fn puts(i64 s) i32;
+extern fn printf(i64 fmt, ...) i32;
+extern fn strlen(i64 s) i64;
+extern fn malloc(i64 n) i64;
+extern fn free(i64 p) i64;
+
+fn main() i64 {
+    i64 name = "occult";
+
+    if strlen(name) != 6 {
+        puts("strlen disagrees");
+        return 1;
+    }
+
+    i64 p = malloc(64);
+    if p == 0 {
+        puts("malloc failed");
+        return 1;
+    }
+
+    $(i64*(p)) = 1234;
+    $(i8*(p + 8)) = 65;
+
+    if $(i64*(p)) != 1234 {
+        puts("heap read back wrong");
+        return 1;
+    }
+    if i64($(i8*(p + 8))) != 65 {
+        puts("byte read back wrong");
+        return 1;
+    }
+
+    free(p);
+
+    // varargs, which is the part of the convention a fixed-arity
+    // declaration never exercises: al has to carry the vector count.
+    printf("%s %ld %s\n", name, strlen(name), "ok");
+
+    puts("PASS");
+
+    return 0;
+}

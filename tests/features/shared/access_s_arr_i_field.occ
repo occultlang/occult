@@ -1,0 +1,33 @@
+// EXIT: 44
+// `s.arr[i].field` -- member, then subscript, then member again. The
+// chain walker produces the leaf's address no matter how deep the
+// composition goes, since the invariant is that each step walks from
+// a known base address with a known element or field type.
+struct P {
+    i32 x;
+    i32 y;
+}
+
+struct Line {
+    i32 n;
+    array[2] P pts;
+}
+
+fn main() i64 {
+    Line l;
+    l.n = 2;
+    l.pts[0].x = 11;
+    l.pts[0].y = 12;
+    l.pts[1].x = 21;
+    l.pts[1].y = 44;
+    if l.n != 2 {
+        return 0;
+    }
+    if l.pts[0].x != 11 {
+        return 0;
+    }
+    if l.pts[1].x != 21 {
+        return 0;
+    }
+    return l.pts[1].y;
+}

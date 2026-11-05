@@ -1,0 +1,35 @@
+// A global's initialiser runs from .init_array, because an object file
+// has no entry stub of its own to call it from -- the C runtime does.
+
+extern fn puts(i64 s) i32;
+
+global i64 counter = 41;
+global i64 seen = 0;
+
+fn bump() i64 {
+    counter = counter + 1;
+    seen = seen + 1;
+    return counter;
+}
+
+fn main() i64 {
+    if counter != 41 {
+        puts("the initialiser did not run");
+        return 1;
+    }
+
+    bump();
+
+    if counter != 42 {
+        puts("a global did not survive the call");
+        return 1;
+    }
+    if seen != 1 {
+        puts("the second global is aliasing the first");
+        return 1;
+    }
+
+    puts("PASS");
+
+    return 0;
+}

@@ -1,0 +1,11 @@
+// EXPECT-FAIL
+// The loader can only find what is in the process. A name nothing
+// defines is still an error rather than a call to zero.
+
+extern fn occult_no_such_symbol_anywhere(i64 s) i32;
+
+fn main() i64 {
+    occult_no_such_symbol_anywhere("");
+
+    return 0;
+}

@@ -1,0 +1,17 @@
+// EXIT: 7
+// A standalone union can be passed by value, like any struct. The
+// callee sees the same bytes the caller wrote.
+union Box {
+    i64 n;
+    i64 m;
+}
+
+fn take(Box b) i64 {
+    return b.n;
+}
+
+fn main() i64 {
+    Box b;
+    b.n = 7;
+    return take(b);
+}

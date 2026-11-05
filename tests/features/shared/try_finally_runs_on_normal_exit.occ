@@ -1,0 +1,13 @@
+// EXIT: 11
+// A finally runs when the body of a try completes without raising.
+i64 state = 0;
+fn main() i64 {
+    try {
+        state = state + 1;
+    } catch e {
+        state = state + 100;
+    } finally {
+        state = state + 10;
+    }
+    return state;
+}

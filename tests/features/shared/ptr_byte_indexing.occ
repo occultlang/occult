@@ -1,0 +1,30 @@
+// EXIT: 70
+// `p[i]` on a scalar pointer variable walks real byte strides. the
+// pre-patch code treated the pointer name as if it were a frame-local
+// array, so it indexed from the pointer's own stack slot (where the
+// 8-byte pointer value lives) rather than through the pointer, which
+// gave garbage for every index > 0 regardless of pointee width. the
+// composite walker now does the index * sizeof(pointee) + addr
+// arithmetic, with op_pointee setting the load/store width, so an
+// `i8*` really walks bytes.
+struct Buf {
+    i32 n;
+    array[8] i8 bytes;
+    i32 tail;
+}
+
+fn main() i64 {
+    Buf b;
+    b.n = 1;
+    b.tail = 7;
+    i8* p = @b.bytes;
+    p[0] = 10;
+    p[1] = 20;
+    p[7] = 70;
+    // read back through the inline struct array; the pointer and the
+    // member access reach the same bytes
+    if b.bytes[0] != 10 { return 0; }
+    if b.bytes[1] != 20 { return 0; }
+    if b.tail != 7 { return 0; }
+    return b.bytes[7];
+}
