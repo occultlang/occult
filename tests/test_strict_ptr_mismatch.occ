@@ -1,0 +1,6 @@
+// EXPECT-FAIL
+fn main() {
+    i64* p = 0;
+    u8* q = p;
+    return 0;
+}

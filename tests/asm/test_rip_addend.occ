@@ -1,0 +1,37 @@
+include "../../std/stdio.occ"
+
+fn table() asm(x86_64) i64 {
+  ret
+  db 10, 20, 30, 40, 50, 60, 70, 80
+}
+
+// `[rip + table + n]` used to ignore the `+ n`: the backpatch wrote the
+// function's own displacement over it, so every such operand read the
+// first byte whatever offset it named.
+fn nth(i64 n) asm(x86_64) i64 {
+  lea rax, [rip + table + 1]
+  movzx rax, byte [rax + rdi]
+  ret
+}
+
+fn third() asm(x86_64) i64 {
+  movzx rax, byte [rip + table + 3]
+  ret
+}
+
+fn main() {
+  if third() != 30 {
+    std::print_string("[rip + fn + n] read the wrong byte\n");
+    return 1;
+  }
+  i64 i = 0;
+  while i < 8 {
+    if nth(i) != (i + 1) * 10 {
+      std::print_string("lea [rip + fn + n] landed in the wrong place\n");
+      return 1;
+    }
+    i = i + 1;
+  }
+  std::print_string("PASS\n");
+  return 0;
+}

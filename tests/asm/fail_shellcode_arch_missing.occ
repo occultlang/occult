@@ -1,0 +1,2 @@
+fn f() shellcode i64 { 0xC3 }
+fn main() { return f(); }

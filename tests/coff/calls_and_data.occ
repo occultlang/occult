@@ -1,0 +1,20 @@
+// CALLS: helper chain
+// A COFF object linked into a PE. The names above have to be reached by a
+// call once linked, which is what checks the relocation arithmetic: COFF
+// keeps the addend in the field and measures REL32 from four bytes past
+// it, where ELF keeps the addend beside it and measures from the field.
+extern fn printf(...) i32;
+extern fn strlen(...) i64;
+
+global i64 counter = 100;
+
+fn helper(i64 x) i64 { return x * 3; }
+
+fn chain(i64 x) i64 { return helper(x) + helper(x + 1); }
+
+fn run() i64 {
+    counter = counter + chain(2);
+    printf("chain=%ld strlen=%ld counter=%ld\n", chain(2), strlen("abcdef"), counter);
+
+    return counter;
+}

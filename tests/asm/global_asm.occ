@@ -1,0 +1,42 @@
+// @global in asm: the address of an Occult global, in naked and inline
+// blocks alike. Works the same under the JIT and in a native binary.
+include "../../std/stdio.occ"
+
+i64 counter = 7;
+i64 total = 0;
+
+// naked: no prologue, so the address has to come from @global
+fn bump() asm(x86_64) i64 {
+    mov rax, @counter
+    mov rcx, [rax]
+    add rcx, 1
+    mov [rax], rcx
+    mov rax, rcx
+    ret
+}
+
+// inline: mixes a global with a local bound by {name}
+fn read_and_add(i64 n) i64 {
+    i64 out = 0;
+    asm(x86_64) {
+        mov rax, @counter
+        mov rax, [rax]
+        add rax, {n}
+        mov rcx, @total
+        mov [rcx], rax
+        mov {out}, rax
+    }
+    return out;
+}
+
+fn main() {
+    i64 fails = 0;
+    bump();
+    bump();
+    if counter != 9 { std::print_string("counter FAIL\n"); fails += 1; }
+    if read_and_add(5) != 14 { std::print_string("read_and_add FAIL\n"); fails += 1; }
+    // the write through @total must be visible to Occult code
+    if total != 14 { std::print_string("total FAIL\n"); fails += 1; }
+    if fails == 0 { std::print_string("PASS\n"); }
+    return fails;
+}

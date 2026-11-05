@@ -1,0 +1,2 @@
+fn main() { asm(x86_64) { a: nop
+a: nop } return 0; }

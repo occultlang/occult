@@ -1,0 +1,1 @@
+fn main() { i64 a = 1; asm(x86_64) { mov rax, {nope} } return a; }

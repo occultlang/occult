@@ -1,0 +1,1 @@
+fn main() { asm(z80) { nop } return 0; }

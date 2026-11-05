@@ -1,0 +1,31 @@
+// Pointer casts: i64*(x) turns an address back into a pointer. Prints PASS.
+include "../std/stdio.occ"
+
+fn deref_at(i64 addr) i64 {
+    i64* p = i64*(addr);
+    return $p;
+}
+
+fn store_at(i64 addr, i64 v) {
+    i64* p = i64*(addr);
+    $p = v;
+}
+
+fn main() {
+    i64 fails = 0;
+    i64 v = 42;
+    i64 a = u64(@v);
+
+    if deref_at(a) != 42 { std::print_string("deref FAIL\n"); fails += 1; }
+    store_at(a, 99);
+    if v != 99 { std::print_string("store FAIL\n"); fails += 1; }
+
+    // a double pointer, so the depth is carried through
+    i64* p = @v;
+    i64 pa = u64(@p);
+    i64** pp = i64**(pa);
+    if $$pp != 99 { std::print_string("double FAIL\n"); fails += 1; }
+
+    if fails == 0 { std::print_string("PASS\n"); }
+    return fails;
+}

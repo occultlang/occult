@@ -1,0 +1,44 @@
+include "../std/stdio.occ"
+
+// A pointer cast is to a 64-bit address, so the width it points at used
+// to be dropped: `$(i8*(p))` read eight bytes and `$(i8*(p)) = v` wrote
+// eight, trampling the seven that followed.
+fn main() {
+  array[4] i64 buf;
+  i64 b = i64(@buf[0]);
+
+  i64 k = 0;
+  while k < 32 {
+    $(i8*(b + k)) = 0;
+    k = k + 1;
+  }
+
+  $(i8*(b + 0)) = 65;
+  $(i8*(b + 1)) = 66;
+  $(i16*(b + 2)) = 4660;
+  $(i32*(b + 4)) = 305419896;
+
+  if $(u8*(b + 0)) != 65 { return 1; }
+  if $(u8*(b + 1)) != 66 { return 1; }
+  if $(u16*(b + 2)) != 4660 { return 1; }
+  if $(u32*(b + 4)) != 305419896 { return 1; }
+  if $(i64*(b + 0)) != 1311768465173135937 { return 1; }
+
+  // and nothing past the store was touched
+  if $(i64*(b + 8)) != 0 { return 1; }
+
+  // sign and zero extension, each as wide as it was asked for
+  $(u8*(b + 0)) = 255;
+  $(u8*(b + 1)) = 255;
+  $(u8*(b + 2)) = 255;
+  $(u8*(b + 3)) = 255;
+  if $(i8*(b + 0)) != 0 - 1 { return 1; }
+  if $(u8*(b + 0)) != 255 { return 1; }
+  if $(i16*(b + 0)) != 0 - 1 { return 1; }
+  if $(u16*(b + 0)) != 65535 { return 1; }
+  if $(i32*(b + 0)) != 0 - 1 { return 1; }
+  if $(u32*(b + 0)) != 4294967295 { return 1; }
+
+  std::print_string("pointee width ok\n");
+  return 0;
+}

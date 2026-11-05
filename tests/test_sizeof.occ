@@ -1,0 +1,39 @@
+include "../std/stdio.occ"
+
+struct Point {
+    i64 x;
+    i64 y;
+}
+
+struct Line {
+    Point a;
+    Point b;
+}
+
+fn main() {
+    std::print_integer(sizeof(i8));
+    std::print_string(" ");
+    std::print_integer(sizeof(u16));
+    std::print_string(" ");
+    std::print_integer(sizeof(i32));
+    std::print_string(" ");
+    std::print_integer(sizeof(f64));
+    std::print_string(" ");
+    std::print_integer(sizeof(char));
+    std::print_string(" ");
+    std::print_integer(sizeof(bool));
+    std::print_string(" ");
+    std::print_integer(sizeof(i64*));
+    std::print_string(" ");
+    std::print_integer(sizeof(Point));
+    std::print_string(" ");
+    std::print_integer(sizeof(Line));
+    std::print_string(" ");
+    std::print_integer(sizeof(Point*));
+    std::print_string("\n");
+
+    i64 total = sizeof(Point) * 4 + sizeof(i32);
+    std::print_integer(total);
+    std::print_string("\n");
+    return 0;
+}

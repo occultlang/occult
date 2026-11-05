@@ -30,9 +30,9 @@ fn main() i64 {
     check("strlen empty", std::strlen(""), 0, fails);
     check("strlen_fast", std::strlen_fast("hello!"), 6, fails);
     check("strcmp eq", std::strcmp("abc", "abc"), 0, fails);
-    check("strcmp lt", std::strcmp("abc", "abd") < 0, 1, fails);
-    check("strcmp gt", std::strcmp("abd", "abc") > 0, 1, fails);
-    check("strcmp prefix", std::strcmp("ab", "abc") != 0, 1, fails);
+    check("strcmp lt", i64(std::strcmp("abc", "abd") < 0), 1, fails);
+    check("strcmp gt", i64(std::strcmp("abd", "abc") > 0), 1, fails);
+    check("strcmp prefix", i64(std::strcmp("ab", "abc") != 0), 1, fails);
     check("str_empty yes", std::str_empty(""), 1, fails);
     check("str_empty no", std::str_empty("x"), 0, fails);
     check("str_char_at", std::str_char_at("xyz", 1), 121, fails);
@@ -51,10 +51,12 @@ fn main() i64 {
     std::free(p);
 
     // ---- vec ---------------------------------------------------------
-    std::Vector<i64>* v = std::malloc(32);
-    v.data = 0;
-    std::vector_construct<i64>(v, 8, 2);
-    check("vec empty", std::vector_empty<i64>(v), 1, fails);
+    // vector_new is the constructor the module has: it allocates the
+    // Vector as well as its storage. `vector_construct`, which these
+    // tests called, is not defined anywhere in std -- so they have
+    // never got past the linter.
+    std::Vector<i64>* v = std::vector_new<i64>(8, 2);
+    check("vec empty", i64(std::vector_empty<i64>(v)), 1, fails);
 
     for i64 i = 1 when i <= 5 do i += 1 {
         std::vector_push_back<i64>(v, i * 10); // 10 20 30 40 50
@@ -85,7 +87,7 @@ fn main() i64 {
 
     std::vector_clear<i64>(v);
     check("vec clear", v.length, 0, fails);
-    check("vec empty 2", std::vector_empty<i64>(v), 1, fails);
+    check("vec empty 2", i64(std::vector_empty<i64>(v)), 1, fails);
     std::vector_free<i64>(v);
     std::free(v);
 

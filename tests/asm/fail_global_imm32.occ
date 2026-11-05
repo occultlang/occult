@@ -1,0 +1,7 @@
+// a global's address is 64-bit; a 32-bit destination must be rejected
+i64 g = 1;
+fn bad() asm(x86_64) i64 {
+    mov eax, @g
+    ret
+}
+fn main() i64 { return bad(); }

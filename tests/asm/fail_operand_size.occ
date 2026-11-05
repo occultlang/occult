@@ -1,0 +1,1 @@
+fn main() { asm(x86_64) { mov [rax], 5 } return 0; }

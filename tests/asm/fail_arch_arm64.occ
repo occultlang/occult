@@ -1,0 +1,2 @@
+fn f() asm(arm64) i64 { ret }
+fn main() { return f(); }

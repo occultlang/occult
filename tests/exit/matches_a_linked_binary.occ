@@ -1,0 +1,4 @@
+// EXIT: 7
+// The JIT and -o have to agree, which is the point of propagating it.
+extern fn printf(...) i32;
+fn main(i64 argc, i64 argv) i64 { return 7; }

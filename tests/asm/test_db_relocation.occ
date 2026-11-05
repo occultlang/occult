@@ -1,0 +1,30 @@
+include "../../std/stdio.occ"
+
+fn table() asm(x86_64) i64 {
+  ret
+  db 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88
+}
+
+// `movhps` reads eight bytes into the high half of an xmm register. It
+// is rip-relative here, and it is an instruction a decompiler may not
+// be able to spell -- so it gets written back as its own bytes, and
+// those bytes carry a displacement measured from where the instruction
+// used to be. Unless the displacement is written as a relocation, the
+// recompiled program reads whatever now sits at the old distance.
+fn high_half() asm(x86_64) i64 {
+  movhps xmm0, qword [rip + table + 1]
+  movups [rsp - 16], xmm0
+  mov rax, [rsp - 8]
+  ret
+}
+
+fn main() {
+  // 0x8877665544332211, as a signed i64.
+  i64 want = 0 - 8613303245920329199;
+  if high_half() != want {
+    std::print_string("the high half did not come from the table\n");
+    return 1;
+  }
+  std::print_string("PASS\n");
+  return 0;
+}

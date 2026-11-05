@@ -1,0 +1,6 @@
+// @name must name a real global
+fn bad() asm(x86_64) i64 {
+    mov rax, @no_such_global
+    ret
+}
+fn main() i64 { return bad(); }

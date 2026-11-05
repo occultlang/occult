@@ -1,0 +1,18 @@
+// EXIT: 1
+// STDERR: error: negative input
+// STDERR: at check (tests/exit/error_stops_the_program.occ:9)
+// error("...") ends the program with status 1 and says what and where,
+// the way an uncaught std::runtime_error does. Nothing after it runs.
+
+fn check(i64 x) i64 {
+    if x < 0 {
+        error("negative input");
+    }
+    return x * 2;
+}
+
+fn main() i64 {
+    i64 a = check(4);
+    i64 b = check(0 - 1);
+    return a + b + 100;
+}

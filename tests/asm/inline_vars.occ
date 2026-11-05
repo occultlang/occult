@@ -1,0 +1,90 @@
+// Inline asm(x86_64) blocks that read and write Occult locals and parameters
+include "../../std/stdio.occ"
+
+fn add_asm(i64 a, i64 b) i64 {
+    i64 result = 0;
+    asm(x86_64) {
+        mov rax, {a}
+        add rax, {b}
+        mov {result}, rax
+    }
+    return result;
+}
+
+fn sum_to(i64 n) i64 {
+    i64 total = 0;
+    asm(x86_64) {
+        xor rax, rax
+        mov rcx, {n}
+    again:
+        test rcx, rcx
+        jz done
+        add rax, rcx
+        dec rcx
+        jmp again
+    done:
+        mov {total}, rax
+    }
+    return total;
+}
+
+fn small_types() i64 {
+    i32 x = -5;
+    u8 b = 200;
+    i16 s = 1000;
+    i64 out = 0;
+    asm(x86_64) {
+        movsxd rax, {x}          // sign extends a 32-bit local
+        movzx rcx, {b}
+        movsx rdx, {s}
+        add rax, rcx
+        add rax, rdx
+        mov {out}, rax
+        mov dword ptr {x}, 7     // and writes it back
+    }
+    if x != 7 { return -1; }
+    return out;                  // -5 + 200 + 1000
+}
+
+fn uninitialised() i64 {
+    i64 v;                       // zeroed, so asm can fill it in
+    asm(x86_64) { mov {v}, 42 }
+    return v;
+}
+
+fn doubles() i64 {
+    f64 a = 1.5;
+    f64 b = 2.25;
+    f64 c = 0.0;
+    asm(x86_64) {
+        movsd xmm0, {a}
+        addsd xmm0, {b}
+        movsd {c}, xmm0
+    }
+    if c == 3.75 { return 1; }
+    return 0;
+}
+
+fn clobbers_everything() i64 {
+    i64 keep = 11;
+    asm(x86_64) {                // callee-saved registers are restored by the compiler
+        mov rbx, 1
+        mov r12, 2
+        mov r13, 3
+        mov r14, 4
+        mov r15, 5
+    }
+    return keep;
+}
+
+fn main() {
+    i64 fails = 0;
+    if add_asm(40, 2) != 42 { std::print_string("add_asm FAIL\n"); fails += 1; }
+    if sum_to(100) != 5050 { std::print_string("sum_to FAIL\n"); fails += 1; }
+    if small_types() != 1195 { std::print_string("small_types FAIL\n"); fails += 1; }
+    if uninitialised() != 42 { std::print_string("uninitialised FAIL\n"); fails += 1; }
+    if doubles() != 1 { std::print_string("doubles FAIL\n"); fails += 1; }
+    if clobbers_everything() != 11 { std::print_string("clobbers FAIL\n"); fails += 1; }
+    if fails == 0 { std::print_string("PASS\n"); }
+    return fails;
+}

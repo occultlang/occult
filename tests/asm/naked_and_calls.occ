@@ -1,0 +1,102 @@
+// Whole-function asm(x86_64) bodies, calls between asm and Occult, data and rip-relative labels
+include "../../std/stdio.occ"
+
+fn triple(i64 x) i64 {
+    return x * 3;
+}
+
+// naked: no prologue, arguments arrive in rdi/rsi per the SysV ABI
+fn max2(i64 a, i64 b) asm(x86_64) i64 {
+    mov rax, rdi
+    cmp rax, rsi
+    jge .done
+    mov rax, rsi
+.done:
+    ret
+}
+
+// naked function calling an Occult function
+fn triple_plus_one(i64 x) asm(x86_64) i64 {
+    push rbp
+    mov rbp, rsp
+    call triple          ; an Occult function, found by name
+    add rax, 1
+    pop rbp
+    ret
+}
+
+// strlen with a loop, conditional jump and a byte compare
+fn my_strlen(string s) asm(x86_64) i64 {
+    xor rax, rax
+loop_top:
+    cmp byte ptr [rdi + rax], 0
+    je finished
+    inc rax
+    jmp loop_top
+finished:
+    ret
+}
+
+// data after the code, reached with rip-relative addressing
+fn write_hello() asm(x86_64) i64 {
+    mov rax, 1
+    mov rdi, 1
+    lea rsi, [rip + msg]
+    mov rdx, msg_end - msg
+    syscall
+    ret
+msg:
+    db "hello from asm", 10
+msg_end:
+}
+
+fn table_lookup(i64 i) asm(x86_64) i64 {
+    lea rax, [rip + table]
+    mov rax, [rax + rdi*8]
+    ret
+table:
+    dq 10, 20, 30, 40
+}
+
+// inline block calling an Occult function and using the result
+fn inline_call(i64 n) i64 {
+    i64 out = 0;
+    asm(x86_64) {
+        mov rdi, {n}
+        call triple
+        mov {out}, rax
+    }
+    return out;
+}
+
+// inline block taking the address of a function and calling through it
+fn call_through_pointer(i64 n) i64 {
+    i64 out = 0;
+    asm(x86_64) {
+        lea rax, [rip + triple]
+        mov rdi, {n}
+        call rax
+        mov {out}, rax
+    }
+    return out;
+}
+
+// tail jump to an Occult function
+fn tail_triple(i64 x) asm(x86_64) i64 {
+    jmp triple
+}
+
+fn main() {
+    i64 fails = 0;
+    if max2(3, 9) != 9 { std::print_string("max2 FAIL\n"); fails += 1; }
+    if max2(9, 3) != 9 { std::print_string("max2 FAIL (2)\n"); fails += 1; }
+    if triple_plus_one(5) != 16 { std::print_string("triple_plus_one FAIL\n"); fails += 1; }
+    if my_strlen("occult") != 6 { std::print_string("my_strlen FAIL\n"); fails += 1; }
+    if table_lookup(2) != 30 { std::print_string("table FAIL\n"); fails += 1; }
+    if inline_call(7) != 21 { std::print_string("inline_call FAIL\n"); fails += 1; }
+    if call_through_pointer(8) != 24 { std::print_string("call_through_pointer FAIL\n"); fails += 1; }
+    if tail_triple(9) != 27 { std::print_string("tail_triple FAIL\n"); fails += 1; }
+    write_hello();
+    if fails == 0 { std::print_string("PASS\n"); }
+    return fails;
+}

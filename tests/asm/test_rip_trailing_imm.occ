@@ -1,0 +1,40 @@
+include "../../std/stdio.occ"
+
+fn slot() asm(x86_64) i64 {
+  ret
+  dq 1234
+}
+
+// `[rip + function + n]` with an immediate after it. The displacement is
+// not the last field of the instruction then, and measuring from four
+// bytes past it put the operand four bytes early -- so the assembler
+// used to refuse the shape rather than get it wrong.
+//
+// Reading rather than writing, because the JIT maps the blob read-only
+// and executable; only the linker's own output is writable.
+fn is_1234() asm(x86_64) i64 {
+  xor eax, eax
+  cmp qword [rip + slot + 1], 1234
+  sete al
+  ret
+}
+
+fn is_9999() asm(x86_64) i64 {
+  xor eax, eax
+  cmp qword [rip + slot + 1], 9999
+  sete al
+  ret
+}
+
+fn main() {
+  if is_1234() != 1 {
+    std::print_string("the immediate moved the displacement\n");
+    return 1;
+  }
+  if is_9999() != 0 {
+    std::print_string("compared equal to the wrong value\n");
+    return 1;
+  }
+  std::print_string("PASS\n");
+  return 0;
+}

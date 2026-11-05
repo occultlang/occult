@@ -1,0 +1,20 @@
+include "../std/stdio.occ"
+
+fn main() {
+    i64* p = std::malloc(16);
+    if p == 0 { return 1; }
+
+    u64 addr = u64(p);
+    i64* q = addr;
+    $q = 7;
+
+    char c = 'A';
+    i64 widened = c;
+    char back = char(widened + 1);
+    i64 flag = i64(widened > 64);
+
+    std::print_integer($p + widened + i64(back) + flag);
+    std::print_string("\n");
+    std::free(p);
+    return 0;
+}

@@ -1,0 +1,37 @@
+include "../../std/stdio.occ"
+
+fn table() asm(x86_64) i64 {
+  ret
+  db 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88
+}
+
+// `mov eax, dword ptr [rip + table + 1]`, written the way a decompiler
+// has to write an instruction this assembler cannot spell: the opcode
+// bytes verbatim, and the displacement as a relocation. Written as `db`
+// all the way through, the four bytes of displacement would still
+// measure from where the instruction used to be.
+fn by_hand() asm(x86_64) i64 {
+  db 0x8b, 0x05
+  rel32 table + 1
+  ret
+}
+
+// The same instruction the assembler's own way, as the control.
+fn by_assembler() asm(x86_64) i64 {
+  mov eax, dword [rip + table + 1]
+  ret
+}
+
+fn main() {
+  i64 want = 1144201745;   // 0x44332211
+  if by_assembler() != want {
+    std::print_string("the assembler's own form is wrong\n");
+    return 1;
+  }
+  if by_hand() != want {
+    std::print_string("rel32 did not reach the table\n");
+    return 1;
+  }
+  std::print_string("PASS\n");
+  return 0;
+}

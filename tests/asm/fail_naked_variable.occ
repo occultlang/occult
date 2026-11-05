@@ -1,0 +1,3 @@
+fn f(i64 a) asm(x86_64) i64 { mov rax, {a}
+ret }
+fn main() { return f(1); }

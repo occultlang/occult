@@ -1,0 +1,72 @@
+// `fn main(i64 argc, i64 argv)` in both the modes that have a command
+// line. The harness runs this as `one two three`, under -o and under the
+// JIT with `--`, and both have to agree about all four.
+
+include "../../std/stdio.occ"
+
+// argv holds C strings, not Occult ones: an Occult `string` keeps its
+// length in the eight bytes before the pointer and these have no such
+// thing, so they are walked a byte at a time.
+fn same(i64 p, string want) i64 {
+    i64 i = 0;
+
+    while $(u8*(want + i)) != 0 {
+        if $(u8*(p + i)) != $(u8*(want + i)) {
+            return 0;
+        }
+        i = i + 1;
+    }
+
+    if $(u8*(p + i)) != 0 {
+        return 0;
+    }
+
+    return 1;
+}
+
+fn arg(i64 argv, i64 n) i64 {
+    return $(i64*(argv + n * 8));
+}
+
+fn main(i64 argc, i64 argv) i64 {
+    if argc != 4 {
+        std::print_string("argc = ");
+        std::print_integer(argc);
+        std::print_string(", wanted 4\n");
+        return 1;
+    }
+
+    // argv[0] is the binary under -o and the source under the JIT, so
+    // only that it is there and non-empty is checked.
+    if arg(argv, 0) == 0 {
+        std::print_string("argv[0] is null\n");
+        return 1;
+    }
+    if $(u8*(arg(argv, 0))) == 0 {
+        std::print_string("argv[0] is empty\n");
+        return 1;
+    }
+
+    if same(arg(argv, 1), "one") == 0 {
+        std::print_string("argv[1] wrong\n");
+        return 1;
+    }
+    if same(arg(argv, 2), "two") == 0 {
+        std::print_string("argv[2] wrong\n");
+        return 1;
+    }
+    if same(arg(argv, 3), "three") == 0 {
+        std::print_string("argv[3] wrong\n");
+        return 1;
+    }
+
+    // The array is NULL-terminated, the way C's is.
+    if arg(argv, 4) != 0 {
+        std::print_string("argv[argc] is not null\n");
+        return 1;
+    }
+
+    std::print_string("PASS\n");
+
+    return 0;
+}

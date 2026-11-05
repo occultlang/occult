@@ -1,0 +1,23 @@
+// shellcode(arch) as a whole function body and as a statement
+include "../../std/stdio.occ"
+
+// mov rax, 42 ; ret
+fn forty_two() shellcode(x86_64) i64 { 0x48 0xC7 0xC0 0x2A 0x00 0x00 0x00 0xC3 }
+
+// commas between bytes are allowed
+fn seven() shellcode(amd64) i64 { 0xB8, 0x07, 0x00, 0x00, 0x00, 0xC3 }
+
+fn nops_inline() i64 {
+    i64 x = 5;
+    shellcode(x86_64) { 0x90 0x90 0x90 }
+    return x + 1;
+}
+
+fn main() {
+    i64 fails = 0;
+    if forty_two() != 42 { std::print_string("forty_two FAIL\n"); fails += 1; }
+    if seven() != 7 { std::print_string("seven FAIL\n"); fails += 1; }
+    if nops_inline() != 6 { std::print_string("nops_inline FAIL\n"); fails += 1; }
+    if fails == 0 { std::print_string("PASS\n"); }
+    return fails;
+}

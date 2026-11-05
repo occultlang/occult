@@ -1,0 +1,60 @@
+// EXIT: 0
+// The shapes a condition cut at each comparison could not see. Each one
+// was wrong before: the `!` vanished, the outer `!= 1` vanished, or a
+// bare value emitted no jump, so its block always ran.
+
+fn id(i64 x) i64 { return x; }
+
+fn main() i64 {
+    bool yes = true;
+    bool no = false;
+    i64 x = 65;
+    i64 i = 0;
+    i64 n = 5;
+
+    // ! as a value
+    if i64(!true) != 0 { return 1; }
+    if i64(!false) != 1 { return 2; }
+    bool f = !yes;
+    if f == true { return 3; }
+    if i64(!(1 > 2)) != 1 { return 4; }
+
+    // a bare value is true when it is not zero
+    if no { return 5; }
+    if 0 { return 6; }
+    if !yes { return 7; }
+    i64 ran = 0;
+    if yes { ran = 1; }
+    if ran != 1 { return 8; }
+
+    // a comparison's result used as an operand
+    if (x > 64) != 1 { return 9; }
+    if (x > 64) == 0 { return 10; }
+    i64 p = 7;
+    if p + (x > 64) != 8 { return 11; }
+
+    // ! and nesting under && and ||
+    if !yes && i < n { return 12; }
+    ran = 0;
+    if !no && i < n { ran = 1; }
+    if ran != 1 { return 13; }
+    ran = 0;
+    if (i < n) == 1 && n > 4 { ran = 1; }
+    if ran != 1 { return 14; }
+    if (i > n) != 0 || n > 9 { return 15; }
+    if !(i < n || no) { return 16; }
+    ran = 0;
+    if !(i > n) && !(n < 0) { ran = 1; }
+    if ran != 1 { return 17; }
+
+    // the condition of a loop goes the same way
+    i64 count = 0;
+    while !(count >= 3) { count = count + 1; }
+    if count != 3 { return 18; }
+
+    // calls and arithmetic inside, untouched
+    if id(3) * 2 != 6 { return 19; }
+    if !(id(0)) == false { return 20; }
+
+    return 0;
+}

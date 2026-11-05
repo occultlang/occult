@@ -1,0 +1,29 @@
+include "../../std/stdio.occ"
+
+// A conditional move. Genesis writes it branchlessly, because Occult has
+// no ternary and a `cmov` is branchless in the original too; this is the
+// evidence that the masks come out the right way round.
+fn pick_max(i64 a, i64 b) asm(x86_64) i64 {
+  mov rax, rdi
+  cmp rdi, rsi
+  cmovl rax, rsi
+  ret
+}
+
+fn pick_zero(i64 a, i64 b) asm(x86_64) i64 {
+  mov rax, rdi
+  test rsi, rsi
+  cmove rax, rsi
+  ret
+}
+
+fn main() {
+  i64 fails = 0;
+  if pick_max(3, 9) != 9 { fails += 1; }
+  if pick_max(9, 3) != 9 { fails += 1; }
+  if pick_max(0 - 4, 0 - 9) != (0 - 4) { fails += 1; }
+  if pick_zero(7, 0) != 0 { fails += 1; }
+  if pick_zero(7, 5) != 7 { fails += 1; }
+  if fails == 0 { std::print_string("PASS\n"); }
+  return fails;
+}

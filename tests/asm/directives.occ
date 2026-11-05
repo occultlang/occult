@@ -1,0 +1,77 @@
+// assembler features: directives, expressions, size keywords, fs: segment, string ops, comments
+include "../../std/stdio.occ"
+
+fn checksum() asm(x86_64) i64 {
+    lea rsi, [rip + bytes]
+    mov rcx, (end - bytes) / 1      ; constant expression from labels
+    xor rax, rax
+.sum:
+    movzx rdx, byte ptr [rsi]
+    add rax, rdx
+    inc rsi
+    dec rcx
+    jnz .sum
+    ret
+bytes:
+    db 1, 2, 3, 0x10, 'A', 0b101   // a mix of literals
+    dw 0x100
+    dd 1 << 4
+    .align 8, 0
+end:
+}
+
+fn fill_and_sum() asm(x86_64) i64 {
+    push rbp
+    mov rbp, rsp
+    sub rsp, 64
+    lea rdi, [rsp]
+    mov rcx, 8
+    mov rax, 3
+    rep stosq                    ; memset(rsp, 3, 64) as qwords
+    xor rax, rax
+    mov rcx, 8
+.again:
+    add rax, qword ptr [rsp + rcx*8 - 8]
+    loop .again
+    leave
+    ret
+}
+
+fn strcmp_asm(string a, string b) asm(x86_64) i64 {      // compares two strings given in rdi, rsi
+.next:
+    mov al, [rdi]
+    cmp al, [rsi]
+    jne .diff
+    test al, al
+    jz .same
+    inc rdi
+    inc rsi
+    jmp .next
+.same:
+    xor eax, eax
+    ret
+.diff:
+    mov eax, 1
+    ret
+}
+
+fn conditional(i64 v) asm(x86_64) i64 {
+    xor eax, eax
+    cmp rdi, 10
+    setl al                      ; al = v < 10
+    mov ecx, 100
+    cmovge eax, ecx              ; v >= 10 -> 100
+    ret
+}
+
+fn main() {
+    i64 fails = 0;
+    if checksum() != 1 + 2 + 3 + 0x10 + 65 + 5 + 1 + 0x10 { std::print_string("checksum FAIL\n"); fails += 1; }
+    if fill_and_sum() != 24 { std::print_string("fill_and_sum FAIL\n"); fails += 1; }
+    if strcmp_asm("abc", "abc") != 0 { std::print_string("strcmp same FAIL\n"); fails += 1; }
+    if strcmp_asm("abc", "abd") != 1 { std::print_string("strcmp diff FAIL\n"); fails += 1; }
+    if conditional(3) != 1 { std::print_string("conditional lt FAIL\n"); fails += 1; }
+    if conditional(30) != 100 { std::print_string("conditional ge FAIL\n"); fails += 1; }
+    if fails == 0 { std::print_string("PASS\n"); }
+    return fails;
+}

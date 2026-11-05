@@ -1,0 +1,7 @@
+// EXPECT-FAIL
+fn main() {
+    i64 a = 1;
+    bool b = a == 1;
+    i64 c = b;
+    return c;
+}

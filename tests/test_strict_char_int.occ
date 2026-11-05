@@ -1,0 +1,6 @@
+// EXPECT-FAIL
+fn main() {
+    i64 n = 65;
+    char c = n;
+    return 0;
+}

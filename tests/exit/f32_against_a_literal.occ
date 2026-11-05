@@ -1,0 +1,22 @@
+// EXIT: 0
+// A float literal is an f64, so a comparison against one picked float64 for
+// the whole comparison and compared four bytes of float with comisd. A cast
+// is what the comparison actually sees, whatever is inside it was declared
+// as, so it decides the width now.
+fn main() i64 {
+    f64 wide = 0.25;
+    f32 quarter = 0.25;
+    i64 bad = 0;
+
+    if f32(wide) != quarter  { bad = bad + 1; }
+    if f32(wide) != 0.25     { bad = bad + 2; }
+    if f64(quarter) != 0.25  { bad = bad + 4; }
+    if f32(0.5) != 0.5       { bad = bad + 8; }
+    if f64(wide) != 0.25     { bad = bad + 16; }
+
+    // and the mixed-comparison case the per-comparison type exists for
+    i64 n = 1;
+    if n == 1 && f32(wide) == 0.25 { return bad; }
+
+    return bad + 32;
+}

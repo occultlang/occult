@@ -1,0 +1,32 @@
+// EXIT: 0
+// Occult's own convention for returning a struct, not just the C boundary.
+// Sixteen bytes or less comes back in rax and rdx; larger, the caller passes
+// a hidden pointer in rdi and the callee writes through it and hands the same
+// pointer back. Returning the address of the callee's own frame was the old
+// shape, and it survived only because a caller copies before anything else
+// touches the stack.
+struct Big   { i64 a; i64 b; i64 c; }
+struct Small { i64 a; i64 b; }
+
+fn make_big(i64 x) Big     { Big r;   r.a = x; r.b = x + 1; r.c = x + 2; return r; }
+fn make_small(i64 x) Small { Small r; r.a = x; r.b = x + 1; return r; }
+
+fn main() i64 {
+    i64 bad = 0;
+
+    Big b = make_big(7);
+    if b.a != 7 { bad = bad + 1; }
+    if b.b != 8 { bad = bad + 2; }
+    if b.c != 9 { bad = bad + 4; }
+
+    Small s = make_small(100);
+    if s.a != 100 { bad = bad + 8; }
+    if s.b != 101 { bad = bad + 16; }
+
+    // a second call reusing the same frame region must not disturb the first
+    Big c = make_big(20);
+    if b.a != 7   { bad = bad + 32; }
+    if c.a != 20  { bad = bad + 64; }
+
+    return bad;
+}
