@@ -1,0 +1,29 @@
+include "../std/stdio.occ"
+
+// A string literal is a pointer to its bytes, and every place a value
+// can go should take one. These are the positions that emitted nothing
+// for it, which left whatever consumed the value popping an empty stack.
+
+fn through_a_pointer(i64 slot) {
+    $(i64*(slot)) = "through a pointer\n";
+}
+
+fn main() i64 {
+    array[4] i64 a;
+
+    // Into an array element.
+    a[0] = "into an array\n";
+    std::print_string($(i64*(i64(@a[0]))));
+
+    // Through a dereferenced address, which is how a recovered frame
+    // holding one object is written.
+    through_a_pointer(i64(@a[1]));
+    std::print_string($(i64*(i64(@a[1]))));
+
+    // At a computed index.
+    i64 i = 2;
+    a[i] = "at a computed index\n";
+    std::print_string($(i64*(i64(@a[i]))));
+
+    return 0;
+}

@@ -2,9 +2,11 @@ include "../std/stdio.occ"
 include "../std/vec.occ"
 
 fn main() i64 {
-    std::Vector<i64>* v = std::malloc(32);
-    v.data = 0;
-    std::vector_construct<i64>(v, 8, 4);
+    // vector_new is the constructor the module has: it allocates the
+    // Vector as well as its storage. `vector_construct`, which these
+    // tests called, is not defined anywhere in std -- so they have
+    // never got past the linter.
+    std::Vector<i64>* v = std::vector_new<i64>(8, 4);
 
     for i64 i = 0 when i < 100 do i += 10 {
         std::vector_push_back<i64>(v, i);

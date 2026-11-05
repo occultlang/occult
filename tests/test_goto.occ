@@ -1,0 +1,124 @@
+include "../std/stdio.occ"
+
+// A forward jump, skipping the statements between it and its label.
+fn skip(i64 n) i64 {
+    i64 t = 1;
+
+    if n > 0 {
+        goto after;
+    }
+
+    t = 99;
+
+after:
+    return t;
+}
+
+// A backward jump, which is a loop whose test sits in the middle of the
+// body rather than at either end.
+fn midtest(i64 n) i64 {
+    i64 t = 0;
+
+top:
+    t = t + 1;
+
+    if t < n {
+        goto top;
+    }
+
+    return t;
+}
+
+// Out of two nested loops at once, which `break` cannot do: it leaves
+// the inner one only.
+fn escape(i64 n) i64 {
+    i64 t = 0;
+    i64 i = 0;
+
+    while i < n {
+        i64 j = 0;
+
+        while j < n {
+            t = t + 1;
+
+            if t > 4 {
+                goto out;
+            }
+
+            j = j + 1;
+        }
+
+        i = i + 1;
+    }
+
+out:
+    return t;
+}
+
+// Two labels in a row, and a label with nothing after it.
+fn adjacent(i64 n) i64 {
+    goto second;
+
+first:
+second:
+    return n + 1;
+}
+
+// A label and a variable may share a name: they are looked up in
+// different places.
+fn shadow(i64 n) i64 {
+    i64 spot = n;
+
+    goto spot;
+
+spot:
+    return spot + 1;
+}
+
+// Each function has its own labels, so the same name in two of them is
+// two different labels.
+fn also_top(i64 n) i64 {
+top:
+    return n;
+}
+
+fn main() i64 {
+    if skip(1) != 1 {
+        std::print_string("skip(1) wrong\n");
+        return 1;
+    }
+
+    if skip(0) != 99 {
+        std::print_string("skip(0) wrong\n");
+        return 1;
+    }
+
+    if midtest(7) != 7 {
+        std::print_string("midtest wrong\n");
+        return 1;
+    }
+
+    if escape(10) != 5 {
+        std::print_string("escape wrong\n");
+        return 1;
+    }
+
+    if adjacent(5) != 6 {
+        std::print_string("adjacent wrong\n");
+        return 1;
+    }
+
+    if shadow(41) != 42 {
+        std::print_string("shadow wrong\n");
+        return 1;
+    }
+
+    if also_top(3) != 3 {
+        std::print_string("also_top wrong\n");
+        return 1;
+    }
+
+    std::print_string("goto ok\n");
+
+    return 0;
+}

@@ -1,0 +1,25 @@
+// && / || with an int comparison and a float comparison in one condition
+fn main() i64 {
+    i64 a = 1;
+    f64 h = 4.5;
+    f64 g = 2.0;
+    i64 fails = 0;
+
+    if a == 1 && h == 4.5 { } else { fails += 1; }
+    if h == 4.5 && a == 1 { } else { fails += 1; }
+    if a == 2 && h == 4.5 { fails += 1; }
+    if a == 2 || h == 4.5 { } else { fails += 1; }
+    if a == 1 || h == 4.0 { } else { fails += 1; }
+    if a == 2 || h == 4.0 { fails += 1; }
+    if a == 1 && h > 4.4 && g == 2.0 { } else { fails += 1; }
+    if h < 4.4 && a == 1 { fails += 1; }
+
+    bool b = a == 1 && h == 4.5;
+    if b { } else { fails += 1; }
+
+    i64 n = 0;
+    while n < 3 && h > 4.0 { n += 1; }
+    if n != 3 { fails += 1; }
+
+    return fails;
+}

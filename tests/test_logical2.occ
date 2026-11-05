@@ -1,3 +1,4 @@
+// EXIT: 255
 fn main() i64 {
     i64 x = false;
     i64 y = true;

@@ -1,0 +1,38 @@
+// f64() on something already f64, and f32() on something already f32: the
+// cast arm converted unconditionally, so f64(x) emitted cvtss2sd and read
+// the low four bytes of a double as a single. Prints PASS; the assertions
+// are on the printed text, the wrong answer being -inf rather than close.
+
+include "../std/stdio.occ"
+
+fn id64(f64 x) f64 { return f64(x); }
+fn id32(f32 x) f32 { return f32(x); }
+
+fn main() i64 {
+    i64 bad = 0;
+
+    f64 a = 256.319313;
+    if f64(a) != a       { bad += 1; std::print_string("f64 of an f64 local\n"); }
+    if f64(256.5) != 256.5 { bad += 1; std::print_string("f64 of an f64 literal\n"); }
+    if id64(a) != a      { bad += 1; std::print_string("f64 through a call\n"); }
+
+    f32 s = 2.5;
+    if f32(s) != s       { bad += 1; std::print_string("f32 of an f32 local\n"); }
+    if id32(s) != s      { bad += 1; std::print_string("f32 through a call\n"); }
+
+    // The widening and narrowing conversions still have to happen.
+    f32 half = 0.5;
+    if f64(half) != 0.5  { bad += 1; std::print_string("f32 widened to f64\n"); }
+    // Compared against an f32, not against the literal 0.25: an f32
+    // expression against an f64 literal is a separate bug, and this
+    // test is about the cast rather than about that. See CHANGES.md.
+    f64 wide = 0.25;
+    f32 quarter = 0.25;
+    if f32(wide) != quarter { bad += 1; std::print_string("f64 narrowed to f32\n"); }
+
+    // An integer round trip is unaffected.
+    if i64(f64(7)) != 7  { bad += 1; std::print_string("int to f64 and back\n"); }
+
+    if bad == 0 { std::print_string("PASS\n"); }
+    return bad;
+}

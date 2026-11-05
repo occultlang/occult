@@ -1,3 +1,4 @@
+// EXIT: 5
 module a {
     module b {
         enum Kind {

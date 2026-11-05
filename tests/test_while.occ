@@ -1,3 +1,4 @@
+// EXIT: 10
 include "../std/stdio.occ"
 
 fn whilefunc(i64 n) i64 {

@@ -1,0 +1,31 @@
+include "../std/stdio.occ"
+
+// A pointer to a float reads and writes one. Before this a `$(f64*(p))`
+// load died in code generation on the wrong variant, and a store through
+// one pushed its value as an integer first -- so `$(f64*(p)) = 2.5` wrote
+// the number 2.
+fn main() {
+  array[4] i64 b;
+  i64 p = i64(@b[0]);
+  $(i64*(p)) = 0;
+  $(i64*(p + 8)) = 0;
+
+  $(f64*(p)) = 2.5;
+  if $(i64*(p)) != __bitcast_i64(2.5) { return 1; }
+  f64 v = $(f64*(p));
+  if i64(v * 4.0) != 10 { return 1; }
+
+  $(f32*(p + 8)) = 1.5;
+  f32 w = $(f32*(p + 8));
+  if i64(w * 4.0) != 6 { return 1; }
+  // 1.5f is 0x3FC00000, and the four bytes above it are still zero.
+  if $(i64*(p + 8)) != 1069547520 { return 1; }
+
+  // Arithmetic straight out of a pointer, which is what a decompiled
+  // function does with every float it reads.
+  $(f64*(p)) = $(f64*(p)) + 1.5;
+  if i64($(f64*(p))) != 4 { return 1; }
+
+  std::print_string("PASS\n");
+  return 0;
+}

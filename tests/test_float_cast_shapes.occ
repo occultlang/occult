@@ -1,0 +1,36 @@
+include "../std/stdio.occ"
+
+// Shapes a decompiler writes constantly, each of which took the integer
+// path through code generation and then popped a float off the other
+// stack -- or, worse, compiled and gave the wrong number.
+fn main() {
+  array[8] i64 b;
+  i64 p = i64(@b[0]);
+  $(i64*(p)) = 0;
+
+  // A cast of a parenthesised float expression. The operand is in
+  // postfix with a marker in front of it, so the type came out empty.
+  f32 g = f32(2.5);
+  if i64((g * 2.0)) != 5 { return 1; }
+  f64 h = 2.5;
+  if i64((h * 2.0)) != 5 { return 1; }
+
+  // A cast of a bitcast, which is built in and so was in no function map.
+  if i64((__bitcast_f64(0) - __bitcast_f64(4607182418800017408))) != (0 - 1) { return 1; }
+  if i64(__bitcast_f32(1069547520)) != 1 { return 1; }
+
+  // A comparison of floats read through a pointer, which nothing else
+  // in the condition said was floating point.
+  $(f64*(p)) = 2.5;
+  if $(f64*(p)) != 2.5 { return 1; }
+  if $(f64*(p)) > 3.0 { return 1; }
+  $(f32*(p + 8)) = f32(1.5);
+  if $(f32*(p + 8)) != f32(1.5) { return 1; }
+
+  // And a cast of an expression that dereferences one.
+  if i64(($(f64*(p)) * 4.0)) != 10 { return 1; }
+  if i64(($(f32*(p + 8)) * 4.0)) != 6 { return 1; }
+
+  std::print_string("PASS\n");
+  return 0;
+}
