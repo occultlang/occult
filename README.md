@@ -11,33 +11,11 @@
 [![Forks](https://img.shields.io/github/forks/occultlang/occult?style=social)](https://github.com/occultlang/occult/network/members)
 </div>
 
-> [!IMPORTANT]
-> ### There's a more in-depth guide on getting started at [https://occultlang.org/getting-started](https://occultlang.org/getting-started) <br/>
-> ### Language specification is at [https://occultlang.org/language-specifications](https://occultlang.org/language-specifications)
-
 ### What is Occult? 
 Occult is a systems programming language, meant to give the user the full control and power of a C-like language, but with a modern syntax with modern features, making it easy to write, read and learn. 
 
-### What Occult is capable of?
-```
-fn write(i64, string, i64) shellcode i64 { 0x55 0x48 0x89 0xe5 0x48 0xc7 0xc0 0x01 0x00 0x00 0x00 0x0f 0x05 0x48 0x31 0xc0 0x48 0x89 0xec 0x5d 0xc3 }
-
-fn strlen(string) shellcode i64 { 0x55 0x48 0x89 0xe5 0x48 0x31 0xc0 0x80 0x3c 0x07 0x00 0x74 0x05 0x48 0xff 0xc0 0xeb 0xf5 0x48 0x89 0xec 0x5d 0xc3 }
-
-fn puts(string s) {
-    write(1, s, strlen(s));
-}
-
-fn main() {
-    puts("1\n");
-    puts("2\n");
-    puts("3\n");
-    puts("4\n");
-    puts("5\n");
-}
-```
-This is an example of using raw x86_64 shellcode with the Linux write syscall to print out 1 to 5!
-_____________________________________________________________________________
+### Learning Occult, and the Language Specifications
+You can learn more about the language and its specifications here [https://occultlang.org/language-specifications](https://occultlang.org/language-specifications).
 
 ### Building Occult
 
@@ -45,44 +23,27 @@ _____________________________________________________________________________
 > **The highest C++ standard that Occult should use is C++23** <br>
 > Also, the only architecture Occult supports is `amd64` as of now, obviously this will change!
 
-### Building for Linux / MacOS
+### Linux / MacOS
 ```bash
 git clone --recurse-submodules https://github.com/occultlang/occult.git && cd occult
 chmod +x build.sh
 ./build.sh
 ```
-### Building for Visual Studio on Windows (You must install LLVM with clang inside Visual Studio Installer) 
+### Windows (You must install LLVM with clang inside Visual Studio Installer) 
+There's a more in-depth guide on getting started & building Occult on windows at [https://occultlang.org/getting-started](https://occultlang.org/getting-started). <br/>
+If you already have the prerequisites installed, just run the following in bash.
 ```bash
 git clone --recurse-submodules https://github.com/occultlang/occult.git
 cd occult
 ./build.bat
 ```
-Change the C++ Language Standard to the latest version
-
-![image](https://github.com/user-attachments/assets/74a4819b-b49c-44be-a508-384795c20f20)
-
-Change the Platform Toolset to LLVM(clang-cl) (Or else Occult **WILL NOT** compile on Windows because of MSVC...)
-
-<img width="500" height="99" alt="image" src="https://github.com/user-attachments/assets/0ed5e04b-0432-432f-9772-0a4ea29f8d15" />
-
-Next, go into C/C++ -> Command Line, and then remove all the contents of the "Additional Options" field
-
-![image](https://github.com/user-attachments/assets/69c506aa-b649-45aa-a21f-0388ad7b55b0)
-
-Afterwards, you should be good to go
-_____________________________________________________________________________
 
 ### Roadmap 
-- Basic STDLIB
-- Linker Completion
+- More standard library functions
 - Bug Testing & Stability
-- Bootstrapped Compiler
-### Planned for later on
-- Foreach implementation 
-- RAII 
-- New Intermediate Representation (SSA) for optimization pass
-- RISCV Support
-- ARM64 Support
+- Foreach and other advanced modern language features (will be thought out)
+- Self hosting compiler
+- Multi Architecture, and an optimization pass (RISCV + ARM + WASM) *Saving for the bootstrap*
 _____________________________________________________________________________
 
 ### [Resources Used](https://github.com/occultlang/occult/blob/main/RESOURCES.md)
