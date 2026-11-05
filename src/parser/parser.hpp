@@ -147,6 +147,7 @@ namespace occult {
         std::string mangle_generic_struct_name(const std::string& template_name, const std::vector<std::vector<token_t>>& concrete_type_args) const;
 
         void instantiate_generic_function(const std::string& template_name, const std::vector<std::vector<token_t>>& concrete_type_args);
+        void instantiate_methods_for_struct(const std::string& struct_template_name, const std::string& new_struct_name, const std::vector<std::vector<token_t>>& concrete_type_args);
 
         std::vector<token_t> preprocess_generic_calls(const std::vector<token_t>& expr);
 

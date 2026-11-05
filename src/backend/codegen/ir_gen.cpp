@@ -1345,6 +1345,92 @@ namespace occult {
             }
         }
 
+        // If the method dispatch above didn't find a real method and the base
+        // is a struct with a function-pointer field by that name, route
+        // through the indirect-call path.
+        if (!resolved_call_name.empty() && resolved_call_name.front() == '.'
+            && !func_map.contains(resolved_call_name) && node->get_children().size() > 1) {
+            const auto self_arg = cst::cast_raw<cst_functionarg>(node->get_children().at(1).get());
+            if (self_arg && !self_arg->get_children().empty()
+                && self_arg->get_children().front()->get_type() == cst_type::identifier) {
+                const std::string self_name = self_arg->get_children().front()->content;
+                auto self_it = local_variable_map[function].find(self_name);
+                if (self_it != local_variable_map[function].end()) {
+                    std::string self_type = self_it->second;
+                    if (self_type.ends_with("_ptr")) {
+                        self_type = self_type.substr(0, self_type.size() - 4);
+                    }
+                    if (self_type.ends_with("_reference")) {
+                        self_type = self_type.substr(0, self_type.size() - 10);
+                    }
+
+                    auto struct_it = custom_type_map.find(self_type);
+                    if (struct_it != custom_type_map.end()) {
+                        const std::string field_name = resolved_call_name.substr(1);
+                        std::string field_fnptr_sig;
+                        for (const auto& field_node : struct_it->second->get_children()) {
+                            if (field_node->get_children().empty()) continue;
+                            if (field_node->get_children().front()->content != field_name) continue;
+                            if (!field_node->fnptr_sig.empty()) {
+                                field_fnptr_sig = field_node->fnptr_sig;
+                                break;
+                            }
+                        }
+
+                        if (!field_fnptr_sig.empty()) {
+                            const std::string hidden = std::string("__call_fp_") + std::to_string(hidden_slot_count++);
+                            function.code.emplace_back(op_declare_local, hidden, std::string("int64"));
+                            local_variable_map[function][hidden] = "int64";
+                            fnptr_sigs[function.name][hidden] = field_fnptr_sig;
+
+                            // Load self and the fnptr field into the hidden slot.
+                            function.code.emplace_back(op_load, self_name);
+                            function.code.emplace_back(op_member_access, field_name);
+                            function.code.emplace_back(op_store, hidden, std::string("int64"));
+
+                            std::vector<std::string> params;
+                            int depth = 0;
+                            std::string cur;
+                            for (std::size_t k = 3; k < field_fnptr_sig.size(); k++) {
+                                const char ch = field_fnptr_sig[k];
+                                if (ch == '(') depth++;
+                                if (ch == ')') {
+                                    if (depth == 0) break;
+                                    depth--;
+                                }
+                                if (ch == ',' && depth == 0) {
+                                    params.push_back(cur);
+                                    cur.clear();
+                                    continue;
+                                }
+                                cur += ch;
+                            }
+                            if (!cur.empty()) params.push_back(cur);
+
+                            function.code.emplace_back(op_load, hidden);
+
+                            std::size_t argi = 0;
+                            auto arg_location = 2;
+                            while (arg_location < static_cast<int>(node->get_children().size())
+                                   && node->get_children().at(arg_location).get()->content != "end_call") {
+                                const auto arg_node = cst::cast_raw<cst_functionarg>(node->get_children().at(arg_location).get());
+                                std::string ptype = argi < params.size() ? params[argi] : "int64";
+                                if (ptype.starts_with("fn(")) {
+                                    ptype = "int64";
+                                }
+                                generate_common(function, arg_node, ptype);
+                                ++arg_location;
+                                ++argi;
+                            }
+
+                            function.code.emplace_back(op_call_indirect, field_fnptr_sig, std::to_string(argi), result_used);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
         if (resolved_call_name != identifier->content) {
             identifier->content = resolved_call_name;
         }
@@ -2481,6 +2567,13 @@ namespace occult {
     }
 
     void ir_gen::generate_for(ir_function& function, cst_forstmt* for_node) {
+        // `for <type> <name> in <iterable> { ... }` is accepted by the parser
+        // but not yet lowered. Reject with a clear message instead of
+        // segfaulting inside the three-clause path.
+        if (for_node->get_children().size() < 4) {
+            throw std::runtime_error("`for <type> <name> in <iterable>` is not implemented yet; use `for <type> i = 0 when i < n do i += 1 { ... }`");
+        }
+
         const auto first_node = for_node->get_children().front().get();
         const auto condition = for_node->get_children().at(1).get();
         const auto body = for_node->get_children().back().get();
@@ -3367,11 +3460,17 @@ namespace occult {
             const auto id = struct_node->get_children().front().get();        // identifier
             const auto assignment = struct_node->get_children().back().get(); // assignment expression
 
+            // Pre-allocate the slot so a self-referential initializer
+            // (`Adder<T> a = a.method(...)`) can see `a` as a declared local
+            // when its RHS is walked. The backend's op_struct_store with an
+            // empty reg_alloc just allocates the slot; the second call below
+            // does the actual copy.
+            local_variable_map[function][id->content] = struct_type;
+            function.code.emplace_back(op_struct_store, id->content);
+
             generate_common_generic<std::int64_t>(function, assignment);
 
             function.code.emplace_back(op_struct_store, id->content);
-            // register the variable in the local variable map
-            local_variable_map[function][id->content] = struct_type;
         }
         else {
             const auto id = struct_node->get_children().front().get(); // identifier

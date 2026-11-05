@@ -5,8 +5,6 @@
 #pragma pack(push, 1)
 namespace occult {
     constexpr std::uint32_t OCCULT_MAGIC = 0x4F43434C;
-    // get it, because it translates to "OCCL"... i don't know, i thought it was
-    // quite clever! ~nisan
     constexpr std::uint16_t OCCULT_VERSION_MAJOR = 2;
     constexpr std::uint16_t OCCULT_VERSION_MINOR = 2;
 

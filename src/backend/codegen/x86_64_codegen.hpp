@@ -2584,10 +2584,22 @@ namespace occult::x86_64 {
             }
             else {
                 if (!reg_alloc.empty()) {
-                    auto r = reg_alloc.pop<grp>();
-                    std::int32_t offset = -it->second;
-                    w->emit_mov(mem{rbp, offset}, r);
-                    reg_alloc.release<grp>(r);
+                    auto layout_it = struct_layouts.find(pending_struct_type);
+                    if (layout_it != struct_layouts.end() && !is_struct_ptr) {
+                        // Full struct copy from the by-value temporary whose
+                        // address is at reg_alloc's top into the existing slot.
+                        auto src = reg_alloc.pop<grp>();
+                        auto tmp = reg_alloc.allocate<grp>();
+                        copy_bytes(rbp, -it->second, src, 0, layout_it->second.total_size, tmp);
+                        reg_alloc.release<grp>(tmp);
+                        reg_alloc.release<grp>(src);
+                    }
+                    else {
+                        auto r = reg_alloc.pop<grp>();
+                        std::int32_t offset = -it->second;
+                        w->emit_mov(mem{rbp, offset}, r);
+                        reg_alloc.release<grp>(r);
+                    }
                 }
             }
         }

@@ -879,6 +879,13 @@ namespace occult {
     }
 
     std::unique_ptr<cst> parser::parse_datatype() {
+        // `const` as a prefix on a parameter / extern param / struct field is
+        // accepted and ignored. The keyword's local-variable enforcement
+        // check still applies on assignments to the named slot.
+        while (match(peek(), const_keyword_tt)) {
+            consume();
+        }
+
         if (match(peek(), identifier_tt)) {
             if (auto it = type_aliases.find(peek().lexeme); it != type_aliases.end()) {
                 if (type_alias_depth > 32) {
@@ -4460,7 +4467,96 @@ namespace occult {
         cst_generic_type_cache = std::move(saved_cache);
 
         root->add_child(std::move(struct_node));
+
+        instantiate_methods_for_struct(template_name, mangled_name, concrete_type_args);
+
         return mangled_name;
+    }
+
+    // When a generic struct is instantiated, instantiate every `fn Name::method(...)`
+    // template whose receiver is that struct, substituting the struct's concrete
+    // type args into the method body. The method lands in func_map under the
+    // mangled struct's name (e.g. `Adder_float64::get`) so a later `a.get()` call
+    // on an `Adder<f64>` resolves through the ordinary method-dispatch path.
+    void parser::instantiate_methods_for_struct(const std::string& struct_template_name,
+                                                 const std::string& new_struct_name,
+                                                 const std::vector<std::vector<token_t>>& concrete_type_args) {
+        const std::string prefix = struct_template_name + "::";
+
+        std::vector<std::string> matching_templates;
+        for (const auto& [fn_name, _] : generic_func_templates) {
+            if (fn_name.size() > prefix.size() && fn_name.compare(0, prefix.size(), prefix) == 0) {
+                matching_templates.push_back(fn_name);
+            }
+        }
+
+        for (const auto& template_name : matching_templates) {
+            const std::string leaf = template_name.substr(prefix.size());
+            const std::string new_fn_name = new_struct_name + "::" + leaf;
+
+            if (instantiated_generics.contains(new_fn_name))
+                continue;
+            instantiated_generics.insert(new_fn_name);
+
+            auto& tmpl = generic_func_templates[template_name];
+
+            std::unordered_map<std::string, std::vector<token_t>> type_map;
+            for (std::size_t i = 0; i < tmpl.type_params.size() && i < concrete_type_args.size(); i++) {
+                type_map[tmpl.type_params[i]] = concrete_type_args[i];
+            }
+
+            std::vector<token_t> substituted;
+            for (std::size_t i = 0; i < tmpl.tokens.size(); i++) {
+                const auto& tok = tmpl.tokens[i];
+
+                if (tok.tt == identifier_tt && type_map.contains(tok.lexeme)) {
+                    const auto& mapped = type_map[tok.lexeme];
+                    substituted.insert(substituted.end(), mapped.begin(), mapped.end());
+                    continue;
+                }
+
+                if (tok.tt == identifier_tt && tok.lexeme == struct_template_name) {
+                    auto renamed = tok;
+                    renamed.lexeme = new_struct_name;
+                    substituted.push_back(renamed);
+
+                    // Skip a following `<...>` so `Adder<T>` collapses to the
+                    // concrete `Adder_float64` instead of being left as a
+                    // generic instance that parse_datatype would retry.
+                    if (i + 1 < tmpl.tokens.size() && tmpl.tokens[i + 1].tt == less_than_operator_tt) {
+                        int depth = 1;
+                        i += 2;
+                        while (i < tmpl.tokens.size() && depth > 0) {
+                            const auto& inner = tmpl.tokens[i];
+                            if (inner.tt == less_than_operator_tt) depth++;
+                            else if (inner.tt == greater_than_operator_tt) depth--;
+                            else if (inner.tt == bitwise_rshift_tt) depth -= 2;
+                            if (depth > 0) i++;
+                        }
+                    }
+                    continue;
+                }
+
+                substituted.push_back(tok);
+            }
+            substituted.emplace_back(0, 0, "", end_of_file_tt);
+
+            auto saved_stream = std::move(stream);
+            auto saved_pos = pos;
+            auto saved_cache = std::move(cst_generic_type_cache);
+
+            stream = std::move(substituted);
+            pos = 0;
+            cst_generic_type_cache.clear();
+
+            auto func_node = parse_function();
+
+            stream = std::move(saved_stream);
+            pos = saved_pos;
+            cst_generic_type_cache = std::move(saved_cache);
+
+            root->add_child(std::move(func_node));
+        }
     }
 
     void parser::instantiate_generic_function(const std::string& template_name, const std::vector<std::vector<token_t>>& concrete_type_args) {
@@ -4523,6 +4619,73 @@ namespace occult {
         std::vector<token_t> result;
 
         for (std::size_t j = 0; j < expr.size(); j++) {
+            // `Type<T>::method(...)` — a factory-style call that names the
+            // instantiated struct up front. Rewritten to
+            // `MangledType::method(...)` so the normal call path takes over.
+            if (expr[j].tt == identifier_tt && generic_struct_templates.contains(expr[j].lexeme)
+                && j + 1 < expr.size() && expr[j + 1].tt == less_than_operator_tt) {
+                std::size_t s = j + 2;
+                int depth = 1;
+                std::vector<std::vector<token_t>> type_args;
+                std::vector<token_t> current_arg;
+                bool ended = false;
+                while (s < expr.size() && !ended) {
+                    const auto& tok = expr[s];
+                    if (tok.tt == less_than_operator_tt) {
+                        depth++;
+                        current_arg.push_back(tok);
+                        s++;
+                        continue;
+                    }
+                    if (tok.tt == greater_than_operator_tt) {
+                        depth--;
+                        if (depth == 0) {
+                            type_args.push_back(current_arg);
+                            ended = true;
+                            continue;
+                        }
+                        current_arg.push_back(tok);
+                        s++;
+                        continue;
+                    }
+                    if (tok.tt == bitwise_rshift_tt) {
+                        depth -= 2;
+                        if (depth <= 0) {
+                            type_args.push_back(current_arg);
+                            ended = true;
+                            continue;
+                        }
+                        current_arg.push_back(tok);
+                        s++;
+                        continue;
+                    }
+                    if (tok.tt == comma_tt && depth == 1) {
+                        type_args.push_back(current_arg);
+                        current_arg.clear();
+                        s++;
+                        continue;
+                    }
+                    current_arg.push_back(tok);
+                    s++;
+                }
+
+                if (ended && s + 2 < expr.size()
+                    && expr[s + 1].tt == scope_resolution_tt
+                    && expr[s + 2].tt == identifier_tt) {
+
+                    const std::string mangled = instantiate_generic_struct(expr[j].lexeme, type_args);
+
+                    token_t type_tok = expr[j];
+                    type_tok.lexeme = mangled;
+                    result.push_back(type_tok);
+                    result.push_back(expr[s + 1]); // `::`
+                    result.push_back(expr[s + 2]); // method name
+
+                    j = s + 2; // next iter resumes after method name
+                    continue;
+                }
+            }
+
             bool is_module_qualified = false;
             std::string module_prefix_str;
             std::size_t func_idx = j;
