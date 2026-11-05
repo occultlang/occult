@@ -8,7 +8,7 @@ fn main() i64 {
     
     $$addr2 = 40; // how to dereference
 
-    std::print_integer(addr); // raw address 
+    std::print_integer(u64(addr)); // raw address 
     std::print_string("\n");
     std::print_integer($addr); // 40
     std::print_string("\n");

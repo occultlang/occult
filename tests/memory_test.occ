@@ -4,7 +4,7 @@ fn main() i64 {
     i64* p = std::malloc(8);
     $p = 10;
 
-    std::print_integer(p);
+    std::print_integer(u64(p));
     std::print_string("\n");
     std::print_integer($p);
     std::print_string("\n");

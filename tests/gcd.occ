@@ -1,3 +1,4 @@
+// EXIT: 6
 fn gcd(i64 a, i64 b) i64 { // greatest common divisor
     if a == b {
       return a;

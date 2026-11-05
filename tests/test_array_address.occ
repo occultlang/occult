@@ -1,0 +1,78 @@
+include "../std/stdio.occ"
+
+// Writing through a base address, which is how a frame holding one
+// object rather than several variables is addressed.
+fn fill(i64 base, i64 x, i64 y, i64 z) i64 {
+    $(i64*(base)) = x;
+    $(i64*((base + 8))) = y;
+    $(i64*((base + 16))) = z;
+
+    return base;
+}
+
+fn third(i64 p) i64 {
+    return $(i64*((p + 16)));
+}
+
+fn main() i64 {
+    array[16] i64 frame;
+
+    // The address of an element, and of the array, are the same thing
+    // for element zero.
+    i64 base = i64(@frame[0]);
+
+    if i64(@frame) != base {
+        std::print_string("@array disagrees with @array[0]\n");
+        return 1;
+    }
+
+    // Elements are eight bytes apart, and the address is the element's
+    // and not its value.
+    frame[0] = 11;
+    frame[1] = 22;
+
+    if i64(@frame[1]) - base != 8 {
+        std::print_string("elements are not eight bytes apart\n");
+        return 1;
+    }
+
+    if $(i64*(i64(@frame[1]))) != 22 {
+        std::print_string("@array[1] is not the address of frame[1]\n");
+        return 1;
+    }
+
+    // Taking an address must not change how the next read behaves.
+    i64 after = frame[0];
+
+    if after != 11 {
+        std::print_string("a read after @ came back wrong\n");
+        return 1;
+    }
+
+    // A computed index, which takes the other path through code
+    // generation.
+    i64 i = 1;
+
+    if i64(@frame[i]) - base != 8 {
+        std::print_string("a computed index gave the wrong address\n");
+        return 1;
+    }
+
+    // And the whole point: a frame written through its base and read
+    // back by someone else.
+    fill(base, 10, 20, 30);
+
+    if frame[0] != 10 {
+        std::print_string("a write through the base did not land\n");
+        return 1;
+    }
+
+    if third(base) != 30 {
+        std::print_string("the third field came back wrong\n");
+        return 1;
+    }
+
+    std::print_string("array address ok\n");
+
+    return 0;
+}

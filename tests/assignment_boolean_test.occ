@@ -1,4 +1,5 @@
+// EXIT: 1
 fn main() {
     bool test = 5 < 7 && (7 == 4 || 6 != 7); 
-    return test;
+    return i64(test);
 }

@@ -1,5 +1,5 @@
 // string: source, i64: source_length
-fn print_str(string, i64) asm i64 {
+fn print_str(string, i64) asm(x86_64) i64 {
     push rbp
     mov	rbp, rsp
     mov r11, rdi

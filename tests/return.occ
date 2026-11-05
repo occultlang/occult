@@ -1,5 +1,5 @@
 fn equals(i64 a, i64 b) i64 {
-  return a == b;
+  return i64(a == b);
 }
 
 fn main() i64 {

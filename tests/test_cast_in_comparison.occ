@@ -1,0 +1,29 @@
+// EXIT: 0
+include "../std/stdio.occ"
+
+// A comparison used as a *value* went down a walk of its own, and that
+// walk had arms for four kinds of child and a fallthrough that only
+// dispatches operators. A cast, a string, a dereference, a reference or
+// a `sizeof` in either operand emitted nothing at all, and the
+// comparison then popped an operand that was never pushed:
+// `p + (i64(x) > 64)` was enough.
+fn main() {
+  i64 p = 7;
+  i64 x = 65;
+  array[2] i64 b;
+  $(i64*(i64(@b[0]))) = 99;
+
+  if p + (i64(x) > 64) != 8 { return 1; }
+  if p + (i8(x) > 64) != 8 { return 1; }
+  if p + (u8(x) > 64) != 8 { return 1; }
+  if p + ($(i64*(i64(@b[0]))) > 98) != 8 { return 1; }
+  if p + (i64(@b[0]) > 0) != 8 { return 1; }
+  if p + (sizeof(i64) > 4) != 8 { return 1; }
+  if p + (i64(x) > 66) != 7 { return 1; }
+
+  // and nested, the way a decompiler writes it
+  if p + i64(i64(u8(i64(u8((i64(i8(x)) > 64)))))) != 8 { return 1; }
+
+  std::print_string("PASS\n");
+  return 0;
+}

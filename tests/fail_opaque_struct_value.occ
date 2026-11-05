@@ -1,0 +1,11 @@
+// EXPECT-FAIL
+// extern struct Name; says C owns the layout, so there is no size to put a
+// value of it in a frame. Only a pointer.
+
+extern struct c_handle;
+
+fn main() i64 {
+    c_handle h;
+
+    return 0;
+}

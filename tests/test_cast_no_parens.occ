@@ -1,0 +1,7 @@
+// EXPECT-FAIL
+// A cast keyword with no parentheses used to be dropped silently, leaving a
+// hole in the expression that only surfaced as a codegen crash.
+fn main() i64 {
+    i64 a = i64 + 1;
+    return a;
+}

@@ -1,3 +1,4 @@
+// EXIT: 123
 include "../std/stdio.occ"
 
 struct point_2d {

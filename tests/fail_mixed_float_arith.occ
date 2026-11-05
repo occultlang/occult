@@ -1,0 +1,10 @@
+// EXPECT-FAIL
+// A float cast in integer arithmetic. The two sides of the value stack are
+// separate, so this used to die with std::get: wrong index for variant.
+
+fn main() i64 {
+    i64 s = 0;
+    s = s + f32(1);
+
+    return s;
+}

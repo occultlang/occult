@@ -91,12 +91,12 @@ fn main() i64 {
     i64 t = (c * fib(10)) + (c - (1 + 4 + 9)) * (fib(5) + c);
     check("recursion in expr", t, 77, fails);
 
-    i64 q = (e > 3 && j == 10);
+    i64 q = i64(e > 3 && j == 10);
     check("&& value", q, 1, fails);
     bool q2 = e < 3 || j == 11;
-    check("|| value", q2, 0, fails);
-    check("bool return t", both(5, 0), 1, fails);
-    check("bool return f", both(1, 0), 0, fails);
+    check("|| value", i64(q2), 0, fails);
+    check("bool return t", i64(both(5, 0)), 1, fails);
+    check("bool return f", i64(both(1, 0)), 0, fails);
 
     if fails == 0 {
         std::printf("codegen v2: OK\n");
